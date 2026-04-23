@@ -394,9 +394,12 @@ export function WorkoutEditor({
               powerMode
             );
             const endColor = getZoneColor(interval.endPower, ftp, powerMode);
-            const avgPower =
-              (interval.startPower + interval.endPower) / 2;
-            const zoneInfo = getZoneInfo(avgPower, ftp, powerMode);
+            const startZone = getZoneInfo(interval.startPower, ftp, powerMode).zone;
+            const endZone = getZoneInfo(interval.endPower, ftp, powerMode).zone;
+            const zoneLabel =
+              startZone === endZone
+                ? `Z${startZone}`
+                : `Z${Math.min(startZone, endZone)}-Z${Math.max(startZone, endZone)}`;
 
             const isHovered = hoveredIndex === i && !isDragging;
             const isDragTarget =
@@ -480,7 +483,7 @@ export function WorkoutEditor({
                     textAnchor="middle"
                     className="pointer-events-none fill-foreground/50 text-[9px]"
                   >
-                    Z{zoneInfo.zone}
+                    {zoneLabel}
                   </text>
                 )}
 
