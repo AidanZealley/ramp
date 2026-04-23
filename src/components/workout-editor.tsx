@@ -683,6 +683,7 @@ export function WorkoutEditor({
               powerMode={powerMode}
               getIntervalX={(i) => getIntervalX(i, dragPreview)}
               powerToY={powerToY}
+              svgWidth={totalWidth + 20}
             />
           )}
         </svg>
@@ -698,12 +699,14 @@ function DragTooltip({
   powerMode,
   getIntervalX,
   powerToY,
+  svgWidth,
 }: {
   activeDrag: { type: DragType; index: number };
   intervals: Interval[];
   powerMode: "absolute" | "percentage";
   getIntervalX: (index: number) => number;
   powerToY: (power: number) => number;
+  svgWidth: number;
 }) {
   const interval = intervals[activeDrag.index];
   if (!interval) return null;
@@ -747,6 +750,10 @@ function DragTooltip({
     default:
       return null;
   }
+
+  // Keep the badge fully inside the SVG viewport (half-width = 24px)
+  const BADGE_HALF = 24;
+  labelX = Math.max(BADGE_HALF, Math.min(labelX, svgWidth - BADGE_HALF));
 
   return (
     <g>
