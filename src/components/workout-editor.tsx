@@ -19,6 +19,7 @@ const EDGE_HIT_WIDTH = 12;
 const MIN_POWER = 0;
 const MIN_DURATION = 30;
 const DURATION_SNAP = 30;
+const MOVE_DRAG_THRESHOLD = 5; // px — prevents accidental reorder on a plain click
 
 type DragType =
   | "power-uniform"
@@ -46,8 +47,10 @@ export function WorkoutEditor({
 
   const [dragPreview, setDragPreview] = useState<Interval[] | null>(null);
   const [moveState, setMoveState] = useState<{
-    index: number;
-    dx: number;
+    originalIndex: number;       // index in the pre-drag `intervals` array (stable)
+    insertIdx: number;           // current insertion slot in `remaining[]`
+    dragOffsetX: number;         // live SVG-coord horizontal delta → ghost translateX
+    originalPositions: number[]; // X of every block at threshold-crossing (never changes)
   } | null>(null);
   const [activeDrag, setActiveDrag] = useState<{
     type: DragType;
@@ -135,6 +138,11 @@ export function WorkoutEditor({
       const dragMaxPower = computeMaxPower(original, powerMode);
 
       let latestPreview: Interval[] | null = null;
+      // Gate for "move": don't commit or set activeDrag until the pointer has
+      // moved far enough to be an intentional drag (not a stray click).
+      let moveDragStarted = false;
+      // Captured once when the move threshold is first crossed.
+      let originalPositions: number[] | null = null;
 
       const handleMove = (ev: PointerEvent) => {
         const current = getSvgCoords(ev);
@@ -195,18 +203,25 @@ export function WorkoutEditor({
             break;
           }
           case "move": {
-            // For move: show the interval at offset position
-            setMoveState({ index, dx });
+            // Ignore tiny movements so a plain click never triggers a reorder.
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (!moveDragStarted) {
+              if (dist < MOVE_DRAG_THRESHOLD) return;
+              moveDragStarted = true;
+              // Snapshot every block's original X position (used for targetDelta math).
+              originalPositions = intervals.map((_, idx) =>
+                intervals
+                  .slice(0, idx)
+                  .reduce((s, iv) => s + iv.durationSeconds * PIXELS_PER_SECOND, 0)
+              );
+              setActiveDrag({ type, index });
+            }
 
-            // Calculate insertion point
+            // Calculate insertion point based on where the dragged block's
+            // centre currently sits relative to the remaining blocks.
             const movedInterval = original[index];
             const remaining = original.filter((_, i) => i !== index);
-            const originalX = original
-              .slice(0, index)
-              .reduce(
-                (sum, iv) => sum + iv.durationSeconds * PIXELS_PER_SECOND,
-                0
-              );
+            const originalX = originalPositions![index];
             const draggedCenterX =
               originalX +
               (movedInterval.durationSeconds * PIXELS_PER_SECOND) / 2 +
@@ -229,7 +244,16 @@ export function WorkoutEditor({
             const reordered = [...remaining];
             reordered.splice(insertIdx, 0, movedInterval);
             latestPreview = reordered;
-            // Don't call setDragPreview for move - we handle visuals via moveState
+
+            // Visual positioning is CSS-transform-driven — do NOT call setDragPreview.
+            // Store the insertion slot and cursor offset; the render path derives
+            // targetDeltas and placeholderX from these.
+            setMoveState({
+              originalIndex: index,
+              insertIdx,
+              dragOffsetX: dx,
+              originalPositions: originalPositions!,
+            });
             return;
           }
         }
@@ -239,8 +263,14 @@ export function WorkoutEditor({
       };
 
       const handleUp = () => {
-        if (latestPreview) {
-          onIntervalsChange(latestPreview);
+        // For "move", only commit if the drag threshold was actually crossed —
+        // a plain click should leave the order unchanged.
+        const shouldCommit =
+          type === "move"
+            ? moveDragStarted && latestPreview !== null
+            : latestPreview !== null;
+        if (shouldCommit) {
+          onIntervalsChange(latestPreview!);
         }
         setDragPreview(null);
         setMoveState(null);
@@ -258,7 +288,11 @@ export function WorkoutEditor({
       window.addEventListener("pointerup", handleUp);
       cleanupRef.current = cleanup;
 
-      setActiveDrag({ type, index });
+      // For "move", activeDrag is set lazily inside handleMove once the
+      // threshold is crossed; for all other types set it immediately.
+      if (type !== "move") {
+        setActiveDrag({ type, index });
+      }
     },
     [intervals, powerMode, powerSnap, maxPower, getSvgCoords, onIntervalsChange]
   );
@@ -273,6 +307,336 @@ export function WorkoutEditor({
   );
 
   const isDragging = activeDrag !== null;
+
+  // --- Move drag derived values (computed each render from moveState) ---
+  // targetDeltas[i]: how far block i should translateX to reach its reordered slot.
+  // placeholderX/W: position and width of the dashed drop-target indicator.
+  let targetDeltas: number[] = [];
+  let placeholderX = -1;
+  let placeholderW = 0;
+
+  if (moveState) {
+    const { originalIndex, insertIdx, originalPositions } = moveState;
+    const movedInterval = intervals[originalIndex];
+    const remaining = intervals.filter((_, i) => i !== originalIndex);
+    const reordered = [...remaining];
+    reordered.splice(insertIdx, 0, movedInterval);
+
+    targetDeltas = intervals.map((iv, i) => {
+      if (i === originalIndex) return 0; // ghost uses dragOffsetX directly
+      const ri = reordered.indexOf(iv);  // same object reference ✓
+      const targetX = reordered
+        .slice(0, ri)
+        .reduce((s, iv2) => s + iv2.durationSeconds * PIXELS_PER_SECOND, 0);
+      return targetX - originalPositions[i];
+    });
+
+    placeholderX = remaining
+      .slice(0, insertIdx)
+      .reduce((s, iv) => s + iv.durationSeconds * PIXELS_PER_SECOND, 0);
+    placeholderW = movedInterval.durationSeconds * PIXELS_PER_SECOND;
+  }
+
+  // --- Per-block render function (used for both passes in move drag) ---
+  const renderBlock = (interval: Interval, i: number) => {
+    const x = getIntervalX(i);
+    const w = interval.durationSeconds * PIXELS_PER_SECOND;
+    const y1 = powerToY(interval.startPower);
+    const y2 = powerToY(interval.endPower);
+
+    const startColor = getZoneColor(interval.startPower, ftp, powerMode);
+    const endColor = getZoneColor(interval.endPower, ftp, powerMode);
+    const startZone = getZoneInfo(interval.startPower, ftp, powerMode).zone;
+    const endZone = getZoneInfo(interval.endPower, ftp, powerMode).zone;
+    const zoneLabel =
+      startZone === endZone
+        ? `Z${startZone}`
+        : `Z${Math.min(startZone, endZone)}-Z${Math.max(startZone, endZone)}`;
+
+    const isHovered = hoveredIndex === i && !isDragging;
+    const isDragTarget =
+      activeDrag?.index === i && activeDrag?.type !== "move";
+    // During a move drag, displayIntervals === intervals so i is always the
+    // original index — compare against originalIndex directly.
+    const isBeingMoved = moveState?.originalIndex === i;
+
+    const gradientId = `zone-grad-${i}`;
+
+    return (
+      <g
+        key={i}
+        style={{
+          // Ghost follows cursor (no transition); other blocks slide to their
+          // new slots with a smooth ease when insertIdx changes.
+          transform: isBeingMoved
+            ? `translateX(${moveState!.dragOffsetX}px)`
+            : moveState
+              ? `translateX(${targetDeltas[i] ?? 0}px)`
+              : undefined,
+          transition:
+            !isBeingMoved && moveState
+              ? "transform 200ms cubic-bezier(0.25, 1, 0.5, 1)"
+              : "none",
+          opacity: isBeingMoved ? 0.6 : 1,
+          filter: isBeingMoved
+            ? "drop-shadow(0 4px 8px rgba(0,0,0,0.3))"
+            : undefined,
+        }}
+      >
+        {/* Gradient definition */}
+        <defs>
+          <linearGradient
+            id={gradientId}
+            x1="0%"
+            y1="0%"
+            x2="100%"
+            y2="0%"
+          >
+            <stop offset="0%" stopColor={startColor} />
+            <stop offset="100%" stopColor={endColor} />
+          </linearGradient>
+        </defs>
+
+        {/* Main block shape */}
+        <polygon
+          points={`${x},${y1} ${x + w},${y2} ${x + w},${EDITOR_HEIGHT} ${x},${EDITOR_HEIGHT}`}
+          fill={`url(#${gradientId})`}
+          fillOpacity={0.6}
+          stroke={
+            isDragTarget
+              ? "var(--color-primary)"
+              : isHovered
+                ? "currentColor"
+                : "transparent"
+          }
+          strokeOpacity={isDragTarget ? 0.8 : 0.15}
+          strokeWidth={isDragTarget ? 2 : 1}
+          onPointerEnter={() => {
+            if (!isDragging) setHoveredIndex(i);
+          }}
+          onPointerLeave={() => {
+            if (!isDragging) setHoveredIndex(null);
+          }}
+          style={{ cursor: isDragging ? "grabbing" : "grab" }}
+          onPointerDown={(e) => startDrag(e, "move", i)}
+        />
+
+        {/* Power label */}
+        {w > 50 && (
+          <text
+            x={x + w / 2}
+            y={Math.min(y1, y2) - 8}
+            textAnchor="middle"
+            className="pointer-events-none fill-foreground text-[10px] font-medium"
+          >
+            {interval.startPower === interval.endPower
+              ? formatPower(interval.startPower, powerMode)
+              : `${formatPower(interval.startPower, powerMode)}–${formatPower(interval.endPower, powerMode)}`}
+          </text>
+        )}
+
+        {/* Zone label */}
+        {w > 80 && EDITOR_HEIGHT - Math.max(y1, y2) > 36 && (
+          <text
+            x={x + w / 2}
+            y={EDITOR_HEIGHT - 22}
+            textAnchor="middle"
+            className="pointer-events-none fill-foreground/50 text-[9px]"
+          >
+            {zoneLabel}
+          </text>
+        )}
+
+        {/* Duration label */}
+        {w > 40 && (
+          <text
+            x={x + w / 2}
+            y={EDITOR_HEIGHT - 8}
+            textAnchor="middle"
+            className="pointer-events-none fill-foreground/40 text-[9px] tabular-nums"
+          >
+            {formatDuration(interval.durationSeconds)}
+          </text>
+        )}
+
+        {/* --- Hit areas (invisible, always present) --- */}
+
+        {/* Right edge hit area (duration drag) */}
+        <rect
+          x={x + w - EDGE_HIT_WIDTH / 2}
+          y={Math.min(y1, y2)}
+          width={EDGE_HIT_WIDTH}
+          height={EDITOR_HEIGHT - Math.min(y1, y2)}
+          fill="transparent"
+          pointerEvents="all"
+          style={{ cursor: "ew-resize" }}
+          onPointerDown={(e) => startDrag(e, "duration", i)}
+          onPointerEnter={() => {
+            if (!isDragging) setHoveredIndex(i);
+          }}
+          onPointerLeave={() => {
+            if (!isDragging) setHoveredIndex(null);
+          }}
+        />
+
+        {/* Left edge hit area (duration-left drag) */}
+        <rect
+          x={x}
+          y={Math.min(y1, y2)}
+          width={EDGE_HIT_WIDTH}
+          height={EDITOR_HEIGHT - Math.min(y1, y2)}
+          fill="transparent"
+          pointerEvents="all"
+          style={{ cursor: "ew-resize" }}
+          onPointerDown={(e) => startDrag(e, "duration-left", i)}
+          onPointerEnter={() => {
+            if (!isDragging) setHoveredIndex(i);
+          }}
+          onPointerLeave={() => {
+            if (!isDragging) setHoveredIndex(null);
+          }}
+        />
+
+        {/* Top edge hit area (uniform power drag) */}
+        <line
+          x1={x + CORNER_HIT_RADIUS}
+          y1={
+            y1 +
+            ((y2 - y1) * CORNER_HIT_RADIUS) / Math.max(w, 1)
+          }
+          x2={x + w - CORNER_HIT_RADIUS}
+          y2={
+            y2 -
+            ((y2 - y1) * CORNER_HIT_RADIUS) / Math.max(w, 1)
+          }
+          stroke="transparent"
+          strokeWidth={EDGE_HIT_WIDTH}
+          pointerEvents="all"
+          style={{ cursor: "ns-resize" }}
+          onPointerDown={(e) => startDrag(e, "power-uniform", i)}
+          onPointerEnter={() => {
+            if (!isDragging) setHoveredIndex(i);
+          }}
+          onPointerLeave={() => {
+            if (!isDragging) setHoveredIndex(null);
+          }}
+        />
+
+        {/* Top-left corner hit area */}
+        <circle
+          cx={x}
+          cy={y1}
+          r={CORNER_HIT_RADIUS}
+          fill="transparent"
+          pointerEvents="all"
+          style={{ cursor: "ns-resize" }}
+          onPointerDown={(e) => startDrag(e, "power-start", i)}
+          onPointerEnter={() => {
+            if (!isDragging) setHoveredIndex(i);
+          }}
+          onPointerLeave={() => {
+            if (!isDragging) setHoveredIndex(null);
+          }}
+        />
+
+        {/* Top-right corner hit area */}
+        <circle
+          cx={x + w}
+          cy={y2}
+          r={CORNER_HIT_RADIUS}
+          fill="transparent"
+          pointerEvents="all"
+          style={{ cursor: "ns-resize" }}
+          onPointerDown={(e) => startDrag(e, "power-end", i)}
+          onPointerEnter={() => {
+            if (!isDragging) setHoveredIndex(i);
+          }}
+          onPointerLeave={() => {
+            if (!isDragging) setHoveredIndex(null);
+          }}
+        />
+
+        {/* --- Visual handles (shown on hover) --- */}
+        {(isHovered || isDragTarget) && (
+          <>
+            {/* Top-left handle */}
+            <circle
+              cx={x}
+              cy={y1}
+              r={HANDLE_RADIUS}
+              fill="white"
+              stroke={startColor}
+              strokeWidth={2}
+              pointerEvents="none"
+              className="drop-shadow-sm"
+            />
+            {/* Top-right handle */}
+            <circle
+              cx={x + w}
+              cy={y2}
+              r={HANDLE_RADIUS}
+              fill="white"
+              stroke={endColor}
+              strokeWidth={2}
+              pointerEvents="none"
+              className="drop-shadow-sm"
+            />
+            {/* Right edge indicator */}
+            <line
+              x1={x + w}
+              y1={y2 + HANDLE_RADIUS + 2}
+              x2={x + w}
+              y2={EDITOR_HEIGHT}
+              stroke="currentColor"
+              strokeOpacity={0.2}
+              strokeWidth={2}
+              strokeDasharray="4 3"
+              pointerEvents="none"
+            />
+            {/* Left edge indicator */}
+            <line
+              x1={x}
+              y1={y1 + HANDLE_RADIUS + 2}
+              x2={x}
+              y2={EDITOR_HEIGHT}
+              stroke="currentColor"
+              strokeOpacity={0.2}
+              strokeWidth={2}
+              strokeDasharray="4 3"
+              pointerEvents="none"
+            />
+            {/* Delete button */}
+            {!isDragging && w > 30 && (
+              <g
+                onClick={() => handleDeleteInterval(i)}
+                style={{ cursor: "pointer" }}
+                pointerEvents="all"
+              >
+                <circle
+                  cx={x + w - 12}
+                  cy={Math.min(y1, y2) + 12}
+                  r={8}
+                  fill="var(--color-destructive)"
+                  fillOpacity={0.85}
+                />
+                <text
+                  x={x + w - 12}
+                  y={Math.min(y1, y2) + 16}
+                  textAnchor="middle"
+                  fill="white"
+                  fontSize={13}
+                  fontWeight="bold"
+                  pointerEvents="none"
+                >
+                  ×
+                </text>
+              </g>
+            )}
+          </>
+        )}
+      </g>
+    );
+  };
 
   return (
     <div className="flex select-none">
@@ -299,6 +663,7 @@ export function WorkoutEditor({
           width={totalWidth + 20}
           height={EDITOR_HEIGHT + AXIS_HEIGHT}
           className="block"
+          style={{ cursor: moveState ? "grabbing" : undefined }}
         >
           {/* Grid lines */}
           {powerTicks.map((power) => {
@@ -381,302 +746,42 @@ export function WorkoutEditor({
             strokeWidth={1}
           />
 
-          {/* Interval blocks */}
-          {displayIntervals.map((interval, i) => {
-            const x = getIntervalX(i);
-            const w = interval.durationSeconds * PIXELS_PER_SECOND;
-            const y1 = powerToY(interval.startPower);
-            const y2 = powerToY(interval.endPower);
+          {/* Drop target placeholder (rendered before blocks so it sits behind them) */}
+          {moveState && placeholderX >= 0 && (
+            <rect
+              x={placeholderX}
+              y={0}
+              width={placeholderW}
+              height={EDITOR_HEIGHT}
+              fill="none"
+              stroke="currentColor"
+              strokeOpacity={0.25}
+              strokeWidth={2}
+              strokeDasharray="6 4"
+              rx={3}
+              pointerEvents="none"
+            />
+          )}
 
-            const startColor = getZoneColor(
-              interval.startPower,
-              ftp,
-              powerMode
-            );
-            const endColor = getZoneColor(interval.endPower, ftp, powerMode);
-            const startZone = getZoneInfo(interval.startPower, ftp, powerMode).zone;
-            const endZone = getZoneInfo(interval.endPower, ftp, powerMode).zone;
-            const zoneLabel =
-              startZone === endZone
-                ? `Z${startZone}`
-                : `Z${Math.min(startZone, endZone)}-Z${Math.max(startZone, endZone)}`;
-
-            const isHovered = hoveredIndex === i && !isDragging;
-            const isDragTarget =
-              activeDrag?.index === i &&
-              activeDrag?.type !== "move";
-            const isBeingMoved =
-              moveState?.index === i;
-
-            // For move drag, apply offset to original position
-            const translateX = isBeingMoved ? moveState.dx : 0;
-
-            const gradientId = `zone-grad-${i}`;
-
-            return (
-              <g
-                key={i}
-                style={{
-                  transform: isBeingMoved
-                    ? `translateX(${translateX}px)`
-                    : undefined,
-                  opacity: isBeingMoved ? 0.6 : 1,
-                }}
-              >
-                {/* Gradient definition */}
-                <defs>
-                  <linearGradient
-                    id={gradientId}
-                    x1="0%"
-                    y1="0%"
-                    x2="100%"
-                    y2="0%"
-                  >
-                    <stop offset="0%" stopColor={startColor} />
-                    <stop offset="100%" stopColor={endColor} />
-                  </linearGradient>
-                </defs>
-
-                {/* Main block shape */}
-                <polygon
-                  points={`${x},${y1} ${x + w},${y2} ${x + w},${EDITOR_HEIGHT} ${x},${EDITOR_HEIGHT}`}
-                  fill={`url(#${gradientId})`}
-                  fillOpacity={0.6}
-                  stroke={
-                    isDragTarget
-                      ? "var(--color-primary)"
-                      : isHovered
-                        ? "currentColor"
-                        : "transparent"
-                  }
-                  strokeOpacity={isDragTarget ? 0.8 : 0.15}
-                  strokeWidth={isDragTarget ? 2 : 1}
-                  onPointerEnter={() => {
-                    if (!isDragging) setHoveredIndex(i);
-                  }}
-                  onPointerLeave={() => {
-                    if (!isDragging) setHoveredIndex(null);
-                  }}
-                  style={{ cursor: isDragging ? "grabbing" : "grab" }}
-                  onPointerDown={(e) => startDrag(e, "move", i)}
-                />
-
-                {/* Power label */}
-                {w > 50 && (
-                  <text
-                    x={x + w / 2}
-                    y={Math.min(y1, y2) - 8}
-                    textAnchor="middle"
-                    className="pointer-events-none fill-foreground text-[10px] font-medium"
-                  >
-                    {interval.startPower === interval.endPower
-                      ? formatPower(interval.startPower, powerMode)
-                      : `${formatPower(interval.startPower, powerMode)}–${formatPower(interval.endPower, powerMode)}`}
-                  </text>
-                )}
-
-                {/* Zone label */}
-                {w > 80 && EDITOR_HEIGHT - Math.max(y1, y2) > 36 && (
-                  <text
-                    x={x + w / 2}
-                    y={EDITOR_HEIGHT - 22}
-                    textAnchor="middle"
-                    className="pointer-events-none fill-foreground/50 text-[9px]"
-                  >
-                    {zoneLabel}
-                  </text>
-                )}
-
-                {/* Duration label */}
-                {w > 40 && (
-                  <text
-                    x={x + w / 2}
-                    y={EDITOR_HEIGHT - 8}
-                    textAnchor="middle"
-                    className="pointer-events-none fill-foreground/40 text-[9px] tabular-nums"
-                  >
-                    {formatDuration(interval.durationSeconds)}
-                  </text>
-                )}
-
-                {/* --- Hit areas (invisible, always present) --- */}
-
-                {/* Right edge hit area (duration drag) */}
-                <rect
-                  x={x + w - EDGE_HIT_WIDTH / 2}
-                  y={Math.min(y1, y2)}
-                  width={EDGE_HIT_WIDTH}
-                  height={EDITOR_HEIGHT - Math.min(y1, y2)}
-                  fill="transparent"
-                  pointerEvents="all"
-                  style={{ cursor: "ew-resize" }}
-                  onPointerDown={(e) => startDrag(e, "duration", i)}
-                  onPointerEnter={() => {
-                    if (!isDragging) setHoveredIndex(i);
-                  }}
-                  onPointerLeave={() => {
-                    if (!isDragging) setHoveredIndex(null);
-                  }}
-                />
-
-                {/* Left edge hit area (duration-left drag) */}
-                <rect
-                  x={x}
-                  y={Math.min(y1, y2)}
-                  width={EDGE_HIT_WIDTH}
-                  height={EDITOR_HEIGHT - Math.min(y1, y2)}
-                  fill="transparent"
-                  pointerEvents="all"
-                  style={{ cursor: "ew-resize" }}
-                  onPointerDown={(e) => startDrag(e, "duration-left", i)}
-                  onPointerEnter={() => {
-                    if (!isDragging) setHoveredIndex(i);
-                  }}
-                  onPointerLeave={() => {
-                    if (!isDragging) setHoveredIndex(null);
-                  }}
-                />
-
-                {/* Top edge hit area (uniform power drag) */}
-                <line
-                  x1={x + CORNER_HIT_RADIUS}
-                  y1={
-                    y1 +
-                    ((y2 - y1) * CORNER_HIT_RADIUS) / Math.max(w, 1)
-                  }
-                  x2={x + w - CORNER_HIT_RADIUS}
-                  y2={
-                    y2 -
-                    ((y2 - y1) * CORNER_HIT_RADIUS) / Math.max(w, 1)
-                  }
-                  stroke="transparent"
-                  strokeWidth={EDGE_HIT_WIDTH}
-                  pointerEvents="all"
-                  style={{ cursor: "ns-resize" }}
-                  onPointerDown={(e) => startDrag(e, "power-uniform", i)}
-                  onPointerEnter={() => {
-                    if (!isDragging) setHoveredIndex(i);
-                  }}
-                  onPointerLeave={() => {
-                    if (!isDragging) setHoveredIndex(null);
-                  }}
-                />
-
-                {/* Top-left corner hit area */}
-                <circle
-                  cx={x}
-                  cy={y1}
-                  r={CORNER_HIT_RADIUS}
-                  fill="transparent"
-                  pointerEvents="all"
-                  style={{ cursor: "ns-resize" }}
-                  onPointerDown={(e) => startDrag(e, "power-start", i)}
-                  onPointerEnter={() => {
-                    if (!isDragging) setHoveredIndex(i);
-                  }}
-                  onPointerLeave={() => {
-                    if (!isDragging) setHoveredIndex(null);
-                  }}
-                />
-
-                {/* Top-right corner hit area */}
-                <circle
-                  cx={x + w}
-                  cy={y2}
-                  r={CORNER_HIT_RADIUS}
-                  fill="transparent"
-                  pointerEvents="all"
-                  style={{ cursor: "ns-resize" }}
-                  onPointerDown={(e) => startDrag(e, "power-end", i)}
-                  onPointerEnter={() => {
-                    if (!isDragging) setHoveredIndex(i);
-                  }}
-                  onPointerLeave={() => {
-                    if (!isDragging) setHoveredIndex(null);
-                  }}
-                />
-
-                {/* --- Visual handles (shown on hover) --- */}
-                {(isHovered || isDragTarget) && (
-                  <>
-                    {/* Top-left handle */}
-                    <circle
-                      cx={x}
-                      cy={y1}
-                      r={HANDLE_RADIUS}
-                      fill="white"
-                      stroke={startColor}
-                      strokeWidth={2}
-                      pointerEvents="none"
-                      className="drop-shadow-sm"
-                    />
-                    {/* Top-right handle */}
-                    <circle
-                      cx={x + w}
-                      cy={y2}
-                      r={HANDLE_RADIUS}
-                      fill="white"
-                      stroke={endColor}
-                      strokeWidth={2}
-                      pointerEvents="none"
-                      className="drop-shadow-sm"
-                    />
-                    {/* Right edge indicator */}
-                    <line
-                      x1={x + w}
-                      y1={y2 + HANDLE_RADIUS + 2}
-                      x2={x + w}
-                      y2={EDITOR_HEIGHT}
-                      stroke="currentColor"
-                      strokeOpacity={0.2}
-                      strokeWidth={2}
-                      strokeDasharray="4 3"
-                      pointerEvents="none"
-                    />
-                    {/* Left edge indicator */}
-                    <line
-                      x1={x}
-                      y1={y1 + HANDLE_RADIUS + 2}
-                      x2={x}
-                      y2={EDITOR_HEIGHT}
-                      stroke="currentColor"
-                      strokeOpacity={0.2}
-                      strokeWidth={2}
-                      strokeDasharray="4 3"
-                      pointerEvents="none"
-                    />
-                    {/* Delete button */}
-                    {!isDragging && w > 30 && (
-                      <g
-                        onClick={() => handleDeleteInterval(i)}
-                        style={{ cursor: "pointer" }}
-                        pointerEvents="all"
-                      >
-                        <circle
-                          cx={x + w - 12}
-                          cy={Math.min(y1, y2) + 12}
-                          r={8}
-                          fill="var(--color-destructive)"
-                          fillOpacity={0.85}
-                        />
-                        <text
-                          x={x + w - 12}
-                          y={Math.min(y1, y2) + 16}
-                          textAnchor="middle"
-                          fill="white"
-                          fontSize={13}
-                          fontWeight="bold"
-                          pointerEvents="none"
-                        >
-                          ×
-                        </text>
-                      </g>
-                    )}
-                  </>
-                )}
-              </g>
-            );
-          })}
+          {/* Interval blocks.
+              During a move drag we do two passes so the ghost paints on top:
+                1. All non-ghost blocks (slide smoothly via CSS transition)
+                2. The ghost block (follows cursor, no transition, drop shadow)
+              During all other drag types we do a single pass over displayIntervals. */}
+          {moveState ? (
+            <>
+              {intervals.map((interval, i) => {
+                if (i === moveState.originalIndex) return null;
+                return renderBlock(interval, i);
+              })}
+              {renderBlock(
+                intervals[moveState.originalIndex],
+                moveState.originalIndex
+              )}
+            </>
+          ) : (
+            displayIntervals.map((interval, i) => renderBlock(interval, i))
+          )}
 
           {/* Live drag value tooltip */}
           {activeDrag && dragPreview && activeDrag.type !== "move" && (
