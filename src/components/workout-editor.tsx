@@ -25,6 +25,7 @@ type DragType =
   | "power-start"
   | "power-end"
   | "duration"
+  | "duration-left"
   | "move";
 
 interface WorkoutEditorProps {
@@ -177,6 +178,16 @@ export function WorkoutEditor({
           }
           case "duration": {
             const durationDelta = dx / PIXELS_PER_SECOND;
+            newIntervals[index].durationSeconds = Math.max(
+              MIN_DURATION,
+              snap(original[index].durationSeconds + durationDelta, DURATION_SNAP)
+            );
+            break;
+          }
+          case "duration-left": {
+            // Drag left = grow, drag right = shrink. Preceding intervals are untouched;
+            // the current interval expands/contracts and everything after shifts.
+            const durationDelta = -dx / PIXELS_PER_SECOND;
             newIntervals[index].durationSeconds = Math.max(
               MIN_DURATION,
               snap(original[index].durationSeconds + durationDelta, DURATION_SNAP)
@@ -476,6 +487,24 @@ export function WorkoutEditor({
                   }}
                 />
 
+                {/* Left edge hit area (duration-left drag) */}
+                <rect
+                  x={x}
+                  y={Math.min(y1, y2)}
+                  width={EDGE_HIT_WIDTH}
+                  height={EDITOR_HEIGHT - Math.min(y1, y2)}
+                  fill="transparent"
+                  pointerEvents="all"
+                  style={{ cursor: "ew-resize" }}
+                  onPointerDown={(e) => startDrag(e, "duration-left", i)}
+                  onPointerEnter={() => {
+                    if (!isDragging) setHoveredIndex(i);
+                  }}
+                  onPointerLeave={() => {
+                    if (!isDragging) setHoveredIndex(null);
+                  }}
+                />
+
                 {/* Top edge hit area (uniform power drag) */}
                 <line
                   x1={x + CORNER_HIT_RADIUS}
@@ -565,6 +594,18 @@ export function WorkoutEditor({
                       x1={x + w}
                       y1={y2 + HANDLE_RADIUS + 2}
                       x2={x + w}
+                      y2={EDITOR_HEIGHT}
+                      stroke="currentColor"
+                      strokeOpacity={0.2}
+                      strokeWidth={2}
+                      strokeDasharray="4 3"
+                      pointerEvents="none"
+                    />
+                    {/* Left edge indicator */}
+                    <line
+                      x1={x}
+                      y1={y1 + HANDLE_RADIUS + 2}
+                      x2={x}
                       y2={EDITOR_HEIGHT}
                       stroke="currentColor"
                       strokeOpacity={0.2}
@@ -666,6 +707,11 @@ function DragTooltip({
       break;
     case "duration":
       labelX = x + w;
+      labelY = powerToY(Math.max(interval.startPower, interval.endPower)) - 20;
+      label = formatDuration(interval.durationSeconds);
+      break;
+    case "duration-left":
+      labelX = x;
       labelY = powerToY(Math.max(interval.startPower, interval.endPower)) - 20;
       label = formatDuration(interval.durationSeconds);
       break;
