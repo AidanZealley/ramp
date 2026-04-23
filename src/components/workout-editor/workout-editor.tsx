@@ -1,0 +1,285 @@
+import { useState, useRef, useCallback, useEffect } from "react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+  type DragStartEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import type { Interval } from "@/lib/workout-utils";
+import { useTimelineScale } from "@/hooks/use-timeline-scale";
+import { useIntervalDrag } from "@/hooks/use-interval-drag";
+import { EDITOR_HEIGHT, AXIS_HEIGHT } from "@/lib/timeline/types";
+import { EditorGrid } from "./editor-grid";
+import { IntervalBlock, IntervalBlockOverlay } from "./interval-block";
+import { DragTooltip } from "./drag-tooltip";
+
+let _idCounter = 0;
+const newId = () => String(++_idCounter);
+
+interface WorkoutEditorProps {
+  intervals: Interval[];
+  powerMode: "absolute" | "percentage";
+  ftp: number;
+  onIntervalsChange: (intervals: Interval[]) => void;
+}
+
+/**
+ * Top-level workout timeline editor.
+ *
+ * Orchestrates:
+ * - Coordinate system (useTimelineScale)
+ * - Custom resize/power drag (useIntervalDrag)
+ * - Drag-to-reorder (dnd-kit)
+ * - Rendering (DOM-based interval blocks, grid, tooltip)
+ *
+ * Props interface is identical to the previous SVG-based editor,
+ * so the parent component requires zero changes.
+ */
+export function WorkoutEditor({
+  intervals,
+  powerMode,
+  ftp,
+  onIntervalsChange,
+}: WorkoutEditorProps) {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const prevIntervalCountRef = useRef(intervals.length);
+
+  // --- State ---
+  const [dragPreview, setDragPreview] = useState<Interval[] | null>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [activeReorderId, setActiveReorderId] = useState<string | null>(null);
+
+  // Stable IDs that travel with each interval through reorders so dnd-kit
+  // never sees stale index-based IDs that cause the snap-back flash.
+  const [stableIds, setStableIds] = useState<string[]>(() =>
+    intervals.map(() => newId())
+  );
+
+  // Keep stableIds length in sync when intervals are added/removed externally.
+  useEffect(() => {
+    setStableIds((prev) => {
+      if (prev.length === intervals.length) return prev;
+      if (intervals.length > prev.length) {
+        const extra = Array.from(
+          { length: intervals.length - prev.length },
+          () => newId()
+        );
+        return [...prev, ...extra];
+      }
+      return prev.slice(0, intervals.length);
+    });
+  }, [intervals.length]);
+
+  // The intervals to display: drag preview during resize, original otherwise
+  const displayIntervals = dragPreview ?? intervals;
+
+  // --- Coordinate system ---
+  const scale = useTimelineScale(displayIntervals, powerMode);
+
+  // --- Custom resize/power drag ---
+  const { activeDrag, startDrag } = useIntervalDrag({
+    intervals,
+    powerMode,
+    onPreviewChange: setDragPreview,
+    onCommit: onIntervalsChange,
+  });
+
+  // --- dnd-kit sensors ---
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // px — prevents accidental reorder on click
+      },
+    })
+  );
+
+  // Combined drag state: either custom drag or dnd-kit reorder
+  const isDragging = activeDrag !== null || activeReorderId !== null;
+
+  // --- dnd-kit handlers ---
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveReorderId(event.active.id as string);
+  }, []);
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      setActiveReorderId(null);
+
+      if (!over || active.id === over.id) return;
+
+      // Resolve positions from stable IDs (not raw indices).
+      const oldIndex = stableIds.indexOf(active.id as string);
+      const newIndex = stableIds.indexOf(over.id as string);
+
+      if (
+        oldIndex === -1 ||
+        newIndex === -1 ||
+        oldIndex >= intervals.length ||
+        newIndex >= intervals.length
+      ) {
+        return;
+      }
+
+      // Update IDs and intervals atomically so dnd-kit never sees stale order.
+      setStableIds((prev) => arrayMove([...prev], oldIndex, newIndex));
+      onIntervalsChange(arrayMove([...intervals], oldIndex, newIndex));
+    },
+    [intervals, stableIds, onIntervalsChange]
+  );
+
+  // --- Selection ---
+  const handleSelect = useCallback(
+    (index: number) => {
+      setSelectedIndex((prev) => (prev === index ? null : index));
+    },
+    []
+  );
+
+  // --- Delete ---
+  const handleDeleteInterval = useCallback(
+    (index: number) => {
+      setStableIds((prev) => prev.filter((_, i) => i !== index));
+      onIntervalsChange(intervals.filter((_, i) => i !== index));
+      setSelectedIndex(null);
+    },
+    [intervals, onIntervalsChange]
+  );
+
+  // --- Scroll to end when a new interval is appended ---
+  useEffect(() => {
+    if (intervals.length > prevIntervalCountRef.current) {
+      scrollContainerRef.current?.scrollTo({
+        left: scrollContainerRef.current.scrollWidth,
+        behavior: "smooth",
+      });
+    }
+    prevIntervalCountRef.current = intervals.length;
+  }, [intervals.length]);
+
+  // --- Deselect on click outside the editor ---
+  useEffect(() => {
+    const handleDocumentClick = (e: MouseEvent) => {
+      if (editorRef.current && !editorRef.current.contains(e.target as Node)) {
+        setSelectedIndex(null);
+      }
+    };
+    document.addEventListener("click", handleDocumentClick);
+    return () => document.removeEventListener("click", handleDocumentClick);
+  }, []);
+
+  // The interval currently being reordered (for DragOverlay)
+  const activeReorderIndex =
+    activeReorderId !== null ? stableIds.indexOf(activeReorderId) : null;
+  const activeReorderInterval =
+    activeReorderIndex !== null && activeReorderIndex !== -1
+      ? displayIntervals[activeReorderIndex]
+      : null;
+
+  return (
+    <div className="flex select-none">
+      {/* Y-axis labels */}
+      <div
+        className="relative w-12 flex-shrink-0"
+        style={{ height: EDITOR_HEIGHT }}
+      >
+        {scale.powerTicks.map((power) => (
+          <span
+            key={power}
+            className="absolute right-1 -translate-y-1/2 text-[10px] tabular-nums text-muted-foreground"
+            style={{ top: scale.powerToY(power) }}
+          >
+            {powerMode === "absolute" ? `${power}` : `${power}%`}
+          </span>
+        ))}
+      </div>
+
+      {/* Main editor area */}
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-x-auto rounded-lg border border-border/50 bg-muted/20"
+      >
+        <div
+          ref={editorRef}
+          className="relative"
+          style={{
+            width: scale.totalWidth + 20,
+            height: EDITOR_HEIGHT + AXIS_HEIGHT,
+            cursor: activeReorderId ? "grabbing" : undefined,
+          }}
+          onClick={() => setSelectedIndex(null)}
+        >
+          {/* Background grid */}
+          <EditorGrid scale={scale} ftp={ftp} powerMode={powerMode} />
+
+          {/* Interval blocks with dnd-kit */}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={stableIds}
+              strategy={horizontalListSortingStrategy}
+            >
+              {displayIntervals.map((interval, i) => (
+                <IntervalBlock
+                  key={stableIds[i] ?? i}
+                  stableId={stableIds[i] ?? String(i)}
+                  interval={interval}
+                  index={i}
+                  scale={scale}
+                  ftp={ftp}
+                  powerMode={powerMode}
+                  isHovered={hoveredIndex === i && !isDragging}
+                  isSelected={selectedIndex === i}
+                  isDragTarget={activeDrag?.index === i}
+                  isDragging={isDragging}
+                  onHover={setHoveredIndex}
+                  onSelect={handleSelect}
+                  onStartDrag={startDrag}
+                  onDelete={handleDeleteInterval}
+                />
+              ))}
+            </SortableContext>
+
+            {/* Ghost overlay during reorder drag */}
+            <DragOverlay dropAnimation={null}>
+              {activeReorderInterval ? (
+                <IntervalBlockOverlay
+                  interval={activeReorderInterval}
+                  scale={scale}
+                  ftp={ftp}
+                  powerMode={powerMode}
+                />
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+
+          {/* Live drag value tooltip (resize/power drags only) */}
+          {activeDrag && dragPreview && (
+            <DragTooltip
+              activeDrag={activeDrag}
+              intervals={dragPreview}
+              scale={scale}
+              powerMode={powerMode}
+              containerWidth={scale.totalWidth + 20}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
