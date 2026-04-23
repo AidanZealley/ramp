@@ -1,0 +1,24 @@
+COURSE HEADER
+VERSION=2
+UNITS=ENGLISH
+DESCRIPTION=My Custom ERG Workout
+FILE NAME=MyWorkout
+FTP=220
+MINUTES
+WATTS
+END COURSE HEADER
+
+// Warmup
+STEADY 60 100   // 1 minute at 100 Watts (adjust based on your FTP)
+STEADY 60 120
+STEADY 60 140
+
+// Main Interval (e.g., 3x 5 minutes at 90% FTP with 2 min rest)
+REPEAT 3
+  STEADY 300 198  // 5 mins at ~90% of 220W FTP (220 * 0.9 = 198W)
+  REST 120        // 2 mins rest (120 seconds)
+END REPEAT
+
+// Cooldown
+STEADY 60 100
+STEADY 60 80

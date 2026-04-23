@@ -1,0 +1,75 @@
+import { useState, useRef, useEffect } from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Tick01Icon, Cancel01Icon } from "@hugeicons/core-free-icons";
+
+interface EditableTitleProps {
+  value: string;
+  onChange: (value: string) => void;
+}
+
+export function EditableTitle({ value, onChange }: EditableTitleProps) {
+  const [editing, setEditing] = useState(false);
+  const [editValue, setEditValue] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  const handleSave = () => {
+    const trimmed = editValue.trim();
+    if (trimmed) {
+      onChange(trimmed);
+    }
+    setEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditValue(value);
+    setEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSave();
+    } else if (e.key === "Escape") {
+      handleCancel();
+    }
+  };
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2">
+        <Input
+          ref={inputRef}
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="h-8 max-w-64 font-heading text-base font-medium"
+        />
+        <Button size="icon-xs" variant="ghost" onClick={handleSave}>
+          <HugeiconsIcon icon={Tick01Icon} size={14} />
+        </Button>
+        <Button size="icon-xs" variant="ghost" onClick={handleCancel}>
+          <HugeiconsIcon icon={Cancel01Icon} size={14} />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => {
+        setEditValue(value);
+        setEditing(true);
+      }}
+      className="cursor-pointer rounded-lg px-2 py-1 font-heading text-lg font-medium transition-colors hover:bg-muted"
+    >
+      {value}
+    </button>
+  );
+}
