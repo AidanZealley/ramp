@@ -1,27 +1,28 @@
-import type { Interval } from "@/lib/workout-utils";
-import { formatDuration, formatPower } from "@/lib/workout-utils";
-import { getZoneColor, getZoneInfo } from "@/lib/zones";
-import type { TimelineScale } from "@/hooks/use-timeline-scale";
-import type { DragType } from "@/lib/timeline/types";
-import { EDITOR_HEIGHT } from "@/lib/timeline/types";
-import { IntervalHandles } from "./interval-handles";
-import { useSortable } from "@dnd-kit/sortable";
+import type { Interval } from "@/lib/workout-utils"
+import { formatDuration, formatPower } from "@/lib/workout-utils"
+import { getZoneColor, getZoneInfo } from "@/lib/zones"
+import type { TimelineScale } from "@/hooks/use-timeline-scale"
+import type { DragType } from "@/lib/timeline/types"
+import { EDITOR_HEIGHT } from "@/lib/timeline/types"
+import { IntervalHandles } from "./interval-handles"
+import { useSortable } from "@dnd-kit/sortable"
+import { cn } from "@/lib/utils"
 
 interface IntervalBlockProps {
-  stableId: string;
-  interval: Interval;
-  index: number;
-  scale: TimelineScale;
-  ftp: number;
-  powerMode: "absolute" | "percentage";
-  isHovered: boolean;
-  isSelected: boolean;
-  isDragTarget: boolean;
-  isDragging: boolean; // any drag (resize or reorder) in progress
-  onHover: (index: number | null) => void;
-  onSelect: (index: number) => void;
-  onStartDrag: (e: React.PointerEvent, type: DragType, index: number) => void;
-  onDelete: (index: number) => void;
+  stableId: string
+  interval: Interval
+  index: number
+  scale: TimelineScale
+  ftp: number
+  powerMode: "absolute" | "percentage"
+  isHovered: boolean
+  isSelected: boolean
+  isDragTarget: boolean
+  isDragging: boolean // any drag (resize or reorder) in progress
+  onHover: (index: number | null) => void
+  onSelect: (stableId: string) => void
+  onStartDrag: (e: React.PointerEvent, type: DragType, index: number) => void
+  onDelete: (index: number) => void
 }
 
 /**
@@ -52,30 +53,30 @@ export function IntervalBlock({
     transform,
     transition,
     isDragging: isSortDragging,
-  } = useSortable({ id: stableId });
+  } = useSortable({ id: stableId })
 
-  const x = scale.getIntervalX(index);
-  const w = scale.getIntervalWidth(interval);
+  const x = scale.getIntervalX(index)
+  const w = scale.getIntervalWidth(interval)
 
   // Power -> Y pixel positions (within this block's coordinate space)
-  const startYPx = scale.powerToY(interval.startPower);
-  const endYPx = scale.powerToY(interval.endPower);
+  const startYPx = scale.powerToY(interval.startPower)
+  const endYPx = scale.powerToY(interval.endPower)
 
   // Percentage positions for clip-path (relative to block height = EDITOR_HEIGHT)
-  const startPowerPct = (startYPx / EDITOR_HEIGHT) * 100;
-  const endPowerPct = (endYPx / EDITOR_HEIGHT) * 100;
+  const startPowerPct = (startYPx / EDITOR_HEIGHT) * 100
+  const endPowerPct = (endYPx / EDITOR_HEIGHT) * 100
 
   // Zone colors
-  const startColor = getZoneColor(interval.startPower, ftp, powerMode);
-  const endColor = getZoneColor(interval.endPower, ftp, powerMode);
-  const startZone = getZoneInfo(interval.startPower, ftp, powerMode).zone;
-  const endZone = getZoneInfo(interval.endPower, ftp, powerMode).zone;
+  const startColor = getZoneColor(interval.startPower, ftp, powerMode)
+  const endColor = getZoneColor(interval.endPower, ftp, powerMode)
+  const startZone = getZoneInfo(interval.startPower, ftp, powerMode).zone
+  const endZone = getZoneInfo(interval.endPower, ftp, powerMode).zone
   const zoneLabel =
     startZone === endZone
       ? `Z${startZone}`
-      : `Z${Math.min(startZone, endZone)}-Z${Math.max(startZone, endZone)}`;
+      : `Z${Math.min(startZone, endZone)}-Z${Math.max(startZone, endZone)}`
 
-  const isActive = isHovered || isSelected || isDragTarget;
+  const isActive = isHovered || isSelected || isDragTarget
 
   // Build the style for the outer container
   const style: React.CSSProperties = {
@@ -85,22 +86,21 @@ export function IntervalBlock({
     width: w,
     height: EDITOR_HEIGHT,
     // dnd-kit transform: lock to horizontal axis only
-    transform: transform
-      ? `translate3d(${transform.x}px, 0, 0)`
-      : undefined,
+    transform: transform ? `translate3d(${transform.x}px, 0, 0)` : undefined,
     transition: transition ?? undefined,
     opacity: isSortDragging ? 0.4 : 1,
     zIndex: isSortDragging ? 10 : undefined,
-  };
+  }
 
   return (
     <div
       ref={setNodeRef}
       style={style}
+      className={cn(isSelected && "z-10")}
       {...attributes}
       onClick={(e) => {
-        e.stopPropagation();
-        onSelect(index);
+        e.stopPropagation()
+        onSelect(stableId)
       }}
     >
       {/* Trapezoid fill — clip-path creates the shape, gradient fills the zone colors */}
@@ -115,10 +115,10 @@ export function IntervalBlock({
         // dnd-kit listeners on the body for drag-to-reorder
         {...listeners}
         onPointerEnter={() => {
-          if (!isDragging) onHover(index);
+          if (!isDragging) onHover(index)
         }}
         onPointerLeave={() => {
-          if (!isDragging) onHover(null);
+          if (!isDragging) onHover(null)
         }}
       />
 
@@ -134,7 +134,9 @@ export function IntervalBlock({
             points={`0,${startYPx} ${w},${endYPx} ${w},${EDITOR_HEIGHT} 0,${EDITOR_HEIGHT}`}
             fill="none"
             stroke={
-              isDragTarget || isSelected ? "var(--color-primary)" : "currentColor"
+              isDragTarget || isSelected
+                ? "var(--color-primary)"
+                : "currentColor"
             }
             strokeWidth={isDragTarget || isSelected ? 2 : 1}
             strokeOpacity={isDragTarget || isSelected ? 0.8 : 0.15}
@@ -167,7 +169,7 @@ export function IntervalBlock({
       {/* Duration label */}
       {w > 40 && (
         <span
-          className="pointer-events-none absolute left-1/2 -translate-x-1/2 tabular-nums text-[9px] text-foreground/40"
+          className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[9px] text-foreground/40 tabular-nums"
           style={{ top: EDITOR_HEIGHT - 16 }}
         >
           {formatDuration(interval.durationSeconds)}
@@ -182,7 +184,6 @@ export function IntervalBlock({
         startColor={startColor}
         endColor={endColor}
         index={index}
-        isActive={isActive}
         isSelected={isSelected}
         isDragging={isDragging}
         onStartDrag={onStartDrag}
@@ -190,7 +191,7 @@ export function IntervalBlock({
         onDelete={onDelete}
       />
     </div>
-  );
+  )
 }
 
 /**
@@ -202,19 +203,19 @@ export function IntervalBlockOverlay({
   ftp,
   powerMode,
 }: {
-  interval: Interval;
-  scale: TimelineScale;
-  ftp: number;
-  powerMode: "absolute" | "percentage";
+  interval: Interval
+  scale: TimelineScale
+  ftp: number
+  powerMode: "absolute" | "percentage"
 }) {
-  const w = scale.getIntervalWidth(interval);
-  const startYPx = scale.powerToY(interval.startPower);
-  const endYPx = scale.powerToY(interval.endPower);
-  const startPowerPct = (startYPx / EDITOR_HEIGHT) * 100;
-  const endPowerPct = (endYPx / EDITOR_HEIGHT) * 100;
+  const w = scale.getIntervalWidth(interval)
+  const startYPx = scale.powerToY(interval.startPower)
+  const endYPx = scale.powerToY(interval.endPower)
+  const startPowerPct = (startYPx / EDITOR_HEIGHT) * 100
+  const endPowerPct = (endYPx / EDITOR_HEIGHT) * 100
 
-  const startColor = getZoneColor(interval.startPower, ftp, powerMode);
-  const endColor = getZoneColor(interval.endPower, ftp, powerMode);
+  const startColor = getZoneColor(interval.startPower, ftp, powerMode)
+  const endColor = getZoneColor(interval.endPower, ftp, powerMode)
 
   return (
     <div
@@ -234,5 +235,5 @@ export function IntervalBlockOverlay({
         }}
       />
     </div>
-  );
+  )
 }

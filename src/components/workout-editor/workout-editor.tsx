@@ -57,7 +57,7 @@ export function WorkoutEditor({
   // --- State ---
   const [dragPreview, setDragPreview] = useState<Interval[] | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeReorderId, setActiveReorderId] = useState<string | null>(null);
 
   // Stable IDs that travel with each interval through reorders so dnd-kit
@@ -141,8 +141,8 @@ export function WorkoutEditor({
 
   // --- Selection ---
   const handleSelect = useCallback(
-    (index: number) => {
-      setSelectedIndex((prev) => (prev === index ? null : index));
+    (id: string) => {
+      setSelectedId((prev) => (prev === id ? null : id));
     },
     []
   );
@@ -152,7 +152,7 @@ export function WorkoutEditor({
     (index: number) => {
       setStableIds((prev) => prev.filter((_, i) => i !== index));
       onIntervalsChange(intervals.filter((_, i) => i !== index));
-      setSelectedIndex(null);
+      setSelectedId(null);
     },
     [intervals, onIntervalsChange]
   );
@@ -172,7 +172,7 @@ export function WorkoutEditor({
   useEffect(() => {
     const handleDocumentClick = (e: MouseEvent) => {
       if (editorRef.current && !editorRef.current.contains(e.target as Node)) {
-        setSelectedIndex(null);
+        setSelectedId(null);
       }
     };
     document.addEventListener("click", handleDocumentClick);
@@ -218,7 +218,7 @@ export function WorkoutEditor({
             height: EDITOR_HEIGHT + AXIS_HEIGHT,
             cursor: activeReorderId ? "grabbing" : undefined,
           }}
-          onClick={() => setSelectedIndex(null)}
+          onClick={() => setSelectedId(null)}
         >
           {/* Background grid */}
           <EditorGrid scale={scale} ftp={ftp} powerMode={powerMode} />
@@ -244,7 +244,7 @@ export function WorkoutEditor({
                   ftp={ftp}
                   powerMode={powerMode}
                   isHovered={hoveredIndex === i && !isDragging}
-                  isSelected={selectedIndex === i}
+                  isSelected={stableIds[i] === selectedId}
                   isDragTarget={activeDrag?.index === i}
                   isDragging={isDragging}
                   onHover={setHoveredIndex}

@@ -1,24 +1,23 @@
-import type { DragType } from "@/lib/timeline/types";
+import type { DragType } from "@/lib/timeline/types"
 import {
   EDITOR_HEIGHT,
   HANDLE_SIZE,
   CORNER_HIT_RADIUS,
   EDGE_HIT_WIDTH,
-} from "@/lib/timeline/types";
+} from "@/lib/timeline/types"
 
 interface IntervalHandlesProps {
-  width: number;
-  startYPx: number;
-  endYPx: number;
-  startColor: string;
-  endColor: string;
-  index: number;
-  isActive: boolean; // show visual handles (hovered, selected, or drag target)
-  isSelected: boolean;
-  isDragging: boolean; // any drag in progress globally
-  onStartDrag: (e: React.PointerEvent, type: DragType, index: number) => void;
-  onHover: (index: number | null) => void;
-  onDelete: (index: number) => void;
+  width: number
+  startYPx: number
+  endYPx: number
+  startColor: string
+  endColor: string
+  index: number
+  isSelected: boolean
+  isDragging: boolean // any drag in progress globally
+  onStartDrag: (e: React.PointerEvent, type: DragType, index: number) => void
+  onHover: (index: number | null) => void
+  onDelete: (index: number) => void
 }
 
 /**
@@ -42,7 +41,6 @@ export function IntervalHandles({
   startColor,
   endColor,
   index,
-  isActive,
   isSelected,
   isDragging,
   onStartDrag,
@@ -50,122 +48,120 @@ export function IntervalHandles({
   onDelete,
 }: IntervalHandlesProps) {
   const handlePointerEnter = () => {
-    if (!isDragging) onHover(index);
-  };
+    if (!isDragging) onHover(index)
+  }
   const handlePointerLeave = () => {
-    if (!isDragging) onHover(null);
-  };
+    if (!isDragging) onHover(null)
+  }
 
   // Top edge hit area: a clip-pathed parallelogram tracing the angled top edge.
   // Inset from corners so corner hit areas take priority.
-  const cornerInset = CORNER_HIT_RADIUS;
-  const hitHalf = EDGE_HIT_WIDTH / 2;
+  const cornerInset = CORNER_HIT_RADIUS
+  const hitHalf = EDGE_HIT_WIDTH / 2
 
   // Interpolate Y at the corner inset points along the top edge
   const leftInsetY =
-    startYPx + ((endYPx - startYPx) * cornerInset) / Math.max(width, 1);
+    startYPx + ((endYPx - startYPx) * cornerInset) / Math.max(width, 1)
   const rightInsetY =
-    endYPx - ((endYPx - startYPx) * cornerInset) / Math.max(width, 1);
+    endYPx - ((endYPx - startYPx) * cornerInset) / Math.max(width, 1)
 
   return (
     <>
-      {/* --- Invisible hit areas (always present) --- */}
-
-      {/* Right edge hit area (duration drag) */}
-      <div
-        className="absolute"
-        style={{
-          right: -(EDGE_HIT_WIDTH / 2),
-          top: Math.min(startYPx, endYPx),
-          width: EDGE_HIT_WIDTH,
-          height: EDITOR_HEIGHT - Math.min(startYPx, endYPx),
-          cursor: "ew-resize",
-        }}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          onStartDrag(e, "duration", index);
-        }}
-        onPointerEnter={handlePointerEnter}
-        onPointerLeave={handlePointerLeave}
-      />
-
-      {/* Left edge hit area (duration-left drag) */}
-      <div
-        className="absolute"
-        style={{
-          left: -(EDGE_HIT_WIDTH / 2),
-          top: Math.min(startYPx, endYPx),
-          width: EDGE_HIT_WIDTH,
-          height: EDITOR_HEIGHT - Math.min(startYPx, endYPx),
-          cursor: "ew-resize",
-        }}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          onStartDrag(e, "duration-left", index);
-        }}
-        onPointerEnter={handlePointerEnter}
-        onPointerLeave={handlePointerLeave}
-      />
-
-      {/* Top edge hit area (uniform power drag) — clip-pathed parallelogram */}
-      <div
-        className="absolute inset-0"
-        style={{
-          clipPath: `polygon(
-            ${cornerInset}px ${leftInsetY - hitHalf}px,
-            ${width - cornerInset}px ${rightInsetY - hitHalf}px,
-            ${width - cornerInset}px ${rightInsetY + hitHalf}px,
-            ${cornerInset}px ${leftInsetY + hitHalf}px
-          )`,
-          cursor: "ns-resize",
-        }}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          onStartDrag(e, "power-uniform", index);
-        }}
-        onPointerEnter={handlePointerEnter}
-        onPointerLeave={handlePointerLeave}
-      />
-
-      {/* Top-left corner hit area (power-start drag) */}
-      <div
-        className="absolute rounded-full"
-        style={{
-          left: -CORNER_HIT_RADIUS,
-          top: startYPx - CORNER_HIT_RADIUS,
-          width: CORNER_HIT_RADIUS * 2,
-          height: CORNER_HIT_RADIUS * 2,
-          cursor: "ns-resize",
-        }}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          onStartDrag(e, "power-start", index);
-        }}
-        onPointerEnter={handlePointerEnter}
-        onPointerLeave={handlePointerLeave}
-      />
-
-      {/* Top-right corner hit area (power-end drag) */}
-      <div
-        className="absolute rounded-full"
-        style={{
-          right: -CORNER_HIT_RADIUS,
-          top: endYPx - CORNER_HIT_RADIUS,
-          width: CORNER_HIT_RADIUS * 2,
-          height: CORNER_HIT_RADIUS * 2,
-          cursor: "ns-resize",
-        }}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          onStartDrag(e, "power-end", index);
-        }}
-        onPointerEnter={handlePointerEnter}
-        onPointerLeave={handlePointerLeave}
-      />
-
-      {/* --- Visual handles (shown on hover, select, or drag target) --- */}
-      {isActive && (
+      {/* --- Invisible hit areas + visual handles (selected block only) --- */}
+      {isSelected && (
         <>
+          {/* Right edge hit area (duration drag) */}
+          <div
+            className="absolute"
+            style={{
+              right: -(EDGE_HIT_WIDTH / 2),
+              top: Math.min(startYPx, endYPx),
+              width: EDGE_HIT_WIDTH,
+              height: EDITOR_HEIGHT - Math.min(startYPx, endYPx),
+              cursor: "ew-resize",
+            }}
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              onStartDrag(e, "duration", index)
+            }}
+            onPointerEnter={handlePointerEnter}
+            onPointerLeave={handlePointerLeave}
+          />
+
+          {/* Left edge hit area (duration-left drag) */}
+          <div
+            className="absolute"
+            style={{
+              left: -(EDGE_HIT_WIDTH / 2),
+              top: Math.min(startYPx, endYPx),
+              width: EDGE_HIT_WIDTH,
+              height: EDITOR_HEIGHT - Math.min(startYPx, endYPx),
+              cursor: "ew-resize",
+            }}
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              onStartDrag(e, "duration-left", index)
+            }}
+            onPointerEnter={handlePointerEnter}
+            onPointerLeave={handlePointerLeave}
+          />
+
+          {/* Top edge hit area (uniform power drag) — clip-pathed parallelogram */}
+          <div
+            className="absolute inset-0"
+            style={{
+              clipPath: `polygon(
+                ${cornerInset}px ${leftInsetY - hitHalf}px,
+                ${width - cornerInset}px ${rightInsetY - hitHalf}px,
+                ${width - cornerInset}px ${rightInsetY + hitHalf}px,
+                ${cornerInset}px ${leftInsetY + hitHalf}px
+              )`,
+              cursor: "ns-resize",
+            }}
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              onStartDrag(e, "power-uniform", index)
+            }}
+            onPointerEnter={handlePointerEnter}
+            onPointerLeave={handlePointerLeave}
+          />
+
+          {/* Top-left corner hit area (power-start drag) */}
+          <div
+            className="absolute rounded-full"
+            style={{
+              left: -CORNER_HIT_RADIUS,
+              top: startYPx - CORNER_HIT_RADIUS,
+              width: CORNER_HIT_RADIUS * 2,
+              height: CORNER_HIT_RADIUS * 2,
+              cursor: "ns-resize",
+            }}
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              onStartDrag(e, "power-start", index)
+            }}
+            onPointerEnter={handlePointerEnter}
+            onPointerLeave={handlePointerLeave}
+          />
+
+          {/* Top-right corner hit area (power-end drag) */}
+          <div
+            className="absolute rounded-full"
+            style={{
+              right: -CORNER_HIT_RADIUS,
+              top: endYPx - CORNER_HIT_RADIUS,
+              width: CORNER_HIT_RADIUS * 2,
+              height: CORNER_HIT_RADIUS * 2,
+              cursor: "ns-resize",
+            }}
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              onStartDrag(e, "power-end", index)
+            }}
+            onPointerEnter={handlePointerEnter}
+            onPointerLeave={handlePointerLeave}
+          />
+
           {/* Top-left handle circle */}
           <div
             className="pointer-events-none absolute rounded-full border-2 shadow-sm"
@@ -212,10 +208,10 @@ export function IntervalHandles({
             }}
           />
 
-          {/* Delete button — only when selected and not dragging */}
-          {isSelected && !isDragging && width > 30 && (
+          {/* Delete button — only when not dragging */}
+          {!isDragging && width > 30 && (
             <div
-              className="absolute flex items-center justify-center rounded-full cursor-pointer"
+              className="absolute flex cursor-pointer items-center justify-center rounded-full"
               style={{
                 right: 4,
                 top: Math.min(startYPx, endYPx) + 4,
@@ -225,11 +221,11 @@ export function IntervalHandles({
                 opacity: 0.85,
               }}
               onClick={(e) => {
-                e.stopPropagation();
-                onDelete(index);
+                e.stopPropagation()
+                onDelete(index)
               }}
             >
-              <span className="pointer-events-none text-[13px] font-bold leading-none text-white">
+              <span className="pointer-events-none text-[13px] leading-none font-bold text-white">
                 ×
               </span>
             </div>
@@ -237,5 +233,5 @@ export function IntervalHandles({
         </>
       )}
     </>
-  );
+  )
 }
