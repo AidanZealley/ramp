@@ -57,6 +57,7 @@ export function WorkoutEditor({
     index: number;
   } | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   const displayIntervals = dragPreview ?? intervals;
   const maxPower = computeMaxPower(displayIntervals, powerMode);
@@ -74,6 +75,17 @@ export function WorkoutEditor({
     return () => {
       if (cleanupRef.current) cleanupRef.current();
     };
+  }, []);
+
+  // Deselect when clicking outside the component entirely
+  useEffect(() => {
+    const handleDocumentClick = (e: MouseEvent) => {
+      if (svgRef.current && !svgRef.current.contains(e.target as Node)) {
+        setSelectedIndex(null);
+      }
+    };
+    document.addEventListener("click", handleDocumentClick);
+    return () => document.removeEventListener("click", handleDocumentClick);
   }, []);
 
   // --- Coordinate helpers ---
@@ -272,6 +284,10 @@ export function WorkoutEditor({
         if (shouldCommit) {
           onIntervalsChange(latestPreview!);
         }
+        // Plain click on an interval (move type, threshold never crossed) → toggle selection.
+        if (type === "move" && !moveDragStarted) {
+          setSelectedIndex((prev) => (prev === index ? null : index));
+        }
         setDragPreview(null);
         setMoveState(null);
         setActiveDrag(null);
@@ -302,6 +318,7 @@ export function WorkoutEditor({
     (index: number) => {
       const newIntervals = intervals.filter((_, i) => i !== index);
       onIntervalsChange(newIntervals);
+      setSelectedIndex(null);
     },
     [intervals, onIntervalsChange]
   );
@@ -354,6 +371,7 @@ export function WorkoutEditor({
         : `Z${Math.min(startZone, endZone)}-Z${Math.max(startZone, endZone)}`;
 
     const isHovered = hoveredIndex === i && !isDragging;
+    const isSelected = selectedIndex === i;
     const isDragTarget =
       activeDrag?.index === i && activeDrag?.type !== "move";
     // During a move drag, displayIntervals === intervals so i is always the
@@ -365,6 +383,7 @@ export function WorkoutEditor({
     return (
       <g
         key={i}
+        onClick={(e) => e.stopPropagation()}
         style={{
           // Ghost follows cursor (no transition); other blocks slide to their
           // new slots with a smooth ease when insertIdx changes.
@@ -403,14 +422,14 @@ export function WorkoutEditor({
           fill={`url(#${gradientId})`}
           fillOpacity={0.6}
           stroke={
-            isDragTarget
+            isDragTarget || isSelected
               ? "var(--color-primary)"
               : isHovered
                 ? "currentColor"
                 : "transparent"
           }
-          strokeOpacity={isDragTarget ? 0.8 : 0.15}
-          strokeWidth={isDragTarget ? 2 : 1}
+          strokeOpacity={isDragTarget || isSelected ? 0.8 : 0.15}
+          strokeWidth={isDragTarget || isSelected ? 2 : 1}
           onPointerEnter={() => {
             if (!isDragging) setHoveredIndex(i);
           }}
@@ -556,8 +575,8 @@ export function WorkoutEditor({
           }}
         />
 
-        {/* --- Visual handles (shown on hover) --- */}
-        {(isHovered || isDragTarget) && (
+        {/* --- Visual handles (shown on hover or when selected) --- */}
+        {(isHovered || isDragTarget || isSelected) && (
           <>
             {/* Top-left handle */}
             <circle
@@ -605,8 +624,8 @@ export function WorkoutEditor({
               strokeDasharray="4 3"
               pointerEvents="none"
             />
-            {/* Delete button */}
-            {!isDragging && w > 30 && (
+            {/* Delete button — only shown when interval is selected */}
+            {isSelected && !isDragging && w > 30 && (
               <g
                 onClick={() => handleDeleteInterval(i)}
                 style={{ cursor: "pointer" }}
@@ -664,6 +683,7 @@ export function WorkoutEditor({
           height={EDITOR_HEIGHT + AXIS_HEIGHT}
           className="block"
           style={{ cursor: moveState ? "grabbing" : undefined }}
+          onClick={() => setSelectedIndex(null)}
         >
           {/* Grid lines */}
           {powerTicks.map((power) => {
