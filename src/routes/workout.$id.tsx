@@ -126,8 +126,10 @@ function WorkoutPage() {
   const handleAddInterval = useCallback(() => {
     if (!workingCopy) return
 
-    const defaultPower =
-      workingCopy.powerMode === "absolute" ? 150 : 75
+    const lastInterval = workingCopy.intervals.at(-1)
+    const defaultPower = lastInterval
+      ? lastInterval.endPower
+      : workingCopy.powerMode === "absolute" ? 150 : 75
     const newInterval: Interval = {
       startPower: defaultPower,
       endPower: defaultPower,

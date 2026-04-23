@@ -43,7 +43,9 @@ export function WorkoutEditor({
   onIntervalsChange,
 }: WorkoutEditorProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
+  const prevIntervalCountRef = useRef(intervals.length);
 
   const [dragPreview, setDragPreview] = useState<Interval[] | null>(null);
   const [moveState, setMoveState] = useState<{
@@ -76,6 +78,17 @@ export function WorkoutEditor({
       if (cleanupRef.current) cleanupRef.current();
     };
   }, []);
+
+  // Scroll to end when a new interval is appended
+  useEffect(() => {
+    if (intervals.length > prevIntervalCountRef.current) {
+      scrollContainerRef.current?.scrollTo({
+        left: scrollContainerRef.current.scrollWidth,
+        behavior: "smooth",
+      });
+    }
+    prevIntervalCountRef.current = intervals.length;
+  }, [intervals.length]);
 
   // Deselect when clicking outside the component entirely
   useEffect(() => {
@@ -229,15 +242,23 @@ export function WorkoutEditor({
               setActiveDrag({ type, index });
             }
 
-            // Calculate insertion point based on where the dragged block's
-            // centre currently sits relative to the remaining blocks.
+            // Calculate insertion point: swap when the overlapping edge of the
+            // dragged block crosses the midpoint of the adjacent block.
+            //
+            // The "remaining" layout places all blocks sequentially from x=0
+            // (i.e. blocks originally after the dragged block shift left by its
+            // width). In that coordinate system the correct reference point for
+            // the dragged block is simply its left edge in absolute coords
+            // (originalX + dx). For blocks that came BEFORE the dragged block
+            // this directly tests "left edge vs adjacent midpoint"; for blocks
+            // that came AFTER it the +width offset in absolute coords cancels
+            // with the −width shift in remaining coords, so it is equivalent to
+            // "right edge vs adjacent midpoint" in absolute coords — exactly the
+            // edge-crossing-midpoint behaviour the user sees on screen.
             const movedInterval = original[index];
             const remaining = original.filter((_, i) => i !== index);
             const originalX = originalPositions![index];
-            const draggedCenterX =
-              originalX +
-              (movedInterval.durationSeconds * PIXELS_PER_SECOND) / 2 +
-              dx;
+            const draggedEdgeX = originalX + dx;
 
             // Find insertion index in remaining array
             let cumX = 0;
@@ -246,7 +267,7 @@ export function WorkoutEditor({
               const midX =
                 cumX +
                 (remaining[i].durationSeconds * PIXELS_PER_SECOND) / 2;
-              if (draggedCenterX < midX) {
+              if (draggedEdgeX < midX) {
                 insertIdx = i;
                 break;
               }
@@ -676,7 +697,7 @@ export function WorkoutEditor({
       </div>
 
       {/* SVG editor area */}
-      <div className="flex-1 overflow-x-auto rounded-lg border border-border/50 bg-muted/20">
+      <div ref={scrollContainerRef} className="flex-1 overflow-x-auto rounded-lg border border-border/50 bg-muted/20">
         <svg
           ref={svgRef}
           width={totalWidth + 20}

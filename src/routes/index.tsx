@@ -61,24 +61,20 @@ function HomePage() {
               }
             >
               <CardContent className="space-y-3">
-                <div className="overflow-hidden rounded-lg">
-                  <WorkoutMini
-                    intervals={workout.intervals}
-                    ftp={ftp}
-                    powerMode={workout.powerMode}
-                    className="h-16"
-                  />
-                </div>
+                <WorkoutMini
+                  intervals={workout.intervals}
+                  ftp={ftp}
+                  powerMode={workout.powerMode}
+                  className="h-16"
+                />
                 <div>
-                  <h3 className="font-heading text-sm font-medium leading-tight">
+                  <h3 className="font-heading text-sm leading-tight font-medium">
                     {workout.title}
                   </h3>
                   <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
                     <span>{formatDuration(totalDuration)}</span>
                     <span className="text-border">•</span>
-                    <span>
-                      Avg {formatPower(avgPower, workout.powerMode)}
-                    </span>
+                    <span>Avg {formatPower(avgPower, workout.powerMode)}</span>
                     <span className="text-border">•</span>
                     <span>
                       {workout.intervals.length} interval
