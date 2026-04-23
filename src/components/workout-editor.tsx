@@ -341,6 +341,35 @@ export function WorkoutEditor({
             );
           })}
 
+          {/* FTP reference line */}
+          {(() => {
+            const ftpPower = powerMode === "absolute" ? ftp : 100;
+            const ftpY = powerToY(ftpPower);
+            if (ftpPower > maxPower || ftpPower <= 0) return null;
+            return (
+              <g pointerEvents="none">
+                <line
+                  x1={0}
+                  y1={ftpY}
+                  x2={totalWidth + 20}
+                  y2={ftpY}
+                  stroke="currentColor"
+                  strokeOpacity={0.35}
+                  strokeWidth={1}
+                  strokeDasharray="6 4"
+                />
+                <text
+                  x={totalWidth + 16}
+                  y={ftpY - 4}
+                  textAnchor="end"
+                  className="fill-muted-foreground text-[9px] font-medium"
+                >
+                  FTP
+                </text>
+              </g>
+            );
+          })()}
+
           {/* Baseline */}
           <line
             x1={0}
