@@ -21,6 +21,7 @@ import { EDITOR_HEIGHT, AXIS_HEIGHT } from "@/lib/timeline/types";
 import { EditorGrid } from "./editor-grid";
 import { IntervalBlock, IntervalBlockOverlay } from "./interval-block";
 import { DragTooltip } from "./drag-tooltip";
+import { InsertZone } from "./insert-zone";
 
 let _idCounter = 0;
 const newId = () => String(++_idCounter);
@@ -157,6 +158,32 @@ export function WorkoutEditor({
     [intervals, onIntervalsChange]
   );
 
+  // --- Insert ---
+  const handleInsertInterval = useCallback(
+    (index: number) => {
+      const prev = displayIntervals[index - 1];
+      const next = displayIntervals[index];
+
+      const newInterval: Interval = {
+        startPower: prev ? prev.endPower : next.startPower,
+        endPower: next ? next.startPower : prev.endPower,
+        durationSeconds: 300,
+      };
+
+      const newIntervals = [...intervals];
+      newIntervals.splice(index, 0, newInterval);
+
+      setStableIds((ids) => {
+        const updated = [...ids];
+        updated.splice(index, 0, newId());
+        return updated;
+      });
+
+      onIntervalsChange(newIntervals);
+    },
+    [intervals, displayIntervals, onIntervalsChange]
+  );
+
   // --- Scroll to end when a new interval is appended ---
   useEffect(() => {
     if (intervals.length > prevIntervalCountRef.current) {
@@ -267,6 +294,19 @@ export function WorkoutEditor({
               ) : null}
             </DragOverlay>
           </DndContext>
+
+          {/* Insert zones between blocks */}
+          {!isDragging &&
+            displayIntervals.length >= 2 &&
+            displayIntervals.slice(1).map((_, i) => (
+              <InsertZone
+                key={`insert-${i + 1}`}
+                x={scale.getIntervalX(i + 1)}
+                index={i + 1}
+                height={EDITOR_HEIGHT}
+                onInsert={handleInsertInterval}
+              />
+            ))}
 
           {/* Live drag value tooltip (resize/power drags only) */}
           {activeDrag && dragPreview && (
