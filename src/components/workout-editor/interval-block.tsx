@@ -59,6 +59,8 @@ export function IntervalBlock({
 
   const x = scale.getIntervalX(index)
   const w = scale.getIntervalWidth(interval)
+  // Leave a 1 px gap on the right so adjacent intervals are visually distinct
+  const displayW = Math.max(1, w - 1)
 
   // Power -> Y pixel positions (within this block's coordinate space)
   const startYPx = scale.powerToY(interval.startPower)
@@ -94,7 +96,7 @@ export function IntervalBlock({
     position: "absolute",
     left: x,
     top: 0,
-    width: w,
+    width: displayW,
     height: EDITOR_HEIGHT,
     // dnd-kit transform: lock to horizontal axis only
     transform: transform ? `translate3d(${transform.x}px, 0, 0)` : undefined,
@@ -142,12 +144,12 @@ export function IntervalBlock({
       {(isActive || isDragTarget) && (
         <svg
           className="pointer-events-none absolute inset-0"
-          width={w}
+          width={displayW}
           height={EDITOR_HEIGHT}
           style={{ overflow: "visible" }}
         >
           <polygon
-            points={`0,${startYPx} ${w},${endYPx} ${w},${EDITOR_HEIGHT} 0,${EDITOR_HEIGHT}`}
+            points={`0,${startYPx} ${displayW},${endYPx} ${displayW},${EDITOR_HEIGHT} 0,${EDITOR_HEIGHT}`}
             fill="none"
             stroke={
               isDragTarget || isSelected
@@ -202,7 +204,7 @@ export function IntervalBlock({
 
       {/* Resize/power handles */}
       <IntervalHandles
-        width={w}
+        width={displayW}
         startYPx={startYPx}
         endYPx={endYPx}
         startColor={startColor}
