@@ -4,7 +4,6 @@ import { snap, clamp, computeMaxPower } from "@/lib/workout-utils";
 import type { DragType } from "@/lib/timeline/types";
 import {
   EDITOR_HEIGHT,
-  PIXELS_PER_SECOND,
   MIN_POWER,
   MIN_DURATION,
   DURATION_SNAP,
@@ -13,6 +12,7 @@ import {
 interface UseIntervalDragConfig {
   intervals: Interval[];
   powerMode: "absolute" | "percentage";
+  pixelsPerSecond: number;
   onPreviewChange: (preview: Interval[] | null) => void;
   onCommit: (intervals: Interval[]) => void;
 }
@@ -32,6 +32,7 @@ interface DragState {
 export function useIntervalDrag({
   intervals,
   powerMode,
+  pixelsPerSecond,
   onPreviewChange,
   onCommit,
 }: UseIntervalDragConfig) {
@@ -99,7 +100,7 @@ export function useIntervalDrag({
             break;
           }
           case "duration": {
-            const durationDelta = dx / PIXELS_PER_SECOND;
+            const durationDelta = dx / pixelsPerSecond;
             newIntervals[index].durationSeconds = Math.max(
               MIN_DURATION,
               snap(
@@ -118,7 +119,7 @@ export function useIntervalDrag({
             // changes, so the edge appears stuck in the viewport.
             if (index === 0) break; // no previous interval to absorb the delta
 
-            const durationDelta = dx / PIXELS_PER_SECOND;
+            const durationDelta = dx / pixelsPerSecond;
             const prevDuration = original[index - 1].durationSeconds;
             const currDuration = original[index].durationSeconds;
 
@@ -177,7 +178,7 @@ export function useIntervalDrag({
 
       setActiveDrag({ type, index });
     },
-    [intervals, powerMode, powerSnap, onPreviewChange, onCommit]
+    [intervals, powerMode, pixelsPerSecond, powerSnap, onPreviewChange, onCommit]
   );
 
   return { activeDrag, startDrag };

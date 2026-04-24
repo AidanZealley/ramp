@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import {
   DndContext,
   closestCenter,
@@ -16,12 +16,14 @@ import {
 } from "@dnd-kit/sortable";
 import type { Interval } from "@/lib/workout-utils";
 import { useTimelineScale } from "@/hooks/use-timeline-scale";
+import { useTimelineZoom } from "@/hooks/use-timeline-zoom";
 import { useIntervalDrag } from "@/hooks/use-interval-drag";
 import { EDITOR_HEIGHT, AXIS_HEIGHT } from "@/lib/timeline/types";
 import { EditorGrid } from "./editor-grid";
 import { IntervalBlock, IntervalBlockOverlay } from "./interval-block";
 import { DragTooltip } from "./drag-tooltip";
 import { InsertZone } from "./insert-zone";
+import { ZoomControls } from "./zoom-controls";
 
 let _idCounter = 0;
 const newId = () => String(++_idCounter);
@@ -38,6 +40,7 @@ interface WorkoutEditorProps {
  *
  * Orchestrates:
  * - Coordinate system (useTimelineScale)
+ * - Zoom / fit-to-width (useTimelineZoom)
  * - Custom resize/power drag (useIntervalDrag)
  * - Drag-to-reorder (dnd-kit)
  * - Rendering (DOM-based interval blocks, grid, tooltip)
@@ -85,13 +88,26 @@ export function WorkoutEditor({
   // The intervals to display: drag preview during resize, original otherwise
   const displayIntervals = dragPreview ?? intervals;
 
+  // --- Total duration (needed by zoom hook before scale is created) ---
+  const totalDurationSec = useMemo(
+    () => displayIntervals.reduce((s, iv) => s + iv.durationSeconds, 0),
+    [displayIntervals]
+  );
+
+  // --- Zoom / fit-to-width ---
+  const zoom = useTimelineZoom({
+    totalDurationSec,
+    containerRef: scrollContainerRef,
+  });
+
   // --- Coordinate system ---
-  const scale = useTimelineScale(displayIntervals, powerMode);
+  const scale = useTimelineScale(displayIntervals, powerMode, zoom.pixelsPerSecond);
 
   // --- Custom resize/power drag ---
   const { activeDrag, startDrag } = useIntervalDrag({
     intervals,
     powerMode,
+    pixelsPerSecond: zoom.pixelsPerSecond,
     onPreviewChange: setDragPreview,
     onCommit: onIntervalsChange,
   });
@@ -321,6 +337,16 @@ export function WorkoutEditor({
             )}
           </div>
         </div>
+
+        {/* Zoom controls */}
+        <ZoomControls
+          zoomLevel={zoom.zoomLevel}
+          canZoomIn={zoom.canZoomIn}
+          canZoomOut={zoom.canZoomOut}
+          onZoomIn={zoom.zoomIn}
+          onZoomOut={zoom.zoomOut}
+          onResetZoom={zoom.resetZoom}
+        />
 
         {/* FTP label – pinned to right edge of visible area */}
         {(() => {

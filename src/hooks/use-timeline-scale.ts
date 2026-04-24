@@ -11,12 +11,10 @@ import {
   computePowerTicks,
   computeTimeTicks,
 } from "@/lib/timeline/coordinate-system";
-import {
-  EDITOR_HEIGHT,
-  PIXELS_PER_SECOND,
-} from "@/lib/timeline/types";
+import { EDITOR_HEIGHT } from "@/lib/timeline/types";
 
 export interface TimelineScale {
+  pixelsPerSecond: number;
   maxPower: number;
   totalWidth: number;
   totalDurationSec: number;
@@ -39,11 +37,12 @@ export interface TimelineScale {
 /**
  * React hook that creates a memoized coordinate-system scale
  * for the timeline editor. All mapping functions are bound to
- * the current intervals and power mode.
+ * the current intervals, power mode, and pixelsPerSecond.
  */
 export function useTimelineScale(
   intervals: Interval[],
-  powerMode: "absolute" | "percentage"
+  powerMode: "absolute" | "percentage",
+  pixelsPerSecond: number
 ): TimelineScale {
   const maxPower = useMemo(
     () => computeMaxPower(intervals, powerMode),
@@ -56,8 +55,8 @@ export function useTimelineScale(
   );
 
   const totalWidth = useMemo(
-    () => Math.max(timeToX(totalDurationSec, PIXELS_PER_SECOND), 300),
-    [totalDurationSec]
+    () => Math.max(timeToX(totalDurationSec, pixelsPerSecond), 300),
+    [totalDurationSec, pixelsPerSecond]
   );
 
   const powerTicks = useMemo(
@@ -72,13 +71,13 @@ export function useTimelineScale(
 
   // Bound mapping functions
   const boundTimeToX = useCallback(
-    (seconds: number) => timeToX(seconds, PIXELS_PER_SECOND),
-    []
+    (seconds: number) => timeToX(seconds, pixelsPerSecond),
+    [pixelsPerSecond]
   );
 
   const boundXToTime = useCallback(
-    (x: number) => xToTime(x, PIXELS_PER_SECOND),
-    []
+    (x: number) => xToTime(x, pixelsPerSecond),
+    [pixelsPerSecond]
   );
 
   const boundPowerToY = useCallback(
@@ -93,17 +92,18 @@ export function useTimelineScale(
 
   const boundGetIntervalX = useCallback(
     (index: number) =>
-      rawGetIntervalStartX(index, intervals, PIXELS_PER_SECOND),
-    [intervals]
+      rawGetIntervalStartX(index, intervals, pixelsPerSecond),
+    [intervals, pixelsPerSecond]
   );
 
   const boundGetIntervalWidth = useCallback(
-    (interval: Interval) => rawGetIntervalWidth(interval, PIXELS_PER_SECOND),
-    []
+    (interval: Interval) => rawGetIntervalWidth(interval, pixelsPerSecond),
+    [pixelsPerSecond]
   );
 
   return useMemo(
     () => ({
+      pixelsPerSecond,
       maxPower,
       totalWidth,
       totalDurationSec,
@@ -117,6 +117,7 @@ export function useTimelineScale(
       timeTicks,
     }),
     [
+      pixelsPerSecond,
       maxPower,
       totalWidth,
       totalDurationSec,
