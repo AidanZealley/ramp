@@ -65,8 +65,8 @@ export function useTimelineScale(
   );
 
   const timeTicks = useMemo(
-    () => computeTimeTicks(totalDurationSec),
-    [totalDurationSec]
+    () => computeTimeTicks(totalDurationSec, pixelsPerSecond),
+    [totalDurationSec, pixelsPerSecond]
   );
 
   // Bound mapping functions

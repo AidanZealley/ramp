@@ -82,10 +82,22 @@ export function computePowerTicks(
 
 /**
  * Compute time tick values for vertical grid lines.
- * Short workouts (<=30min): every 60s. Longer: every 300s.
+ * Picks the smallest "nice" step that keeps adjacent labels at least
+ * MIN_LABEL_GAP_PX pixels apart, so labels never bunch up on small screens.
  */
-export function computeTimeTicks(totalDurationSec: number): number[] {
-  const step = totalDurationSec > 1800 ? 300 : 60;
+export function computeTimeTicks(
+  totalDurationSec: number,
+  pixelsPerSecond: number
+): number[] {
+  // Minimum pixel gap we want between adjacent tick labels (~width of "1:00:00")
+  const MIN_LABEL_GAP_PX = 60;
+  const minStepSec = pixelsPerSecond > 0 ? MIN_LABEL_GAP_PX / pixelsPerSecond : 60;
+
+  // Candidate step sizes in ascending order (seconds)
+  const NICE_STEPS = [30, 60, 120, 180, 300, 600, 900, 1200, 1800, 3600];
+  const step =
+    NICE_STEPS.find((s) => s >= minStepSec) ?? NICE_STEPS[NICE_STEPS.length - 1];
+
   const ticks: number[] = [];
   for (let t = step; t < totalDurationSec; t += step) {
     ticks.push(t);
