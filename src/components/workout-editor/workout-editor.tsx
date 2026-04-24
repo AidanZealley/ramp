@@ -32,6 +32,7 @@ import { IntervalBlock, IntervalBlockOverlay } from "./interval-block"
 import { DragTooltip } from "./drag-tooltip"
 import { InsertZone } from "./insert-zone"
 import { EditorToolbar } from "./editor-toolbar"
+import { Badge } from "../ui/badge"
 
 let _idCounter = 0
 const newId = () => String(++_idCounter)
@@ -63,8 +64,13 @@ interface WorkoutEditorProps {
  * Props interface is identical to the previous SVG-based editor,
  * so the parent component requires zero changes.
  */
-export const WorkoutEditor = forwardRef<WorkoutEditorHandle, WorkoutEditorProps>(
-  function WorkoutEditor({ intervals, powerMode, ftp, onIntervalsChange }, ref) {
+export const WorkoutEditor = forwardRef<
+  WorkoutEditorHandle,
+  WorkoutEditorProps
+>(function WorkoutEditor(
+  { intervals, powerMode, ftp, onIntervalsChange },
+  ref
+) {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<HTMLDivElement>(null)
   const prevIntervalCountRef = useRef(intervals.length)
@@ -256,7 +262,10 @@ export const WorkoutEditor = forwardRef<WorkoutEditorHandle, WorkoutEditorProps>
           container.scrollTo({ left: Math.max(0, target), behavior: "smooth" })
         } else {
           // Fallback: scroll to end (appended without tracking index).
-          container.scrollTo({ left: container.scrollWidth, behavior: "smooth" })
+          container.scrollTo({
+            left: container.scrollWidth,
+            behavior: "smooth",
+          })
         }
       }
       lastInsertIndexRef.current = null
@@ -396,12 +405,13 @@ export const WorkoutEditor = forwardRef<WorkoutEditorHandle, WorkoutEditorProps>
           const ftpY = scale.powerToY(ftpPower)
           const showFtpLine = ftpPower <= scale.maxPower && ftpPower > 0
           return showFtpLine ? (
-            <span
-              className="pointer-events-none absolute right-2 text-[9px] font-medium text-muted-foreground"
-              style={{ top: ftpY - 14 }}
+            <Badge
+              variant="outline"
+              className="absolute right-2"
+              style={{ top: ftpY - 24 }}
             >
               FTP
-            </span>
+            </Badge>
           ) : null
         })()}
 
@@ -416,5 +426,4 @@ export const WorkoutEditor = forwardRef<WorkoutEditorHandle, WorkoutEditorProps>
       </div>
     </div>
   )
-  }
-)
+})

@@ -182,12 +182,12 @@ export function IntervalBlock({
           className="pointer-events-none absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-1"
           style={{ bottom: 8 }}
         >
-          {w > 80 && EDITOR_HEIGHT - Math.max(startYPx, endYPx) > 40 && (
-            <span className="text-[9px] font-medium leading-none text-foreground/55">
+          {w > 40 && (
+            <span className="text-[10px] font-semibold leading-none text-foreground/70">
               {zoneLabel}
             </span>
           )}
-          <span className="text-[9px] leading-none tabular-nums text-foreground/45">
+          <span className="text-[10px] font-medium leading-none tabular-nums text-foreground/60">
             {formatDuration(interval.durationSeconds)}
           </span>
         </div>
