@@ -1,9 +1,9 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "../../convex/_generated/api"
 import type { Id } from "../../convex/_generated/dataModel"
-import { WorkoutEditor } from "@/components/workout-editor"
+import { WorkoutEditor, type WorkoutEditorHandle } from "@/components/workout-editor"
 import { EditableTitle } from "@/components/editable-title"
 import { Button } from "@/components/ui/button"
 import {
@@ -45,6 +45,8 @@ function WorkoutPage() {
   const removeWorkout = useMutation(api.workouts.remove)
 
   const ftp = settings?.ftp ?? 150
+
+  const editorRef = useRef<WorkoutEditorHandle>(null)
 
   const [edits, setEdits] = useState<WorkoutEdits | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -117,22 +119,22 @@ function WorkoutPage() {
   }, [workingCopy, workout, ftp, applyEdit])
 
   const handleAddInterval = useCallback(() => {
-    if (!workingCopy) return
-
-    const lastInterval = workingCopy.intervals.at(-1)
-    const defaultPower = lastInterval
-      ? lastInterval.endPower
-      : workingCopy.powerMode === "absolute"
-        ? 150
-        : 75
-    const newInterval: Interval = {
-      startPower: defaultPower,
-      endPower: defaultPower,
-      durationSeconds: 300,
+    if (editorRef.current) {
+      // Editor is mounted — delegate fully so it can insert after the
+      // currently-selected interval, auto-select the new one, and scroll
+      // to it correctly.
+      editorRef.current.insertInterval()
+      return
     }
 
+    // Fallback: editor isn't mounted yet (empty-state button). Just append.
+    if (!workingCopy) return
+    const defaultPower = workingCopy.powerMode === "absolute" ? 150 : 75
     applyEdit({
-      intervals: [...workingCopy.intervals, newInterval],
+      intervals: [
+        ...workingCopy.intervals,
+        { startPower: defaultPower, endPower: defaultPower, durationSeconds: 300 },
+      ],
     })
   }, [workingCopy, applyEdit])
 
@@ -263,6 +265,7 @@ function WorkoutPage() {
       {/* Editor */}
       {workingCopy.intervals.length > 0 ? (
         <WorkoutEditor
+          ref={editorRef}
           intervals={workingCopy.intervals}
           powerMode={workingCopy.powerMode}
           ftp={ftp}

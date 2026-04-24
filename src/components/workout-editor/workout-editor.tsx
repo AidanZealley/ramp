@@ -1,4 +1,12 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from "react"
+import {
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  forwardRef,
+  useImperativeHandle,
+} from "react"
 import {
   DndContext,
   closestCenter,
@@ -28,6 +36,13 @@ import { EditorToolbar } from "./editor-toolbar"
 let _idCounter = 0
 const newId = () => String(++_idCounter)
 
+export interface WorkoutEditorHandle {
+  /** Insert a new interval. Uses the currently-selected interval as the
+   *  insertion point (inserts after it). Falls back to appending at the end
+   *  when nothing is selected. */
+  insertInterval(): void
+}
+
 interface WorkoutEditorProps {
   intervals: Interval[]
   powerMode: "absolute" | "percentage"
@@ -48,15 +63,14 @@ interface WorkoutEditorProps {
  * Props interface is identical to the previous SVG-based editor,
  * so the parent component requires zero changes.
  */
-export function WorkoutEditor({
-  intervals,
-  powerMode,
-  ftp,
-  onIntervalsChange,
-}: WorkoutEditorProps) {
+export const WorkoutEditor = forwardRef<WorkoutEditorHandle, WorkoutEditorProps>(
+  function WorkoutEditor({ intervals, powerMode, ftp, onIntervalsChange }, ref) {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<HTMLDivElement>(null)
   const prevIntervalCountRef = useRef(intervals.length)
+  // Tracks where the last interval was inserted so the scroll effect can
+  // bring it into view rather than always jumping to the end.
+  const lastInsertIndexRef = useRef<number | null>(null)
 
   // --- State ---
   const [dragPreview, setDragPreview] = useState<Interval[] | null>(null)
@@ -176,41 +190,76 @@ export function WorkoutEditor({
   )
 
   // --- Insert ---
-  const handleInsertInterval = useCallback(
+  // `index` is the position to insert at (0 = before first, intervals.length = append).
+  const handleInsertAt = useCallback(
     (index: number) => {
       const prev = displayIntervals[index - 1]
       const next = displayIntervals[index]
+      const defaultPower = powerMode === "absolute" ? 150 : 75
 
       const newInterval: Interval = {
-        startPower: prev ? prev.endPower : next.startPower,
-        endPower: next ? next.startPower : prev.endPower,
+        startPower: prev ? prev.endPower : (next?.startPower ?? defaultPower),
+        endPower: next ? next.startPower : (prev?.endPower ?? defaultPower),
         durationSeconds: 300,
       }
 
+      const freshId = newId()
       const newIntervals = [...intervals]
       newIntervals.splice(index, 0, newInterval)
 
       setStableIds((ids) => {
         const updated = [...ids]
-        updated.splice(index, 0, newId())
+        updated.splice(index, 0, freshId)
         return updated
       })
 
+      // Auto-select the new interval and remember where it landed for scroll.
+      setSelectedId(freshId)
+      lastInsertIndexRef.current = index
+
       onIntervalsChange(newIntervals)
     },
-    [intervals, displayIntervals, onIntervalsChange]
+    [intervals, displayIntervals, powerMode, onIntervalsChange]
   )
 
-  // --- Scroll to end when a new interval is appended ---
+  // --- Expose imperative API ---
+  useImperativeHandle(
+    ref,
+    () => ({
+      insertInterval() {
+        const selectedIndex =
+          selectedId !== null ? stableIds.indexOf(selectedId) : -1
+        // Insert after the selected interval, or append if nothing is selected.
+        const insertAt =
+          selectedIndex >= 0 ? selectedIndex + 1 : intervals.length
+        handleInsertAt(insertAt)
+      },
+    }),
+    [selectedId, stableIds, intervals.length, handleInsertAt]
+  )
+
+  // --- Scroll to the newly inserted interval ---
   useEffect(() => {
     if (intervals.length > prevIntervalCountRef.current) {
-      scrollContainerRef.current?.scrollTo({
-        left: scrollContainerRef.current.scrollWidth,
-        behavior: "smooth",
-      })
+      const container = scrollContainerRef.current
+      if (container) {
+        const insertIdx = lastInsertIndexRef.current
+        if (insertIdx !== null && insertIdx < intervals.length) {
+          // Scroll so the new interval is visible (roughly centred).
+          const x = scale.getIntervalX(insertIdx)
+          const ivWidth =
+            intervals[insertIdx].durationSeconds * zoom.pixelsPerSecond
+          const target = x + ivWidth / 2 - container.clientWidth / 2
+          container.scrollTo({ left: Math.max(0, target), behavior: "smooth" })
+        } else {
+          // Fallback: scroll to end (appended without tracking index).
+          container.scrollTo({ left: container.scrollWidth, behavior: "smooth" })
+        }
+      }
+      lastInsertIndexRef.current = null
     }
     prevIntervalCountRef.current = intervals.length
-  }, [intervals.length])
+  }, [intervals.length, intervals, scale, zoom.pixelsPerSecond])
 
   // --- Deselect on click outside the editor ---
   useEffect(() => {
@@ -321,7 +370,7 @@ export function WorkoutEditor({
                     x={scale.getIntervalX(i + 1)}
                     index={i + 1}
                     height={EDITOR_HEIGHT}
-                    onInsert={handleInsertInterval}
+                    onInsert={handleInsertAt}
                   />
                 ))}
 
@@ -364,4 +413,5 @@ export function WorkoutEditor({
       </div>
     </div>
   )
-}
+  }
+)
