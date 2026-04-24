@@ -135,7 +135,7 @@ export function IntervalBlock({
             fill="none"
             stroke={
               isDragTarget || isSelected
-                ? "var(--color-primary)"
+                ? "var(--color-foreground)"
                 : "currentColor"
             }
             strokeWidth={isDragTarget || isSelected ? 2 : 1}

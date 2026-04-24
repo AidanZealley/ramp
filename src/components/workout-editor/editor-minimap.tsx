@@ -3,7 +3,7 @@ import type { Interval } from "@/lib/workout-utils"
 import { WorkoutMini } from "@/components/workout-mini"
 
 /** Fixed content scale — pixels per second of workout duration */
-const MINIMAP_PX_PER_SEC = 0.4
+const MINIMAP_PX_PER_SEC = 0.2
 /** Minimum content width so very short workouts aren't tiny slivers */
 const MINIMAP_MIN_WIDTH = 120
 
