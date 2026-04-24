@@ -24,6 +24,7 @@ import { IntervalBlock, IntervalBlockOverlay } from "./interval-block"
 import { DragTooltip } from "./drag-tooltip"
 import { InsertZone } from "./insert-zone"
 import { ZoomControls } from "./zoom-controls"
+import { EditorMinimap } from "./editor-minimap"
 
 let _idCounter = 0
 const newId = () => String(++_idCounter)
@@ -338,16 +339,6 @@ export function WorkoutEditor({
           </div>
         </div>
 
-        {/* Zoom controls */}
-        <ZoomControls
-          zoomLevel={zoom.zoomLevel}
-          canZoomIn={zoom.canZoomIn}
-          canZoomOut={zoom.canZoomOut}
-          onZoomIn={zoom.zoomIn}
-          onZoomOut={zoom.zoomOut}
-          onResetZoom={zoom.resetZoom}
-        />
-
         {/* FTP label – pinned to right edge of visible area */}
         {(() => {
           const ftpPower = powerMode === "absolute" ? ftp : 100
@@ -362,6 +353,27 @@ export function WorkoutEditor({
             </span>
           ) : null
         })()}
+
+        {/* Editor toolbar — minimap + zoom controls */}
+        <div className="mt-1.5 flex items-center gap-2">
+          {zoom.zoomLevel > 1 && (
+            <EditorMinimap
+              intervals={displayIntervals}
+              ftp={ftp}
+              powerMode={powerMode}
+              scrollContainerRef={scrollContainerRef}
+            />
+          )}
+
+          <ZoomControls
+            zoomLevel={zoom.zoomLevel}
+            canZoomIn={zoom.canZoomIn}
+            canZoomOut={zoom.canZoomOut}
+            onZoomIn={zoom.zoomIn}
+            onZoomOut={zoom.zoomOut}
+            onResetZoom={zoom.resetZoom}
+          />
+        </div>
       </div>
     </div>
   )

@@ -6,6 +6,7 @@ interface WorkoutMiniProps {
   ftp: number
   powerMode: "absolute" | "percentage"
   className?: string
+  compact?: boolean
 }
 
 export function WorkoutMini({
@@ -13,12 +14,13 @@ export function WorkoutMini({
   ftp,
   powerMode,
   className = "",
+  compact = false,
 }: WorkoutMiniProps) {
   if (intervals.length === 0) {
     return (
       <div
         className={`flex items-center justify-center bg-muted/50 ${className}`}
-        style={{ minHeight: 48 }}
+        style={{ minHeight: compact ? undefined : 48 }}
       >
         <span className="text-xs text-muted-foreground">No intervals</span>
       </div>
@@ -43,7 +45,7 @@ export function WorkoutMini({
       viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
       preserveAspectRatio="none"
       className={`w-full ${className}`}
-      style={{ minHeight: 48 }}
+      style={{ minHeight: compact ? undefined : 48 }}
     >
       {intervals.map((interval, i) => {
         const x = currentX

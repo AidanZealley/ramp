@@ -21,7 +21,7 @@ export function ZoomControls({
   const isAtFit = zoomLevel <= 1
 
   return (
-    <div className="absolute right-1 bottom-1 z-10 flex items-center gap-0.5 rounded-lg border border-border/50 bg-background/80 px-0.5 py-0.5 backdrop-blur-sm">
+    <div className="flex items-center gap-0.5 rounded-lg border border-border/50 px-0.5 py-0.5">
       <Button
         variant="ghost"
         size="icon-xs"
