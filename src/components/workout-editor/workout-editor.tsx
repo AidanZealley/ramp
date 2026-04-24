@@ -23,8 +23,7 @@ import { EditorGrid } from "./editor-grid"
 import { IntervalBlock, IntervalBlockOverlay } from "./interval-block"
 import { DragTooltip } from "./drag-tooltip"
 import { InsertZone } from "./insert-zone"
-import { ZoomControls } from "./zoom-controls"
-import { EditorMinimap } from "./editor-minimap"
+import { EditorToolbar } from "./editor-toolbar"
 
 let _idCounter = 0
 const newId = () => String(++_idCounter)
@@ -355,25 +354,13 @@ export function WorkoutEditor({
         })()}
 
         {/* Editor toolbar — minimap + zoom controls */}
-        <div className="mt-1.5 flex items-center gap-2">
-          {zoom.zoomLevel > 1 && (
-            <EditorMinimap
-              intervals={displayIntervals}
-              ftp={ftp}
-              powerMode={powerMode}
-              scrollContainerRef={scrollContainerRef}
-            />
-          )}
-
-          <ZoomControls
-            zoomLevel={zoom.zoomLevel}
-            canZoomIn={zoom.canZoomIn}
-            canZoomOut={zoom.canZoomOut}
-            onZoomIn={zoom.zoomIn}
-            onZoomOut={zoom.zoomOut}
-            onResetZoom={zoom.resetZoom}
-          />
-        </div>
+        <EditorToolbar
+          intervals={displayIntervals}
+          ftp={ftp}
+          powerMode={powerMode}
+          scrollContainerRef={scrollContainerRef}
+          zoom={zoom}
+        />
       </div>
     </div>
   )
