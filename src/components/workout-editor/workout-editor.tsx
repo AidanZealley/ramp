@@ -233,92 +233,109 @@ export function WorkoutEditor({
       </div>
 
       {/* Main editor area */}
-      <div
-        ref={scrollContainerRef}
-        className="flex-1 overflow-x-auto rounded-lg border border-border/50 bg-muted/20"
-      >
+      <div className="relative min-w-0 flex-1">
         <div
-          ref={editorRef}
-          className="relative"
-          style={{
-            width: scale.totalWidth + 20,
-            height: EDITOR_HEIGHT + AXIS_HEIGHT,
-            cursor: activeReorderId ? "grabbing" : undefined,
-          }}
-          onClick={() => setSelectedId(null)}
+          ref={scrollContainerRef}
+          className="overflow-x-auto rounded-lg border border-border/50 bg-muted/20"
         >
-          {/* Background grid */}
-          <EditorGrid scale={scale} ftp={ftp} powerMode={powerMode} />
-
-          {/* Interval blocks with dnd-kit */}
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
+          <div
+            ref={editorRef}
+            className="relative"
+            style={{
+              width: scale.totalWidth + 20,
+              height: EDITOR_HEIGHT + AXIS_HEIGHT,
+              cursor: activeReorderId ? "grabbing" : undefined,
+            }}
+            onClick={() => setSelectedId(null)}
           >
-            <SortableContext
-              items={stableIds}
-              strategy={horizontalListSortingStrategy}
+            {/* Background grid */}
+            <EditorGrid scale={scale} ftp={ftp} powerMode={powerMode} />
+
+            {/* Interval blocks with dnd-kit */}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
             >
-              {displayIntervals.map((interval, i) => (
-                <IntervalBlock
-                  key={stableIds[i] ?? i}
-                  stableId={stableIds[i] ?? String(i)}
-                  interval={interval}
-                  index={i}
-                  scale={scale}
-                  ftp={ftp}
-                  powerMode={powerMode}
-                  isHovered={hoveredIndex === i && !isDragging}
-                  isSelected={stableIds[i] === selectedId}
-                  isDragTarget={activeDrag?.index === i}
-                  isDragging={isDragging}
-                  onHover={setHoveredIndex}
-                  onSelect={handleSelect}
-                  onStartDrag={startDrag}
-                  onDelete={handleDeleteInterval}
+              <SortableContext
+                items={stableIds}
+                strategy={horizontalListSortingStrategy}
+              >
+                {displayIntervals.map((interval, i) => (
+                  <IntervalBlock
+                    key={stableIds[i] ?? i}
+                    stableId={stableIds[i] ?? String(i)}
+                    interval={interval}
+                    index={i}
+                    scale={scale}
+                    ftp={ftp}
+                    powerMode={powerMode}
+                    isHovered={hoveredIndex === i && !isDragging}
+                    isSelected={stableIds[i] === selectedId}
+                    isDragTarget={activeDrag?.index === i}
+                    isDragging={isDragging}
+                    onHover={setHoveredIndex}
+                    onSelect={handleSelect}
+                    onStartDrag={startDrag}
+                    onDelete={handleDeleteInterval}
+                  />
+                ))}
+              </SortableContext>
+
+              {/* Ghost overlay during reorder drag */}
+              <DragOverlay dropAnimation={null}>
+                {activeReorderInterval ? (
+                  <IntervalBlockOverlay
+                    interval={activeReorderInterval}
+                    scale={scale}
+                    ftp={ftp}
+                    powerMode={powerMode}
+                  />
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+
+            {/* Insert zones between blocks */}
+            {!isDragging &&
+              displayIntervals.length >= 2 &&
+              displayIntervals.slice(1).map((_, i) => (
+                <InsertZone
+                  key={`insert-${i + 1}`}
+                  x={scale.getIntervalX(i + 1)}
+                  index={i + 1}
+                  height={EDITOR_HEIGHT}
+                  onInsert={handleInsertInterval}
                 />
               ))}
-            </SortableContext>
 
-            {/* Ghost overlay during reorder drag */}
-            <DragOverlay dropAnimation={null}>
-              {activeReorderInterval ? (
-                <IntervalBlockOverlay
-                  interval={activeReorderInterval}
-                  scale={scale}
-                  ftp={ftp}
-                  powerMode={powerMode}
-                />
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-
-          {/* Insert zones between blocks */}
-          {!isDragging &&
-            displayIntervals.length >= 2 &&
-            displayIntervals.slice(1).map((_, i) => (
-              <InsertZone
-                key={`insert-${i + 1}`}
-                x={scale.getIntervalX(i + 1)}
-                index={i + 1}
-                height={EDITOR_HEIGHT}
-                onInsert={handleInsertInterval}
+            {/* Live drag value tooltip (resize/power drags only) */}
+            {activeDrag && dragPreview && (
+              <DragTooltip
+                activeDrag={activeDrag}
+                intervals={dragPreview}
+                scale={scale}
+                powerMode={powerMode}
+                containerWidth={scale.totalWidth + 20}
               />
-            ))}
-
-          {/* Live drag value tooltip (resize/power drags only) */}
-          {activeDrag && dragPreview && (
-            <DragTooltip
-              activeDrag={activeDrag}
-              intervals={dragPreview}
-              scale={scale}
-              powerMode={powerMode}
-              containerWidth={scale.totalWidth + 20}
-            />
-          )}
+            )}
+          </div>
         </div>
+
+        {/* FTP label – pinned to right edge of visible area */}
+        {(() => {
+          const ftpPower = powerMode === "absolute" ? ftp : 100;
+          const ftpY = scale.powerToY(ftpPower);
+          const showFtpLine = ftpPower <= scale.maxPower && ftpPower > 0;
+          return showFtpLine ? (
+            <span
+              className="pointer-events-none absolute right-2 text-[9px] font-medium text-muted-foreground"
+              style={{ top: ftpY - 14 }}
+            >
+              FTP
+            </span>
+          ) : null;
+        })()}
       </div>
     </div>
   );

@@ -55,14 +55,9 @@ export function EditorGrid({ scale, ftp, powerMode }: EditorGridProps) {
       {/* FTP reference line */}
       {showFtpLine && (
         <div
-          className="pointer-events-none absolute left-0 right-0"
+          className="pointer-events-none absolute left-0 right-0 border-t border-dashed border-current opacity-35"
           style={{ top: ftpY }}
-        >
-          <div className="border-t border-dashed border-current opacity-35" />
-          <span className="absolute right-1 -top-4 text-[9px] font-medium text-muted-foreground">
-            FTP
-          </span>
-        </div>
+        />
       )}
 
       {/* Baseline */}

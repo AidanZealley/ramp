@@ -98,10 +98,6 @@ export function IntervalBlock({
       style={style}
       className={cn(isSelected && "z-10")}
       {...attributes}
-      onClick={(e) => {
-        e.stopPropagation()
-        onSelect(stableId)
-      }}
     >
       {/* Trapezoid fill — clip-path creates the shape, gradient fills the zone colors */}
       <div
@@ -114,6 +110,10 @@ export function IntervalBlock({
         }}
         // dnd-kit listeners on the body for drag-to-reorder
         {...listeners}
+        onClick={(e) => {
+          e.stopPropagation()
+          onSelect(stableId)
+        }}
         onPointerEnter={() => {
           if (!isDragging) onHover(index)
         }}
