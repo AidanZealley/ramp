@@ -170,6 +170,9 @@ export const WorkoutEditor = forwardRef<WorkoutEditorHandle, WorkoutEditorProps>
       // Update IDs and intervals atomically so dnd-kit never sees stale order.
       setStableIds((prev) => arrayMove([...prev], oldIndex, newIndex))
       onIntervalsChange(arrayMove([...intervals], oldIndex, newIndex))
+
+      // Select the interval that was just dragged (replaces any existing selection).
+      setSelectedId(active.id as string)
     },
     [intervals, stableIds, onIntervalsChange]
   )
