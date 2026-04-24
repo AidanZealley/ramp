@@ -21,6 +21,7 @@ interface IntervalBlockProps {
   isDragging: boolean // any drag (resize or reorder) in progress
   onHover: (index: number | null) => void
   onSelect: (stableId: string) => void
+  onFocusSelect: (stableId: string) => void
   onStartDrag: (e: React.PointerEvent, type: DragType, index: number) => void
   onDelete: (index: number) => void
 }
@@ -43,6 +44,7 @@ export function IntervalBlock({
   isDragging,
   onHover,
   onSelect,
+  onFocusSelect,
   onStartDrag,
   onDelete,
 }: IntervalBlockProps) {
@@ -105,7 +107,12 @@ export function IntervalBlock({
     <div
       ref={setNodeRef}
       style={style}
-      className={cn(isSelected && "z-10")}
+      className={cn("outline-none", isSelected && "z-10")}
+      onFocus={(e) => {
+        // Only select on keyboard-initiated focus (Tab), not mouse clicks.
+        // Mouse clicks already go through onClick → onSelect.
+        if (e.target.matches(":focus-visible")) onFocusSelect(stableId)
+      }}
       {...attributes}
     >
       {/* Trapezoid fill — clip-path creates the shape, gradient fills the zone colors */}

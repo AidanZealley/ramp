@@ -23,10 +23,18 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable"
 import type { Interval } from "@/lib/workout-utils"
+import { clamp, computeMaxPower } from "@/lib/workout-utils"
 import { useTimelineScale } from "@/hooks/use-timeline-scale"
 import { useTimelineZoom } from "@/hooks/use-timeline-zoom"
 import { useIntervalDrag } from "@/hooks/use-interval-drag"
-import { EDITOR_HEIGHT, AXIS_HEIGHT } from "@/lib/timeline/types"
+import { useKeypress } from "@/hooks/use-keypress"
+import {
+  EDITOR_HEIGHT,
+  AXIS_HEIGHT,
+  MIN_POWER,
+  MIN_DURATION,
+  DURATION_SNAP,
+} from "@/lib/timeline/types"
 import { EditorGrid } from "./editor-grid"
 import { IntervalBlock, IntervalBlockOverlay } from "./interval-block"
 import { DragTooltip } from "./drag-tooltip"
@@ -188,6 +196,11 @@ export const WorkoutEditor = forwardRef<
     setSelectedId((prev) => (prev === id ? null : id))
   }, [])
 
+  // Always-select (no toggle) — used when Tab-focusing an interval
+  const handleFocusSelect = useCallback((id: string) => {
+    setSelectedId(id)
+  }, [])
+
   // --- Delete ---
   const handleDeleteInterval = useCallback(
     (index: number) => {
@@ -196,6 +209,133 @@ export const WorkoutEditor = forwardRef<
       setSelectedId(null)
     },
     [intervals, onIntervalsChange]
+  )
+
+  // --- Keyboard shortcuts ---
+  const powerSnap = powerMode === "absolute" ? 5 : 1
+
+  useKeypress(
+    "Backspace",
+    useCallback(
+      (e: KeyboardEvent) => {
+        if (isDragging || selectedId === null) return
+        const idx = stableIds.indexOf(selectedId)
+        if (idx === -1) return
+        e.preventDefault()
+        handleDeleteInterval(idx)
+      },
+      [isDragging, selectedId, stableIds, handleDeleteInterval]
+    )
+  )
+
+  useKeypress(
+    "Delete",
+    useCallback(
+      (e: KeyboardEvent) => {
+        if (isDragging || selectedId === null) return
+        const idx = stableIds.indexOf(selectedId)
+        if (idx === -1) return
+        e.preventDefault()
+        handleDeleteInterval(idx)
+      },
+      [isDragging, selectedId, stableIds, handleDeleteInterval]
+    )
+  )
+
+  useKeypress(
+    "Escape",
+    useCallback(
+      (e: KeyboardEvent) => {
+        if (selectedId === null) return
+        e.preventDefault()
+        setSelectedId(null)
+      },
+      [selectedId]
+    )
+  )
+
+  useKeypress(
+    "ArrowUp",
+    useCallback(
+      (e: KeyboardEvent) => {
+        if (isDragging || selectedId === null) return
+        const idx = stableIds.indexOf(selectedId)
+        if (idx === -1) return
+        e.preventDefault()
+        const interval = intervals[idx]
+        const maxPower = computeMaxPower(intervals, powerMode)
+        const updated = [...intervals]
+        updated[idx] = {
+          ...interval,
+          startPower: clamp(interval.startPower + powerSnap, MIN_POWER, maxPower),
+          endPower: clamp(interval.endPower + powerSnap, MIN_POWER, maxPower),
+        }
+        onIntervalsChange(updated)
+      },
+      [isDragging, selectedId, stableIds, intervals, powerMode, powerSnap, onIntervalsChange]
+    )
+  )
+
+  useKeypress(
+    "ArrowDown",
+    useCallback(
+      (e: KeyboardEvent) => {
+        if (isDragging || selectedId === null) return
+        const idx = stableIds.indexOf(selectedId)
+        if (idx === -1) return
+        e.preventDefault()
+        const interval = intervals[idx]
+        const maxPower = computeMaxPower(intervals, powerMode)
+        const updated = [...intervals]
+        updated[idx] = {
+          ...interval,
+          startPower: clamp(interval.startPower - powerSnap, MIN_POWER, maxPower),
+          endPower: clamp(interval.endPower - powerSnap, MIN_POWER, maxPower),
+        }
+        onIntervalsChange(updated)
+      },
+      [isDragging, selectedId, stableIds, intervals, powerMode, powerSnap, onIntervalsChange]
+    )
+  )
+
+  useKeypress(
+    "ArrowRight",
+    useCallback(
+      (e: KeyboardEvent) => {
+        if (isDragging || selectedId === null) return
+        const idx = stableIds.indexOf(selectedId)
+        if (idx === -1) return
+        e.preventDefault()
+        const interval = intervals[idx]
+        const updated = [...intervals]
+        updated[idx] = {
+          ...interval,
+          durationSeconds: interval.durationSeconds + DURATION_SNAP,
+        }
+        onIntervalsChange(updated)
+      },
+      [isDragging, selectedId, stableIds, intervals, onIntervalsChange]
+    )
+  )
+
+  useKeypress(
+    "ArrowLeft",
+    useCallback(
+      (e: KeyboardEvent) => {
+        if (isDragging || selectedId === null) return
+        const idx = stableIds.indexOf(selectedId)
+        if (idx === -1) return
+        e.preventDefault()
+        const interval = intervals[idx]
+        const updated = [...intervals]
+        updated[idx] = {
+          ...interval,
+          durationSeconds: Math.max(MIN_DURATION, interval.durationSeconds - DURATION_SNAP),
+        }
+        onIntervalsChange(updated)
+      },
+      [isDragging, selectedId, stableIds, intervals, onIntervalsChange]
+    )
   )
 
   // --- Insert ---
@@ -352,6 +492,7 @@ export const WorkoutEditor = forwardRef<
                     isDragging={isDragging}
                     onHover={setHoveredIndex}
                     onSelect={handleSelect}
+                    onFocusSelect={handleFocusSelect}
                     onStartDrag={startDrag}
                     onDelete={handleDeleteInterval}
                   />
