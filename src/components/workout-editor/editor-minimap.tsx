@@ -12,6 +12,8 @@ interface EditorMinimapProps {
   ftp: number
   powerMode: "absolute" | "percentage"
   scrollContainerRef: React.RefObject<HTMLDivElement | null>
+  /** Current zoom scale — passed so the minimap re-syncs when zoom changes scrollWidth */
+  pixelsPerSecond: number
 }
 
 export function EditorMinimap({
@@ -19,12 +21,17 @@ export function EditorMinimap({
   ftp,
   powerMode,
   scrollContainerRef,
+  pixelsPerSecond,
 }: EditorMinimapProps) {
   const minimapRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{
     dragging: boolean
-    startX: number
-    startScrollLeft: number
+    /** Cursor X within the viewport indicator at drag start (container space) */
+    grabOffset: number
+    /** viewportScreenLeft = scrollLeft * k — constant while dimensions don't change */
+    k: number
+    /** Minimap container's left edge at drag start */
+    rectLeft: number
   } | null>(null)
 
   const [containerWidth, setContainerWidth] = useState(0)
@@ -74,6 +81,21 @@ export function EditorMinimap({
     }
   }, [scrollContainerRef])
 
+  // Re-sync when zoom changes: scrollWidth updates but no scroll event fires.
+  // rAF ensures we read after the browser has applied the new content layout.
+  useEffect(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    const id = requestAnimationFrame(() => {
+      setScrollState({
+        scrollLeft: el.scrollLeft,
+        clientWidth: el.clientWidth,
+        scrollWidth: el.scrollWidth,
+      })
+    })
+    return () => cancelAnimationFrame(id)
+  }, [pixelsPerSecond, scrollContainerRef])
+
   const { scrollLeft, clientWidth, scrollWidth } = scrollState
 
   // ── Fixed-scale content width ──────────────────────────────────
@@ -100,43 +122,28 @@ export function EditorMinimap({
     scrollWidth > 0 ? (scrollLeft / scrollWidth) * contentWidth : 0
   const viewportScreenLeft = viewportContentLeft - contentOffset
 
-  // Convert a container-space X position to an editor scroll position
-  const containerXToScrollLeft = useCallback(
-    (containerX: number) => {
-      const contentX = containerX + contentOffset
-      return (contentX / contentWidth) * scrollWidth
-    },
-    [scrollWidth, contentWidth, contentOffset]
-  )
+  // viewportScreenLeft = scrollLeft * k  →  scrollLeft = viewportScreenLeft / k
+  // k is constant for a given set of container/content dimensions.
+  const dragK = useMemo(() => {
+    const safeScrollWidth = scrollWidth || 1
+    const maxScroll = scrollWidth - clientWidth
+    const safeMaxScroll = maxScroll || 1
+    const k = contentWidth / safeScrollWidth - overflow / safeMaxScroll
+    return Math.max(k, 0.001)
+  }, [scrollWidth, clientWidth, contentWidth, overflow])
 
-  // ── Drag the viewport rectangle to scroll ─────────────────────
-  const handleViewportPointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      e.stopPropagation()
-      e.currentTarget.setPointerCapture(e.pointerId)
-      dragRef.current = {
-        dragging: true,
-        startX: e.clientX,
-        startScrollLeft: scrollContainerRef.current?.scrollLeft ?? 0,
-      }
-    },
-    [scrollContainerRef]
-  )
-
+  // Shared move/up handlers — used by both viewport and background drags
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
       if (!dragRef.current?.dragging) return
-
-      const safeContainerWidth = containerWidth || 1
-      const deltaX = e.clientX - dragRef.current.startX
-      const scrollDelta = deltaX * (scrollWidth / safeContainerWidth)
-
+      const { grabOffset, k, rectLeft } = dragRef.current
+      const cursorX = e.clientX - rectLeft
+      const desiredViewportLeft = cursorX - grabOffset
       if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollLeft =
-          dragRef.current.startScrollLeft + scrollDelta
+        scrollContainerRef.current.scrollLeft = desiredViewportLeft / k
       }
     },
-    [scrollContainerRef, scrollWidth, containerWidth]
+    [scrollContainerRef]
   )
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
@@ -144,48 +151,49 @@ export function EditorMinimap({
     dragRef.current = null
   }, [])
 
+  // ── Drag the viewport rectangle to scroll ─────────────────────
+  const handleViewportPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.stopPropagation()
+      const rect = minimapRef.current?.getBoundingClientRect()
+      if (!rect) return
+      e.currentTarget.setPointerCapture(e.pointerId)
+      // grabOffset = how far into the indicator the user clicked
+      const cursorX = e.clientX - rect.left
+      dragRef.current = {
+        dragging: true,
+        grabOffset: cursorX - viewportScreenLeft,
+        k: dragK,
+        rectLeft: rect.left,
+      }
+    },
+    [viewportScreenLeft, dragK]
+  )
+
   // ── Click background to jump viewport ─────────────────────────
   const handleBackgroundPointerDown = useCallback(
     (e: React.PointerEvent) => {
       const rect = minimapRef.current?.getBoundingClientRect()
       if (!rect || !scrollContainerRef.current) return
 
-      const clickX = e.clientX - rect.left
-      const targetScrollLeft = containerXToScrollLeft(clickX) - clientWidth / 2
+      // Jump so the viewport center lands under the cursor, then drag from center
+      const cursorX = e.clientX - rect.left
+      const desiredViewportLeft = cursorX - viewportWidthPx / 2
+      scrollContainerRef.current.scrollLeft = desiredViewportLeft / dragK
 
-      scrollContainerRef.current.scrollLeft = targetScrollLeft
-
-      // Begin dragging from this new position
       e.currentTarget.setPointerCapture(e.pointerId)
       dragRef.current = {
         dragging: true,
-        startX: e.clientX,
-        startScrollLeft: scrollContainerRef.current.scrollLeft,
+        grabOffset: viewportWidthPx / 2,
+        k: dragK,
+        rectLeft: rect.left,
       }
     },
-    [scrollContainerRef, containerXToScrollLeft, clientWidth]
+    [scrollContainerRef, viewportWidthPx, dragK]
   )
 
-  const handleBackgroundPointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (!dragRef.current?.dragging) return
-
-      const safeContainerWidth = containerWidth || 1
-      const deltaX = e.clientX - dragRef.current.startX
-      const scrollDelta = deltaX * (scrollWidth / safeContainerWidth)
-
-      if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollLeft =
-          dragRef.current.startScrollLeft + scrollDelta
-      }
-    },
-    [scrollContainerRef, scrollWidth, containerWidth]
-  )
-
-  const handleBackgroundPointerUp = useCallback((e: React.PointerEvent) => {
-    e.currentTarget.releasePointerCapture(e.pointerId)
-    dragRef.current = null
-  }, [])
+  const handleBackgroundPointerMove = handlePointerMove
+  const handleBackgroundPointerUp = handlePointerUp
 
   return (
     <div

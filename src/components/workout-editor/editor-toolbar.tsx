@@ -27,6 +27,7 @@ export function EditorToolbar({
             ftp={ftp}
             powerMode={powerMode}
             scrollContainerRef={scrollContainerRef}
+            pixelsPerSecond={zoom.pixelsPerSecond}
           />
         )}
       </div>
