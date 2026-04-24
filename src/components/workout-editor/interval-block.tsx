@@ -78,6 +78,15 @@ export function IntervalBlock({
 
   const isActive = isHovered || isSelected || isDragTarget
 
+  // Secondary power label (alternate unit). Only called when showSecondary is true (ftp > 0).
+  const formatSecondaryPower = (power: number) =>
+    powerMode === "absolute"
+      ? `${Math.round((power / ftp) * 100)}%`
+      : `${Math.round((power * ftp) / 100)}W`
+
+  const isRamp = interval.startPower !== interval.endPower
+  const showSecondary = ftp > 0 && w > 65
+
   // Build the style for the outer container
   const style: React.CSSProperties = {
     position: "absolute",
@@ -144,36 +153,44 @@ export function IntervalBlock({
         </svg>
       )}
 
-      {/* Power label */}
+      {/* Power label group — primary unit + secondary unit in smaller text */}
       {w > 50 && (
-        <span
-          className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[10px] font-medium text-foreground"
-          style={{ top: Math.min(startYPx, endYPx) - 18 }}
+        <div
+          className="pointer-events-none absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5"
+          style={{ top: Math.min(startYPx, endYPx) - (showSecondary ? 28 : 20) }}
         >
-          {interval.startPower === interval.endPower
-            ? formatPower(interval.startPower, powerMode)
-            : `${formatPower(interval.startPower, powerMode)}–${formatPower(interval.endPower, powerMode)}`}
-        </span>
+          {/* Primary power */}
+          <span className="text-[11px] font-semibold leading-none tabular-nums text-foreground">
+            {isRamp
+              ? `${formatPower(interval.startPower, powerMode)}–${formatPower(interval.endPower, powerMode)}`
+              : formatPower(interval.startPower, powerMode)}
+          </span>
+          {/* Secondary power (alternate unit) */}
+          {showSecondary && (
+            <span className="text-[9px] leading-none tabular-nums text-foreground/50">
+              {isRamp
+                ? `${formatSecondaryPower(interval.startPower)}–${formatSecondaryPower(interval.endPower)}`
+                : formatSecondaryPower(interval.startPower)}
+            </span>
+          )}
+        </div>
       )}
 
-      {/* Zone label */}
-      {w > 80 && EDITOR_HEIGHT - Math.max(startYPx, endYPx) > 36 && (
-        <span
-          className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[9px] text-foreground/50"
-          style={{ top: EDITOR_HEIGHT - 30 }}
-        >
-          {zoneLabel}
-        </span>
-      )}
-
-      {/* Duration label */}
+      {/* Bottom info group — zone + duration stacked */}
       {w > 40 && (
-        <span
-          className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[9px] text-foreground/40 tabular-nums"
-          style={{ top: EDITOR_HEIGHT - 16 }}
+        <div
+          className="pointer-events-none absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-1"
+          style={{ bottom: 8 }}
         >
-          {formatDuration(interval.durationSeconds)}
-        </span>
+          {w > 80 && EDITOR_HEIGHT - Math.max(startYPx, endYPx) > 40 && (
+            <span className="text-[9px] font-medium leading-none text-foreground/55">
+              {zoneLabel}
+            </span>
+          )}
+          <span className="text-[9px] leading-none tabular-nums text-foreground/45">
+            {formatDuration(interval.durationSeconds)}
+          </span>
+        </div>
       )}
 
       {/* Resize/power handles */}
