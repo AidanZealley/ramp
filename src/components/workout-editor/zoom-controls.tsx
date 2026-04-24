@@ -1,14 +1,13 @@
-import { Button } from "@/components/ui/button";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Add01Icon, MinusSignIcon } from "@hugeicons/core-free-icons";
+import { Button } from "@/components/ui/button"
+import { Minus, Plus } from "lucide-react"
 
 interface ZoomControlsProps {
-  zoomLevel: number;
-  canZoomIn: boolean;
-  canZoomOut: boolean;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  onResetZoom: () => void;
+  zoomLevel: number
+  canZoomIn: boolean
+  canZoomOut: boolean
+  onZoomIn: () => void
+  onZoomOut: () => void
+  onResetZoom: () => void
 }
 
 export function ZoomControls({
@@ -19,21 +18,21 @@ export function ZoomControls({
   onZoomOut,
   onResetZoom,
 }: ZoomControlsProps) {
-  const isAtFit = zoomLevel <= 1;
+  const isAtFit = zoomLevel <= 1
 
   return (
-    <div className="absolute bottom-1 right-1 z-10 flex items-center gap-0.5 rounded-lg border border-border/50 bg-background/80 px-0.5 py-0.5 backdrop-blur-sm">
+    <div className="absolute right-1 bottom-1 z-10 flex items-center gap-0.5 rounded-lg border border-border/50 bg-background/80 px-0.5 py-0.5 backdrop-blur-sm">
       <Button
         variant="ghost"
         size="icon-xs"
         disabled={!canZoomOut}
         onClick={onZoomOut}
       >
-        <HugeiconsIcon icon={MinusSignIcon} />
+        <Minus />
       </Button>
 
       <button
-        className="min-w-[3rem] px-1 text-center text-[10px] tabular-nums text-muted-foreground hover:text-foreground transition-colors"
+        className="min-w-12 px-1 text-center text-[10px] text-muted-foreground tabular-nums transition-colors hover:text-foreground"
         onClick={onResetZoom}
         title="Reset to fit"
       >
@@ -46,8 +45,8 @@ export function ZoomControls({
         disabled={!canZoomIn}
         onClick={onZoomIn}
       >
-        <HugeiconsIcon icon={Add01Icon} />
+        <Plus />
       </Button>
     </div>
-  );
+  )
 }

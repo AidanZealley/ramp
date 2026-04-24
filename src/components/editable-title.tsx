@@ -1,45 +1,44 @@
-import { useState, useRef, useEffect } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Tick01Icon, Cancel01Icon } from "@hugeicons/core-free-icons";
+import { useState, useRef, useEffect } from "react"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Check, X } from "lucide-react"
 
 interface EditableTitleProps {
-  value: string;
-  onChange: (value: string) => void;
+  value: string
+  onChange: (value: string) => void
 }
 
 export function EditableTitle({ value, onChange }: EditableTitleProps) {
-  const [editing, setEditing] = useState(false);
-  const [editValue, setEditValue] = useState(value);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [editing, setEditing] = useState(false)
+  const [editValue, setEditValue] = useState(value)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (editing) {
-      inputRef.current?.select();
+      inputRef.current?.select()
     }
-  }, [editing]);
+  }, [editing])
 
   const handleSave = () => {
-    const trimmed = editValue.trim();
+    const trimmed = editValue.trim()
     if (trimmed) {
-      onChange(trimmed);
+      onChange(trimmed)
     }
-    setEditing(false);
-  };
+    setEditing(false)
+  }
 
   const handleCancel = () => {
-    setEditValue(value);
-    setEditing(false);
-  };
+    setEditValue(value)
+    setEditing(false)
+  }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
-      handleSave();
+      handleSave()
     } else if (e.key === "Escape") {
-      handleCancel();
+      handleCancel()
     }
-  };
+  }
 
   if (editing) {
     return (
@@ -52,24 +51,24 @@ export function EditableTitle({ value, onChange }: EditableTitleProps) {
           className="h-8 max-w-64 font-heading text-base font-medium"
         />
         <Button size="icon-xs" variant="ghost" onClick={handleSave}>
-          <HugeiconsIcon icon={Tick01Icon} size={14} />
+          <Check />
         </Button>
         <Button size="icon-xs" variant="ghost" onClick={handleCancel}>
-          <HugeiconsIcon icon={Cancel01Icon} size={14} />
+          <X />
         </Button>
       </div>
-    );
+    )
   }
 
   return (
     <button
       onClick={() => {
-        setEditValue(value);
-        setEditing(true);
+        setEditValue(value)
+        setEditing(true)
       }}
       className="cursor-pointer rounded-lg px-2 py-1 font-heading text-lg font-medium transition-colors hover:bg-muted"
     >
       {value}
     </button>
-  );
+  )
 }

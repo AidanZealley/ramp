@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react"
 import {
   DndContext,
   closestCenter,
@@ -8,31 +8,31 @@ import {
   DragOverlay,
   type DragStartEvent,
   type DragEndEvent,
-} from "@dnd-kit/core";
+} from "@dnd-kit/core"
 import {
   SortableContext,
   horizontalListSortingStrategy,
   arrayMove,
-} from "@dnd-kit/sortable";
-import type { Interval } from "@/lib/workout-utils";
-import { useTimelineScale } from "@/hooks/use-timeline-scale";
-import { useTimelineZoom } from "@/hooks/use-timeline-zoom";
-import { useIntervalDrag } from "@/hooks/use-interval-drag";
-import { EDITOR_HEIGHT, AXIS_HEIGHT } from "@/lib/timeline/types";
-import { EditorGrid } from "./editor-grid";
-import { IntervalBlock, IntervalBlockOverlay } from "./interval-block";
-import { DragTooltip } from "./drag-tooltip";
-import { InsertZone } from "./insert-zone";
-import { ZoomControls } from "./zoom-controls";
+} from "@dnd-kit/sortable"
+import type { Interval } from "@/lib/workout-utils"
+import { useTimelineScale } from "@/hooks/use-timeline-scale"
+import { useTimelineZoom } from "@/hooks/use-timeline-zoom"
+import { useIntervalDrag } from "@/hooks/use-interval-drag"
+import { EDITOR_HEIGHT, AXIS_HEIGHT } from "@/lib/timeline/types"
+import { EditorGrid } from "./editor-grid"
+import { IntervalBlock, IntervalBlockOverlay } from "./interval-block"
+import { DragTooltip } from "./drag-tooltip"
+import { InsertZone } from "./insert-zone"
+import { ZoomControls } from "./zoom-controls"
 
-let _idCounter = 0;
-const newId = () => String(++_idCounter);
+let _idCounter = 0
+const newId = () => String(++_idCounter)
 
 interface WorkoutEditorProps {
-  intervals: Interval[];
-  powerMode: "absolute" | "percentage";
-  ftp: number;
-  onIntervalsChange: (intervals: Interval[]) => void;
+  intervals: Interval[]
+  powerMode: "absolute" | "percentage"
+  ftp: number
+  onIntervalsChange: (intervals: Interval[]) => void
 }
 
 /**
@@ -54,54 +54,58 @@ export function WorkoutEditor({
   ftp,
   onIntervalsChange,
 }: WorkoutEditorProps) {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const editorRef = useRef<HTMLDivElement>(null);
-  const prevIntervalCountRef = useRef(intervals.length);
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const editorRef = useRef<HTMLDivElement>(null)
+  const prevIntervalCountRef = useRef(intervals.length)
 
   // --- State ---
-  const [dragPreview, setDragPreview] = useState<Interval[] | null>(null);
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [activeReorderId, setActiveReorderId] = useState<string | null>(null);
+  const [dragPreview, setDragPreview] = useState<Interval[] | null>(null)
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [activeReorderId, setActiveReorderId] = useState<string | null>(null)
 
   // Stable IDs that travel with each interval through reorders so dnd-kit
   // never sees stale index-based IDs that cause the snap-back flash.
   const [stableIds, setStableIds] = useState<string[]>(() =>
     intervals.map(() => newId())
-  );
+  )
 
   // Keep stableIds length in sync when intervals are added/removed externally.
   useEffect(() => {
     setStableIds((prev) => {
-      if (prev.length === intervals.length) return prev;
+      if (prev.length === intervals.length) return prev
       if (intervals.length > prev.length) {
         const extra = Array.from(
           { length: intervals.length - prev.length },
           () => newId()
-        );
-        return [...prev, ...extra];
+        )
+        return [...prev, ...extra]
       }
-      return prev.slice(0, intervals.length);
-    });
-  }, [intervals.length]);
+      return prev.slice(0, intervals.length)
+    })
+  }, [intervals.length])
 
   // The intervals to display: drag preview during resize, original otherwise
-  const displayIntervals = dragPreview ?? intervals;
+  const displayIntervals = dragPreview ?? intervals
 
   // --- Total duration (needed by zoom hook before scale is created) ---
   const totalDurationSec = useMemo(
     () => displayIntervals.reduce((s, iv) => s + iv.durationSeconds, 0),
     [displayIntervals]
-  );
+  )
 
   // --- Zoom / fit-to-width ---
   const zoom = useTimelineZoom({
     totalDurationSec,
     containerRef: scrollContainerRef,
-  });
+  })
 
   // --- Coordinate system ---
-  const scale = useTimelineScale(displayIntervals, powerMode, zoom.pixelsPerSecond);
+  const scale = useTimelineScale(
+    displayIntervals,
+    powerMode,
+    zoom.pixelsPerSecond
+  )
 
   // --- Custom resize/power drag ---
   const { activeDrag, startDrag } = useIntervalDrag({
@@ -110,7 +114,7 @@ export function WorkoutEditor({
     pixelsPerSecond: zoom.pixelsPerSecond,
     onPreviewChange: setDragPreview,
     onCommit: onIntervalsChange,
-  });
+  })
 
   // --- dnd-kit sensors ---
   const sensors = useSensors(
@@ -119,26 +123,26 @@ export function WorkoutEditor({
         distance: 5, // px — prevents accidental reorder on click
       },
     })
-  );
+  )
 
   // Combined drag state: either custom drag or dnd-kit reorder
-  const isDragging = activeDrag !== null || activeReorderId !== null;
+  const isDragging = activeDrag !== null || activeReorderId !== null
 
   // --- dnd-kit handlers ---
   const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveReorderId(event.active.id as string);
-  }, []);
+    setActiveReorderId(event.active.id as string)
+  }, [])
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
-      const { active, over } = event;
-      setActiveReorderId(null);
+      const { active, over } = event
+      setActiveReorderId(null)
 
-      if (!over || active.id === over.id) return;
+      if (!over || active.id === over.id) return
 
       // Resolve positions from stable IDs (not raw indices).
-      const oldIndex = stableIds.indexOf(active.id as string);
-      const newIndex = stableIds.indexOf(over.id as string);
+      const oldIndex = stableIds.indexOf(active.id as string)
+      const newIndex = stableIds.indexOf(over.id as string)
 
       if (
         oldIndex === -1 ||
@@ -146,59 +150,56 @@ export function WorkoutEditor({
         oldIndex >= intervals.length ||
         newIndex >= intervals.length
       ) {
-        return;
+        return
       }
 
       // Update IDs and intervals atomically so dnd-kit never sees stale order.
-      setStableIds((prev) => arrayMove([...prev], oldIndex, newIndex));
-      onIntervalsChange(arrayMove([...intervals], oldIndex, newIndex));
+      setStableIds((prev) => arrayMove([...prev], oldIndex, newIndex))
+      onIntervalsChange(arrayMove([...intervals], oldIndex, newIndex))
     },
     [intervals, stableIds, onIntervalsChange]
-  );
+  )
 
   // --- Selection ---
-  const handleSelect = useCallback(
-    (id: string) => {
-      setSelectedId((prev) => (prev === id ? null : id));
-    },
-    []
-  );
+  const handleSelect = useCallback((id: string) => {
+    setSelectedId((prev) => (prev === id ? null : id))
+  }, [])
 
   // --- Delete ---
   const handleDeleteInterval = useCallback(
     (index: number) => {
-      setStableIds((prev) => prev.filter((_, i) => i !== index));
-      onIntervalsChange(intervals.filter((_, i) => i !== index));
-      setSelectedId(null);
+      setStableIds((prev) => prev.filter((_, i) => i !== index))
+      onIntervalsChange(intervals.filter((_, i) => i !== index))
+      setSelectedId(null)
     },
     [intervals, onIntervalsChange]
-  );
+  )
 
   // --- Insert ---
   const handleInsertInterval = useCallback(
     (index: number) => {
-      const prev = displayIntervals[index - 1];
-      const next = displayIntervals[index];
+      const prev = displayIntervals[index - 1]
+      const next = displayIntervals[index]
 
       const newInterval: Interval = {
         startPower: prev ? prev.endPower : next.startPower,
         endPower: next ? next.startPower : prev.endPower,
         durationSeconds: 300,
-      };
+      }
 
-      const newIntervals = [...intervals];
-      newIntervals.splice(index, 0, newInterval);
+      const newIntervals = [...intervals]
+      newIntervals.splice(index, 0, newInterval)
 
       setStableIds((ids) => {
-        const updated = [...ids];
-        updated.splice(index, 0, newId());
-        return updated;
-      });
+        const updated = [...ids]
+        updated.splice(index, 0, newId())
+        return updated
+      })
 
-      onIntervalsChange(newIntervals);
+      onIntervalsChange(newIntervals)
     },
     [intervals, displayIntervals, onIntervalsChange]
-  );
+  )
 
   // --- Scroll to end when a new interval is appended ---
   useEffect(() => {
@@ -206,41 +207,38 @@ export function WorkoutEditor({
       scrollContainerRef.current?.scrollTo({
         left: scrollContainerRef.current.scrollWidth,
         behavior: "smooth",
-      });
+      })
     }
-    prevIntervalCountRef.current = intervals.length;
-  }, [intervals.length]);
+    prevIntervalCountRef.current = intervals.length
+  }, [intervals.length])
 
   // --- Deselect on click outside the editor ---
   useEffect(() => {
     const handleDocumentClick = (e: MouseEvent) => {
       if (editorRef.current && !editorRef.current.contains(e.target as Node)) {
-        setSelectedId(null);
+        setSelectedId(null)
       }
-    };
-    document.addEventListener("click", handleDocumentClick);
-    return () => document.removeEventListener("click", handleDocumentClick);
-  }, []);
+    }
+    document.addEventListener("click", handleDocumentClick)
+    return () => document.removeEventListener("click", handleDocumentClick)
+  }, [])
 
   // The interval currently being reordered (for DragOverlay)
   const activeReorderIndex =
-    activeReorderId !== null ? stableIds.indexOf(activeReorderId) : null;
+    activeReorderId !== null ? stableIds.indexOf(activeReorderId) : null
   const activeReorderInterval =
     activeReorderIndex !== null && activeReorderIndex !== -1
       ? displayIntervals[activeReorderIndex]
-      : null;
+      : null
 
   return (
     <div className="flex select-none">
       {/* Y-axis labels */}
-      <div
-        className="relative w-12 flex-shrink-0"
-        style={{ height: EDITOR_HEIGHT }}
-      >
+      <div className="relative w-12 shrink-0" style={{ height: EDITOR_HEIGHT }}>
         {scale.powerTicks.map((power) => (
           <span
             key={power}
-            className="absolute right-1 -translate-y-1/2 text-[10px] tabular-nums text-muted-foreground"
+            className="absolute right-1 -translate-y-1/2 text-[10px] text-muted-foreground tabular-nums"
             style={{ top: scale.powerToY(power) }}
           >
             {powerMode === "absolute" ? `${power}` : `${power}%`}
@@ -315,15 +313,17 @@ export function WorkoutEditor({
             {/* Insert zones between blocks */}
             {!isDragging &&
               displayIntervals.length >= 2 &&
-              displayIntervals.slice(1).map((_, i) => (
-                <InsertZone
-                  key={`insert-${i + 1}`}
-                  x={scale.getIntervalX(i + 1)}
-                  index={i + 1}
-                  height={EDITOR_HEIGHT}
-                  onInsert={handleInsertInterval}
-                />
-              ))}
+              displayIntervals
+                .slice(1)
+                .map((_, i) => (
+                  <InsertZone
+                    key={`insert-${i + 1}`}
+                    x={scale.getIntervalX(i + 1)}
+                    index={i + 1}
+                    height={EDITOR_HEIGHT}
+                    onInsert={handleInsertInterval}
+                  />
+                ))}
 
             {/* Live drag value tooltip (resize/power drags only) */}
             {activeDrag && dragPreview && (
@@ -350,9 +350,9 @@ export function WorkoutEditor({
 
         {/* FTP label – pinned to right edge of visible area */}
         {(() => {
-          const ftpPower = powerMode === "absolute" ? ftp : 100;
-          const ftpY = scale.powerToY(ftpPower);
-          const showFtpLine = ftpPower <= scale.maxPower && ftpPower > 0;
+          const ftpPower = powerMode === "absolute" ? ftp : 100
+          const ftpY = scale.powerToY(ftpPower)
+          const showFtpLine = ftpPower <= scale.maxPower && ftpPower > 0
           return showFtpLine ? (
             <span
               className="pointer-events-none absolute right-2 text-[9px] font-medium text-muted-foreground"
@@ -360,9 +360,9 @@ export function WorkoutEditor({
             >
               FTP
             </span>
-          ) : null;
+          ) : null
         })()}
       </div>
     </div>
-  );
+  )
 }

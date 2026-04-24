@@ -22,14 +22,7 @@ import {
   getAveragePower,
 } from "@/lib/workout-utils"
 import type { Interval } from "@/lib/workout-utils"
-import { HugeiconsIcon } from "@hugeicons/react"
-import {
-  ArrowLeft01Icon,
-  Delete01Icon,
-  FloppyDiskIcon,
-  Refresh01Icon,
-  Add01Icon,
-} from "@hugeicons/core-free-icons"
+import { ArrowLeft, Plus, RefreshCw, Save, Trash2 } from "lucide-react"
 
 export const Route = createFileRoute("/workout/$id")({
   component: WorkoutPage,
@@ -57,7 +50,8 @@ function WorkoutPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   // Working copy: edits or original data
-  const workingCopy: WorkoutEdits | null = edits ??
+  const workingCopy: WorkoutEdits | null =
+    edits ??
     (workout
       ? {
           title: workout.title,
@@ -100,8 +94,7 @@ function WorkoutPage() {
     if (!workingCopy || !workout) return
 
     const currentMode = workingCopy.powerMode
-    const newMode =
-      currentMode === "absolute" ? "percentage" : "absolute"
+    const newMode = currentMode === "absolute" ? "percentage" : "absolute"
 
     // Convert power values
     const convertedIntervals = workingCopy.intervals.map((interval) => {
@@ -129,7 +122,9 @@ function WorkoutPage() {
     const lastInterval = workingCopy.intervals.at(-1)
     const defaultPower = lastInterval
       ? lastInterval.endPower
-      : workingCopy.powerMode === "absolute" ? 150 : 75
+      : workingCopy.powerMode === "absolute"
+        ? 150
+        : 75
     const newInterval: Interval = {
       startPower: defaultPower,
       endPower: defaultPower,
@@ -175,17 +170,12 @@ function WorkoutPage() {
   if (workout === null) {
     return (
       <div className="space-y-4 py-20 text-center">
-        <h2 className="font-heading text-xl font-medium">
-          Workout not found
-        </h2>
+        <h2 className="font-heading text-xl font-medium">Workout not found</h2>
         <p className="text-sm text-muted-foreground">
           This workout may have been deleted.
         </p>
-        <Button
-          variant="outline"
-          onClick={() => navigate({ to: "/" })}
-        >
-          <HugeiconsIcon icon={ArrowLeft01Icon} data-icon="inline-start" />
+        <Button variant="outline" onClick={() => navigate({ to: "/" })}>
+          <ArrowLeft className="size-4" />
           Back to Workouts
         </Button>
       </div>
@@ -206,22 +196,15 @@ function WorkoutPage() {
           size="icon-sm"
           onClick={() => navigate({ to: "/" })}
         >
-          <HugeiconsIcon icon={ArrowLeft01Icon} />
+          <ArrowLeft className="size-4" />
         </Button>
-        <EditableTitle
-          value={workingCopy.title}
-          onChange={handleTitleChange}
-        />
+        <EditableTitle value={workingCopy.title} onChange={handleTitleChange} />
       </div>
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-2">
         <Button
-          variant={
-            workingCopy.powerMode === "absolute"
-              ? "default"
-              : "outline"
-          }
+          variant={workingCopy.powerMode === "absolute" ? "default" : "outline"}
           size="sm"
           onClick={
             workingCopy.powerMode === "percentage"
@@ -233,9 +216,7 @@ function WorkoutPage() {
         </Button>
         <Button
           variant={
-            workingCopy.powerMode === "percentage"
-              ? "default"
-              : "outline"
+            workingCopy.powerMode === "percentage" ? "default" : "outline"
           }
           size="sm"
           onClick={
@@ -250,7 +231,7 @@ function WorkoutPage() {
         <div className="mx-1 h-5 w-px bg-border" />
 
         <Button variant="outline" size="sm" onClick={handleAddInterval}>
-          <HugeiconsIcon icon={Add01Icon} data-icon="inline-start" />
+          <Plus className="size-4" />
           Add Interval
         </Button>
 
@@ -259,17 +240,11 @@ function WorkoutPage() {
         {isDirty && (
           <>
             <Button variant="outline" size="sm" onClick={handleRevert}>
-              <HugeiconsIcon
-                icon={Refresh01Icon}
-                data-icon="inline-start"
-              />
+              <RefreshCw className="size-4" />
               Revert
             </Button>
             <Button size="sm" onClick={handleSave}>
-              <HugeiconsIcon
-                icon={FloppyDiskIcon}
-                data-icon="inline-start"
-              />
+              <Save className="size-4" />
               Save Changes
             </Button>
           </>
@@ -280,10 +255,7 @@ function WorkoutPage() {
           size="sm"
           onClick={() => setShowDeleteDialog(true)}
         >
-          <HugeiconsIcon
-            icon={Delete01Icon}
-            data-icon="inline-start"
-          />
+          <Trash2 className="size-4" />
           Delete
         </Button>
       </div>
@@ -302,7 +274,7 @@ function WorkoutPage() {
             No intervals yet. Add one to get started.
           </p>
           <Button variant="outline" size="sm" onClick={handleAddInterval}>
-            <HugeiconsIcon icon={Add01Icon} data-icon="inline-start" />
+            <Plus className="size-4" />
             Add Interval
           </Button>
         </div>
@@ -312,26 +284,25 @@ function WorkoutPage() {
       {workingCopy.intervals.length > 0 && (
         <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
           <div>
-            <span className="text-foreground font-medium">
+            <span className="font-medium text-foreground">
               {formatDuration(totalDuration)}
             </span>{" "}
             total
           </div>
           <div>
-            <span className="text-foreground font-medium">
+            <span className="font-medium text-foreground">
               {formatPower(avgPower, workingCopy.powerMode)}
             </span>{" "}
             avg power
           </div>
           <div>
-            <span className="text-foreground font-medium">
+            <span className="font-medium text-foreground">
               {workingCopy.intervals.length}
             </span>{" "}
             interval{workingCopy.intervals.length !== 1 ? "s" : ""}
           </div>
           <div>
-            <span className="text-foreground font-medium">{ftp}W</span>{" "}
-            FTP
+            <span className="font-medium text-foreground">{ftp}W</span> FTP
           </div>
         </div>
       )}

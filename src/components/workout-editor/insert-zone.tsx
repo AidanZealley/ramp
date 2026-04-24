@@ -1,5 +1,4 @@
-import { HugeiconsIcon } from "@hugeicons/react"
-import { Add01Icon } from "@hugeicons/core-free-icons"
+import { Plus } from "lucide-react"
 
 interface InsertZoneProps {
   x: number
@@ -31,15 +30,11 @@ export function InsertZone({ x, index, height, onInsert }: InsertZoneProps) {
       }}
     >
       {/* Dashed vertical line indicator on hover */}
-      <div
-        className="pointer-events-none absolute left-1/2 top-0 h-full -translate-x-1/2 border-l-2 border-dashed border-primary/30 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-      />
+      <div className="pointer-events-none absolute top-0 left-1/2 h-full -translate-x-1/2 border-l-2 border-dashed border-primary/30 opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
 
       {/* "+" button at vertical center */}
-      <div
-        className="pointer-events-none absolute left-1/2 top-1/2 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border/50 bg-primary text-primary-foreground shadow-sm opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-      >
-        <HugeiconsIcon icon={Add01Icon} size={14} />
+      <div className="pointer-events-none absolute top-1/2 left-1/2 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border/50 bg-primary text-primary-foreground opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100">
+        <Plus className="size-4" />
       </div>
     </div>
   )

@@ -10,8 +10,7 @@ import {
   getDefaultIntervals,
 } from "@/lib/workout-utils"
 import { Card, CardContent } from "@/components/ui/card"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { Add01Icon } from "@hugeicons/core-free-icons"
+import { Plus } from "lucide-react"
 
 export const Route = createFileRoute("/")({ component: HomePage })
 
@@ -94,7 +93,7 @@ function HomePage() {
           onClick={handleCreate}
         >
           <CardContent className="flex h-full min-h-[120px] flex-col items-center justify-center gap-2 text-muted-foreground">
-            <HugeiconsIcon icon={Add01Icon} size={24} />
+            <Plus className="size-6" />
             <span className="text-sm font-medium">New Workout</span>
           </CardContent>
         </Card>
