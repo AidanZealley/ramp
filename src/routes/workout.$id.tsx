@@ -25,7 +25,8 @@ import {
   getAveragePower,
 } from "@/lib/workout-utils"
 import type { Interval } from "@/lib/workout-utils"
-import { ArrowLeft, Plus, RefreshCw, Save, Trash2 } from "lucide-react"
+import { downloadTextFile, workoutToMrc } from "@/lib/exporters"
+import { ArrowLeft, Download, Plus, RefreshCw, Save, Trash2 } from "lucide-react"
 
 export const Route = createFileRoute("/workout/$id")({
   component: WorkoutPage,
@@ -144,6 +145,17 @@ function WorkoutPage() {
       ],
     })
   }, [workingCopy, applyEdit])
+
+  const handleExportMrc = useCallback(() => {
+    if (!workingCopy || workingCopy.intervals.length === 0) return
+    const content = workoutToMrc({
+      title: workingCopy.title,
+      powerMode: workingCopy.powerMode,
+      intervals: workingCopy.intervals,
+      ftp,
+    })
+    downloadTextFile(content, `${workingCopy.title}.mrc`, "text/plain")
+  }, [workingCopy, ftp])
 
   const handleSave = async () => {
     if (!edits || !workout) return
@@ -274,6 +286,16 @@ function WorkoutPage() {
         <Button variant="outline" size="sm" onClick={handleAddInterval} data-editor-action>
           <Plus className="size-4" />
           Add Interval
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportMrc}
+          disabled={workingCopy.intervals.length === 0}
+        >
+          <Download className="size-4" />
+          Export .mrc
         </Button>
 
         <div className="flex-1" />
