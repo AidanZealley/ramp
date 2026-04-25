@@ -3,7 +3,10 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "../../convex/_generated/api"
 import type { Id } from "../../convex/_generated/dataModel"
-import { WorkoutEditor, type WorkoutEditorHandle } from "@/components/workout-editor"
+import {
+  WorkoutEditor,
+  type WorkoutEditorHandle,
+} from "@/components/workout-editor"
 import { EditableTitle } from "@/components/editable-title"
 import { Button } from "@/components/ui/button"
 import {
@@ -133,7 +136,11 @@ function WorkoutPage() {
     applyEdit({
       intervals: [
         ...workingCopy.intervals,
-        { startPower: defaultPower, endPower: defaultPower, durationSeconds: 300 },
+        {
+          startPower: defaultPower,
+          endPower: defaultPower,
+          durationSeconds: 300,
+        },
       ],
     })
   }, [workingCopy, applyEdit])
@@ -190,18 +197,50 @@ function WorkoutPage() {
   const avgPower = getAveragePower(workingCopy.intervals)
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col gap-3">
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="icon"
           onClick={() => navigate({ to: "/" })}
         >
           <ArrowLeft className="size-4" />
         </Button>
-        <EditableTitle value={workingCopy.title} onChange={handleTitleChange} />
+        <div>
+          <EditableTitle
+            value={workingCopy.title}
+            onChange={handleTitleChange}
+          />
+        </div>
       </div>
+
+      {/* Stats */}
+      {workingCopy.intervals.length > 0 && (
+        <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
+          <div>
+            <span className="font-medium text-foreground">
+              {formatDuration(totalDuration)}
+            </span>{" "}
+            total
+          </div>
+          <div>
+            <span className="font-medium text-foreground">
+              {formatPower(avgPower, workingCopy.powerMode)}
+            </span>{" "}
+            avg power
+          </div>
+          <div>
+            <span className="font-medium text-foreground">
+              {workingCopy.intervals.length}
+            </span>{" "}
+            interval{workingCopy.intervals.length !== 1 ? "s" : ""}
+          </div>
+          <div>
+            <span className="font-medium text-foreground">{ftp}W</span> FTP
+          </div>
+        </div>
+      )}
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-2">
@@ -280,33 +319,6 @@ function WorkoutPage() {
             <Plus className="size-4" />
             Add Interval
           </Button>
-        </div>
-      )}
-
-      {/* Stats */}
-      {workingCopy.intervals.length > 0 && (
-        <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
-          <div>
-            <span className="font-medium text-foreground">
-              {formatDuration(totalDuration)}
-            </span>{" "}
-            total
-          </div>
-          <div>
-            <span className="font-medium text-foreground">
-              {formatPower(avgPower, workingCopy.powerMode)}
-            </span>{" "}
-            avg power
-          </div>
-          <div>
-            <span className="font-medium text-foreground">
-              {workingCopy.intervals.length}
-            </span>{" "}
-            interval{workingCopy.intervals.length !== 1 ? "s" : ""}
-          </div>
-          <div>
-            <span className="font-medium text-foreground">{ftp}W</span> FTP
-          </div>
         </div>
       )}
 
