@@ -1,56 +1,48 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react"
-import type { Interval } from "@/lib/workout-utils"
 import { WorkoutMini } from "@/components/workout-mini"
+import {
+  useWorkoutEditorDisplayIntervals,
+  useWorkoutEditorFtp,
+  useWorkoutEditorPowerMode,
+  useWorkoutEditorSelectedIds,
+  useWorkoutEditorStableIds,
+} from "./workout-editor-store"
 
-/** Fixed content scale — pixels per second of workout duration */
 const MINIMAP_PX_PER_SEC = 0.2
-/** Minimum content width so very short workouts aren't tiny slivers */
 const MINIMAP_MIN_WIDTH = 120
 
 interface EditorMinimapProps {
-  intervals: Interval[]
-  ftp: number
-  powerMode: "absolute" | "percentage"
   scrollContainerRef: React.RefObject<HTMLDivElement | null>
-  /** Current zoom scale — passed so the minimap re-syncs when zoom changes scrollWidth */
   pixelsPerSecond: number
   edgeGutterPx: number
-  /** Stable IDs of currently selected intervals */
-  selectedIds: string[]
-  /** Stable ID array (parallel to intervals) */
-  stableIds: string[]
 }
 
 export function EditorMinimap({
-  intervals,
-  ftp,
-  powerMode,
   scrollContainerRef,
   pixelsPerSecond,
   edgeGutterPx,
-  selectedIds,
-  stableIds,
 }: EditorMinimapProps) {
+  const intervals = useWorkoutEditorDisplayIntervals()
+  const ftp = useWorkoutEditorFtp()
+  const powerMode = useWorkoutEditorPowerMode()
+  const selectedIds = useWorkoutEditorSelectedIds()
+  const stableIds = useWorkoutEditorStableIds()
+
   const minimapRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{
     dragging: boolean
-    /** Cursor X within the viewport indicator at drag start (container space) */
     grabOffset: number
-    /** viewportScreenLeft = scrollLeft * k — constant while dimensions don't change */
     k: number
-    /** Minimap container's left edge at drag start */
     rectLeft: number
   } | null>(null)
 
   const [containerWidth, setContainerWidth] = useState(0)
-
   const [scrollState, setScrollState] = useState({
     scrollLeft: 0,
     clientWidth: 0,
     scrollWidth: 0,
   })
 
-  // Track minimap container width
   useEffect(() => {
     const el = minimapRef.current
     if (!el) return
@@ -64,7 +56,6 @@ export function EditorMinimap({
     return () => observer.disconnect()
   }, [])
 
-  // Track scroll position and container size
   useEffect(() => {
     const el = scrollContainerRef.current
     if (!el) return
@@ -89,8 +80,6 @@ export function EditorMinimap({
     }
   }, [scrollContainerRef])
 
-  // Re-sync when zoom changes: scrollWidth updates but no scroll event fires.
-  // rAF ensures we read after the browser has applied the new content layout.
   useEffect(() => {
     const el = scrollContainerRef.current
     if (!el) return
@@ -106,13 +95,11 @@ export function EditorMinimap({
 
   const { scrollLeft, clientWidth, scrollWidth } = scrollState
 
-  // Fast membership check for selection overlay
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds])
   const hasSelection = selectedIds.length > 0
 
-  // ── Fixed-scale content width ──────────────────────────────────
   const totalDuration = useMemo(
-    () => intervals.reduce((sum, i) => sum + i.durationSeconds, 0),
+    () => intervals.reduce((sum, interval) => sum + interval.durationSeconds, 0),
     [intervals]
   )
 
@@ -121,7 +108,6 @@ export function EditorMinimap({
     MINIMAP_MIN_WIDTH
   )
 
-  // ── Content scrolling (VS Code-style) ─────────────────────────
   const overflow = Math.max(0, contentWidth - containerWidth)
   const workoutScrollWidth = Math.max(0, scrollWidth - edgeGutterPx * 2)
   const viewportWorkoutLeft = Math.max(0, scrollLeft - edgeGutterPx)
@@ -145,7 +131,6 @@ export function EditorMinimap({
     maxViewportWorkoutLeft > 0 ? viewportWorkoutLeft / maxViewportWorkoutLeft : 0
   const contentOffset = scrollRatio * overflow
 
-  // ── Viewport indicator (pixel-based) ──────────────────────────
   const viewportWidthPx =
     workoutScrollWidth > 0
       ? (visibleWorkoutWidth / workoutScrollWidth) * contentWidth
@@ -156,8 +141,6 @@ export function EditorMinimap({
       : 0
   const viewportScreenLeft = viewportContentLeft - contentOffset
 
-  // viewportScreenLeft = scrollLeft * k  →  scrollLeft = viewportScreenLeft / k
-  // k is constant for a given set of container/content dimensions.
   const dragK = useMemo(() => {
     const safeWorkoutScrollWidth = workoutScrollWidth || 1
     const safeMaxViewportWorkoutLeft = maxViewportWorkoutLeft || 1
@@ -167,35 +150,32 @@ export function EditorMinimap({
     return Math.max(k, 0.001)
   }, [workoutScrollWidth, maxViewportWorkoutLeft, contentWidth, overflow])
 
-  // Shared move/up handlers — used by both viewport and background drags
   const handlePointerMove = useCallback(
-    (e: React.PointerEvent) => {
+    (event: React.PointerEvent) => {
       if (!dragRef.current?.dragging) return
       const { grabOffset, k, rectLeft } = dragRef.current
-      const cursorX = e.clientX - rectLeft
+      const cursorX = event.clientX - rectLeft
       const desiredViewportLeft = cursorX - grabOffset
       if (scrollContainerRef.current) {
         scrollContainerRef.current.scrollLeft =
           edgeGutterPx + desiredViewportLeft / k
       }
     },
-    [scrollContainerRef, edgeGutterPx]
+    [edgeGutterPx, scrollContainerRef]
   )
 
-  const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    e.currentTarget.releasePointerCapture(e.pointerId)
+  const handlePointerUp = useCallback((event: React.PointerEvent) => {
+    event.currentTarget.releasePointerCapture(event.pointerId)
     dragRef.current = null
   }, [])
 
-  // ── Drag the viewport rectangle to scroll ─────────────────────
   const handleViewportPointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      e.stopPropagation()
+    (event: React.PointerEvent) => {
+      event.stopPropagation()
       const rect = minimapRef.current?.getBoundingClientRect()
       if (!rect) return
-      e.currentTarget.setPointerCapture(e.pointerId)
-      // grabOffset = how far into the indicator the user clicked
-      const cursorX = e.clientX - rect.left
+      event.currentTarget.setPointerCapture(event.pointerId)
+      const cursorX = event.clientX - rect.left
       dragRef.current = {
         dragging: true,
         grabOffset: cursorX - viewportScreenLeft,
@@ -203,22 +183,20 @@ export function EditorMinimap({
         rectLeft: rect.left,
       }
     },
-    [viewportScreenLeft, dragK]
+    [dragK, viewportScreenLeft]
   )
 
-  // ── Click background to jump viewport ─────────────────────────
   const handleBackgroundPointerDown = useCallback(
-    (e: React.PointerEvent) => {
+    (event: React.PointerEvent) => {
       const rect = minimapRef.current?.getBoundingClientRect()
       if (!rect || !scrollContainerRef.current) return
 
-      // Jump so the viewport center lands under the cursor, then drag from center
-      const cursorX = e.clientX - rect.left
+      const cursorX = event.clientX - rect.left
       const desiredViewportLeft = cursorX - viewportWidthPx / 2
       scrollContainerRef.current.scrollLeft =
         edgeGutterPx + desiredViewportLeft / dragK
 
-      e.currentTarget.setPointerCapture(e.pointerId)
+      event.currentTarget.setPointerCapture(event.pointerId)
       dragRef.current = {
         dragging: true,
         grabOffset: viewportWidthPx / 2,
@@ -226,21 +204,17 @@ export function EditorMinimap({
         rectLeft: rect.left,
       }
     },
-    [scrollContainerRef, viewportWidthPx, dragK, edgeGutterPx]
+    [dragK, edgeGutterPx, scrollContainerRef, viewportWidthPx]
   )
-
-  const handleBackgroundPointerMove = handlePointerMove
-  const handleBackgroundPointerUp = handlePointerUp
 
   return (
     <div
       ref={minimapRef}
       className="relative h-6 w-full cursor-pointer overflow-hidden"
       onPointerDown={handleBackgroundPointerDown}
-      onPointerMove={handleBackgroundPointerMove}
-      onPointerUp={handleBackgroundPointerUp}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
     >
-      {/* Content layer — fixed width, translates for long workouts */}
       <div
         className="pointer-events-none absolute inset-y-0 left-0 h-full"
         style={{
@@ -256,7 +230,6 @@ export function EditorMinimap({
           compact
         />
 
-        {/* Selection dimming overlay — dims unselected intervals so selected ones pop */}
         {hasSelection && totalDuration > 0 && (
           <svg
             viewBox="0 0 200 100"
@@ -267,19 +240,18 @@ export function EditorMinimap({
               const viewBoxWidth = 200
               const viewBoxHeight = 100
               let x = 0
-              return intervals.map((interval, i) => {
-                const w =
+              return intervals.map((interval, index) => {
+                const width =
                   (interval.durationSeconds / totalDuration) * viewBoxWidth
-                const ix = x
-                x += w
-                // Only dim unselected intervals
-                if (selectedIdSet.has(stableIds[i] ?? "")) return null
+                const rectX = x
+                x += width
+                if (selectedIdSet.has(stableIds[index] ?? "")) return null
                 return (
                   <rect
-                    key={i}
-                    x={ix}
+                    key={index}
+                    x={rectX}
                     y={0}
-                    width={w}
+                    width={width}
                     height={viewBoxHeight}
                     fill="black"
                     opacity={0.4}
@@ -291,7 +263,6 @@ export function EditorMinimap({
         )}
       </div>
 
-      {/* Viewport indicator — positioned in container space */}
       <div
         className="absolute inset-y-0 cursor-grab rounded-sm border border-foreground/25 bg-foreground/10 active:cursor-grabbing"
         style={{
