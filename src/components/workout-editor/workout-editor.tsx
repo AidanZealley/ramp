@@ -730,6 +730,7 @@ export const WorkoutEditor = forwardRef<
       // toolbar (toolbar sits outside `editorRef`).
       if (editorRef.current && editorRef.current.contains(target)) return
       if (target && target.closest("[data-selection-toolbar]")) return
+      if (target && target.closest("[data-editor-action]")) return
       setSelectedIds([])
       setAnchorId(null)
     }

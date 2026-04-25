@@ -271,7 +271,7 @@ function WorkoutPage() {
 
         <div className="mx-1 h-5 w-px bg-border" />
 
-        <Button variant="outline" size="sm" onClick={handleAddInterval}>
+        <Button variant="outline" size="sm" onClick={handleAddInterval} data-editor-action>
           <Plus className="size-4" />
           Add Interval
         </Button>
