@@ -1,4 +1,11 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import {
+  useState,
+  useMemo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { clamp } from "@/lib/workout-utils";
 import {
   DEFAULT_PIXELS_PER_SECOND,
@@ -20,8 +27,10 @@ export interface TimelineZoom {
   zoomLevel: number;
   canZoomIn: boolean;
   canZoomOut: boolean;
-  zoomIn: () => void;
-  zoomOut: () => void;
+  /** Zoom in, keeping `contentFocalX` (content-space px) fixed in the viewport. */
+  zoomIn: (contentFocalX?: number) => void;
+  /** Zoom out, keeping `contentFocalX` (content-space px) fixed in the viewport. */
+  zoomOut: (contentFocalX?: number) => void;
   resetZoom: () => void;
 }
 
@@ -31,8 +40,9 @@ export interface TimelineZoom {
  * At zoom level 1 (default), the workout fits the container width.
  * Zooming in increases pixelsPerSecond, causing horizontal scroll.
  *
- * Also attaches a Ctrl+wheel handler to the container for
- * scroll-to-zoom (and trackpad pinch-to-zoom).
+ * Pinch / Ctrl+wheel zooms anchor on the cursor position.
+ * Button zooms accept an explicit content-space focal point so the
+ * caller can anchor on the selection centre or viewport centre.
  */
 export function useTimelineZoom({
   totalDurationSec,
@@ -40,6 +50,19 @@ export function useTimelineZoom({
 }: UseTimelineZoomConfig): TimelineZoom {
   const [zoomLevel, setZoomLevel] = useState(MIN_ZOOM);
   const [containerWidth, setContainerWidth] = useState(0);
+
+  // Refs so wheel/pinch handler always sees the latest values without
+  // being recreated on every render (avoids re-attaching the listener).
+  const zoomLevelRef = useRef(zoomLevel);
+  // Scroll position to apply after the next layout paint. We store this
+  // imperatively so rapid wheel events accumulate correctly even before
+  // React has re-rendered.
+  const pendingScrollRef = useRef<number | null>(null);
+
+  // Keep zoomLevelRef in sync with committed state.
+  useEffect(() => {
+    zoomLevelRef.current = zoomLevel;
+  }, [zoomLevel]);
 
   // Measure container width with ResizeObserver
   useEffect(() => {
@@ -64,20 +87,72 @@ export function useTimelineZoom({
 
   const pixelsPerSecond = fitPixelsPerSecond * zoomLevel;
 
-  // Zoom callbacks
-  const zoomIn = useCallback(() => {
-    setZoomLevel((prev) => Math.min(prev + ZOOM_STEP, MAX_ZOOM));
-  }, []);
+  // Apply any pending scroll adjustment synchronously after the DOM has
+  // updated (content width already reflects the new zoom level). Running
+  // without a dep array ensures we catch every render; the null-check
+  // makes it a no-op unless a zoom just happened.
+  useLayoutEffect(() => {
+    if (pendingScrollRef.current !== null && containerRef.current) {
+      containerRef.current.scrollLeft = pendingScrollRef.current;
+      pendingScrollRef.current = null;
+    }
+  });
 
-  const zoomOut = useCallback(() => {
-    setZoomLevel((prev) => Math.max(prev - ZOOM_STEP, MIN_ZOOM));
-  }, []);
+  /**
+   * Core zoom function. Computes the new scroll position so that
+   * `contentFocalX` (a pixel position in content space) stays at the
+   * same viewport-relative offset after the zoom.
+   *
+   * Formula derivation:
+   *   viewportOffset = contentFocalX - scrollLeft_old
+   *   newScrollLeft  = contentFocalX * (newLevel / oldLevel) - viewportOffset
+   *                  = contentFocalX * (newLevel / oldLevel - 1) + scrollLeft_old
+   */
+  const zoomAroundContentX = useCallback(
+    (newLevel: number, contentFocalX?: number) => {
+      const el = containerRef.current;
+      const clamped = clamp(newLevel, MIN_ZOOM, MAX_ZOOM);
+
+      if (el && contentFocalX !== undefined) {
+        const oldLevel = zoomLevelRef.current;
+        // Use the already-pending scroll position if the DOM hasn't caught
+        // up yet (rapid pinch events arrive faster than React re-renders).
+        const currentScrollLeft =
+          pendingScrollRef.current ?? el.scrollLeft;
+        const viewportOffset = contentFocalX - currentScrollLeft;
+        const newScrollLeft =
+          contentFocalX * (clamped / oldLevel) - viewportOffset;
+        pendingScrollRef.current = Math.max(0, newScrollLeft);
+      }
+
+      // Update ref immediately so the next rapid event sees the new level.
+      zoomLevelRef.current = clamped;
+      setZoomLevel(clamped);
+    },
+    [containerRef]
+  );
+
+  const zoomIn = useCallback(
+    (contentFocalX?: number) => {
+      zoomAroundContentX(zoomLevelRef.current + ZOOM_STEP, contentFocalX);
+    },
+    [zoomAroundContentX]
+  );
+
+  const zoomOut = useCallback(
+    (contentFocalX?: number) => {
+      zoomAroundContentX(zoomLevelRef.current - ZOOM_STEP, contentFocalX);
+    },
+    [zoomAroundContentX]
+  );
 
   const resetZoom = useCallback(() => {
+    pendingScrollRef.current = 0;
+    zoomLevelRef.current = MIN_ZOOM;
     setZoomLevel(MIN_ZOOM);
   }, []);
 
-  // Ctrl+wheel (and trackpad pinch) zoom handler
+  // Ctrl+wheel (and trackpad pinch) zoom handler — anchors on cursor position.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -85,13 +160,20 @@ export function useTimelineZoom({
     const handler = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
+
       const delta = -e.deltaY * ZOOM_WHEEL_SENSITIVITY;
-      setZoomLevel((prev) => clamp(prev + delta, MIN_ZOOM, MAX_ZOOM));
+      const rect = el.getBoundingClientRect();
+      const cursorViewportX = e.clientX - rect.left;
+      // Use pending scroll if DOM hasn't updated yet (rapid events).
+      const scrollLeft = pendingScrollRef.current ?? el.scrollLeft;
+      const contentFocalX = scrollLeft + cursorViewportX;
+
+      zoomAroundContentX(zoomLevelRef.current + delta, contentFocalX);
     };
 
     el.addEventListener("wheel", handler, { passive: false });
     return () => el.removeEventListener("wheel", handler);
-  }, [containerRef]);
+  }, [containerRef, zoomAroundContentX]);
 
   return {
     pixelsPerSecond,

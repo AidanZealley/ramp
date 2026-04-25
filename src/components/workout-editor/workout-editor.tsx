@@ -179,6 +179,51 @@ export const WorkoutEditor = forwardRef<
     zoom.pixelsPerSecond
   )
 
+  // --- Focal-point helper for toolbar zoom buttons ---
+  // Returns the content-space X that should stay fixed when the user clicks
+  // zoom in/out in the toolbar:
+  //   • Selection present → centre of the selected block(s)
+  //   • No selection     → centre of the current scroll viewport
+  const getToolbarZoomFocalX = useCallback(() => {
+    const el = scrollContainerRef.current
+    if (!el) return undefined
+
+    if (selectedIds.length > 0) {
+      const indices = selectedIds
+        .map((id) => stableIds.indexOf(id))
+        .filter((i) => i >= 0)
+      if (indices.length > 0) {
+        const leftmost = Math.min(...indices)
+        const rightmost = Math.max(...indices)
+        const leftX = scale.getIntervalX(leftmost)
+        const rightX =
+          scale.getIntervalX(rightmost) +
+          (displayIntervals[rightmost]?.durationSeconds ?? 0) *
+            zoom.pixelsPerSecond
+        return (leftX + rightX) / 2
+      }
+    }
+
+    // No selection — use the centre of the visible viewport.
+    return el.scrollLeft + el.clientWidth / 2
+  }, [
+    selectedIds,
+    stableIds,
+    scale,
+    displayIntervals,
+    zoom.pixelsPerSecond,
+  ])
+
+  // Wrap zoom in/out so toolbar buttons automatically pass the right focal point.
+  const toolbarZoom = useMemo(
+    () => ({
+      ...zoom,
+      zoomIn: () => zoom.zoomIn(getToolbarZoomFocalX()),
+      zoomOut: () => zoom.zoomOut(getToolbarZoomFocalX()),
+    }),
+    [zoom, getToolbarZoomFocalX]
+  )
+
   // --- Custom resize/power drag ---
   const { activeDrag, startDrag } = useIntervalDrag({
     intervals,
@@ -834,7 +879,7 @@ export const WorkoutEditor = forwardRef<
           ftp={ftp}
           powerMode={powerMode}
           scrollContainerRef={scrollContainerRef}
-          zoom={zoom}
+          zoom={toolbarZoom}
           selectedCount={selectedIds.length}
           multiSelectMode={multiSelectMode}
           canCopy={selectedIds.length > 0}
