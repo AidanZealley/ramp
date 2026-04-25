@@ -14,7 +14,7 @@ import {
   useWorkoutEditorMultiSelectMode,
   useWorkoutEditorPowerMode,
   useWorkoutEditorSelectedCount,
-} from "./workout-editor-store"
+} from "../store"
 
 interface EditorToolbarProps {
   scrollContainerRef: React.RefObject<HTMLDivElement | null>

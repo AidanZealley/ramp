@@ -14,7 +14,7 @@ import {
   useWorkoutEditorIsHovered,
   useWorkoutEditorIsSelected,
   useWorkoutEditorPowerMode,
-} from "./workout-editor-store"
+} from "../store"
 
 export interface SelectModifiers {
   shift: boolean

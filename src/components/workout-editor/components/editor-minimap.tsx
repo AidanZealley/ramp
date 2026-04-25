@@ -6,7 +6,7 @@ import {
   useWorkoutEditorPowerMode,
   useWorkoutEditorSelectedIds,
   useWorkoutEditorStableIds,
-} from "./workout-editor-store"
+} from "../store"
 
 const MINIMAP_PX_PER_SEC = 0.2
 const MINIMAP_MIN_WIDTH = 120

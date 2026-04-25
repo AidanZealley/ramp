@@ -10,7 +10,7 @@ import {
   useWorkoutEditorSelectedIds,
   useWorkoutEditorShowDeleteConfirm,
   useWorkoutEditorStableIds,
-} from "./workout-editor-store"
+} from "./store"
 import type { Interval } from "@/lib/workout-utils"
 
 const baseIntervals: Interval[] = [

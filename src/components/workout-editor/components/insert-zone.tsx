@@ -2,7 +2,7 @@ import { ClipboardPaste, Plus } from "lucide-react"
 import {
   useWorkoutEditorActions,
   useWorkoutEditorHasClipboard,
-} from "./workout-editor-store"
+} from "../store"
 
 interface InsertZoneProps {
   x: number
