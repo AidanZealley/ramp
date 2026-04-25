@@ -54,9 +54,6 @@ export const useWorkoutEditorHoveredIndex = () =>
 export const useWorkoutEditorMultiSelectMode = () =>
   useWorkoutEditorStore((state) => state.multiSelectMode)
 
-export const useWorkoutEditorShowDeleteConfirm = () =>
-  useWorkoutEditorStore((state) => state.showDeleteConfirm)
-
 export const useWorkoutEditorActiveReorderId = () =>
   useWorkoutEditorStore((state) => state.activeReorderId)
 
@@ -79,6 +76,12 @@ export const useWorkoutEditorHasClipboard = () =>
 
 export const useWorkoutEditorCanCopy = () =>
   useWorkoutEditorStore((state) => state.selectedIds.length > 0)
+
+export const useWorkoutEditorCanUndo = () =>
+  useWorkoutEditorStore((state) => state.history.past.length > 0)
+
+export const useWorkoutEditorCanRedo = () =>
+  useWorkoutEditorStore((state) => state.history.future.length > 0)
 
 export const useWorkoutEditorInterval = (index: number) =>
   useWorkoutEditorStore((state) => {

@@ -1,9 +1,13 @@
 import type { Interval } from "@/lib/workout-utils"
 import type {
   ClipboardPreviewData,
+  WorkoutEditorHistoryEntry,
   WorkoutEditorStoreProps,
   WorkoutEditorStoreState,
 } from "./types"
+import { createHistory } from "./history"
+
+export const DEFAULT_HISTORY_LIMIT = 100
 
 let idCounter = 0
 
@@ -12,6 +16,20 @@ export const newWorkoutEditorId = () =>
 
 export function getDisplayIntervals(state: WorkoutEditorStoreState) {
   return state.dragPreview ?? state.intervals
+}
+
+export function areIntervalsEqual(a: Interval[], b: Interval[]) {
+  if (a === b) return true
+  if (a.length !== b.length) return false
+
+  return a.every((interval, index) => {
+    const other = b[index]
+    return (
+      interval.startPower === other?.startPower &&
+      interval.endPower === other?.endPower &&
+      interval.durationSeconds === other?.durationSeconds
+    )
+  })
 }
 
 function normalizeStableIds(stableIds: string[], nextLength: number): string[] {
@@ -63,10 +81,6 @@ export function cleanupState(
     state.hoveredIndex !== null && state.hoveredIndex < nextIntervals.length
       ? state.hoveredIndex
       : null
-  const showDeleteConfirm =
-    state.showDeleteConfirm && selectedIds.length > 1
-      ? state.showDeleteConfirm
-      : false
   const dragPreview =
     state.dragPreview && state.dragPreview.length === nextIntervals.length
       ? state.dragPreview
@@ -78,14 +92,30 @@ export function cleanupState(
     anchorId,
     activeReorderId,
     hoveredIndex,
-    showDeleteConfirm,
     dragPreview,
+  }
+}
+
+export function createHistoryEntry(
+  intervals: Interval[],
+  stableIds: string[],
+  selectedIds: string[],
+  anchorId: string | null
+): WorkoutEditorHistoryEntry {
+  return {
+    intervals,
+    stableIds,
+    selectedIds,
+    anchorId,
   }
 }
 
 export function createInitialState(
   props: WorkoutEditorStoreProps
 ): Omit<WorkoutEditorStoreState, "actions"> {
+  const stableIds = props.intervals.map(() => newWorkoutEditorId())
+  const present = createHistoryEntry(props.intervals, stableIds, [], null)
+
   return {
     ...props,
     dragPreview: null,
@@ -94,9 +124,10 @@ export function createInitialState(
     anchorId: null,
     multiSelectMode: false,
     clipboardIds: [],
-    showDeleteConfirm: false,
     activeReorderId: null,
-    stableIds: props.intervals.map(() => newWorkoutEditorId()),
+    stableIds,
+    historyLimit: DEFAULT_HISTORY_LIMIT,
+    history: createHistory(present, DEFAULT_HISTORY_LIMIT),
   }
 }
 

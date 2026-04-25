@@ -1,6 +1,7 @@
-import { useCallback } from "react"
+import { useCallback, useEffect } from "react"
 import { useKeypress } from "@/hooks/use-keypress"
 import { DURATION_SNAP } from "@/lib/timeline/types"
+import { isApplePlatform } from "../utils/platform"
 import type { WorkoutEditorActions } from "../store"
 
 interface UseEditorKeypressesProps {
@@ -9,7 +10,6 @@ interface UseEditorKeypressesProps {
   selectedCount: number
   stableIdsLength: number
   hasClipboard: boolean
-  showDeleteConfirm: boolean
   powerMode: "absolute" | "percentage"
 }
 
@@ -19,10 +19,10 @@ export function useEditorKeypresses({
   selectedCount,
   stableIdsLength,
   hasClipboard,
-  showDeleteConfirm,
   powerMode,
 }: UseEditorKeypressesProps) {
   const powerSnap = powerMode === "absolute" ? 5 : 1
+  const applePlatform = isApplePlatform()
 
   useKeypress(
     "Backspace",
@@ -30,7 +30,7 @@ export function useEditorKeypresses({
       (event: KeyboardEvent) => {
         if (isDragging || selectedCount === 0) return
         event.preventDefault()
-        actions.requestDelete()
+        actions.deleteSelection()
       },
       [actions, isDragging, selectedCount]
     )
@@ -42,7 +42,7 @@ export function useEditorKeypresses({
       (event: KeyboardEvent) => {
         if (isDragging || selectedCount === 0) return
         event.preventDefault()
-        actions.requestDelete()
+        actions.deleteSelection()
       },
       [actions, isDragging, selectedCount]
     )
@@ -52,16 +52,11 @@ export function useEditorKeypresses({
     "Escape",
     useCallback(
       (event: KeyboardEvent) => {
-        if (showDeleteConfirm) {
-          event.preventDefault()
-          actions.cancelDelete()
-          return
-        }
         if (selectedCount === 0) return
         event.preventDefault()
         actions.clearSelection()
       },
-      [actions, selectedCount, showDeleteConfirm]
+      [actions, selectedCount]
     )
   )
 
@@ -164,4 +159,46 @@ export function useEditorKeypresses({
       [actions, isDragging, stableIdsLength]
     )
   )
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return
+      }
+
+      if (isDragging) return
+
+      const key = event.key.toLowerCase()
+      const isUndo =
+        key === "z" &&
+        !event.shiftKey &&
+        (applePlatform ? event.metaKey : event.ctrlKey)
+      const isRedo =
+        (key === "z" &&
+          event.shiftKey &&
+          (applePlatform ? event.metaKey : event.ctrlKey)) ||
+        (!applePlatform && key === "y" && event.ctrlKey)
+
+      if (isUndo) {
+        event.preventDefault()
+        actions.undo()
+        return
+      }
+
+      if (isRedo) {
+        event.preventDefault()
+        actions.redo()
+      }
+    }
+
+    document.addEventListener("keydown", handler)
+    return () => document.removeEventListener("keydown", handler)
+  }, [actions, applePlatform, isDragging])
 }

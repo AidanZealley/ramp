@@ -1,13 +1,23 @@
-import { BoxSelect, ClipboardPaste, Copy, Trash2 } from "lucide-react"
+import {
+  BoxSelect,
+  ClipboardPaste,
+  Copy,
+  Redo2,
+  Trash2,
+  Undo2,
+} from "lucide-react"
 import { EditorMinimap } from "./editor-minimap"
 import { ZoomControls } from "./zoom-controls"
 import { ClipboardPreview } from "./clipboard-preview"
 import type { TimelineZoom } from "@/hooks/use-timeline-zoom"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { isApplePlatform } from "../utils/platform"
 import {
   useWorkoutEditorActions,
   useWorkoutEditorCanCopy,
+  useWorkoutEditorCanRedo,
+  useWorkoutEditorCanUndo,
   useWorkoutEditorClipboardPreview,
   useWorkoutEditorFtp,
   useWorkoutEditorHasClipboard,
@@ -33,8 +43,15 @@ export function EditorToolbar({
   const multiSelectMode = useWorkoutEditorMultiSelectMode()
   const canCopy = useWorkoutEditorCanCopy()
   const canPaste = useWorkoutEditorHasClipboard()
+  const canUndo = useWorkoutEditorCanUndo()
+  const canRedo = useWorkoutEditorCanRedo()
   const clipboardData = useWorkoutEditorClipboardPreview()
   const actions = useWorkoutEditorActions()
+  const applePlatform = isApplePlatform()
+  const undoTitle = applePlatform ? "Undo (Cmd+Z)" : "Undo (Ctrl+Z)"
+  const redoTitle = applePlatform
+    ? "Redo (Cmd+Shift+Z)"
+    : "Redo (Ctrl+Shift+Z / Ctrl+Y)"
 
   return (
     <div className="mt-1.5 flex items-center gap-2" data-selection-toolbar>
@@ -59,7 +76,7 @@ export function EditorToolbar({
             <Button
               variant="destructive"
               size="icon-sm"
-              onClick={actions.requestDelete}
+              onClick={actions.deleteSelection}
               title="Delete selected (Delete)"
             >
               <Trash2 />
@@ -69,6 +86,24 @@ export function EditorToolbar({
       </div>
 
       <div className="flex items-center gap-1 rounded-full border border-border/50 p-1">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={actions.undo}
+          disabled={!canUndo}
+          title={undoTitle}
+        >
+          <Undo2 />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={actions.redo}
+          disabled={!canRedo}
+          title={redoTitle}
+        >
+          <Redo2 />
+        </Button>
         <Button
           variant="ghost"
           size="icon-sm"

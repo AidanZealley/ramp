@@ -5,7 +5,6 @@ import { TIMELINE_EDGE_GUTTER } from "@/lib/timeline/types"
 import { useIntervalDrag } from "@/hooks/use-interval-drag"
 import { EditorAxis } from "./components/editor-axis"
 import { EditorCanvas } from "./components/editor-canvas"
-import { DeleteIntervalsDialog } from "./components/delete-intervals-dialog"
 import { EditorToolbar } from "./components/editor-toolbar"
 import { FtpBadge } from "./components/ftp-badge"
 import {
@@ -16,11 +15,9 @@ import {
   useWorkoutEditorFtp,
   useWorkoutEditorHasClipboard,
   useWorkoutEditorIntervals,
-  useWorkoutEditorOnIntervalsChange,
   useWorkoutEditorPowerMode,
   useWorkoutEditorSelectedCount,
   useWorkoutEditorSelectedIds,
-  useWorkoutEditorShowDeleteConfirm,
   useWorkoutEditorStableIds,
 } from "./store"
 import { useClearSelectionOnOutsideClick } from "./hooks/use-clear-selection-on-outside-click"
@@ -57,12 +54,10 @@ const WorkoutEditorInner = forwardRef<WorkoutEditorHandle>(
     const displayIntervals = useWorkoutEditorDisplayIntervals()
     const powerMode = useWorkoutEditorPowerMode()
     const ftp = useWorkoutEditorFtp()
-    const onIntervalsChange = useWorkoutEditorOnIntervalsChange()
     const selectedIds = useWorkoutEditorSelectedIds()
     const selectedCount = useWorkoutEditorSelectedCount()
     const stableIds = useWorkoutEditorStableIds()
     const hasClipboard = useWorkoutEditorHasClipboard()
-    const showDeleteConfirm = useWorkoutEditorShowDeleteConfirm()
     const activeReorderId = useWorkoutEditorActiveReorderId()
     const actions = useWorkoutEditorActions()
 
@@ -89,7 +84,7 @@ const WorkoutEditorInner = forwardRef<WorkoutEditorHandle>(
       powerMode,
       pixelsPerSecond: zoom.pixelsPerSecond,
       onPreviewChange: actions.setDragPreview,
-      onCommit: onIntervalsChange,
+      onCommit: actions.commitIntervals,
     })
 
     const isDragging = activeDrag !== null || activeReorderId !== null
@@ -101,7 +96,6 @@ const WorkoutEditorInner = forwardRef<WorkoutEditorHandle>(
       selectedCount,
       stableIdsLength: stableIds.length,
       hasClipboard,
-      showDeleteConfirm,
       powerMode,
     })
 
@@ -150,13 +144,6 @@ const WorkoutEditorInner = forwardRef<WorkoutEditorHandle>(
             zoom={toolbarZoom}
           />
         </div>
-
-        <DeleteIntervalsDialog
-          open={showDeleteConfirm}
-          selectedCount={selectedCount}
-          onCancel={actions.cancelDelete}
-          onConfirm={actions.confirmDelete}
-        />
       </div>
     )
   }

@@ -1,5 +1,6 @@
 import type { Interval } from "@/lib/workout-utils"
 import type { SelectModifiers } from "../components/interval-block"
+import type { HistoryState } from "./history"
 
 export interface WorkoutEditorStoreProps {
   intervals: Interval[]
@@ -11,6 +12,13 @@ export interface WorkoutEditorStoreProps {
 export interface ClipboardPreviewData {
   intervals: Interval[]
   gapBefore: boolean[]
+}
+
+export interface WorkoutEditorHistoryEntry {
+  intervals: Interval[]
+  stableIds: string[]
+  selectedIds: string[]
+  anchorId: string | null
 }
 
 export interface WorkoutEditorActions {
@@ -28,10 +36,9 @@ export interface WorkoutEditorActions {
   copySelection: () => void
   cutSelection: () => void
   pasteClipboard: (insertAtIndex?: number) => void
-  requestDelete: () => void
-  confirmDelete: () => void
-  cancelDelete: () => void
+  deleteSelection: () => void
   deleteIntervals: (ids: string[]) => void
+  commitIntervals: (nextIntervals: Interval[]) => void
   insertAt: (index: number) => void
   reorderIntervals: (
     oldIndex: number,
@@ -40,6 +47,8 @@ export interface WorkoutEditorActions {
   ) => void
   nudgeSelectedPower: (delta: number) => void
   nudgeSelectedDuration: (delta: number) => void
+  undo: () => void
+  redo: () => void
 }
 
 export interface WorkoutEditorStoreState extends WorkoutEditorStoreProps {
@@ -49,8 +58,9 @@ export interface WorkoutEditorStoreState extends WorkoutEditorStoreProps {
   anchorId: string | null
   multiSelectMode: boolean
   clipboardIds: string[]
-  showDeleteConfirm: boolean
   activeReorderId: string | null
   stableIds: string[]
+  history: HistoryState<WorkoutEditorHistoryEntry>
+  historyLimit: number
   actions: WorkoutEditorActions
 }
