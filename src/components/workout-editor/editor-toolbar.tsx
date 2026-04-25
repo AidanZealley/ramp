@@ -1,6 +1,7 @@
 import { BoxSelect, Copy, Trash2 } from "lucide-react"
 import { EditorMinimap } from "./editor-minimap"
 import { ZoomControls } from "./zoom-controls"
+import { ClipboardPreview } from "./clipboard-preview"
 import type { Interval } from "@/lib/workout-utils"
 import type { TimelineZoom } from "@/hooks/use-timeline-zoom"
 import { Badge } from "@/components/ui/badge"
@@ -19,6 +20,13 @@ interface EditorToolbarProps {
   onToggleMultiSelect: () => void
   onCopy: () => void
   onRequestDelete: () => void
+  // Selection + clipboard data for minimap overlay & preview
+  selectedIds: Array<string>
+  stableIds: Array<string>
+  clipboardData: {
+    intervals: Array<Interval>
+    gapBefore: boolean[]
+  } | null
 }
 
 export function EditorToolbar({
@@ -33,10 +41,13 @@ export function EditorToolbar({
   onToggleMultiSelect,
   onCopy,
   onRequestDelete,
+  selectedIds,
+  stableIds,
+  clipboardData,
 }: EditorToolbarProps) {
   return (
     <div className="mt-1.5 flex items-center gap-2" data-selection-toolbar>
-      {/* Selection tools — always visible so users can enter multi-select mode anytime */}
+      {/* Selection tools — multi-select toggle + count + delete */}
       <div className="flex items-center gap-1 rounded-full border border-border/50 p-1">
         <Button
           variant={multiSelectMode ? "default" : "ghost"}
@@ -56,15 +67,6 @@ export function EditorToolbar({
           <>
             <Badge variant="secondary">{selectedCount} selected</Badge>
             <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={onCopy}
-              disabled={!canCopy}
-              title="Copy (Cmd/Ctrl+C)"
-            >
-              <Copy />
-            </Button>
-            <Button
               variant="destructive"
               size="icon-sm"
               onClick={onRequestDelete}
@@ -76,6 +78,29 @@ export function EditorToolbar({
         )}
       </div>
 
+      {/* Clipboard — copy button + preview thumbnail */}
+      <div className="flex items-center gap-1 rounded-full border border-border/50 p-1">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onCopy}
+          disabled={!canCopy}
+          title="Copy (Cmd/Ctrl+C)"
+        >
+          <Copy />
+        </Button>
+
+        {clipboardData && (
+          <ClipboardPreview
+            clipboardIntervals={clipboardData.intervals}
+            gapBefore={clipboardData.gapBefore}
+            ftp={ftp}
+            powerMode={powerMode}
+          />
+        )}
+      </div>
+
+      {/* Minimap — navigation overview with selection highlights */}
       <div className="min-w-0 flex-1">
         {zoom.zoomLevel > 1 && (
           <EditorMinimap
@@ -84,6 +109,8 @@ export function EditorToolbar({
             powerMode={powerMode}
             scrollContainerRef={scrollContainerRef}
             pixelsPerSecond={zoom.pixelsPerSecond}
+            selectedIds={selectedIds}
+            stableIds={stableIds}
           />
         )}
       </div>

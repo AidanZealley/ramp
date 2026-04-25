@@ -14,6 +14,10 @@ interface EditorMinimapProps {
   scrollContainerRef: React.RefObject<HTMLDivElement | null>
   /** Current zoom scale — passed so the minimap re-syncs when zoom changes scrollWidth */
   pixelsPerSecond: number
+  /** Stable IDs of currently selected intervals */
+  selectedIds: string[]
+  /** Stable ID array (parallel to intervals) */
+  stableIds: string[]
 }
 
 export function EditorMinimap({
@@ -22,6 +26,8 @@ export function EditorMinimap({
   powerMode,
   scrollContainerRef,
   pixelsPerSecond,
+  selectedIds,
+  stableIds,
 }: EditorMinimapProps) {
   const minimapRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{
@@ -97,6 +103,10 @@ export function EditorMinimap({
   }, [pixelsPerSecond, scrollContainerRef])
 
   const { scrollLeft, clientWidth, scrollWidth } = scrollState
+
+  // Fast membership check for selection overlay
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds])
+  const hasSelection = selectedIds.length > 0
 
   // ── Fixed-scale content width ──────────────────────────────────
   const totalDuration = useMemo(
@@ -218,6 +228,40 @@ export function EditorMinimap({
           className="h-full"
           compact
         />
+
+        {/* Selection dimming overlay — dims unselected intervals so selected ones pop */}
+        {hasSelection && totalDuration > 0 && (
+          <svg
+            viewBox="0 0 200 100"
+            preserveAspectRatio="none"
+            className="pointer-events-none absolute inset-0 h-full w-full"
+          >
+            {(() => {
+              const viewBoxWidth = 200
+              const viewBoxHeight = 100
+              let x = 0
+              return intervals.map((interval, i) => {
+                const w =
+                  (interval.durationSeconds / totalDuration) * viewBoxWidth
+                const ix = x
+                x += w
+                // Only dim unselected intervals
+                if (selectedIdSet.has(stableIds[i] ?? "")) return null
+                return (
+                  <rect
+                    key={i}
+                    x={ix}
+                    y={0}
+                    width={w}
+                    height={viewBoxHeight}
+                    fill="black"
+                    opacity={0.4}
+                  />
+                )
+              })
+            })()}
+          </svg>
+        )}
       </div>
 
       {/* Viewport indicator — positioned in container space */}

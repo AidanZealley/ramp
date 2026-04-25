@@ -141,6 +141,25 @@ export const WorkoutEditor = forwardRef<
   // Fast membership check for per-block isSelected computation.
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds])
 
+  // Clipboard-derived data for the preview thumbnail.
+  const clipboardData = useMemo(() => {
+    if (clipboardIds.length === 0) return null
+    const resolved: Array<Interval> = []
+    const sourceIndices: Array<number> = []
+    for (const id of clipboardIds) {
+      const idx = stableIds.indexOf(id)
+      if (idx !== -1) {
+        resolved.push(displayIntervals[idx])
+        sourceIndices.push(idx)
+      }
+    }
+    if (resolved.length === 0) return null
+    const gapBefore = sourceIndices.map((srcIdx, i) =>
+      i > 0 ? srcIdx !== sourceIndices[i - 1] + 1 : false
+    )
+    return { intervals: resolved, gapBefore }
+  }, [clipboardIds, stableIds, displayIntervals])
+
   // --- Total duration (needed by zoom hook before scale is created) ---
   const totalDurationSec = useMemo(
     () => displayIntervals.reduce((s, iv) => s + iv.durationSeconds, 0),
@@ -809,7 +828,7 @@ export const WorkoutEditor = forwardRef<
           ) : null
         })()}
 
-        {/* Editor toolbar — selection tools + minimap + zoom controls */}
+        {/* Editor toolbar — selection + clipboard + minimap + zoom */}
         <EditorToolbar
           intervals={displayIntervals}
           ftp={ftp}
@@ -822,6 +841,9 @@ export const WorkoutEditor = forwardRef<
           onToggleMultiSelect={() => setMultiSelectMode((v) => !v)}
           onCopy={handleCopy}
           onRequestDelete={requestDelete}
+          selectedIds={selectedIds}
+          stableIds={stableIds}
+          clipboardData={clipboardData}
         />
       </div>
 
