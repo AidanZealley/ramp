@@ -886,6 +886,8 @@ export const WorkoutEditor = forwardRef<
           onToggleMultiSelect={() => setMultiSelectMode((v) => !v)}
           onCopy={handleCopy}
           onRequestDelete={requestDelete}
+          canPaste={clipboardIds.length > 0}
+          onPaste={() => handlePaste()}
           selectedIds={selectedIds}
           stableIds={stableIds}
           clipboardData={clipboardData}

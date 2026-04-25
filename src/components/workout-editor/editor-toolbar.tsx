@@ -1,4 +1,4 @@
-import { BoxSelect, Copy, Trash2 } from "lucide-react"
+import { BoxSelect, ClipboardPaste, Copy, Trash2 } from "lucide-react"
 import { EditorMinimap } from "./editor-minimap"
 import { ZoomControls } from "./zoom-controls"
 import { ClipboardPreview } from "./clipboard-preview"
@@ -20,6 +20,8 @@ interface EditorToolbarProps {
   onToggleMultiSelect: () => void
   onCopy: () => void
   onRequestDelete: () => void
+  canPaste: boolean
+  onPaste: () => void
   // Selection + clipboard data for minimap overlay & preview
   selectedIds: Array<string>
   stableIds: Array<string>
@@ -41,6 +43,8 @@ export function EditorToolbar({
   onToggleMultiSelect,
   onCopy,
   onRequestDelete,
+  canPaste,
+  onPaste,
   selectedIds,
   stableIds,
   clipboardData,
@@ -88,6 +92,15 @@ export function EditorToolbar({
           title="Copy (Cmd/Ctrl+C)"
         >
           <Copy />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onPaste}
+          disabled={!canPaste}
+          title="Paste (Cmd/Ctrl+V)"
+        >
+          <ClipboardPaste />
         </Button>
 
         {clipboardData && (
