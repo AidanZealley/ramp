@@ -1,12 +1,18 @@
+import { useSortable } from "@dnd-kit/sortable"
+import { IntervalHandles } from "./interval-handles"
 import type { Interval } from "@/lib/workout-utils"
-import { formatDuration, formatPower } from "@/lib/workout-utils"
-import { getZoneColor, getZoneInfo } from "@/lib/zones"
 import type { TimelineScale } from "@/hooks/use-timeline-scale"
 import type { DragType } from "@/lib/timeline/types"
+import { formatDuration, formatPower } from "@/lib/workout-utils"
+import { getZoneColor, getZoneInfo } from "@/lib/zones"
 import { EDITOR_HEIGHT } from "@/lib/timeline/types"
-import { IntervalHandles } from "./interval-handles"
-import { useSortable } from "@dnd-kit/sortable"
 import { cn } from "@/lib/utils"
+
+/** Modifier state extracted from a pointer/mouse event at click time. */
+export interface SelectModifiers {
+  shift: boolean
+  meta: boolean
+}
 
 interface IntervalBlockProps {
   stableId: string
@@ -20,10 +26,9 @@ interface IntervalBlockProps {
   isDragTarget: boolean
   isDragging: boolean // any drag (resize or reorder) in progress
   onHover: (index: number | null) => void
-  onSelect: (stableId: string) => void
+  onSelect: (stableId: string, mods: SelectModifiers) => void
   onFocusSelect: (stableId: string) => void
   onStartDrag: (e: React.PointerEvent, type: DragType, index: number) => void
-  onDelete: (index: number) => void
 }
 
 /**
@@ -46,7 +51,6 @@ export function IntervalBlock({
   onSelect,
   onFocusSelect,
   onStartDrag,
-  onDelete,
 }: IntervalBlockProps) {
   const {
     attributes,
@@ -130,7 +134,10 @@ export function IntervalBlock({
         {...listeners}
         onClick={(e) => {
           e.stopPropagation()
-          onSelect(stableId)
+          onSelect(stableId, {
+            shift: e.shiftKey,
+            meta: e.metaKey || e.ctrlKey,
+          })
         }}
         onPointerEnter={() => {
           if (!isDragging) onHover(index)
@@ -214,7 +221,6 @@ export function IntervalBlock({
         isDragging={isDragging}
         onStartDrag={onStartDrag}
         onHover={onHover}
-        onDelete={onDelete}
       />
     </div>
   )

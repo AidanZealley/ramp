@@ -21,27 +21,29 @@ export function ZoomControls({
   const isAtFit = zoomLevel <= 1
 
   return (
-    <div className="flex items-center gap-0.5 rounded-lg border border-border/50 px-0.5 py-0.5">
+    <div className="flex items-center gap-0.5 rounded-full border border-border/50 p-1">
       <Button
         variant="ghost"
-        size="icon-xs"
+        size="icon-sm"
         disabled={!canZoomOut}
         onClick={onZoomOut}
       >
         <Minus />
       </Button>
 
-      <button
-        className="min-w-12 px-1 text-center text-[10px] text-muted-foreground tabular-nums transition-colors hover:text-foreground"
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={onResetZoom}
         title="Reset to fit"
+        className="text-xs"
       >
         {isAtFit ? "Fit" : `${zoomLevel.toFixed(1)}x`}
-      </button>
+      </Button>
 
       <Button
         variant="ghost"
-        size="icon-xs"
+        size="icon-sm"
         disabled={!canZoomIn}
         onClick={onZoomIn}
       >

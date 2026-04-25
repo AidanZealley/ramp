@@ -66,7 +66,7 @@ export function EditableTitle({ value, onChange }: EditableTitleProps) {
         setEditValue(value)
         setEditing(true)
       }}
-      className="cursor-pointer rounded-lg px-2 py-1 font-heading text-lg font-medium transition-colors hover:bg-muted"
+      className="cursor-text rounded-lg px-2 py-1 font-heading text-lg font-medium transition-colors hover:bg-muted"
     >
       {value}
     </button>

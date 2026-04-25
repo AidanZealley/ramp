@@ -17,7 +17,6 @@ interface IntervalHandlesProps {
   isDragging: boolean // any drag in progress globally
   onStartDrag: (e: React.PointerEvent, type: DragType, index: number) => void
   onHover: (index: number | null) => void
-  onDelete: (index: number) => void
 }
 
 /**
@@ -45,7 +44,6 @@ export function IntervalHandles({
   isDragging,
   onStartDrag,
   onHover,
-  onDelete,
 }: IntervalHandlesProps) {
   const handlePointerEnter = () => {
     if (!isDragging) onHover(index)
@@ -208,28 +206,6 @@ export function IntervalHandles({
             }}
           />
 
-          {/* Delete button — only when not dragging */}
-          {!isDragging && width > 30 && (
-            <div
-              className="absolute flex cursor-pointer items-center justify-center rounded-full"
-              style={{
-                right: 4,
-                top: Math.min(startYPx, endYPx) + 4,
-                width: 16,
-                height: 16,
-                backgroundColor: "var(--color-destructive)",
-                opacity: 0.85,
-              }}
-              onClick={(e) => {
-                e.stopPropagation()
-                onDelete(index)
-              }}
-            >
-              <span className="pointer-events-none text-[13px] leading-none font-bold text-white">
-                ×
-              </span>
-            </div>
-          )}
         </>
       )}
     </>

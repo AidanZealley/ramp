@@ -36,27 +36,41 @@ import {
   DURATION_SNAP,
 } from "@/lib/timeline/types"
 import { EditorGrid } from "./editor-grid"
-import { IntervalBlock, IntervalBlockOverlay } from "./interval-block"
+import {
+  IntervalBlock,
+  IntervalBlockOverlay,
+  type SelectModifiers,
+} from "./interval-block"
 import { DragTooltip } from "./drag-tooltip"
 import { InsertZone } from "./insert-zone"
 import { EditorToolbar } from "./editor-toolbar"
 import { Badge } from "../ui/badge"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog"
+import { Button } from "../ui/button"
 
 let _idCounter = 0
 const newId = () => String(++_idCounter)
 
 export interface WorkoutEditorHandle {
-  /** Insert a new interval. Uses the currently-selected interval as the
-   *  insertion point (inserts after it). Falls back to appending at the end
+  /** Insert a new interval. Uses the right-most currently-selected interval as
+   *  the insertion point (inserts after it). Falls back to appending at the end
    *  when nothing is selected. */
-  insertInterval(): void
+  insertInterval: () => void
 }
 
 interface WorkoutEditorProps {
-  intervals: Interval[]
+  intervals: Array<Interval>
   powerMode: "absolute" | "percentage"
   ftp: number
-  onIntervalsChange: (intervals: Interval[]) => void
+  onIntervalsChange: (intervals: Array<Interval>) => void
 }
 
 /**
@@ -67,10 +81,9 @@ interface WorkoutEditorProps {
  * - Zoom / fit-to-width (useTimelineZoom)
  * - Custom resize/power drag (useIntervalDrag)
  * - Drag-to-reorder (dnd-kit)
+ * - Multi-selection (plain/shift/meta clicks + toolbar toggle)
+ * - Copy / paste / delete across the selection
  * - Rendering (DOM-based interval blocks, grid, tooltip)
- *
- * Props interface is identical to the previous SVG-based editor,
- * so the parent component requires zero changes.
  */
 export const WorkoutEditor = forwardRef<
   WorkoutEditorHandle,
@@ -87,14 +100,23 @@ export const WorkoutEditor = forwardRef<
   const lastInsertIndexRef = useRef<number | null>(null)
 
   // --- State ---
-  const [dragPreview, setDragPreview] = useState<Interval[] | null>(null)
+  const [dragPreview, setDragPreview] = useState<Array<Interval> | null>(null)
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Array<string>>([])
+  // Stable pivot for shift+click range-selects. Updated by plain/cmd-click,
+  // Tab focus, drag-end, paste, and insert — but NOT by shift+click, so the
+  // user can grow and shrink a range around the same origin (Finder-style).
+  const [anchorId, setAnchorId] = useState<string | null>(null)
+  const [multiSelectMode, setMultiSelectMode] = useState(false)
+  // Clipboard — per spec, stores stable IDs (not snapshots). Paste resolves
+  // IDs against current intervals; missing IDs are silently skipped.
+  const [clipboardIds, setClipboardIds] = useState<Array<string>>([])
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [activeReorderId, setActiveReorderId] = useState<string | null>(null)
 
   // Stable IDs that travel with each interval through reorders so dnd-kit
   // never sees stale index-based IDs that cause the snap-back flash.
-  const [stableIds, setStableIds] = useState<string[]>(() =>
+  const [stableIds, setStableIds] = useState<Array<string>>(() =>
     intervals.map(() => newId())
   )
 
@@ -115,6 +137,9 @@ export const WorkoutEditor = forwardRef<
 
   // The intervals to display: drag preview during resize, original otherwise
   const displayIntervals = dragPreview ?? intervals
+
+  // Fast membership check for per-block isSelected computation.
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds])
 
   // --- Total duration (needed by zoom hook before scale is created) ---
   const totalDurationSec = useMemo(
@@ -185,30 +210,154 @@ export const WorkoutEditor = forwardRef<
       setStableIds((prev) => arrayMove([...prev], oldIndex, newIndex))
       onIntervalsChange(arrayMove([...intervals], oldIndex, newIndex))
 
-      // Select the interval that was just dragged (replaces any existing selection).
-      setSelectedId(active.id as string)
+      // Replace selection with the dragged interval. (We drop any existing
+      // multi-selection here to keep the interaction unambiguous.)
+      setSelectedIds([active.id as string])
+      setAnchorId(active.id as string)
     },
     [intervals, stableIds, onIntervalsChange]
   )
 
   // --- Selection ---
-  const handleSelect = useCallback((id: string) => {
-    setSelectedId((prev) => (prev === id ? null : id))
-  }, [])
+  const handleSelect = useCallback(
+    (id: string, mods: SelectModifiers) => {
+      // Shift+click — replace the selection with the range anchor..id.
+      // The anchor is NOT moved, so the user can shift+click multiple times
+      // to grow or shrink a range around the same origin.
+      if (mods.shift) {
+        // Fall back to the last selected id (then the clicked id itself) if
+        // the anchor is unset or no longer exists.
+        const effAnchor =
+          anchorId !== null && stableIds.indexOf(anchorId) !== -1
+            ? anchorId
+            : (selectedIds[selectedIds.length - 1] ?? id)
+        const a = stableIds.indexOf(effAnchor)
+        const b = stableIds.indexOf(id)
+        if (a !== -1 && b !== -1) {
+          const [from, to] = a < b ? [a, b] : [b, a]
+          setSelectedIds(stableIds.slice(from, to + 1))
+          // Ensure a live anchor is remembered for subsequent shift-clicks.
+          if (anchorId === null || stableIds.indexOf(anchorId) === -1) {
+            setAnchorId(effAnchor)
+          }
+          return
+        }
+      }
 
-  // Always-select (no toggle) — used when Tab-focusing an interval
+      // Cmd/Ctrl+click or multi-select mode — toggle this id in/out. The
+      // anchor follows the last discrete click so the next shift+click
+      // pivots from here.
+      if (mods.meta || multiSelectMode) {
+        setSelectedIds((prev) =>
+          prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+        )
+        setAnchorId(id)
+        return
+      }
+
+      // Plain click on the lone selected block — deselect (preserves the
+      // pre-multi-select toggle behaviour).
+      setSelectedIds((prev) => {
+        if (prev.length === 1 && prev[0] === id) return []
+        return [id]
+      })
+      setAnchorId(id)
+    },
+    [stableIds, selectedIds, anchorId, multiSelectMode]
+  )
+
+  // Always-select (no toggle) — used when Tab-focusing an interval.
   const handleFocusSelect = useCallback((id: string) => {
-    setSelectedId(id)
+    setSelectedIds([id])
+    setAnchorId(id)
   }, [])
 
   // --- Delete ---
-  const handleDeleteInterval = useCallback(
-    (index: number) => {
-      setStableIds((prev) => prev.filter((_, i) => i !== index))
-      onIntervalsChange(intervals.filter((_, i) => i !== index))
-      setSelectedId(null)
+  const handleDeleteIntervals = useCallback(
+    (ids: Array<string>) => {
+      if (ids.length === 0) return
+      const toDelete = new Set(ids)
+      const keepMask = stableIds.map((id) => !toDelete.has(id))
+      setStableIds((prev) => prev.filter((_, i) => keepMask[i]))
+      onIntervalsChange(intervals.filter((_, i) => keepMask[i]))
+      setSelectedIds([])
+      setAnchorId(null)
+      setShowDeleteConfirm(false)
     },
-    [intervals, onIntervalsChange]
+    [stableIds, intervals, onIntervalsChange]
+  )
+
+  // Branches the current selected set through the confirmation dialog when
+  // deleting multiple intervals, but performs the delete immediately for a
+  // single selected interval (matches the existing single-delete UX).
+  const requestDelete = useCallback(() => {
+    if (selectedIds.length === 0) return
+    if (selectedIds.length > 1) {
+      setShowDeleteConfirm(true)
+    } else {
+      handleDeleteIntervals(selectedIds)
+    }
+  }, [selectedIds, handleDeleteIntervals])
+
+  // --- Copy ---
+  const handleCopy = useCallback(() => {
+    if (selectedIds.length === 0) return
+    // Preserve document order in the clipboard so the pasted block order is
+    // independent of the order the user clicked them in.
+    const ordered = stableIds.filter((id) => selectedIdSet.has(id))
+    setClipboardIds(ordered)
+  }, [selectedIds, selectedIdSet, stableIds])
+
+  // --- Paste ---
+  const handlePaste = useCallback(
+    (insertAtIndex?: number) => {
+      if (clipboardIds.length === 0) return
+
+      // Resolve clipboard IDs to live intervals; skip ones that have been
+      // deleted since they were copied.
+      const toPaste: Array<Interval> = []
+      for (const id of clipboardIds) {
+        const idx = stableIds.indexOf(id)
+        if (idx !== -1) toPaste.push(intervals[idx])
+      }
+      if (toPaste.length === 0) return
+
+      // Determine insertion position:
+      //   1. Explicit index from the InsertZone
+      //   2. Right of the right-most currently selected interval
+      //   3. Append at the end
+      let insertAt: number
+      if (insertAtIndex !== undefined) {
+        insertAt = insertAtIndex
+      } else if (selectedIds.length > 0) {
+        const rightmost = Math.max(
+          ...selectedIds
+            .map((id) => stableIds.indexOf(id))
+            .filter((i) => i >= 0)
+        )
+        insertAt = rightmost >= 0 ? rightmost + 1 : intervals.length
+      } else {
+        insertAt = intervals.length
+      }
+
+      const newIds = toPaste.map(() => newId())
+      const nextStableIds = [...stableIds]
+      nextStableIds.splice(insertAt, 0, ...newIds)
+      const nextIntervals = [...intervals]
+      nextIntervals.splice(insertAt, 0, ...toPaste)
+
+      setStableIds(nextStableIds)
+      onIntervalsChange(nextIntervals)
+      // Select the pasted intervals so the user can immediately move / copy
+      // them again. Anchor lands on the last pasted id so shift+click will
+      // pivot from the end of the paste.
+      setSelectedIds(newIds)
+      setAnchorId(newIds[newIds.length - 1] ?? null)
+      // Scroll effect will centre on the first pasted index. Subsequent
+      // pasted blocks are adjacent so they come along for the ride.
+      lastInsertIndexRef.current = insertAt
+    },
+    [clipboardIds, selectedIds, stableIds, intervals, onIntervalsChange]
   )
 
   // --- Keyboard shortcuts ---
@@ -218,13 +367,11 @@ export const WorkoutEditor = forwardRef<
     "Backspace",
     useCallback(
       (e: KeyboardEvent) => {
-        if (isDragging || selectedId === null) return
-        const idx = stableIds.indexOf(selectedId)
-        if (idx === -1) return
+        if (isDragging || selectedIds.length === 0) return
         e.preventDefault()
-        handleDeleteInterval(idx)
+        requestDelete()
       },
-      [isDragging, selectedId, stableIds, handleDeleteInterval]
+      [isDragging, selectedIds, requestDelete]
     )
   )
 
@@ -232,13 +379,11 @@ export const WorkoutEditor = forwardRef<
     "Delete",
     useCallback(
       (e: KeyboardEvent) => {
-        if (isDragging || selectedId === null) return
-        const idx = stableIds.indexOf(selectedId)
-        if (idx === -1) return
+        if (isDragging || selectedIds.length === 0) return
         e.preventDefault()
-        handleDeleteInterval(idx)
+        requestDelete()
       },
-      [isDragging, selectedId, stableIds, handleDeleteInterval]
+      [isDragging, selectedIds, requestDelete]
     )
   )
 
@@ -246,11 +391,18 @@ export const WorkoutEditor = forwardRef<
     "Escape",
     useCallback(
       (e: KeyboardEvent) => {
-        if (selectedId === null) return
+        // Prefer closing an open dialog first; otherwise clear selection.
+        if (showDeleteConfirm) {
+          e.preventDefault()
+          setShowDeleteConfirm(false)
+          return
+        }
+        if (selectedIds.length === 0) return
         e.preventDefault()
-        setSelectedId(null)
+        setSelectedIds([])
+        setAnchorId(null)
       },
-      [selectedId]
+      [selectedIds, showDeleteConfirm]
     )
   )
 
@@ -258,21 +410,31 @@ export const WorkoutEditor = forwardRef<
     "ArrowUp",
     useCallback(
       (e: KeyboardEvent) => {
-        if (isDragging || selectedId === null) return
-        const idx = stableIds.indexOf(selectedId)
-        if (idx === -1) return
+        if (isDragging || selectedIds.length === 0) return
         e.preventDefault()
-        const interval = intervals[idx]
         const maxPower = computeMaxPower(intervals, powerMode)
         const updated = [...intervals]
-        updated[idx] = {
-          ...interval,
-          startPower: clamp(interval.startPower + powerSnap, MIN_POWER, maxPower),
-          endPower: clamp(interval.endPower + powerSnap, MIN_POWER, maxPower),
+        for (const id of selectedIds) {
+          const idx = stableIds.indexOf(id)
+          if (idx === -1) continue
+          const iv = updated[idx]
+          updated[idx] = {
+            ...iv,
+            startPower: clamp(iv.startPower + powerSnap, MIN_POWER, maxPower),
+            endPower: clamp(iv.endPower + powerSnap, MIN_POWER, maxPower),
+          }
         }
         onIntervalsChange(updated)
       },
-      [isDragging, selectedId, stableIds, intervals, powerMode, powerSnap, onIntervalsChange]
+      [
+        isDragging,
+        selectedIds,
+        stableIds,
+        intervals,
+        powerMode,
+        powerSnap,
+        onIntervalsChange,
+      ]
     )
   )
 
@@ -280,21 +442,31 @@ export const WorkoutEditor = forwardRef<
     "ArrowDown",
     useCallback(
       (e: KeyboardEvent) => {
-        if (isDragging || selectedId === null) return
-        const idx = stableIds.indexOf(selectedId)
-        if (idx === -1) return
+        if (isDragging || selectedIds.length === 0) return
         e.preventDefault()
-        const interval = intervals[idx]
         const maxPower = computeMaxPower(intervals, powerMode)
         const updated = [...intervals]
-        updated[idx] = {
-          ...interval,
-          startPower: clamp(interval.startPower - powerSnap, MIN_POWER, maxPower),
-          endPower: clamp(interval.endPower - powerSnap, MIN_POWER, maxPower),
+        for (const id of selectedIds) {
+          const idx = stableIds.indexOf(id)
+          if (idx === -1) continue
+          const iv = updated[idx]
+          updated[idx] = {
+            ...iv,
+            startPower: clamp(iv.startPower - powerSnap, MIN_POWER, maxPower),
+            endPower: clamp(iv.endPower - powerSnap, MIN_POWER, maxPower),
+          }
         }
         onIntervalsChange(updated)
       },
-      [isDragging, selectedId, stableIds, intervals, powerMode, powerSnap, onIntervalsChange]
+      [
+        isDragging,
+        selectedIds,
+        stableIds,
+        intervals,
+        powerMode,
+        powerSnap,
+        onIntervalsChange,
+      ]
     )
   )
 
@@ -302,19 +474,21 @@ export const WorkoutEditor = forwardRef<
     "ArrowRight",
     useCallback(
       (e: KeyboardEvent) => {
-        if (isDragging || selectedId === null) return
-        const idx = stableIds.indexOf(selectedId)
-        if (idx === -1) return
+        if (isDragging || selectedIds.length === 0) return
         e.preventDefault()
-        const interval = intervals[idx]
         const updated = [...intervals]
-        updated[idx] = {
-          ...interval,
-          durationSeconds: interval.durationSeconds + DURATION_SNAP,
+        for (const id of selectedIds) {
+          const idx = stableIds.indexOf(id)
+          if (idx === -1) continue
+          const iv = updated[idx]
+          updated[idx] = {
+            ...iv,
+            durationSeconds: iv.durationSeconds + DURATION_SNAP,
+          }
         }
         onIntervalsChange(updated)
       },
-      [isDragging, selectedId, stableIds, intervals, onIntervalsChange]
+      [isDragging, selectedIds, stableIds, intervals, onIntervalsChange]
     )
   )
 
@@ -322,19 +496,84 @@ export const WorkoutEditor = forwardRef<
     "ArrowLeft",
     useCallback(
       (e: KeyboardEvent) => {
-        if (isDragging || selectedId === null) return
-        const idx = stableIds.indexOf(selectedId)
-        if (idx === -1) return
+        if (isDragging || selectedIds.length === 0) return
         e.preventDefault()
-        const interval = intervals[idx]
         const updated = [...intervals]
-        updated[idx] = {
-          ...interval,
-          durationSeconds: Math.max(MIN_DURATION, interval.durationSeconds - DURATION_SNAP),
+        for (const id of selectedIds) {
+          const idx = stableIds.indexOf(id)
+          if (idx === -1) continue
+          const iv = updated[idx]
+          updated[idx] = {
+            ...iv,
+            durationSeconds: Math.max(
+              MIN_DURATION,
+              iv.durationSeconds - DURATION_SNAP
+            ),
+          }
         }
         onIntervalsChange(updated)
       },
-      [isDragging, selectedId, stableIds, intervals, onIntervalsChange]
+      [isDragging, selectedIds, stableIds, intervals, onIntervalsChange]
+    )
+  )
+
+  // Cmd/Ctrl+C — copy selection (document order)
+  useKeypress(
+    "c",
+    useCallback(
+      (e: KeyboardEvent) => {
+        if (!(e.metaKey || e.ctrlKey)) return
+        if (isDragging || selectedIds.length === 0) return
+        e.preventDefault()
+        handleCopy()
+      },
+      [isDragging, selectedIds, handleCopy]
+    )
+  )
+
+  // Cmd/Ctrl+V — paste clipboard (after right-most selected, else at end)
+  useKeypress(
+    "v",
+    useCallback(
+      (e: KeyboardEvent) => {
+        if (!(e.metaKey || e.ctrlKey)) return
+        if (isDragging || clipboardIds.length === 0) return
+        e.preventDefault()
+        handlePaste()
+      },
+      [isDragging, clipboardIds, handlePaste]
+    )
+  )
+
+  // Cmd/Ctrl+X — cut = copy + delete (delete path reuses the multi guard)
+  useKeypress(
+    "x",
+    useCallback(
+      (e: KeyboardEvent) => {
+        if (!(e.metaKey || e.ctrlKey)) return
+        if (isDragging || selectedIds.length === 0) return
+        e.preventDefault()
+        // Copy first so the clipboard is populated even if the user cancels
+        // the delete-confirmation dialog.
+        const ordered = stableIds.filter((id) => selectedIdSet.has(id))
+        setClipboardIds(ordered)
+        requestDelete()
+      },
+      [isDragging, selectedIds, selectedIdSet, stableIds, requestDelete]
+    )
+  )
+
+  // Cmd/Ctrl+A — select every interval
+  useKeypress(
+    "a",
+    useCallback(
+      (e: KeyboardEvent) => {
+        if (!(e.metaKey || e.ctrlKey)) return
+        if (isDragging || stableIds.length === 0) return
+        e.preventDefault()
+        setSelectedIds([...stableIds])
+      },
+      [isDragging, stableIds]
     )
   )
 
@@ -363,7 +602,8 @@ export const WorkoutEditor = forwardRef<
       })
 
       // Auto-select the new interval and remember where it landed for scroll.
-      setSelectedId(freshId)
+      setSelectedIds([freshId])
+      setAnchorId(freshId)
       lastInsertIndexRef.current = index
 
       onIntervalsChange(newIntervals)
@@ -376,15 +616,20 @@ export const WorkoutEditor = forwardRef<
     ref,
     () => ({
       insertInterval() {
-        const selectedIndex =
-          selectedId !== null ? stableIds.indexOf(selectedId) : -1
-        // Insert after the selected interval, or append if nothing is selected.
-        const insertAt =
-          selectedIndex >= 0 ? selectedIndex + 1 : intervals.length
+        // Insert after the right-most selected interval, or append.
+        let insertAt = intervals.length
+        if (selectedIds.length > 0) {
+          const rightmost = Math.max(
+            ...selectedIds
+              .map((id) => stableIds.indexOf(id))
+              .filter((i) => i >= 0)
+          )
+          if (rightmost >= 0) insertAt = rightmost + 1
+        }
         handleInsertAt(insertAt)
       },
     }),
-    [selectedId, stableIds, intervals.length, handleInsertAt]
+    [selectedIds, stableIds, intervals.length, handleInsertAt]
   )
 
   // --- Scroll to the newly inserted interval ---
@@ -416,9 +661,13 @@ export const WorkoutEditor = forwardRef<
   // --- Deselect on click outside the editor ---
   useEffect(() => {
     const handleDocumentClick = (e: MouseEvent) => {
-      if (editorRef.current && !editorRef.current.contains(e.target as Node)) {
-        setSelectedId(null)
-      }
+      const target = e.target as HTMLElement | null
+      // Don't clear when the user clicks inside the editor or the selection
+      // toolbar (toolbar sits outside `editorRef`).
+      if (editorRef.current && editorRef.current.contains(target)) return
+      if (target && target.closest("[data-selection-toolbar]")) return
+      setSelectedIds([])
+      setAnchorId(null)
     }
     document.addEventListener("click", handleDocumentClick)
     return () => document.removeEventListener("click", handleDocumentClick)
@@ -435,7 +684,7 @@ export const WorkoutEditor = forwardRef<
   return (
     <div className="flex select-none">
       {/* Y-axis labels */}
-      <div className="relative w-12 shrink-0" style={{ height: EDITOR_HEIGHT }}>
+      <div className="relative w-10 shrink-0" style={{ height: EDITOR_HEIGHT }}>
         {scale.powerTicks.map((power) => (
           <span
             key={power}
@@ -461,7 +710,10 @@ export const WorkoutEditor = forwardRef<
               height: EDITOR_HEIGHT + AXIS_HEIGHT,
               cursor: activeReorderId ? "grabbing" : undefined,
             }}
-            onClick={() => setSelectedId(null)}
+            onClick={() => {
+              setSelectedIds([])
+              setAnchorId(null)
+            }}
           >
             {/* Background grid */}
             <EditorGrid scale={scale} ftp={ftp} powerMode={powerMode} />
@@ -487,14 +739,13 @@ export const WorkoutEditor = forwardRef<
                     ftp={ftp}
                     powerMode={powerMode}
                     isHovered={hoveredIndex === i && !isDragging}
-                    isSelected={stableIds[i] === selectedId}
+                    isSelected={selectedIdSet.has(stableIds[i] ?? "")}
                     isDragTarget={activeDrag?.index === i}
                     isDragging={isDragging}
                     onHover={setHoveredIndex}
                     onSelect={handleSelect}
                     onFocusSelect={handleFocusSelect}
                     onStartDrag={startDrag}
-                    onDelete={handleDeleteInterval}
                   />
                 ))}
               </SortableContext>
@@ -524,6 +775,8 @@ export const WorkoutEditor = forwardRef<
                     index={i + 1}
                     height={EDITOR_HEIGHT}
                     onInsert={handleInsertAt}
+                    canPaste={clipboardIds.length > 0}
+                    onPaste={handlePaste}
                   />
                 ))}
 
@@ -556,15 +809,51 @@ export const WorkoutEditor = forwardRef<
           ) : null
         })()}
 
-        {/* Editor toolbar — minimap + zoom controls */}
+        {/* Editor toolbar — selection tools + minimap + zoom controls */}
         <EditorToolbar
           intervals={displayIntervals}
           ftp={ftp}
           powerMode={powerMode}
           scrollContainerRef={scrollContainerRef}
           zoom={zoom}
+          selectedCount={selectedIds.length}
+          multiSelectMode={multiSelectMode}
+          canCopy={selectedIds.length > 0}
+          onToggleMultiSelect={() => setMultiSelectMode((v) => !v)}
+          onCopy={handleCopy}
+          onRequestDelete={requestDelete}
         />
       </div>
+
+      {/* Delete-confirmation dialog — shown only for multi-select deletes */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Delete {selectedIds.length} interval
+              {selectedIds.length === 1 ? "" : "s"}
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete{" "}
+              {selectedIds.length === 1
+                ? "this interval"
+                : `these ${selectedIds.length} intervals`}
+              ? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>
+              Cancel
+            </DialogClose>
+            <Button
+              variant="destructive"
+              onClick={() => handleDeleteIntervals(selectedIds)}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 })
