@@ -20,6 +20,7 @@ const ZOOM_WHEEL_SENSITIVITY = 0.01;
 interface UseTimelineZoomConfig {
   totalDurationSec: number;
   containerRef: React.RefObject<HTMLDivElement | null>;
+  edgeGutterPx: number;
 }
 
 export interface TimelineZoom {
@@ -47,6 +48,7 @@ export interface TimelineZoom {
 export function useTimelineZoom({
   totalDurationSec,
   containerRef,
+  edgeGutterPx,
 }: UseTimelineZoomConfig): TimelineZoom {
   const [zoomLevel, setZoomLevel] = useState(MIN_ZOOM);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -82,8 +84,9 @@ export function useTimelineZoom({
   const fitPixelsPerSecond = useMemo(() => {
     if (containerWidth <= 0) return DEFAULT_PIXELS_PER_SECOND;
     const safeDuration = Math.max(totalDurationSec, 30);
-    return Math.min(containerWidth / safeDuration, MAX_PIXELS_PER_SECOND);
-  }, [containerWidth, totalDurationSec]);
+    const usableWidth = Math.max(containerWidth - edgeGutterPx * 2, 1);
+    return Math.min(usableWidth / safeDuration, MAX_PIXELS_PER_SECOND);
+  }, [containerWidth, totalDurationSec, edgeGutterPx]);
 
   const pixelsPerSecond = fitPixelsPerSecond * zoomLevel;
 

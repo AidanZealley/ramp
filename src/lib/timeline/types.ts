@@ -13,6 +13,7 @@ export type DragType =
 export const EDITOR_HEIGHT = 280;
 export const AXIS_HEIGHT = 28;
 export const DEFAULT_PIXELS_PER_SECOND = 2; // fallback before container is measured
+export const TIMELINE_EDGE_GUTTER = 16;
 
 // Zoom constants
 export const MAX_PIXELS_PER_SECOND = 10; // upper cap for fit-to-width

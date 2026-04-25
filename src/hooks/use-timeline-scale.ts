@@ -11,12 +11,15 @@ import {
   computePowerTicks,
   computeTimeTicks,
 } from "@/lib/timeline/coordinate-system";
-import { EDITOR_HEIGHT } from "@/lib/timeline/types";
+import { EDITOR_HEIGHT, TIMELINE_EDGE_GUTTER } from "@/lib/timeline/types";
 
 export interface TimelineScale {
   pixelsPerSecond: number;
   maxPower: number;
-  totalWidth: number;
+  workoutWidth: number;
+  contentWidth: number;
+  leftGutter: number;
+  rightGutter: number;
   totalDurationSec: number;
 
   // Mapping functions (bound to current scale)
@@ -54,9 +57,17 @@ export function useTimelineScale(
     [intervals]
   );
 
-  const totalWidth = useMemo(
+  const workoutWidth = useMemo(
     () => Math.max(timeToX(totalDurationSec, pixelsPerSecond), 300),
     [totalDurationSec, pixelsPerSecond]
+  );
+
+  const leftGutter = TIMELINE_EDGE_GUTTER;
+  const rightGutter = TIMELINE_EDGE_GUTTER;
+
+  const contentWidth = useMemo(
+    () => workoutWidth + leftGutter + rightGutter,
+    [workoutWidth, leftGutter, rightGutter]
   );
 
   const powerTicks = useMemo(
@@ -71,13 +82,13 @@ export function useTimelineScale(
 
   // Bound mapping functions
   const boundTimeToX = useCallback(
-    (seconds: number) => timeToX(seconds, pixelsPerSecond),
-    [pixelsPerSecond]
+    (seconds: number) => leftGutter + timeToX(seconds, pixelsPerSecond),
+    [leftGutter, pixelsPerSecond]
   );
 
   const boundXToTime = useCallback(
-    (x: number) => xToTime(x, pixelsPerSecond),
-    [pixelsPerSecond]
+    (x: number) => xToTime(Math.max(0, x - leftGutter), pixelsPerSecond),
+    [leftGutter, pixelsPerSecond]
   );
 
   const boundPowerToY = useCallback(
@@ -92,8 +103,8 @@ export function useTimelineScale(
 
   const boundGetIntervalX = useCallback(
     (index: number) =>
-      rawGetIntervalStartX(index, intervals, pixelsPerSecond),
-    [intervals, pixelsPerSecond]
+      leftGutter + rawGetIntervalStartX(index, intervals, pixelsPerSecond),
+    [leftGutter, intervals, pixelsPerSecond]
   );
 
   const boundGetIntervalWidth = useCallback(
@@ -105,7 +116,10 @@ export function useTimelineScale(
     () => ({
       pixelsPerSecond,
       maxPower,
-      totalWidth,
+      workoutWidth,
+      contentWidth,
+      leftGutter,
+      rightGutter,
       totalDurationSec,
       timeToX: boundTimeToX,
       xToTime: boundXToTime,
@@ -119,7 +133,10 @@ export function useTimelineScale(
     [
       pixelsPerSecond,
       maxPower,
-      totalWidth,
+      workoutWidth,
+      contentWidth,
+      leftGutter,
+      rightGutter,
       totalDurationSec,
       boundTimeToX,
       boundXToTime,

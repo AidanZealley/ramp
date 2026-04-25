@@ -14,6 +14,7 @@ interface EditorMinimapProps {
   scrollContainerRef: React.RefObject<HTMLDivElement | null>
   /** Current zoom scale — passed so the minimap re-syncs when zoom changes scrollWidth */
   pixelsPerSecond: number
+  edgeGutterPx: number
   /** Stable IDs of currently selected intervals */
   selectedIds: string[]
   /** Stable ID array (parallel to intervals) */
@@ -26,6 +27,7 @@ export function EditorMinimap({
   powerMode,
   scrollContainerRef,
   pixelsPerSecond,
+  edgeGutterPx,
   selectedIds,
   stableIds,
 }: EditorMinimapProps) {
@@ -121,26 +123,49 @@ export function EditorMinimap({
 
   // ── Content scrolling (VS Code-style) ─────────────────────────
   const overflow = Math.max(0, contentWidth - containerWidth)
-  const maxScroll = scrollWidth - clientWidth
-  const scrollRatio = maxScroll > 0 ? scrollLeft / maxScroll : 0
+  const workoutScrollWidth = Math.max(0, scrollWidth - edgeGutterPx * 2)
+  const viewportWorkoutLeft = Math.max(0, scrollLeft - edgeGutterPx)
+  const hiddenLeftGutter = Math.max(0, edgeGutterPx - scrollLeft)
+  const hiddenRightGutter = Math.max(
+    0,
+    scrollLeft + clientWidth - (edgeGutterPx + workoutScrollWidth)
+  )
+  const visibleWorkoutWidth = Math.max(
+    0,
+    Math.min(
+      workoutScrollWidth - viewportWorkoutLeft,
+      clientWidth - hiddenLeftGutter - hiddenRightGutter
+    )
+  )
+  const maxViewportWorkoutLeft = Math.max(
+    0,
+    workoutScrollWidth - visibleWorkoutWidth
+  )
+  const scrollRatio =
+    maxViewportWorkoutLeft > 0 ? viewportWorkoutLeft / maxViewportWorkoutLeft : 0
   const contentOffset = scrollRatio * overflow
 
   // ── Viewport indicator (pixel-based) ──────────────────────────
   const viewportWidthPx =
-    scrollWidth > 0 ? (clientWidth / scrollWidth) * contentWidth : contentWidth
+    workoutScrollWidth > 0
+      ? (visibleWorkoutWidth / workoutScrollWidth) * contentWidth
+      : contentWidth
   const viewportContentLeft =
-    scrollWidth > 0 ? (scrollLeft / scrollWidth) * contentWidth : 0
+    workoutScrollWidth > 0
+      ? (viewportWorkoutLeft / workoutScrollWidth) * contentWidth
+      : 0
   const viewportScreenLeft = viewportContentLeft - contentOffset
 
   // viewportScreenLeft = scrollLeft * k  →  scrollLeft = viewportScreenLeft / k
   // k is constant for a given set of container/content dimensions.
   const dragK = useMemo(() => {
-    const safeScrollWidth = scrollWidth || 1
-    const maxScroll = scrollWidth - clientWidth
-    const safeMaxScroll = maxScroll || 1
-    const k = contentWidth / safeScrollWidth - overflow / safeMaxScroll
+    const safeWorkoutScrollWidth = workoutScrollWidth || 1
+    const safeMaxViewportWorkoutLeft = maxViewportWorkoutLeft || 1
+    const k =
+      contentWidth / safeWorkoutScrollWidth -
+      overflow / safeMaxViewportWorkoutLeft
     return Math.max(k, 0.001)
-  }, [scrollWidth, clientWidth, contentWidth, overflow])
+  }, [workoutScrollWidth, maxViewportWorkoutLeft, contentWidth, overflow])
 
   // Shared move/up handlers — used by both viewport and background drags
   const handlePointerMove = useCallback(
@@ -150,10 +175,11 @@ export function EditorMinimap({
       const cursorX = e.clientX - rectLeft
       const desiredViewportLeft = cursorX - grabOffset
       if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollLeft = desiredViewportLeft / k
+        scrollContainerRef.current.scrollLeft =
+          edgeGutterPx + desiredViewportLeft / k
       }
     },
-    [scrollContainerRef]
+    [scrollContainerRef, edgeGutterPx]
   )
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
@@ -189,7 +215,8 @@ export function EditorMinimap({
       // Jump so the viewport center lands under the cursor, then drag from center
       const cursorX = e.clientX - rect.left
       const desiredViewportLeft = cursorX - viewportWidthPx / 2
-      scrollContainerRef.current.scrollLeft = desiredViewportLeft / dragK
+      scrollContainerRef.current.scrollLeft =
+        edgeGutterPx + desiredViewportLeft / dragK
 
       e.currentTarget.setPointerCapture(e.pointerId)
       dragRef.current = {
@@ -199,7 +226,7 @@ export function EditorMinimap({
         rectLeft: rect.left,
       }
     },
-    [scrollContainerRef, viewportWidthPx, dragK]
+    [scrollContainerRef, viewportWidthPx, dragK, edgeGutterPx]
   )
 
   const handleBackgroundPointerMove = handlePointerMove

@@ -12,6 +12,7 @@ interface EditorToolbarProps {
   ftp: number
   powerMode: "absolute" | "percentage"
   scrollContainerRef: React.RefObject<HTMLDivElement | null>
+  edgeGutterPx: number
   zoom: TimelineZoom
   // Selection controls
   selectedCount: number
@@ -36,6 +37,7 @@ export function EditorToolbar({
   ftp,
   powerMode,
   scrollContainerRef,
+  edgeGutterPx,
   zoom,
   selectedCount,
   multiSelectMode,
@@ -122,6 +124,7 @@ export function EditorToolbar({
             powerMode={powerMode}
             scrollContainerRef={scrollContainerRef}
             pixelsPerSecond={zoom.pixelsPerSecond}
+            edgeGutterPx={edgeGutterPx}
             selectedIds={selectedIds}
             stableIds={stableIds}
           />

@@ -34,6 +34,7 @@ import {
   MIN_POWER,
   MIN_DURATION,
   DURATION_SNAP,
+  TIMELINE_EDGE_GUTTER,
 } from "@/lib/timeline/types"
 import { EditorGrid } from "./editor-grid"
 import {
@@ -170,6 +171,7 @@ export const WorkoutEditor = forwardRef<
   const zoom = useTimelineZoom({
     totalDurationSec,
     containerRef: scrollContainerRef,
+    edgeGutterPx: TIMELINE_EDGE_GUTTER,
   })
 
   // --- Coordinate system ---
@@ -771,7 +773,7 @@ export const WorkoutEditor = forwardRef<
             ref={editorRef}
             className="relative"
             style={{
-              width: scale.totalWidth + 20,
+              width: scale.contentWidth,
               height: EDITOR_HEIGHT + AXIS_HEIGHT,
               cursor: activeReorderId ? "grabbing" : undefined,
             }}
@@ -852,7 +854,7 @@ export const WorkoutEditor = forwardRef<
                 intervals={dragPreview}
                 scale={scale}
                 powerMode={powerMode}
-                containerWidth={scale.totalWidth + 20}
+                containerWidth={scale.contentWidth}
               />
             )}
           </div>
@@ -880,6 +882,7 @@ export const WorkoutEditor = forwardRef<
           ftp={ftp}
           powerMode={powerMode}
           scrollContainerRef={scrollContainerRef}
+          edgeGutterPx={TIMELINE_EDGE_GUTTER}
           zoom={toolbarZoom}
           selectedCount={selectedIds.length}
           multiSelectMode={multiSelectMode}
