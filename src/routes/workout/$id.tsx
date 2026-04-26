@@ -1,8 +1,8 @@
 import { useState, useCallback, useRef } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useQuery, useMutation } from "convex/react"
-import { api } from "../../convex/_generated/api"
-import type { Id } from "../../convex/_generated/dataModel"
+import { api } from "../../../convex/_generated/api"
+import type { Id } from "../../../convex/_generated/dataModel"
 import {
   WorkoutEditor,
   type WorkoutEditorHandle,
@@ -26,7 +26,14 @@ import {
 } from "@/lib/workout-utils"
 import type { Interval } from "@/lib/workout-utils"
 import { downloadTextFile, workoutToMrc } from "@/lib/exporters"
-import { ArrowLeft, Download, Plus, RefreshCw, Save, Trash2 } from "lucide-react"
+import {
+  ArrowLeft,
+  Download,
+  Plus,
+  RefreshCw,
+  Save,
+  Trash2,
+} from "lucide-react"
 
 export const Route = createFileRoute("/workout/$id")({
   component: WorkoutPage,
@@ -175,7 +182,7 @@ function WorkoutPage() {
   const handleDelete = async () => {
     if (!workout) return
     await removeWorkout({ id: workout._id })
-    navigate({ to: "/" })
+    navigate({ to: "/workout" })
   }
 
   // Loading state
@@ -195,7 +202,7 @@ function WorkoutPage() {
         <p className="text-sm text-muted-foreground">
           This workout may have been deleted.
         </p>
-        <Button variant="outline" onClick={() => navigate({ to: "/" })}>
+        <Button variant="outline" onClick={() => navigate({ to: "/workout" })}>
           <ArrowLeft className="size-4" />
           Back to Workouts
         </Button>
@@ -215,7 +222,7 @@ function WorkoutPage() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate({ to: "/" })}
+          onClick={() => navigate({ to: "/workout" })}
         >
           <ArrowLeft className="size-4" />
         </Button>
@@ -283,7 +290,12 @@ function WorkoutPage() {
 
         <div className="mx-1 h-5 w-px bg-border" />
 
-        <Button variant="outline" size="sm" onClick={handleAddInterval} data-editor-action>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleAddInterval}
+          data-editor-action
+        >
           <Plus className="size-4" />
           Add Interval
         </Button>

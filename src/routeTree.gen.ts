@@ -9,48 +9,72 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WorkoutRouteRouteImport } from './routes/workout/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as WorkoutIdRouteImport } from './routes/workout.$id'
+import { Route as WorkoutIndexRouteImport } from './routes/workout/index'
+import { Route as WorkoutIdRouteImport } from './routes/workout/$id'
 
+const WorkoutRouteRoute = WorkoutRouteRouteImport.update({
+  id: '/workout',
+  path: '/workout',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WorkoutIndexRoute = WorkoutIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => WorkoutRouteRoute,
+} as any)
 const WorkoutIdRoute = WorkoutIdRouteImport.update({
-  id: '/workout/$id',
-  path: '/workout/$id',
-  getParentRoute: () => rootRouteImport,
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => WorkoutRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/workout': typeof WorkoutRouteRouteWithChildren
   '/workout/$id': typeof WorkoutIdRoute
+  '/workout/': typeof WorkoutIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/workout/$id': typeof WorkoutIdRoute
+  '/workout': typeof WorkoutIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/workout': typeof WorkoutRouteRouteWithChildren
   '/workout/$id': typeof WorkoutIdRoute
+  '/workout/': typeof WorkoutIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/workout/$id'
+  fullPaths: '/' | '/workout' | '/workout/$id' | '/workout/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/workout/$id'
-  id: '__root__' | '/' | '/workout/$id'
+  to: '/' | '/workout/$id' | '/workout'
+  id: '__root__' | '/' | '/workout' | '/workout/$id' | '/workout/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  WorkoutIdRoute: typeof WorkoutIdRoute
+  WorkoutRouteRoute: typeof WorkoutRouteRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/workout': {
+      id: '/workout'
+      path: '/workout'
+      fullPath: '/workout'
+      preLoaderRoute: typeof WorkoutRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -58,19 +82,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/workout/': {
+      id: '/workout/'
+      path: '/'
+      fullPath: '/workout/'
+      preLoaderRoute: typeof WorkoutIndexRouteImport
+      parentRoute: typeof WorkoutRouteRoute
+    }
     '/workout/$id': {
       id: '/workout/$id'
-      path: '/workout/$id'
+      path: '/$id'
       fullPath: '/workout/$id'
       preLoaderRoute: typeof WorkoutIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof WorkoutRouteRoute
     }
   }
 }
 
+interface WorkoutRouteRouteChildren {
+  WorkoutIdRoute: typeof WorkoutIdRoute
+  WorkoutIndexRoute: typeof WorkoutIndexRoute
+}
+
+const WorkoutRouteRouteChildren: WorkoutRouteRouteChildren = {
+  WorkoutIdRoute: WorkoutIdRoute,
+  WorkoutIndexRoute: WorkoutIndexRoute,
+}
+
+const WorkoutRouteRouteWithChildren = WorkoutRouteRoute._addFileChildren(
+  WorkoutRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  WorkoutIdRoute: WorkoutIdRoute,
+  WorkoutRouteRoute: WorkoutRouteRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
