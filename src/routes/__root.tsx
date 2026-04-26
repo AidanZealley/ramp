@@ -11,6 +11,7 @@ import { SettingsDialog } from "@/components/settings-dialog"
 import { ModeToggle } from "@/components/mode-toggle"
 import appCss from "../styles.css?url"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/ui/sonner"
 import { getThemeServerFn } from "@/lib/theme"
 
 export const Route = createRootRouteWithContext<{
@@ -75,6 +76,7 @@ function RootLayout() {
           <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
             <Outlet />
           </main>
+          <Toaster />
         </div>
       </RootDocument>
     </ThemeProvider>
