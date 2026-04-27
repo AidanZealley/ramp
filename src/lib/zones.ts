@@ -47,38 +47,25 @@ export function getZone(ftpPercentage: number): Zone {
 }
 
 /**
- * Get zone info for a given power value, FTP, and power mode.
+ * Get zone info for a given power value as a percentage of FTP.
  */
-export function getZoneInfo(
-  power: number,
-  ftp: number,
-  powerMode: "absolute" | "percentage"
-): ZoneInfo {
-  const percentage = powerMode === "absolute" ? (power / ftp) * 100 : power
-  const zone = getZone(percentage)
+export function getZoneInfo(power: number): ZoneInfo {
+  const zone = getZone(power)
   return { zone, ...ZONE_MAP[zone] }
 }
 
 /**
  * Get the zone color for a given power value.
  */
-export function getZoneColor(
-  power: number,
-  ftp: number,
-  powerMode: "absolute" | "percentage"
-): string {
-  return getZoneInfo(power, ftp, powerMode).color
+export function getZoneColor(power: number): string {
+  return getZoneInfo(power).color
 }
 
 /**
  * Get the muted zone color for a given power value.
  */
-export function getZoneMutedColor(
-  power: number,
-  ftp: number,
-  powerMode: "absolute" | "percentage"
-): string {
-  return getZoneInfo(power, ftp, powerMode).colorMuted
+export function getZoneMutedColor(power: number): string {
+  return getZoneInfo(power).colorMuted
 }
 
 export function getZoneInfoByZone(zone: Zone): ZoneInfo {

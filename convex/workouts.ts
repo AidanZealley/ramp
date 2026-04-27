@@ -1,5 +1,11 @@
 import { internal } from "./_generated/api"
-import { query, mutation, internalMutation } from "./_generated/server"
+import type { Doc } from "./_generated/dataModel"
+import {
+  query,
+  mutation,
+  internalMutation,
+  type MutationCtx,
+} from "./_generated/server"
 import { v } from "convex/values"
 
 const intervalValidator = v.object({
@@ -8,24 +14,34 @@ const intervalValidator = v.object({
   durationSeconds: v.number(),
 })
 
+const LEGACY_POWER_MODE_BATCH_SIZE = 200
+
+type WorkoutDoc = Doc<"workouts">
+
+function sanitizeWorkout(workout: WorkoutDoc) {
+  const { powerMode: _powerMode, ...rest } = workout
+  return rest
+}
+
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query("workouts").collect()
+    const workouts = await ctx.db.query("workouts").collect()
+    return workouts.map(sanitizeWorkout)
   },
 })
 
 export const get = query({
   args: { id: v.id("workouts") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id)
+    const workout = await ctx.db.get(args.id)
+    return workout ? sanitizeWorkout(workout) : null
   },
 })
 
 export const create = mutation({
   args: {
     title: v.string(),
-    powerMode: v.union(v.literal("absolute"), v.literal("percentage")),
     intervals: v.array(intervalValidator),
   },
   handler: async (ctx, args) => {
@@ -37,12 +53,11 @@ export const update = mutation({
   args: {
     id: v.id("workouts"),
     title: v.string(),
-    powerMode: v.union(v.literal("absolute"), v.literal("percentage")),
     intervals: v.array(intervalValidator),
   },
   handler: async (ctx, args) => {
     const { id, ...data } = args
-    await ctx.db.patch(id, data)
+    await ctx.db.replace(id, data)
   },
 })
 
@@ -100,3 +115,92 @@ export const continueRemoveWorkoutReferences = internalMutation({
     }
   },
 })
+
+export const migrateAbsoluteWorkoutsToPercentage = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const status = await runWorkoutPowerMigrationBatch(ctx)
+
+    if (status.hasMore) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.workouts.continueMigrateAbsoluteWorkoutsToPercentage,
+        {}
+      )
+    }
+
+    return status
+  },
+})
+
+export const continueMigrateAbsoluteWorkoutsToPercentage = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const status = await runWorkoutPowerMigrationBatch(ctx)
+
+    if (status.hasMore) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.workouts.continueMigrateAbsoluteWorkoutsToPercentage,
+        {}
+      )
+    }
+
+    return status
+  },
+})
+
+async function runWorkoutPowerMigrationBatch(ctx: MutationCtx) {
+  const settings = await ctx.db.query("userSettings").first()
+  const ftp = settings?.ftp ?? 150
+
+  const absoluteWorkouts = await ctx.db
+    .query("workouts")
+    .filter((q) => q.eq(q.field("powerMode"), "absolute"))
+    .take(LEGACY_POWER_MODE_BATCH_SIZE + 1)
+
+  const absoluteBatch = absoluteWorkouts.slice(0, LEGACY_POWER_MODE_BATCH_SIZE)
+
+  await Promise.all(
+    absoluteBatch.map((workout) =>
+      ctx.db.replace(workout._id, {
+        title: workout.title,
+        intervals: workout.intervals.map((interval) => ({
+          ...interval,
+          startPower: Math.round((interval.startPower / ftp) * 100),
+          endPower: Math.round((interval.endPower / ftp) * 100),
+        })),
+      })
+    )
+  )
+
+  const legacyPercentageWorkouts =
+    absoluteBatch.length === LEGACY_POWER_MODE_BATCH_SIZE
+      ? []
+      : await ctx.db
+          .query("workouts")
+          .filter((q) => q.eq(q.field("powerMode"), "percentage"))
+          .take(LEGACY_POWER_MODE_BATCH_SIZE + 1)
+
+  const percentageBatch = legacyPercentageWorkouts.slice(
+    0,
+    LEGACY_POWER_MODE_BATCH_SIZE
+  )
+
+  await Promise.all(
+    percentageBatch.map((workout) =>
+      ctx.db.replace(workout._id, {
+        title: workout.title,
+        intervals: workout.intervals,
+      })
+    )
+  )
+
+  return {
+    processedAbsolute: absoluteBatch.length,
+    processedPercentage: percentageBatch.length,
+    hasMore:
+      absoluteWorkouts.length > LEGACY_POWER_MODE_BATCH_SIZE ||
+      legacyPercentageWorkouts.length > LEGACY_POWER_MODE_BATCH_SIZE,
+  }
+}

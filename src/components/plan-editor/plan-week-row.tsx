@@ -1,7 +1,11 @@
 import { CalendarPlus, Trash2 } from "lucide-react"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { Button } from "@/components/ui/button"
-import { formatDuration, getTotalDuration } from "@/lib/workout-utils"
+import {
+  formatDuration,
+  getTotalDuration,
+  type PowerDisplayMode,
+} from "@/lib/workout-utils"
 import { PlanDayCell } from "./plan-day-cell"
 import type { PlanEditorWeek } from "./types"
 
@@ -9,6 +13,7 @@ interface PlanWeekRowProps {
   week: PlanEditorWeek
   weekNumber: number
   ftp: number
+  displayMode: PowerDisplayMode
   onSelectWeek: (week: PlanEditorWeek) => void
   onSelectDay: (week: PlanEditorWeek, dayIndex: number) => void
   onDeleteWeek: (weekId: Id<"planWeeks">) => void
@@ -18,6 +23,7 @@ export function PlanWeekRow({
   week,
   weekNumber,
   ftp,
+  displayMode,
   onSelectWeek,
   onSelectDay,
   onDeleteWeek,
@@ -69,6 +75,7 @@ export function PlanWeekRow({
           key={slot._id}
           slot={slot}
           ftp={ftp}
+          displayMode={displayMode}
           onClick={() => onSelectDay(week, slot.dayIndex)}
         />
       ))}

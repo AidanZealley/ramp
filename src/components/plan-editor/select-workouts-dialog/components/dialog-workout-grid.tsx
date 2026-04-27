@@ -1,10 +1,12 @@
 import { Button } from "@/components/ui/button"
+import type { PowerDisplayMode } from "@/lib/workout-utils"
 import type { WorkoutDoc } from "../types"
 import { DialogWorkoutTile } from "./dialog-workout-tile"
 
 interface DialogWorkoutGridProps {
   workouts: WorkoutDoc[]
   ftp: number
+  displayMode: PowerDisplayMode
   onWorkoutSelect: (workout: WorkoutDoc) => void
   onClearFilters: () => void
 }
@@ -12,6 +14,7 @@ interface DialogWorkoutGridProps {
 export function DialogWorkoutGrid({
   workouts,
   ftp,
+  displayMode,
   onWorkoutSelect,
   onClearFilters,
 }: DialogWorkoutGridProps) {
@@ -32,6 +35,7 @@ export function DialogWorkoutGrid({
           key={workout._id}
           workout={workout}
           ftp={ftp}
+          displayMode={displayMode}
           onClick={() => onWorkoutSelect(workout)}
         />
       ))}

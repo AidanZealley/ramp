@@ -2,9 +2,7 @@ import type { Interval } from "../workout-utils"
 
 export interface MrcExportInput {
   title: string
-  powerMode: "absolute" | "percentage"
   intervals: Interval[]
-  ftp: number
 }
 
 /**
@@ -24,16 +22,10 @@ function sanitizeFileName(name: string): string {
  * Serialize a workout to the `.mrc` (MINUTES PERCENT) format consumed by
  * indoor trainer apps such as TrainerRoad, Zwift, Wahoo, etc.
  *
- * The format is always %FTP — when `powerMode === "absolute"` the watts
- * are converted using the supplied FTP via `Math.round((watts / ftp) * 100)`.
+ * The format is always canonical %FTP.
  */
 export function workoutToMrc(input: MrcExportInput): string {
-  const { title, powerMode, intervals, ftp } = input
-
-  const pct = (p: number): number => {
-    if (powerMode === "percentage") return Math.round(p)
-    return Math.round((p / ftp) * 100)
-  }
+  const { title, intervals } = input
 
   const lines: Array<string> = [
     "[COURSE HEADER]",
@@ -50,8 +42,8 @@ export function workoutToMrc(input: MrcExportInput): string {
   for (const interval of intervals) {
     const startMinutes = (elapsed / 60).toFixed(2)
     const endMinutes = ((elapsed + interval.durationSeconds) / 60).toFixed(2)
-    lines.push(`${startMinutes}\t${pct(interval.startPower)}`)
-    lines.push(`${endMinutes}\t${pct(interval.endPower)}`)
+    lines.push(`${startMinutes}\t${Math.round(interval.startPower)}`)
+    lines.push(`${endMinutes}\t${Math.round(interval.endPower)}`)
     elapsed += interval.durationSeconds
   }
 

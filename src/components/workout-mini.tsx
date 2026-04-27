@@ -1,18 +1,21 @@
-import type { Interval } from "@/lib/workout-utils"
+import type {
+  Interval,
+  PowerDisplayMode,
+} from "@/lib/workout-utils"
 import { getZoneColor } from "@/lib/zones"
 
 interface WorkoutMiniProps {
   intervals: Interval[]
   ftp: number
-  powerMode: "absolute" | "percentage"
+  displayMode: PowerDisplayMode
   className?: string
   compact?: boolean
 }
 
 export function WorkoutMini({
   intervals,
-  ftp,
-  powerMode,
+  ftp: _ftp,
+  displayMode: _displayMode,
   className = "",
   compact = false,
 }: WorkoutMiniProps) {
@@ -60,7 +63,7 @@ export function WorkoutMini({
           (interval.endPower / (maxPower * 1.15)) * viewBoxHeight
 
         const avgPower = (interval.startPower + interval.endPower) / 2
-        const color = getZoneColor(avgPower, ftp, powerMode)
+        const color = getZoneColor(avgPower)
 
         return (
           <polygon

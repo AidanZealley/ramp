@@ -6,7 +6,6 @@ import { TIMELINE_EDGE_GUTTER } from "@/lib/timeline/types"
 
 interface UseEditorZoomProps {
   displayIntervals: Interval[]
-  powerMode: "absolute" | "percentage"
   selectedIds: string[]
   stableIds: string[]
   scrollContainerRef: React.RefObject<HTMLDivElement | null>
@@ -14,7 +13,6 @@ interface UseEditorZoomProps {
 
 export function useEditorZoom({
   displayIntervals,
-  powerMode,
   selectedIds,
   stableIds,
   scrollContainerRef,
@@ -34,11 +32,7 @@ export function useEditorZoom({
     edgeGutterPx: TIMELINE_EDGE_GUTTER,
   })
 
-  const scale = useTimelineScale(
-    displayIntervals,
-    powerMode,
-    zoom.pixelsPerSecond
-  )
+  const scale = useTimelineScale(displayIntervals, zoom.pixelsPerSecond)
 
   const getToolbarZoomFocalX = useCallback(() => {
     const el = scrollContainerRef.current

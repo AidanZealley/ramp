@@ -1,5 +1,6 @@
 import { WorkoutMini } from "@/components/workout-mini"
 import { cn } from "@/lib/utils"
+import type { PowerDisplayMode } from "@/lib/workout-utils"
 import { WEEKDAY_SHORT } from "../../constants"
 import type { WorkoutDoc } from "../types"
 
@@ -7,6 +8,7 @@ interface DialogWeekdaySlotProps {
   dayIndex: number
   workout: WorkoutDoc | null
   ftp: number
+  displayMode: PowerDisplayMode
   active: boolean
   onClick: () => void
 }
@@ -15,6 +17,7 @@ export function DialogWeekdaySlot({
   dayIndex,
   workout,
   ftp,
+  displayMode,
   active,
   onClick,
 }: DialogWeekdaySlotProps) {
@@ -38,7 +41,7 @@ export function DialogWeekdaySlot({
           <WorkoutMini
             intervals={workout.intervals}
             ftp={ftp}
-            powerMode={workout.powerMode}
+            displayMode={displayMode}
             className="h-12 w-full rounded-md bg-muted/40"
             compact
           />

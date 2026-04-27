@@ -1,4 +1,7 @@
-import type { Interval } from "@/lib/workout-utils"
+import type {
+  Interval,
+  PowerDisplayMode,
+} from "@/lib/workout-utils"
 import { getZoneColor } from "@/lib/zones"
 
 /** Fixed gap width in viewBox units between non-contiguous clipboard items */
@@ -8,14 +11,14 @@ interface ClipboardPreviewProps {
   clipboardIntervals: Interval[]
   gapBefore: boolean[]
   ftp: number
-  powerMode: "absolute" | "percentage"
+  displayMode: PowerDisplayMode
 }
 
 export function ClipboardPreview({
   clipboardIntervals,
   gapBefore,
-  ftp,
-  powerMode,
+  ftp: _ftp,
+  displayMode: _displayMode,
 }: ClipboardPreviewProps) {
   if (clipboardIntervals.length === 0) return null
 
@@ -64,7 +67,7 @@ export function ClipboardPreview({
               (interval.endPower / (maxPower * 1.15)) * viewBoxHeight
 
             const avgPower = (interval.startPower + interval.endPower) / 2
-            const color = getZoneColor(avgPower, ftp, powerMode)
+            const color = getZoneColor(avgPower)
 
             return (
               <g key={i}>
@@ -102,7 +105,7 @@ export function ClipboardPreview({
             (interval.endPower / (maxPower * 1.15)) * viewBoxHeight
 
           const avgPower = (interval.startPower + interval.endPower) / 2
-          const color = getZoneColor(avgPower, ftp, powerMode)
+          const color = getZoneColor(avgPower)
 
           return (
             <polygon

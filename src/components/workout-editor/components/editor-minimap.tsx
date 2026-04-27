@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { WorkoutMini } from "@/components/workout-mini"
 import {
   useWorkoutEditorDisplayIntervals,
+  useWorkoutEditorDisplayMode,
   useWorkoutEditorFtp,
-  useWorkoutEditorPowerMode,
   useWorkoutEditorSelectedIds,
   useWorkoutEditorStableIds,
 } from "../store"
@@ -24,7 +24,7 @@ export function EditorMinimap({
 }: EditorMinimapProps) {
   const intervals = useWorkoutEditorDisplayIntervals()
   const ftp = useWorkoutEditorFtp()
-  const powerMode = useWorkoutEditorPowerMode()
+  const displayMode = useWorkoutEditorDisplayMode()
   const selectedIds = useWorkoutEditorSelectedIds()
   const stableIds = useWorkoutEditorStableIds()
 
@@ -228,7 +228,7 @@ export function EditorMinimap({
         <WorkoutMini
           intervals={intervals}
           ftp={ftp}
-          powerMode={powerMode}
+          displayMode={displayMode}
           className="h-full"
           compact
         />

@@ -4,7 +4,7 @@ import type { HistoryState } from "./history"
 
 export interface WorkoutEditorStoreProps {
   intervals: Interval[]
-  powerMode: "absolute" | "percentage"
+  displayMode: "absolute" | "percentage"
   ftp: number
   onIntervalsChange: (intervals: Interval[]) => void
 }

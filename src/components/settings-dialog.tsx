@@ -13,24 +13,30 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
+import { ToggleGroup } from "@/components/ui/toggle-group"
+import {
+  DEFAULT_FTP,
+  type PowerDisplayMode,
+} from "@/lib/workout-utils"
 import { Settings } from "lucide-react"
 
 export function SettingsDialog() {
   const settings = useQuery(api.settings.get)
   const upsertSettings = useMutation(api.settings.upsert)
   const [open, setOpen] = useState(false)
-  const [ftp, setFtp] = useState("150")
+  const [ftp, setFtp] = useState(String(DEFAULT_FTP))
+  const [powerDisplayMode, setPowerDisplayMode] =
+    useState<PowerDisplayMode>("percentage")
 
   useEffect(() => {
-    if (settings?.ftp) {
-      setFtp(String(settings.ftp))
-    }
-  }, [settings?.ftp])
+    setFtp(String(settings?.ftp ?? DEFAULT_FTP))
+    setPowerDisplayMode(settings?.powerDisplayMode ?? "percentage")
+  }, [settings])
 
   const handleSave = async () => {
     const value = parseInt(ftp, 10)
     if (!isNaN(value) && value > 0 && value <= 2000) {
-      await upsertSettings({ ftp: value })
+      await upsertSettings({ ftp: value, powerDisplayMode })
       setOpen(false)
     }
   }
@@ -68,6 +74,18 @@ export function SettingsDialog() {
           <p className="text-xs text-muted-foreground">
             Your FTP is used to calculate power zones for interval colouring.
           </p>
+
+          <div className="grid gap-2 pt-2">
+            <Label>Power display</Label>
+            <ToggleGroup
+              value={powerDisplayMode}
+              onValueChange={setPowerDisplayMode}
+              options={[
+                { value: "absolute", label: "Watts" },
+                { value: "percentage", label: "% FTP" },
+              ]}
+            />
+          </div>
         </div>
 
         <DialogFooter>

@@ -1,4 +1,7 @@
-import type { Interval } from "@/lib/workout-utils"
+import type {
+  Interval,
+  PowerDisplayMode,
+} from "@/lib/workout-utils"
 import { formatDuration, formatPower, clamp } from "@/lib/workout-utils"
 import type { TimelineScale } from "@/hooks/use-timeline-scale"
 import type { DragType } from "@/lib/timeline/types"
@@ -7,7 +10,8 @@ interface DragTooltipProps {
   activeDrag: { type: DragType; index: number }
   intervals: Interval[]
   scale: TimelineScale
-  powerMode: "absolute" | "percentage"
+  displayMode: PowerDisplayMode
+  ftp: number
   containerWidth: number
 }
 
@@ -19,7 +23,8 @@ export function DragTooltip({
   activeDrag,
   intervals,
   scale,
-  powerMode,
+  displayMode,
+  ftp,
   containerWidth,
 }: DragTooltipProps) {
   const interval = intervals[activeDrag.index]
@@ -42,18 +47,18 @@ export function DragTooltip({
         ) - 20
       label =
         interval.startPower === interval.endPower
-          ? formatPower(interval.startPower, powerMode)
-          : `${formatPower(interval.startPower, powerMode)}–${formatPower(interval.endPower, powerMode)}`
+          ? formatPower(interval.startPower, displayMode, ftp)
+          : `${formatPower(interval.startPower, displayMode, ftp)}–${formatPower(interval.endPower, displayMode, ftp)}`
       break
     case "power-start":
       labelX = x
       labelY = scale.powerToY(interval.startPower) - 20
-      label = formatPower(interval.startPower, powerMode)
+      label = formatPower(interval.startPower, displayMode, ftp)
       break
     case "power-end":
       labelX = x + w
       labelY = scale.powerToY(interval.endPower) - 20
-      label = formatPower(interval.endPower, powerMode)
+      label = formatPower(interval.endPower, displayMode, ftp)
       break
     case "duration":
       labelX = x + w

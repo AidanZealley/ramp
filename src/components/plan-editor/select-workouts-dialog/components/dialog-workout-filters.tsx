@@ -11,7 +11,6 @@ import {
 import { Input } from "@/components/ui/input"
 import type {
   DurationFilter,
-  PowerFilter,
   SortOption,
 } from "../types"
 import { sortLabels } from "../types"
@@ -19,18 +18,10 @@ import { sortLabels } from "../types"
 interface DialogWorkoutFiltersProps {
   search: string
   onSearchChange: (value: string) => void
-  powerFilter: PowerFilter
-  onPowerFilterChange: (value: PowerFilter) => void
   durationFilter: DurationFilter
   onDurationFilterChange: (value: DurationFilter) => void
   sort: SortOption
   onSortChange: (value: SortOption) => void
-}
-
-const powerFilterLabels: Record<PowerFilter, string> = {
-  all: "All",
-  absolute: "Absolute",
-  percentage: "Percentage",
 }
 
 const durationFilterOptions: Array<[DurationFilter, string]> = [
@@ -43,8 +34,6 @@ const durationFilterOptions: Array<[DurationFilter, string]> = [
 export function DialogWorkoutFilters({
   search,
   onSearchChange,
-  powerFilter,
-  onPowerFilterChange,
   durationFilter,
   onDurationFilterChange,
   sort,
@@ -62,18 +51,6 @@ export function DialogWorkoutFilters({
         />
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <ButtonGroup>
-          {(["all", "absolute", "percentage"] as const).map((value) => (
-            <Button
-              key={value}
-              variant={powerFilter === value ? "default" : "outline"}
-              size="sm"
-              onClick={() => onPowerFilterChange(value)}
-            >
-              {powerFilterLabels[value]}
-            </Button>
-          ))}
-        </ButtonGroup>
         <ButtonGroup>
           {durationFilterOptions.map(([value, label]) => (
             <Button

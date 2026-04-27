@@ -1,29 +1,16 @@
 import { getTotalDuration } from "@/lib/workout-utils"
-import type {
-  DurationFilter,
-  PowerFilter,
-  SortOption,
-  WorkoutDoc,
-} from "./types"
+import type { DurationFilter, SortOption, WorkoutDoc } from "./types"
 
 export function matchesWorkoutFilters(
   workout: WorkoutDoc,
   filters: {
     search: string
-    powerFilter: PowerFilter
     durationFilter: DurationFilter
   }
 ) {
   if (
     filters.search &&
     !workout.title.toLowerCase().includes(filters.search)
-  ) {
-    return false
-  }
-
-  if (
-    filters.powerFilter !== "all" &&
-    workout.powerMode !== filters.powerFilter
   ) {
     return false
   }

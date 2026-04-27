@@ -46,9 +46,7 @@ describe("parseMrc", () => {
     ]
     const mrc = workoutToMrc({
       title: "Round Trip",
-      powerMode: "percentage",
       intervals,
-      ftp: 200,
     })
 
     const result = parseMrc(mrc)
@@ -60,42 +58,6 @@ describe("parseMrc", () => {
       powerMode: "percentage",
       intervals,
     })
-  })
-
-  it("round-trips an absolute workout to percentage with ∓1% drift", () => {
-    // 200W @ FTP 200 → 100%; 100W → 50%; 153W → 77% (rounded).
-    const ftp = 200
-    const original: Array<Interval> = [
-      { startPower: 100, endPower: 200, durationSeconds: 60 },
-      { startPower: 153, endPower: 153, durationSeconds: 120 },
-    ]
-    const mrc = workoutToMrc({
-      title: "Watts to Percent",
-      powerMode: "absolute",
-      intervals: original,
-      ftp,
-    })
-
-    const result = parseMrc(mrc)
-    expect(result.kind).toBe("ok")
-    if (result.kind !== "ok") return
-
-    // Exporter normalizes to %FTP, so import must report "percentage".
-    expect(result.workout.powerMode).toBe("percentage")
-    expect(result.workout.intervals).toHaveLength(original.length)
-
-    // Each value should be within 1% of the originally-converted percentage.
-    for (let i = 0; i < original.length; i++) {
-      const o = original[i]
-      const r = result.workout.intervals[i]
-      expect(r.durationSeconds).toBe(o.durationSeconds)
-      expect(
-        Math.abs(r.startPower - (o.startPower / ftp) * 100)
-      ).toBeLessThanOrEqual(1)
-      expect(
-        Math.abs(r.endPower - (o.endPower / ftp) * 100)
-      ).toBeLessThanOrEqual(1)
-    }
   })
 
   it("recognizes MINUTES WATTS and preserves raw watts", () => {

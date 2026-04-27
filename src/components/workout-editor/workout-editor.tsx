@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle, useRef } from "react"
-import type { Interval } from "@/lib/workout-utils"
+import type { Interval, PowerDisplayMode } from "@/lib/workout-utils"
 import { computeMaxPower } from "@/lib/workout-utils"
 import { TIMELINE_EDGE_GUTTER } from "@/lib/timeline/types"
 import { useIntervalDrag } from "@/hooks/use-interval-drag"
@@ -11,11 +11,11 @@ import {
   WorkoutEditorStoreProvider,
   useWorkoutEditorActions,
   useWorkoutEditorActiveReorderId,
+  useWorkoutEditorDisplayMode,
   useWorkoutEditorDisplayIntervals,
   useWorkoutEditorFtp,
   useWorkoutEditorHasClipboard,
   useWorkoutEditorIntervals,
-  useWorkoutEditorPowerMode,
   useWorkoutEditorSelectedCount,
   useWorkoutEditorSelectedIds,
   useWorkoutEditorStableIds,
@@ -32,7 +32,7 @@ export interface WorkoutEditorHandle {
 
 interface WorkoutEditorProps {
   intervals: Array<Interval>
-  powerMode: "absolute" | "percentage"
+  displayMode: PowerDisplayMode
   ftp: number
   onIntervalsChange: (intervals: Array<Interval>) => void
 }
@@ -52,7 +52,7 @@ const WorkoutEditorInner = forwardRef<WorkoutEditorHandle>(
   function WorkoutEditorInner(_, ref) {
     const intervals = useWorkoutEditorIntervals()
     const displayIntervals = useWorkoutEditorDisplayIntervals()
-    const powerMode = useWorkoutEditorPowerMode()
+    const displayMode = useWorkoutEditorDisplayMode()
     const ftp = useWorkoutEditorFtp()
     const selectedIds = useWorkoutEditorSelectedIds()
     const selectedCount = useWorkoutEditorSelectedCount()
@@ -66,7 +66,6 @@ const WorkoutEditorInner = forwardRef<WorkoutEditorHandle>(
 
     const { zoom, toolbarZoom, scale } = useEditorZoom({
       displayIntervals,
-      powerMode,
       selectedIds,
       stableIds,
       scrollContainerRef,
@@ -81,14 +80,13 @@ const WorkoutEditorInner = forwardRef<WorkoutEditorHandle>(
 
     const { activeDrag, startDrag } = useIntervalDrag({
       intervals,
-      powerMode,
       pixelsPerSecond: zoom.pixelsPerSecond,
       onPreviewChange: actions.setDragPreview,
       onCommit: actions.commitIntervals,
     })
 
     const isDragging = activeDrag !== null || activeReorderId !== null
-    const maxPower = computeMaxPower(displayIntervals, powerMode)
+    const maxPower = computeMaxPower(displayIntervals)
 
     useEditorKeypresses({
       actions,
@@ -96,7 +94,6 @@ const WorkoutEditorInner = forwardRef<WorkoutEditorHandle>(
       selectedCount,
       stableIdsLength: stableIds.length,
       hasClipboard,
-      powerMode,
     })
 
     useEditorAutoScroll({
@@ -120,7 +117,7 @@ const WorkoutEditorInner = forwardRef<WorkoutEditorHandle>(
 
     return (
       <div className="flex select-none">
-        <EditorAxis scale={scale} powerMode={powerMode} />
+        <EditorAxis scale={scale} displayMode={displayMode} ftp={ftp} />
 
         <div className="relative min-w-0 flex-1">
           <EditorCanvas
@@ -134,7 +131,7 @@ const WorkoutEditorInner = forwardRef<WorkoutEditorHandle>(
           <FtpBadge
             scale={scale}
             ftp={ftp}
-            powerMode={powerMode}
+            displayMode={displayMode}
             maxPower={maxPower}
           />
 

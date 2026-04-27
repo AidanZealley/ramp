@@ -19,6 +19,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog"
 import {
+  DEFAULT_FTP,
   formatDuration,
   formatPower,
   getTotalDuration,
@@ -26,6 +27,7 @@ import {
 } from "@/lib/workout-utils"
 import type { Interval } from "@/lib/workout-utils"
 import { downloadTextFile, workoutToMrc } from "@/lib/exporters"
+import { ToggleGroup } from "@/components/ui/toggle-group"
 import {
   ArrowLeft,
   Download,
@@ -41,7 +43,6 @@ export const Route = createFileRoute("/workout/$id")({
 
 interface WorkoutEdits {
   title: string
-  powerMode: "absolute" | "percentage"
   intervals: Interval[]
 }
 
@@ -54,8 +55,10 @@ function WorkoutPage() {
   const settings = useQuery(api.settings.get)
   const updateWorkout = useMutation(api.workouts.update)
   const removeWorkout = useMutation(api.workouts.remove)
+  const upsertSettings = useMutation(api.settings.upsert)
 
-  const ftp = settings?.ftp ?? 150
+  const ftp = settings?.ftp ?? DEFAULT_FTP
+  const displayMode = settings?.powerDisplayMode ?? "percentage"
 
   const editorRef = useRef<WorkoutEditorHandle>(null)
 
@@ -68,7 +71,6 @@ function WorkoutPage() {
     (workout
       ? {
           title: workout.title,
-          powerMode: workout.powerMode,
           intervals: workout.intervals.map((i) => ({ ...i })),
         }
       : null)
@@ -80,7 +82,6 @@ function WorkoutPage() {
       setEdits((prev) => {
         const base = prev ?? {
           title: workout!.title,
-          powerMode: workout!.powerMode,
           intervals: workout!.intervals.map((i) => ({ ...i })),
         }
         return { ...base, ...updates }
@@ -103,32 +104,6 @@ function WorkoutPage() {
     [applyEdit]
   )
 
-  const handlePowerModeToggle = useCallback(() => {
-    if (!workingCopy || !workout) return
-
-    const currentMode = workingCopy.powerMode
-    const newMode = currentMode === "absolute" ? "percentage" : "absolute"
-
-    // Convert power values
-    const convertedIntervals = workingCopy.intervals.map((interval) => {
-      if (currentMode === "absolute" && newMode === "percentage") {
-        return {
-          ...interval,
-          startPower: Math.round((interval.startPower / ftp) * 100),
-          endPower: Math.round((interval.endPower / ftp) * 100),
-        }
-      } else {
-        return {
-          ...interval,
-          startPower: Math.round((interval.startPower / 100) * ftp),
-          endPower: Math.round((interval.endPower / 100) * ftp),
-        }
-      }
-    })
-
-    applyEdit({ powerMode: newMode, intervals: convertedIntervals })
-  }, [workingCopy, workout, ftp, applyEdit])
-
   const handleAddInterval = useCallback(() => {
     if (editorRef.current) {
       // Editor is mounted — delegate fully so it can insert after the
@@ -140,13 +115,12 @@ function WorkoutPage() {
 
     // Fallback: editor isn't mounted yet (empty-state button). Just append.
     if (!workingCopy) return
-    const defaultPower = workingCopy.powerMode === "absolute" ? 150 : 75
     applyEdit({
       intervals: [
         ...workingCopy.intervals,
         {
-          startPower: defaultPower,
-          endPower: defaultPower,
+          startPower: 75,
+          endPower: 75,
           durationSeconds: 300,
         },
       ],
@@ -157,19 +131,24 @@ function WorkoutPage() {
     if (!workingCopy || workingCopy.intervals.length === 0) return
     const content = workoutToMrc({
       title: workingCopy.title,
-      powerMode: workingCopy.powerMode,
       intervals: workingCopy.intervals,
-      ftp,
     })
     downloadTextFile(content, `${workingCopy.title}.mrc`, "text/plain")
-  }, [workingCopy, ftp])
+  }, [workingCopy])
+
+  const handleDisplayModeChange = useCallback(
+    async (value: "absolute" | "percentage") => {
+      if (value === displayMode) return
+      await upsertSettings({ powerDisplayMode: value })
+    },
+    [displayMode, upsertSettings]
+  )
 
   const handleSave = async () => {
     if (!edits || !workout) return
     await updateWorkout({
       id: workout._id,
       title: edits.title,
-      powerMode: edits.powerMode,
       intervals: edits.intervals,
     })
     setEdits(null)
@@ -245,7 +224,7 @@ function WorkoutPage() {
           </div>
           <div>
             <span className="font-medium text-foreground">
-              {formatPower(avgPower, workingCopy.powerMode)}
+              {formatPower(avgPower, displayMode, ftp)}
             </span>{" "}
             avg power
           </div>
@@ -263,30 +242,14 @@ function WorkoutPage() {
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant={workingCopy.powerMode === "absolute" ? "default" : "outline"}
-          size="sm"
-          onClick={
-            workingCopy.powerMode === "percentage"
-              ? handlePowerModeToggle
-              : undefined
-          }
-        >
-          Watts
-        </Button>
-        <Button
-          variant={
-            workingCopy.powerMode === "percentage" ? "default" : "outline"
-          }
-          size="sm"
-          onClick={
-            workingCopy.powerMode === "absolute"
-              ? handlePowerModeToggle
-              : undefined
-          }
-        >
-          % FTP
-        </Button>
+        <ToggleGroup
+          value={displayMode}
+          onValueChange={handleDisplayModeChange}
+          options={[
+            { value: "absolute", label: "Watts" },
+            { value: "percentage", label: "% FTP" },
+          ]}
+        />
 
         <div className="mx-1 h-5 w-px bg-border" />
 
@@ -340,7 +303,7 @@ function WorkoutPage() {
         <WorkoutEditor
           ref={editorRef}
           intervals={workingCopy.intervals}
-          powerMode={workingCopy.powerMode}
+          displayMode={displayMode}
           ftp={ftp}
           onIntervalsChange={handleIntervalsChange}
         />

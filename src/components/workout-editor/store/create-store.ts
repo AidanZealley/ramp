@@ -107,7 +107,7 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
         syncFromProps: (nextProps) => {
           set((state) => {
             const onlyPropsChanged =
-              state.powerMode !== nextProps.powerMode ||
+              state.displayMode !== nextProps.displayMode ||
               state.ftp !== nextProps.ftp ||
               state.onIntervalsChange !== nextProps.onIntervalsChange
 
@@ -120,7 +120,7 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
               if (!onlyPropsChanged) return state
 
               return {
-                powerMode: nextProps.powerMode,
+                displayMode: nextProps.displayMode,
                 ftp: nextProps.ftp,
                 onIntervalsChange: nextProps.onIntervalsChange,
               }
@@ -353,7 +353,7 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
           const displayIntervals = getDisplayIntervals(state)
           const prev = displayIntervals[index - 1]
           const next = displayIntervals[index]
-          const defaultPower = state.powerMode === "absolute" ? 150 : 75
+          const defaultPower = 75
 
           const newInterval: Interval = {
             startPower: prev
@@ -396,7 +396,7 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
         nudgeSelectedPower: (delta) => {
           const state = get()
           if (state.selectedIds.length === 0) return
-          const maxPower = computeMaxPower(state.intervals, state.powerMode)
+          const maxPower = computeMaxPower(state.intervals)
           const updated = [...state.intervals]
           for (const id of state.selectedIds) {
             const index = state.stableIds.indexOf(id)

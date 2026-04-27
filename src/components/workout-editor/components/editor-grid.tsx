@@ -4,8 +4,6 @@ import { EDITOR_HEIGHT } from "@/lib/timeline/types"
 
 interface EditorGridProps {
   scale: TimelineScale
-  ftp: number
-  powerMode: "absolute" | "percentage"
 }
 
 /**
@@ -13,8 +11,8 @@ interface EditorGridProps {
  * vertical time lines, FTP reference line, and baseline.
  * All elements are absolutely positioned DOM divs/spans.
  */
-export function EditorGrid({ scale, ftp, powerMode }: EditorGridProps) {
-  const ftpPower = powerMode === "absolute" ? ftp : 100
+export function EditorGrid({ scale }: EditorGridProps) {
+  const ftpPower = 100
   const ftpY = scale.powerToY(ftpPower)
   const showFtpLine = ftpPower <= scale.maxPower && ftpPower > 0
 

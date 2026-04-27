@@ -4,6 +4,10 @@ export interface Interval {
   durationSeconds: number
 }
 
+export type PowerDisplayMode = "absolute" | "percentage"
+
+export const DEFAULT_FTP = 150
+
 /**
  * Format seconds as M:SS or H:MM:SS
  */
@@ -23,11 +27,20 @@ export function formatDuration(seconds: number): string {
  */
 export function formatPower(
   power: number,
-  powerMode: "absolute" | "percentage"
+  displayMode: PowerDisplayMode,
+  ftp: number
 ): string {
-  return powerMode === "absolute"
-    ? `${Math.round(power)}W`
+  return displayMode === "absolute"
+    ? `${percentageToWatts(power, ftp)}W`
     : `${Math.round(power)}%`
+}
+
+export function percentageToWatts(power: number, ftp: number): number {
+  return Math.round((power * ftp) / 100)
+}
+
+export function wattsToPercentage(power: number, ftp: number): number {
+  return Math.round((power / Math.max(ftp, 1)) * 100)
 }
 
 /**
@@ -71,11 +84,10 @@ export function clamp(value: number, min: number, max: number): number {
  * Compute the maximum power for the y-axis display
  */
 export function computeMaxPower(
-  intervals: Interval[],
-  powerMode: "absolute" | "percentage"
+  intervals: Interval[]
 ): number {
   if (intervals.length === 0) {
-    return powerMode === "absolute" ? 300 : 150
+    return 150
   }
 
   const maxPower = Math.max(
@@ -83,9 +95,6 @@ export function computeMaxPower(
   )
   const padded = maxPower * 1.25
 
-  if (powerMode === "absolute") {
-    return Math.max(250, Math.ceil(padded / 50) * 50)
-  }
   return Math.max(130, Math.ceil(padded / 10) * 10)
 }
 
@@ -94,11 +103,11 @@ export function computeMaxPower(
  */
 export function getDefaultIntervals(): Interval[] {
   return [
-    { startPower: 80, endPower: 150, durationSeconds: 300 },
-    { startPower: 200, endPower: 200, durationSeconds: 300 },
-    { startPower: 100, endPower: 100, durationSeconds: 120 },
-    { startPower: 200, endPower: 200, durationSeconds: 300 },
-    { startPower: 100, endPower: 100, durationSeconds: 120 },
-    { startPower: 120, endPower: 80, durationSeconds: 180 },
+    { startPower: 55, endPower: 75, durationSeconds: 300 },
+    { startPower: 100, endPower: 100, durationSeconds: 300 },
+    { startPower: 60, endPower: 60, durationSeconds: 120 },
+    { startPower: 100, endPower: 100, durationSeconds: 300 },
+    { startPower: 60, endPower: 60, durationSeconds: 120 },
+    { startPower: 80, endPower: 55, durationSeconds: 180 },
   ]
 }

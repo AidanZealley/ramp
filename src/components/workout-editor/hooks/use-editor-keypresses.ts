@@ -10,7 +10,6 @@ interface UseEditorKeypressesProps {
   selectedCount: number
   stableIdsLength: number
   hasClipboard: boolean
-  powerMode: "absolute" | "percentage"
 }
 
 export function useEditorKeypresses({
@@ -19,9 +18,8 @@ export function useEditorKeypresses({
   selectedCount,
   stableIdsLength,
   hasClipboard,
-  powerMode,
 }: UseEditorKeypressesProps) {
-  const powerSnap = powerMode === "absolute" ? 5 : 1
+  const powerSnap = 1
   const applePlatform = isApplePlatform()
 
   useKeypress(

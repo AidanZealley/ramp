@@ -18,7 +18,11 @@ import type { PlanEditorWeek } from "../types"
 import { DialogWeekdaySlot } from "./components/dialog-weekday-slot"
 import { DialogWorkoutFilters } from "./components/dialog-workout-filters"
 import { DialogWorkoutGrid } from "./components/dialog-workout-grid"
-import type { DurationFilter, PowerFilter, SortOption } from "./types"
+import type {
+  DurationFilter,
+  SortOption,
+} from "./types"
+import type { PowerDisplayMode } from "@/lib/workout-utils"
 import { matchesWorkoutFilters, sortWorkouts } from "./utils"
 
 interface SelectWorkoutsDialogProps {
@@ -27,12 +31,12 @@ interface SelectWorkoutsDialogProps {
   week: PlanEditorWeek | null
   weekNumber: number
   initialDayIndex: number
+  displayMode: PowerDisplayMode
 }
 
 const defaultFilters = {
   search: "",
   debouncedSearch: "",
-  powerFilter: "all" as PowerFilter,
   durationFilter: "any" as DurationFilter,
   sort: "recent" as SortOption,
 }
@@ -43,6 +47,7 @@ export function SelectWorkoutsDialog({
   week,
   weekNumber,
   initialDayIndex,
+  displayMode,
 }: SelectWorkoutsDialogProps) {
   const workouts = useQuery(api.workouts.list)
   const settings = useQuery(api.settings.get)
@@ -57,7 +62,6 @@ export function SelectWorkoutsDialog({
   const [debouncedSearch, setDebouncedSearch] = useState(
     defaultFilters.debouncedSearch
   )
-  const [powerFilter, setPowerFilter] = useState(defaultFilters.powerFilter)
   const [durationFilter, setDurationFilter] = useState(
     defaultFilters.durationFilter
   )
@@ -84,7 +88,6 @@ export function SelectWorkoutsDialog({
     )
     setSearch(defaultFilters.search)
     setDebouncedSearch(defaultFilters.debouncedSearch)
-    setPowerFilter(defaultFilters.powerFilter)
     setDurationFilter(defaultFilters.durationFilter)
     setSort(defaultFilters.sort)
   }, [initialDayIndex, open, week])
@@ -100,18 +103,16 @@ export function SelectWorkoutsDialog({
       workouts.filter((workout) =>
         matchesWorkoutFilters(workout, {
           search: debouncedSearch,
-          powerFilter,
           durationFilter,
         })
       ),
       sort
     )
-  }, [debouncedSearch, durationFilter, powerFilter, sort, workouts])
+  }, [debouncedSearch, durationFilter, sort, workouts])
 
   const clearFilters = () => {
     setSearch(defaultFilters.search)
     setDebouncedSearch(defaultFilters.debouncedSearch)
-    setPowerFilter(defaultFilters.powerFilter)
     setDurationFilter(defaultFilters.durationFilter)
     setSort(defaultFilters.sort)
   }
@@ -170,6 +171,7 @@ export function SelectWorkoutsDialog({
                       : null
                   }
                   ftp={ftp}
+                  displayMode={displayMode}
                   active={dayIndex === activeDayIndex}
                   onClick={() => setActiveDayIndex(dayIndex)}
                 />
@@ -180,8 +182,6 @@ export function SelectWorkoutsDialog({
           <DialogWorkoutFilters
             search={search}
             onSearchChange={setSearch}
-            powerFilter={powerFilter}
-            onPowerFilterChange={setPowerFilter}
             durationFilter={durationFilter}
             onDurationFilterChange={setDurationFilter}
             sort={sort}
@@ -204,6 +204,7 @@ export function SelectWorkoutsDialog({
           <DialogWorkoutGrid
             workouts={filteredWorkouts}
             ftp={ftp}
+            displayMode={displayMode}
             onWorkoutSelect={(workout) => assignWorkout(workout._id)}
             onClearFilters={clearFilters}
           />

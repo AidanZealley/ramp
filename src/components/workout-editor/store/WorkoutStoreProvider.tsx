@@ -17,7 +17,7 @@ export function WorkoutEditorStoreProvider({
 
   useEffect(() => {
     storeRef.current?.getState().actions.syncFromProps(props)
-  }, [props.intervals, props.powerMode, props.ftp, props.onIntervalsChange])
+  }, [props.intervals, props.displayMode, props.ftp, props.onIntervalsChange])
 
   return (
     <WorkoutEditorStoreContext.Provider value={storeRef.current}>

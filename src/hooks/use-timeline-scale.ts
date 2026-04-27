@@ -44,13 +44,9 @@ export interface TimelineScale {
  */
 export function useTimelineScale(
   intervals: Interval[],
-  powerMode: "absolute" | "percentage",
   pixelsPerSecond: number
 ): TimelineScale {
-  const maxPower = useMemo(
-    () => computeMaxPower(intervals, powerMode),
-    [intervals, powerMode]
-  )
+  const maxPower = useMemo(() => computeMaxPower(intervals), [intervals])
 
   const totalDurationSec = useMemo(
     () => intervals.reduce((s, iv) => s + iv.durationSeconds, 0),
@@ -70,10 +66,7 @@ export function useTimelineScale(
     [workoutWidth, leftGutter, rightGutter]
   )
 
-  const powerTicks = useMemo(
-    () => computePowerTicks(maxPower, powerMode),
-    [maxPower, powerMode]
-  )
+  const powerTicks = useMemo(() => computePowerTicks(maxPower), [maxPower])
 
   const timeTicks = useMemo(
     () => computeTimeTicks(totalDurationSec, pixelsPerSecond),

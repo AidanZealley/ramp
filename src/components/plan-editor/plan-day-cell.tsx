@@ -1,16 +1,26 @@
 import { WorkoutMini } from "@/components/workout-mini"
 import { cn } from "@/lib/utils"
-import { formatDuration, getTotalDuration } from "@/lib/workout-utils"
+import {
+  formatDuration,
+  getTotalDuration,
+  type PowerDisplayMode,
+} from "@/lib/workout-utils"
 import { WEEKDAY_SHORT } from "./constants"
 import type { PlanEditorSlot } from "./types"
 
 interface PlanDayCellProps {
   slot: PlanEditorSlot
   ftp: number
+  displayMode: PowerDisplayMode
   onClick: () => void
 }
 
-export function PlanDayCell({ slot, ftp, onClick }: PlanDayCellProps) {
+export function PlanDayCell({
+  slot,
+  ftp,
+  displayMode,
+  onClick,
+}: PlanDayCellProps) {
   const workout = slot.workout
   const duration = workout ? getTotalDuration(workout.intervals) : 0
 
@@ -31,7 +41,7 @@ export function PlanDayCell({ slot, ftp, onClick }: PlanDayCellProps) {
           <WorkoutMini
             intervals={workout.intervals}
             ftp={ftp}
-            powerMode={workout.powerMode}
+            displayMode={displayMode}
             className="h-14 w-full rounded-md bg-muted/40"
             compact
           />

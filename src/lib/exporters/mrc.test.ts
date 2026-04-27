@@ -6,9 +6,7 @@ describe("workoutToMrc", () => {
   it("emits the exact header block the spec requires", () => {
     const mrc = workoutToMrc({
       title: "Easy start 45min",
-      powerMode: "percentage",
       intervals: [{ startPower: 50, endPower: 70, durationSeconds: 300 }],
-      ftp: 200,
     })
 
     const lines = mrc.split("\n")
@@ -31,25 +29,20 @@ describe("workoutToMrc", () => {
 
     const mrc = workoutToMrc({
       title: "Test",
-      powerMode: "percentage",
       intervals,
-      ftp: 200,
     })
 
     const dataRows = extractDataRows(mrc)
     expect(dataRows).toEqual(["0.00\t50", "5.00\t70", "5.00\t80", "7.00\t80"])
   })
 
-  it("converts absolute watts to %FTP using the supplied FTP", () => {
-    // 200W at FTP 200 → 100%; 100W at FTP 200 → 50%; 150W → 75%
+  it("serializes canonical percentage intervals without conversion", () => {
     const mrc = workoutToMrc({
-      title: "Watts",
-      powerMode: "absolute",
+      title: "Percent",
       intervals: [
-        { startPower: 100, endPower: 200, durationSeconds: 60 },
-        { startPower: 150, endPower: 150, durationSeconds: 60 },
+        { startPower: 50, endPower: 100, durationSeconds: 60 },
+        { startPower: 75, endPower: 75, durationSeconds: 60 },
       ],
-      ftp: 200,
     })
 
     const dataRows = extractDataRows(mrc)
@@ -77,9 +70,7 @@ describe("workoutToMrc", () => {
 
     const mrc = workoutToMrc({
       title: "Easy start 45min",
-      powerMode: "percentage",
       intervals,
-      ftp: 200,
     })
 
     expect(mrc.startsWith("[COURSE HEADER]\n")).toBe(true)
@@ -106,9 +97,7 @@ describe("workoutToMrc", () => {
   it("ends with a single trailing newline", () => {
     const mrc = workoutToMrc({
       title: "Trail",
-      powerMode: "percentage",
       intervals: [{ startPower: 50, endPower: 50, durationSeconds: 60 }],
-      ftp: 200,
     })
     expect(mrc.endsWith("\n")).toBe(true)
     expect(mrc.endsWith("\n\n")).toBe(false)
@@ -117,9 +106,7 @@ describe("workoutToMrc", () => {
   it("sanitizes illegal filename characters but leaves the description untouched", () => {
     const mrc = workoutToMrc({
       title: 'Sweet/Spot: "VO2"?',
-      powerMode: "percentage",
       intervals: [{ startPower: 50, endPower: 50, durationSeconds: 60 }],
-      ftp: 200,
     })
     expect(mrc).toContain('DESCRIPTION = Sweet/Spot: "VO2"?')
     expect(mrc).toContain("FILE NAME = SweetSpot VO2")

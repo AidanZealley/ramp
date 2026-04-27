@@ -4,7 +4,11 @@ import { v } from "convex/values"
 export default defineSchema({
   workouts: defineTable({
     title: v.string(),
-    powerMode: v.union(v.literal("absolute"), v.literal("percentage")),
+    // Legacy field kept optional during rollout so existing docs validate
+    // until `migrateAbsoluteWorkoutsToPercentage` has been run everywhere.
+    powerMode: v.optional(
+      v.union(v.literal("absolute"), v.literal("percentage"))
+    ),
     intervals: v.array(
       v.object({
         startPower: v.number(),
@@ -15,6 +19,9 @@ export default defineSchema({
   }),
   userSettings: defineTable({
     ftp: v.number(),
+    powerDisplayMode: v.optional(
+      v.union(v.literal("absolute"), v.literal("percentage"))
+    ),
   }),
   plans: defineTable({
     title: v.string(),

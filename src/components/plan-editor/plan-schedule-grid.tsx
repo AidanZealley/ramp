@@ -1,4 +1,5 @@
 import type { Id } from "../../../convex/_generated/dataModel"
+import type { PowerDisplayMode } from "@/lib/workout-utils"
 import { WEEKDAYS } from "./constants"
 import { PlanWeekRow } from "./plan-week-row"
 import type { PlanEditorWeek } from "./types"
@@ -6,6 +7,7 @@ import type { PlanEditorWeek } from "./types"
 interface PlanScheduleGridProps {
   weeks: PlanEditorWeek[]
   ftp: number
+  displayMode: PowerDisplayMode
   onSelectWeek: (week: PlanEditorWeek) => void
   onSelectDay: (week: PlanEditorWeek, dayIndex: number) => void
   onDeleteWeek: (weekId: Id<"planWeeks">) => void
@@ -14,6 +16,7 @@ interface PlanScheduleGridProps {
 export function PlanScheduleGrid({
   weeks,
   ftp,
+  displayMode,
   onSelectWeek,
   onSelectDay,
   onDeleteWeek,
@@ -42,6 +45,7 @@ export function PlanScheduleGrid({
               week={week}
               weekNumber={index + 1}
               ftp={ftp}
+              displayMode={displayMode}
               onSelectWeek={onSelectWeek}
               onSelectDay={onSelectDay}
               onDeleteWeek={onDeleteWeek}

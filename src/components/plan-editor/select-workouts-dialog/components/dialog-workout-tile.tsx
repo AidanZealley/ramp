@@ -1,17 +1,22 @@
 import { WorkoutMini } from "@/components/workout-mini"
-import { Badge } from "@/components/ui/badge"
-import { formatDuration, getTotalDuration } from "@/lib/workout-utils"
+import {
+  formatDuration,
+  getTotalDuration,
+  type PowerDisplayMode,
+} from "@/lib/workout-utils"
 import type { WorkoutDoc } from "../types"
 
 interface DialogWorkoutTileProps {
   workout: WorkoutDoc
   ftp: number
+  displayMode: PowerDisplayMode
   onClick: () => void
 }
 
 export function DialogWorkoutTile({
   workout,
   ftp,
+  displayMode,
   onClick,
 }: DialogWorkoutTileProps) {
   const duration = getTotalDuration(workout.intervals)
@@ -25,7 +30,7 @@ export function DialogWorkoutTile({
       <WorkoutMini
         intervals={workout.intervals}
         ftp={ftp}
-        powerMode={workout.powerMode}
+        displayMode={displayMode}
         className="h-16 w-full rounded-md bg-muted/40"
         compact
       />
@@ -34,9 +39,6 @@ export function DialogWorkoutTile({
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <span>{formatDuration(duration)}</span>
-        <Badge variant="outline">
-          {workout.powerMode === "absolute" ? "Absolute" : "Percentage"}
-        </Badge>
       </div>
     </button>
   )

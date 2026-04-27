@@ -13,10 +13,10 @@ import { DragTooltip } from "./drag-tooltip"
 import {
   useWorkoutEditorActions,
   useWorkoutEditorActiveReorderId,
+  useWorkoutEditorDisplayMode,
   useWorkoutEditorDisplayIntervals,
   useWorkoutEditorDragPreview,
   useWorkoutEditorFtp,
-  useWorkoutEditorPowerMode,
   useWorkoutEditorStableIds,
 } from "../store"
 import { useReorderDnd } from "../hooks/use-reorder-dnd"
@@ -39,7 +39,7 @@ export function EditorCanvas({
   const stableIds = useWorkoutEditorStableIds()
   const displayIntervals = useWorkoutEditorDisplayIntervals()
   const ftp = useWorkoutEditorFtp()
-  const powerMode = useWorkoutEditorPowerMode()
+  const displayMode = useWorkoutEditorDisplayMode()
   const dragPreview = useWorkoutEditorDragPreview()
   const activeReorderId = useWorkoutEditorActiveReorderId()
   const actions = useWorkoutEditorActions()
@@ -71,7 +71,7 @@ export function EditorCanvas({
         }}
         onClick={actions.clearSelection}
       >
-        <EditorGrid scale={scale} ftp={ftp} powerMode={powerMode} />
+        <EditorGrid scale={scale} />
 
         <DndContext
           sensors={sensors}
@@ -101,8 +101,6 @@ export function EditorCanvas({
               <IntervalBlockOverlay
                 interval={activeReorderInterval}
                 scale={scale}
-                ftp={ftp}
-                powerMode={powerMode}
               />
             ) : null}
           </DragOverlay>
@@ -126,7 +124,8 @@ export function EditorCanvas({
             activeDrag={activeDrag}
             intervals={dragPreview}
             scale={scale}
-            powerMode={powerMode}
+            displayMode={displayMode}
+            ftp={ftp}
             containerWidth={scale.contentWidth}
           />
         )}

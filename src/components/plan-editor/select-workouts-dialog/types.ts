@@ -2,7 +2,6 @@ import type { Doc } from "../../../../convex/_generated/dataModel"
 
 export type WorkoutDoc = Doc<"workouts">
 
-export type PowerFilter = "all" | "absolute" | "percentage"
 export type DurationFilter = "any" | "short" | "medium" | "long"
 export type SortOption = "recent" | "title" | "duration-asc" | "duration-desc"
 

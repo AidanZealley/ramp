@@ -11,7 +11,6 @@ import {
 
 interface UseIntervalDragConfig {
   intervals: Interval[]
-  powerMode: "absolute" | "percentage"
   pixelsPerSecond: number
   onPreviewChange: (preview: Interval[] | null) => void
   onCommit: (intervals: Interval[]) => void
@@ -31,7 +30,6 @@ interface DragState {
  */
 export function useIntervalDrag({
   intervals,
-  powerMode,
   pixelsPerSecond,
   onPreviewChange,
   onCommit,
@@ -46,7 +44,7 @@ export function useIntervalDrag({
     }
   }, [])
 
-  const powerSnap = powerMode === "absolute" ? 5 : 1
+  const powerSnap = 1
 
   const startDrag = useCallback(
     (e: React.PointerEvent, type: DragType, index: number) => {
@@ -57,7 +55,7 @@ export function useIntervalDrag({
       const startY = e.clientY
       const original = intervals.map((i) => ({ ...i }))
       // Capture maxPower at drag start for consistent delta calculations
-      const dragMaxPower = computeMaxPower(original, powerMode)
+      const dragMaxPower = computeMaxPower(original)
 
       let latestPreview: Interval[] | null = null
 
@@ -180,7 +178,6 @@ export function useIntervalDrag({
     },
     [
       intervals,
-      powerMode,
       pixelsPerSecond,
       powerSnap,
       onPreviewChange,

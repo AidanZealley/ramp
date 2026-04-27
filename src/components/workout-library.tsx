@@ -11,6 +11,7 @@ import {
   getAveragePower,
   getDefaultIntervals,
   getTotalDuration,
+  wattsToPercentage,
 } from "@/lib/workout-utils"
 import { parseMrc } from "@/lib/importers"
 import { Card, CardContent } from "@/components/ui/card"
@@ -31,11 +32,11 @@ export function WorkoutLibrary() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const ftp = settings?.ftp ?? 150
+  const displayMode = settings?.powerDisplayMode ?? "percentage"
 
   const handleCreate = async () => {
     const id = await createWorkout({
       title: "New Workout",
-      powerMode: "absolute",
       intervals: getDefaultIntervals(),
     })
     navigate({ to: "/workout/$id", params: { id } })
@@ -54,10 +55,18 @@ export function WorkoutLibrary() {
     }
 
     const filenameTitle = file.name.replace(/\.mrc$/i, "")
+    const intervals =
+      result.workout.powerMode === "percentage"
+        ? result.workout.intervals
+        : result.workout.intervals.map((interval) => ({
+            ...interval,
+            startPower: wattsToPercentage(interval.startPower, ftp),
+            endPower: wattsToPercentage(interval.endPower, ftp),
+          }))
+
     const id = await createWorkout({
       title: result.workout.title || filenameTitle,
-      powerMode: result.workout.powerMode,
-      intervals: result.workout.intervals,
+      intervals,
     })
     navigate({ to: "/workout/$id", params: { id } })
   }
@@ -126,7 +135,7 @@ export function WorkoutLibrary() {
                 <WorkoutMini
                   intervals={workout.intervals}
                   ftp={ftp}
-                  powerMode={workout.powerMode}
+                  displayMode={displayMode}
                   className="h-16"
                 />
                 <div>
@@ -136,7 +145,7 @@ export function WorkoutLibrary() {
                   <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
                     <span>{formatDuration(totalDuration)}</span>
                     <span className="text-border">•</span>
-                    <span>Avg {formatPower(avgPower, workout.powerMode)}</span>
+                    <span>Avg {formatPower(avgPower, displayMode, ftp)}</span>
                     <span className="text-border">•</span>
                     <span>
                       {workout.intervals.length} interval

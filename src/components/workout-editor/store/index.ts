@@ -21,8 +21,8 @@ function useWorkoutEditorStore<T>(
 export const useWorkoutEditorIntervals = () =>
   useWorkoutEditorStore((state) => state.intervals)
 
-export const useWorkoutEditorPowerMode = () =>
-  useWorkoutEditorStore((state) => state.powerMode)
+export const useWorkoutEditorDisplayMode = () =>
+  useWorkoutEditorStore((state) => state.displayMode)
 
 export const useWorkoutEditorFtp = () =>
   useWorkoutEditorStore((state) => state.ftp)

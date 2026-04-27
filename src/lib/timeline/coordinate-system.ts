@@ -61,14 +61,10 @@ export function getIntervalWidth(
 // --- Grid tick computation ---
 
 /**
- * Compute power tick values for horizontal grid lines.
- * Absolute mode: every 50W. Percentage mode: every 20%.
+ * Compute power tick values for horizontal grid lines in canonical %FTP units.
  */
-export function computePowerTicks(
-  maxPower: number,
-  powerMode: "absolute" | "percentage"
-): number[] {
-  const step = powerMode === "absolute" ? 50 : 20
+export function computePowerTicks(maxPower: number): number[] {
+  const step = 20
   const ticks: number[] = []
   for (let p = step; p < maxPower; p += step) {
     ticks.push(p)

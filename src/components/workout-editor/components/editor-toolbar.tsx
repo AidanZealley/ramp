@@ -19,10 +19,10 @@ import {
   useWorkoutEditorCanRedo,
   useWorkoutEditorCanUndo,
   useWorkoutEditorClipboardPreview,
+  useWorkoutEditorDisplayMode,
   useWorkoutEditorFtp,
   useWorkoutEditorHasClipboard,
   useWorkoutEditorMultiSelectMode,
-  useWorkoutEditorPowerMode,
   useWorkoutEditorSelectedCount,
 } from "../store"
 
@@ -38,7 +38,7 @@ export function EditorToolbar({
   zoom,
 }: EditorToolbarProps) {
   const ftp = useWorkoutEditorFtp()
-  const powerMode = useWorkoutEditorPowerMode()
+  const displayMode = useWorkoutEditorDisplayMode()
   const selectedCount = useWorkoutEditorSelectedCount()
   const multiSelectMode = useWorkoutEditorMultiSelectMode()
   const canCopy = useWorkoutEditorCanCopy()
@@ -128,7 +128,7 @@ export function EditorToolbar({
             clipboardIntervals={clipboardData.intervals}
             gapBefore={clipboardData.gapBefore}
             ftp={ftp}
-            powerMode={powerMode}
+            displayMode={displayMode}
           />
         )}
       </div>

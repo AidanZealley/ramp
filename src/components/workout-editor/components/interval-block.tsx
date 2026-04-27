@@ -3,17 +3,21 @@ import { IntervalHandles } from "./interval-handles"
 import type { Interval } from "@/lib/workout-utils"
 import type { TimelineScale } from "@/hooks/use-timeline-scale"
 import type { DragType } from "@/lib/timeline/types"
-import { formatDuration, formatPower } from "@/lib/workout-utils"
+import {
+  formatDuration,
+  formatPower,
+  percentageToWatts,
+} from "@/lib/workout-utils"
 import { getZoneColor, getZoneInfo } from "@/lib/zones"
 import { EDITOR_HEIGHT } from "@/lib/timeline/types"
 import { cn } from "@/lib/utils"
 import {
   useWorkoutEditorActions,
+  useWorkoutEditorDisplayMode,
   useWorkoutEditorFtp,
   useWorkoutEditorInterval,
   useWorkoutEditorIsHovered,
   useWorkoutEditorIsSelected,
-  useWorkoutEditorPowerMode,
 } from "../store"
 
 export interface SelectModifiers {
@@ -40,7 +44,7 @@ export function IntervalBlock({
 }: IntervalBlockProps) {
   const interval = useWorkoutEditorInterval(index)
   const ftp = useWorkoutEditorFtp()
-  const powerMode = useWorkoutEditorPowerMode()
+  const displayMode = useWorkoutEditorDisplayMode()
   const isHovered = useWorkoutEditorIsHovered(index)
   const isSelected = useWorkoutEditorIsSelected(stableId)
   const actions = useWorkoutEditorActions()
@@ -63,10 +67,10 @@ export function IntervalBlock({
   const startPowerPct = (startYPx / EDITOR_HEIGHT) * 100
   const endPowerPct = (endYPx / EDITOR_HEIGHT) * 100
 
-  const startColor = getZoneColor(interval.startPower, ftp, powerMode)
-  const endColor = getZoneColor(interval.endPower, ftp, powerMode)
-  const startZone = getZoneInfo(interval.startPower, ftp, powerMode).zone
-  const endZone = getZoneInfo(interval.endPower, ftp, powerMode).zone
+  const startColor = getZoneColor(interval.startPower)
+  const endColor = getZoneColor(interval.endPower)
+  const startZone = getZoneInfo(interval.startPower).zone
+  const endZone = getZoneInfo(interval.endPower).zone
   const zoneLabel =
     startZone === endZone
       ? `Z${startZone}`
@@ -74,9 +78,9 @@ export function IntervalBlock({
 
   const isActive = isHovered || isSelected || isDragTarget
   const formatSecondaryPower = (power: number) =>
-    powerMode === "absolute"
-      ? `${Math.round((power / ftp) * 100)}%`
-      : `${Math.round((power * ftp) / 100)}W`
+    displayMode === "absolute"
+      ? `${Math.round(power)}%`
+      : `${percentageToWatts(power, ftp)}W`
 
   const isRamp = interval.startPower !== interval.endPower
   const showSecondary = ftp > 0 && w > 65
@@ -164,8 +168,8 @@ export function IntervalBlock({
         >
           <span className="text-[11px] leading-none font-semibold text-foreground tabular-nums">
             {isRamp
-              ? `${formatPower(interval.startPower, powerMode)}–${formatPower(interval.endPower, powerMode)}`
-              : formatPower(interval.startPower, powerMode)}
+              ? `${formatPower(interval.startPower, displayMode, ftp)}–${formatPower(interval.endPower, displayMode, ftp)}`
+              : formatPower(interval.startPower, displayMode, ftp)}
           </span>
           {showSecondary && (
             <span className="text-[9px] leading-none text-foreground/50 tabular-nums">
@@ -210,13 +214,9 @@ export function IntervalBlock({
 export function IntervalBlockOverlay({
   interval,
   scale,
-  ftp,
-  powerMode,
 }: {
   interval: Interval
   scale: TimelineScale
-  ftp: number
-  powerMode: "absolute" | "percentage"
 }) {
   const w = scale.getIntervalWidth(interval)
   const startYPx = scale.powerToY(interval.startPower)
@@ -224,8 +224,8 @@ export function IntervalBlockOverlay({
   const startPowerPct = (startYPx / EDITOR_HEIGHT) * 100
   const endPowerPct = (endYPx / EDITOR_HEIGHT) * 100
 
-  const startColor = getZoneColor(interval.startPower, ftp, powerMode)
-  const endColor = getZoneColor(interval.endPower, ftp, powerMode)
+  const startColor = getZoneColor(interval.startPower)
+  const endColor = getZoneColor(interval.endPower)
 
   return (
     <div

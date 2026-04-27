@@ -166,7 +166,7 @@ function StoreHarness({
   return (
     <WorkoutEditorStoreProvider
       intervals={intervals}
-      powerMode="absolute"
+      displayMode="absolute"
       ftp={250}
       onIntervalsChange={setIntervals}
     >
@@ -179,7 +179,7 @@ function ControlledHarness({ intervals }: { intervals: Interval[] }) {
   return (
     <WorkoutEditorStoreProvider
       intervals={intervals}
-      powerMode="absolute"
+      displayMode="absolute"
       ftp={250}
       onIntervalsChange={vi.fn()}
     >
@@ -206,7 +206,7 @@ function EditorRefHarness({
       <WorkoutEditor
         ref={editorRef}
         intervals={intervals}
-        powerMode="absolute"
+        displayMode="absolute"
         ftp={250}
         onIntervalsChange={setIntervals}
       />

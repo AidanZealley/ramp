@@ -1,15 +1,16 @@
 import type { TimelineScale } from "@/hooks/use-timeline-scale"
 import { Badge } from "@/components/ui/badge"
+import { type PowerDisplayMode } from "@/lib/workout-utils"
 
 interface FtpBadgeProps {
   scale: TimelineScale
   ftp: number
-  powerMode: "absolute" | "percentage"
+  displayMode: PowerDisplayMode
   maxPower: number
 }
 
-export function FtpBadge({ scale, ftp, powerMode, maxPower }: FtpBadgeProps) {
-  const ftpPower = powerMode === "absolute" ? ftp : 100
+export function FtpBadge({ scale, ftp, displayMode, maxPower }: FtpBadgeProps) {
+  const ftpPower = 100
   const showFtpLine = ftpPower <= maxPower && ftpPower > 0
 
   if (!showFtpLine) {
@@ -22,7 +23,7 @@ export function FtpBadge({ scale, ftp, powerMode, maxPower }: FtpBadgeProps) {
       className="absolute right-2"
       style={{ top: scale.powerToY(ftpPower) - 24 }}
     >
-      FTP
+      {displayMode === "absolute" ? `${ftp}W FTP` : "100% FTP"}
     </Badge>
   )
 }
