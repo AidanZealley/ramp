@@ -1,8 +1,8 @@
-import { useRouter } from '@tanstack/react-router'
-import {  createContext, use } from 'react'
-import type {PropsWithChildren} from 'react';
-import type {Theme} from '@/lib/theme';
-import {  setThemeServerFn } from '@/lib/theme'
+import { useRouter } from "@tanstack/react-router"
+import { createContext, use } from "react"
+import type { PropsWithChildren } from "react"
+import type { Theme } from "@/lib/theme"
+import { setThemeServerFn } from "@/lib/theme"
 
 type ThemeContextVal = { theme: Theme; setTheme: (val: Theme) => void }
 
@@ -23,6 +23,6 @@ export const ThemeProvider = ({
 
 export const useTheme = () => {
   const val = use(ThemeContext)
-  if (!val) throw new Error('useTheme must be used within a ThemeProvider')
+  if (!val) throw new Error("useTheme must be used within a ThemeProvider")
   return val
 }

@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback } from "react"
 
 /**
  * Registers a document-level keydown listener for a specific key.
@@ -11,23 +11,20 @@ import { useEffect, useCallback } from "react";
  * @param key      The `KeyboardEvent.key` value to listen for (e.g. "Backspace", "Escape", "ArrowUp").
  * @param callback Fired when the key is pressed. Receives the raw `KeyboardEvent`.
  */
-export function useKeypress(
-  key: string,
-  callback: (e: KeyboardEvent) => void
-) {
+export function useKeypress(key: string, callback: (e: KeyboardEvent) => void) {
   const stableCallback = useCallback(
     (e: KeyboardEvent) => {
-      callback(e);
+      callback(e)
     },
     [callback]
-  );
+  )
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key !== key) return;
+      if (e.key !== key) return
 
       // Don't intercept when the user is typing in an input
-      const target = e.target as HTMLElement | null;
+      const target = e.target as HTMLElement | null
       if (
         target &&
         (target.tagName === "INPUT" ||
@@ -35,13 +32,13 @@ export function useKeypress(
           target.tagName === "SELECT" ||
           target.isContentEditable)
       ) {
-        return;
+        return
       }
 
-      stableCallback(e);
-    };
+      stableCallback(e)
+    }
 
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [key, stableCallback]);
+    document.addEventListener("keydown", handler)
+    return () => document.removeEventListener("keydown", handler)
+  }, [key, stableCallback])
 }

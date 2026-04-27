@@ -182,7 +182,7 @@ function WorkoutPage() {
   const handleDelete = async () => {
     if (!workout) return
     await removeWorkout({ id: workout._id })
-    navigate({ to: "/workout" })
+    navigate({ to: "/" })
   }
 
   // Loading state
@@ -202,7 +202,7 @@ function WorkoutPage() {
         <p className="text-sm text-muted-foreground">
           This workout may have been deleted.
         </p>
-        <Button variant="outline" onClick={() => navigate({ to: "/workout" })}>
+        <Button variant="outline" onClick={() => navigate({ to: "/" })}>
           <ArrowLeft className="size-4" />
           Back to Workouts
         </Button>
@@ -216,13 +216,13 @@ function WorkoutPage() {
   const avgPower = getAveragePower(workingCopy.intervals)
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto flex max-w-5xl flex-col gap-6">
       {/* Header */}
       <div className="flex flex-col gap-3">
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate({ to: "/workout" })}
+          onClick={() => navigate({ to: "/" })}
         >
           <ArrowLeft className="size-4" />
         </Button>

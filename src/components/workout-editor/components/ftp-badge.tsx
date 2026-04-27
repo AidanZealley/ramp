@@ -8,12 +8,7 @@ interface FtpBadgeProps {
   maxPower: number
 }
 
-export function FtpBadge({
-  scale,
-  ftp,
-  powerMode,
-  maxPower,
-}: FtpBadgeProps) {
+export function FtpBadge({ scale, ftp, powerMode, maxPower }: FtpBadgeProps) {
   const ftpPower = powerMode === "absolute" ? ftp : 100
   const showFtpLine = ftpPower <= maxPower && ftpPower > 0
 

@@ -205,7 +205,6 @@ export function IntervalHandles({
               height: EDITOR_HEIGHT - endYPx - HANDLE_SIZE / 2 - 2,
             }}
           />
-
         </>
       )}
     </>

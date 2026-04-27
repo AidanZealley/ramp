@@ -61,7 +61,14 @@ export function useEditorZoom({
     }
 
     return el.scrollLeft + el.clientWidth / 2
-  }, [displayIntervals, scale, scrollContainerRef, selectedIds, stableIds, zoom.pixelsPerSecond])
+  }, [
+    displayIntervals,
+    scale,
+    scrollContainerRef,
+    selectedIds,
+    stableIds,
+    zoom.pixelsPerSecond,
+  ])
 
   const toolbarZoom = useMemo(
     () => ({

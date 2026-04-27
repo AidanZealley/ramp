@@ -99,7 +99,8 @@ export function EditorMinimap({
   const hasSelection = selectedIds.length > 0
 
   const totalDuration = useMemo(
-    () => intervals.reduce((sum, interval) => sum + interval.durationSeconds, 0),
+    () =>
+      intervals.reduce((sum, interval) => sum + interval.durationSeconds, 0),
     [intervals]
   )
 
@@ -128,7 +129,9 @@ export function EditorMinimap({
     workoutScrollWidth - visibleWorkoutWidth
   )
   const scrollRatio =
-    maxViewportWorkoutLeft > 0 ? viewportWorkoutLeft / maxViewportWorkoutLeft : 0
+    maxViewportWorkoutLeft > 0
+      ? viewportWorkoutLeft / maxViewportWorkoutLeft
+      : 0
   const contentOffset = scrollRatio * overflow
 
   const viewportWidthPx =

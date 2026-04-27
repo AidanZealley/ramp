@@ -53,8 +53,7 @@ export function ClipboardPreview({
             currentX += GAP_WIDTH
 
             const x = currentX
-            const w =
-              (interval.durationSeconds / totalDuration) * durationWidth
+            const w = (interval.durationSeconds / totalDuration) * durationWidth
             currentX += w
 
             const y1 =

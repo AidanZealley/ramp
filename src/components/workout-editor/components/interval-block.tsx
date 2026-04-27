@@ -157,16 +157,18 @@ export function IntervalBlock({
 
       {w > 50 && (
         <div
-          className="pointer-events-none absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5"
-          style={{ top: Math.min(startYPx, endYPx) - (showSecondary ? 28 : 20) }}
+          className="pointer-events-none absolute left-1/2 flex -translate-x-1/2 flex-col items-center gap-0.5"
+          style={{
+            top: Math.min(startYPx, endYPx) - (showSecondary ? 28 : 20),
+          }}
         >
-          <span className="text-[11px] font-semibold leading-none tabular-nums text-foreground">
+          <span className="text-[11px] leading-none font-semibold text-foreground tabular-nums">
             {isRamp
               ? `${formatPower(interval.startPower, powerMode)}–${formatPower(interval.endPower, powerMode)}`
               : formatPower(interval.startPower, powerMode)}
           </span>
           {showSecondary && (
-            <span className="text-[9px] leading-none tabular-nums text-foreground/50">
+            <span className="text-[9px] leading-none text-foreground/50 tabular-nums">
               {isRamp
                 ? `${formatSecondaryPower(interval.startPower)}–${formatSecondaryPower(interval.endPower)}`
                 : formatSecondaryPower(interval.startPower)}
@@ -177,13 +179,13 @@ export function IntervalBlock({
 
       {w > 40 && (
         <div
-          className="pointer-events-none absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-1"
+          className="pointer-events-none absolute left-1/2 flex -translate-x-1/2 flex-col items-center gap-1"
           style={{ bottom: 8 }}
         >
-          <span className="text-[10px] font-semibold leading-none text-foreground/70">
+          <span className="text-[10px] leading-none font-semibold text-foreground/70">
             {zoneLabel}
           </span>
-          <span className="text-[10px] font-medium leading-none tabular-nums text-foreground/60">
+          <span className="text-[10px] leading-none font-medium text-foreground/60 tabular-nums">
             {formatDuration(interval.durationSeconds)}
           </span>
         </div>

@@ -3,6 +3,7 @@ import {
   createRootRouteWithContext,
   Outlet,
   Link,
+  useRouterState,
 } from "@tanstack/react-router"
 import { HeadContent, Scripts } from "@tanstack/react-router"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
@@ -51,21 +52,51 @@ export const Route = createRootRouteWithContext<{
 
 function RootLayout() {
   const theme = Route.useLoaderData()
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
+  const workoutsActive = !pathname.startsWith("/plan")
+  const plansActive = pathname.startsWith("/plan")
 
   return (
     <ThemeProvider theme={theme}>
       <RootDocument theme={theme}>
         <div className="flex min-h-svh flex-col">
           <header className="sticky top-0 z-40 border-b border-border/50 bg-background/80 backdrop-blur-lg">
-            <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
-              <Link
-                to="/"
-                className="flex items-center gap-2 transition-opacity hover:opacity-80"
-              >
-                <span className="font-heading text-lg font-semibold tracking-tight">
-                  ERG Generator
-                </span>
-              </Link>
+            <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-6 px-4">
+              <div className="flex items-center gap-6">
+                <Link
+                  to="/"
+                  className="flex items-center gap-2 transition-opacity hover:opacity-80"
+                >
+                  <span className="font-heading text-lg font-semibold tracking-tight">
+                    ERG Generator
+                  </span>
+                </Link>
+
+                <nav className="flex items-center gap-4 text-sm">
+                  <Link
+                    to="/"
+                    className={
+                      workoutsActive
+                        ? "font-medium text-foreground"
+                        : "text-muted-foreground transition-colors hover:text-foreground"
+                    }
+                  >
+                    Workouts
+                  </Link>
+                  <Link
+                    to="/plan"
+                    className={
+                      plansActive
+                        ? "font-medium text-foreground"
+                        : "text-muted-foreground transition-colors hover:text-foreground"
+                    }
+                  >
+                    Plans
+                  </Link>
+                </nav>
+              </div>
 
               <div className="flex items-center gap-3">
                 <ModeToggle />
@@ -73,7 +104,7 @@ function RootLayout() {
               </div>
             </div>
           </header>
-          <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
+          <main className="w-full flex-1 px-4 py-6">
             <Outlet />
           </main>
           <Toaster />

@@ -53,28 +53,84 @@ function HarnessContent() {
       <div data-testid="can-undo">{canUndo ? "yes" : "no"}</div>
       <div data-testid="can-redo">{canRedo ? "yes" : "no"}</div>
 
-      <button onClick={() => actions.selectWithModifiers(stableIds[0], { shift: false, meta: false })}>
+      <button
+        onClick={() =>
+          actions.selectWithModifiers(stableIds[0], {
+            shift: false,
+            meta: false,
+          })
+        }
+      >
         plain-0
       </button>
-      <button onClick={() => actions.selectWithModifiers(stableIds[1], { shift: false, meta: false })}>
+      <button
+        onClick={() =>
+          actions.selectWithModifiers(stableIds[1], {
+            shift: false,
+            meta: false,
+          })
+        }
+      >
         plain-1
       </button>
-      <button onClick={() => actions.selectWithModifiers(stableIds[2], { shift: false, meta: false })}>
+      <button
+        onClick={() =>
+          actions.selectWithModifiers(stableIds[2], {
+            shift: false,
+            meta: false,
+          })
+        }
+      >
         plain-2
       </button>
-      <button onClick={() => actions.selectWithModifiers(stableIds[0], { shift: false, meta: true })}>
+      <button
+        onClick={() =>
+          actions.selectWithModifiers(stableIds[0], {
+            shift: false,
+            meta: true,
+          })
+        }
+      >
         meta-0
       </button>
-      <button onClick={() => actions.selectWithModifiers(stableIds[1], { shift: false, meta: true })}>
+      <button
+        onClick={() =>
+          actions.selectWithModifiers(stableIds[1], {
+            shift: false,
+            meta: true,
+          })
+        }
+      >
         meta-1
       </button>
-      <button onClick={() => actions.selectWithModifiers(stableIds[2], { shift: false, meta: true })}>
+      <button
+        onClick={() =>
+          actions.selectWithModifiers(stableIds[2], {
+            shift: false,
+            meta: true,
+          })
+        }
+      >
         meta-2
       </button>
-      <button onClick={() => actions.selectWithModifiers(stableIds[1], { shift: true, meta: false })}>
+      <button
+        onClick={() =>
+          actions.selectWithModifiers(stableIds[1], {
+            shift: true,
+            meta: false,
+          })
+        }
+      >
         shift-1
       </button>
-      <button onClick={() => actions.selectWithModifiers(stableIds[2], { shift: true, meta: false })}>
+      <button
+        onClick={() =>
+          actions.selectWithModifiers(stableIds[2], {
+            shift: true,
+            meta: false,
+          })
+        }
+      >
         shift-2
       </button>
       <button onClick={actions.toggleMultiSelect}>toggle-multi</button>
@@ -82,14 +138,20 @@ function HarnessContent() {
       <button onClick={() => actions.pasteClipboard()}>paste</button>
       <button onClick={() => actions.pasteClipboard(1)}>paste-1</button>
       <button onClick={actions.deleteSelection}>delete-selection</button>
-      <button onClick={() => actions.commitIntervals(baseIntervals.slice(0, 2))}>
+      <button
+        onClick={() => actions.commitIntervals(baseIntervals.slice(0, 2))}
+      >
         commit-2
       </button>
       <button onClick={() => actions.nudgeSelectedPower(5)}>nudge-power</button>
-      <button onClick={() => actions.nudgeSelectedDuration(5)}>nudge-duration</button>
+      <button onClick={() => actions.nudgeSelectedDuration(5)}>
+        nudge-duration
+      </button>
       <button onClick={actions.undo}>undo</button>
       <button onClick={actions.redo}>redo</button>
-      <button onClick={actions.reorderIntervals.bind(null, 0, 2, stableIds[0])}>reorder-0-2</button>
+      <button onClick={actions.reorderIntervals.bind(null, 0, 2, stableIds[0])}>
+        reorder-0-2
+      </button>
     </div>
   )
 }
@@ -113,11 +175,7 @@ function StoreHarness({
   )
 }
 
-function ControlledHarness({
-  intervals,
-}: {
-  intervals: Interval[]
-}) {
+function ControlledHarness({ intervals }: { intervals: Interval[] }) {
   return (
     <WorkoutEditorStoreProvider
       intervals={intervals}
@@ -216,7 +274,10 @@ describe("workout editor store", () => {
     fireEvent.click(screen.getByText("plain-1"))
     fireEvent.click(screen.getByText("meta-0"))
     fireEvent.click(screen.getByText("copy"))
-    expect(readJson<string[]>("clipboard")).toEqual([stableIds[0], stableIds[1]])
+    expect(readJson<string[]>("clipboard")).toEqual([
+      stableIds[0],
+      stableIds[1],
+    ])
   })
 
   it("pastes after the right-most selected interval by default", async () => {

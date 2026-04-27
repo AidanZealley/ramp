@@ -45,5 +45,12 @@ export function useEditorAutoScroll({
       }
     }
     prevIntervalCountRef.current = intervals.length
-  }, [intervals, pixelsPerSecond, scale, scrollContainerRef, selectedIds, stableIds])
+  }, [
+    intervals,
+    pixelsPerSecond,
+    scale,
+    scrollContainerRef,
+    selectedIds,
+    stableIds,
+  ])
 }

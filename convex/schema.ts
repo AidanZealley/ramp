@@ -1,5 +1,5 @@
-import { defineSchema, defineTable } from "convex/server";
-import { v } from "convex/values";
+import { defineSchema, defineTable } from "convex/server"
+import { v } from "convex/values"
 
 export default defineSchema({
   workouts: defineTable({
@@ -16,4 +16,19 @@ export default defineSchema({
   userSettings: defineTable({
     ftp: v.number(),
   }),
-});
+  plans: defineTable({
+    title: v.string(),
+  }),
+  planWeeks: defineTable({
+    planId: v.id("plans"),
+    orderIndex: v.number(),
+  }).index("by_plan_and_order", ["planId", "orderIndex"]),
+  planWeekWorkouts: defineTable({
+    weekId: v.id("planWeeks"),
+    workoutId: v.union(v.id("workouts"), v.null()),
+    dayIndex: v.optional(v.number()),
+    orderIndex: v.optional(v.number()),
+  })
+    .index("by_week_and_day", ["weekId", "dayIndex"])
+    .index("by_workout", ["workoutId"]),
+})

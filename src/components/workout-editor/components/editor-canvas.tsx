@@ -1,9 +1,8 @@
+import { DndContext, DragOverlay, closestCenter } from "@dnd-kit/core"
 import {
-  DndContext,
-  DragOverlay,
-  closestCenter,
-} from "@dnd-kit/core"
-import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable"
+  SortableContext,
+  horizontalListSortingStrategy,
+} from "@dnd-kit/sortable"
 import type { TimelineScale } from "@/hooks/use-timeline-scale"
 import type { DragType } from "@/lib/timeline/types"
 import { AXIS_HEIGHT, EDITOR_HEIGHT } from "@/lib/timeline/types"
@@ -111,14 +110,16 @@ export function EditorCanvas({
 
         {!isDragging &&
           displayIntervals.length >= 2 &&
-          displayIntervals.slice(1).map((_, index) => (
-            <InsertZone
-              key={`insert-${index + 1}`}
-              x={scale.getIntervalX(index + 1)}
-              index={index + 1}
-              height={EDITOR_HEIGHT}
-            />
-          ))}
+          displayIntervals
+            .slice(1)
+            .map((_, index) => (
+              <InsertZone
+                key={`insert-${index + 1}`}
+                x={scale.getIntervalX(index + 1)}
+                index={index + 1}
+                height={EDITOR_HEIGHT}
+              />
+            ))}
 
         {activeDrag && dragPreview && (
           <DragTooltip

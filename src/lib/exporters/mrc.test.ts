@@ -7,9 +7,7 @@ describe("workoutToMrc", () => {
     const mrc = workoutToMrc({
       title: "Easy start 45min",
       powerMode: "percentage",
-      intervals: [
-        { startPower: 50, endPower: 70, durationSeconds: 300 },
-      ],
+      intervals: [{ startPower: 50, endPower: 70, durationSeconds: 300 }],
       ftp: 200,
     })
 
@@ -39,12 +37,7 @@ describe("workoutToMrc", () => {
     })
 
     const dataRows = extractDataRows(mrc)
-    expect(dataRows).toEqual([
-      "0.00\t50",
-      "5.00\t70",
-      "5.00\t80",
-      "7.00\t80",
-    ])
+    expect(dataRows).toEqual(["0.00\t50", "5.00\t70", "5.00\t80", "7.00\t80"])
   })
 
   it("converts absolute watts to %FTP using the supplied FTP", () => {
@@ -60,12 +53,7 @@ describe("workoutToMrc", () => {
     })
 
     const dataRows = extractDataRows(mrc)
-    expect(dataRows).toEqual([
-      "0.00\t50",
-      "1.00\t100",
-      "1.00\t75",
-      "2.00\t75",
-    ])
+    expect(dataRows).toEqual(["0.00\t50", "1.00\t100", "1.00\t75", "2.00\t75"])
   })
 
   it("matches the structural shape of examples/workout.mrc", () => {
@@ -109,7 +97,8 @@ describe("workoutToMrc", () => {
     }
 
     // Final cumulative time should be the workout total in minutes.
-    const totalMinutes = intervals.reduce((s, i) => s + i.durationSeconds, 0) / 60
+    const totalMinutes =
+      intervals.reduce((s, i) => s + i.durationSeconds, 0) / 60
     const lastRow = dataRows[dataRows.length - 1]
     expect(lastRow.split("\t")[0]).toBe(totalMinutes.toFixed(2))
   })

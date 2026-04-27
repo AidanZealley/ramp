@@ -1,4 +1,4 @@
-import type { Interval } from "@/lib/workout-utils";
+import type { Interval } from "@/lib/workout-utils"
 
 /**
  * Pure coordinate-system functions for mapping between
@@ -10,11 +10,11 @@ import type { Interval } from "@/lib/workout-utils";
 // --- Time <-> X mapping ---
 
 export function timeToX(seconds: number, pixelsPerSecond: number): number {
-  return seconds * pixelsPerSecond;
+  return seconds * pixelsPerSecond
 }
 
 export function xToTime(x: number, pixelsPerSecond: number): number {
-  return x / pixelsPerSecond;
+  return x / pixelsPerSecond
 }
 
 // --- Power <-> Y mapping ---
@@ -25,15 +25,11 @@ export function powerToY(
   maxPower: number,
   height: number
 ): number {
-  return height * (1 - power / maxPower);
+  return height * (1 - power / maxPower)
 }
 
-export function yToPower(
-  y: number,
-  maxPower: number,
-  height: number
-): number {
-  return maxPower * (1 - y / height);
+export function yToPower(y: number, maxPower: number, height: number): number {
+  return maxPower * (1 - y / height)
 }
 
 // --- Interval geometry ---
@@ -49,7 +45,7 @@ export function getIntervalStartX(
 ): number {
   return intervals
     .slice(0, index)
-    .reduce((sum, iv) => sum + iv.durationSeconds * pixelsPerSecond, 0);
+    .reduce((sum, iv) => sum + iv.durationSeconds * pixelsPerSecond, 0)
 }
 
 /**
@@ -59,7 +55,7 @@ export function getIntervalWidth(
   interval: Interval,
   pixelsPerSecond: number
 ): number {
-  return interval.durationSeconds * pixelsPerSecond;
+  return interval.durationSeconds * pixelsPerSecond
 }
 
 // --- Grid tick computation ---
@@ -72,12 +68,12 @@ export function computePowerTicks(
   maxPower: number,
   powerMode: "absolute" | "percentage"
 ): number[] {
-  const step = powerMode === "absolute" ? 50 : 20;
-  const ticks: number[] = [];
+  const step = powerMode === "absolute" ? 50 : 20
+  const ticks: number[] = []
   for (let p = step; p < maxPower; p += step) {
-    ticks.push(p);
+    ticks.push(p)
   }
-  return ticks;
+  return ticks
 }
 
 /**
@@ -90,17 +86,18 @@ export function computeTimeTicks(
   pixelsPerSecond: number
 ): number[] {
   // Minimum pixel gap we want between adjacent tick labels (~width of "1:00:00")
-  const MIN_LABEL_GAP_PX = 60;
-  const minStepSec = pixelsPerSecond > 0 ? MIN_LABEL_GAP_PX / pixelsPerSecond : 60;
+  const MIN_LABEL_GAP_PX = 60
+  const minStepSec =
+    pixelsPerSecond > 0 ? MIN_LABEL_GAP_PX / pixelsPerSecond : 60
 
   // Candidate step sizes in ascending order (seconds)
-  const NICE_STEPS = [30, 60, 120, 180, 300, 600, 900, 1200, 1800, 3600];
+  const NICE_STEPS = [30, 60, 120, 180, 300, 600, 900, 1200, 1800, 3600]
   const step =
-    NICE_STEPS.find((s) => s >= minStepSec) ?? NICE_STEPS[NICE_STEPS.length - 1];
+    NICE_STEPS.find((s) => s >= minStepSec) ?? NICE_STEPS[NICE_STEPS.length - 1]
 
-  const ticks: number[] = [];
+  const ticks: number[] = []
   for (let t = step; t < totalDurationSec; t += step) {
-    ticks.push(t);
+    ticks.push(t)
   }
-  return ticks;
+  return ticks
 }

@@ -60,16 +60,18 @@ export const useWorkoutEditorActiveReorderId = () =>
 export const useWorkoutEditorActions = (): WorkoutEditorActions =>
   useWorkoutEditorStore((state) => state.actions)
 
-export const useWorkoutEditorClipboardPreview = (): ClipboardPreviewData | null => {
-  const clipboardIds = useWorkoutEditorClipboardIds()
-  const stableIds = useWorkoutEditorStableIds()
-  const displayIntervals = useWorkoutEditorDisplayIntervals()
+export const useWorkoutEditorClipboardPreview =
+  (): ClipboardPreviewData | null => {
+    const clipboardIds = useWorkoutEditorClipboardIds()
+    const stableIds = useWorkoutEditorStableIds()
+    const displayIntervals = useWorkoutEditorDisplayIntervals()
 
-  return useMemo(
-    () => buildClipboardPreviewData(clipboardIds, stableIds, displayIntervals),
-    [clipboardIds, stableIds, displayIntervals]
-  )
-}
+    return useMemo(
+      () =>
+        buildClipboardPreviewData(clipboardIds, stableIds, displayIntervals),
+      [clipboardIds, stableIds, displayIntervals]
+    )
+  }
 
 export const useWorkoutEditorHasClipboard = () =>
   useWorkoutEditorStore((state) => state.clipboardIds.length > 0)

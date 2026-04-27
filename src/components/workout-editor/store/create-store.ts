@@ -321,12 +321,14 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
           const state = get()
           const toDelete = new Set(ids)
           const keepMask = state.stableIds.map((id) => !toDelete.has(id))
-          const stableIds = state.stableIds.filter((_, index) => keepMask[index])
-          const intervals = state.intervals.filter((_, index) => keepMask[index])
-
-          commitHistoryEntry(
-            createHistoryEntry(intervals, stableIds, [], null)
+          const stableIds = state.stableIds.filter(
+            (_, index) => keepMask[index]
           )
+          const intervals = state.intervals.filter(
+            (_, index) => keepMask[index]
+          )
+
+          commitHistoryEntry(createHistoryEntry(intervals, stableIds, [], null))
         },
         commitIntervals: (nextIntervals) => {
           const state = get()

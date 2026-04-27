@@ -1,10 +1,10 @@
-export type Zone = 1 | 2 | 3 | 4 | 5;
+export type Zone = 1 | 2 | 3 | 4 | 5
 
 export interface ZoneInfo {
-  zone: Zone;
-  name: string;
-  color: string;
-  colorMuted: string;
+  zone: Zone
+  name: string
+  color: string
+  colorMuted: string
 }
 
 const ZONE_MAP: Record<Zone, Omit<ZoneInfo, "zone">> = {
@@ -33,17 +33,17 @@ const ZONE_MAP: Record<Zone, Omit<ZoneInfo, "zone">> = {
     color: "oklch(0.63 0.22 25)",
     colorMuted: "oklch(0.63 0.22 25 / 0.55)",
   },
-};
+}
 
 /**
  * Get the power zone based on power as a percentage of FTP.
  */
 export function getZone(ftpPercentage: number): Zone {
-  if (ftpPercentage < 69) return 1;
-  if (ftpPercentage < 84) return 2;
-  if (ftpPercentage < 95) return 3;
-  if (ftpPercentage < 106) return 4;
-  return 5;
+  if (ftpPercentage < 69) return 1
+  if (ftpPercentage < 84) return 2
+  if (ftpPercentage < 95) return 3
+  if (ftpPercentage < 106) return 4
+  return 5
 }
 
 /**
@@ -54,10 +54,9 @@ export function getZoneInfo(
   ftp: number,
   powerMode: "absolute" | "percentage"
 ): ZoneInfo {
-  const percentage =
-    powerMode === "absolute" ? (power / ftp) * 100 : power;
-  const zone = getZone(percentage);
-  return { zone, ...ZONE_MAP[zone] };
+  const percentage = powerMode === "absolute" ? (power / ftp) * 100 : power
+  const zone = getZone(percentage)
+  return { zone, ...ZONE_MAP[zone] }
 }
 
 /**
@@ -68,7 +67,7 @@ export function getZoneColor(
   ftp: number,
   powerMode: "absolute" | "percentage"
 ): string {
-  return getZoneInfo(power, ftp, powerMode).color;
+  return getZoneInfo(power, ftp, powerMode).color
 }
 
 /**
@@ -79,9 +78,9 @@ export function getZoneMutedColor(
   ftp: number,
   powerMode: "absolute" | "percentage"
 ): string {
-  return getZoneInfo(power, ftp, powerMode).colorMuted;
+  return getZoneInfo(power, ftp, powerMode).colorMuted
 }
 
 export function getZoneInfoByZone(zone: Zone): ZoneInfo {
-  return { zone, ...ZONE_MAP[zone] };
+  return { zone, ...ZONE_MAP[zone] }
 }

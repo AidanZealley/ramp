@@ -89,8 +89,12 @@ describe("parseMrc", () => {
       const o = original[i]
       const r = result.workout.intervals[i]
       expect(r.durationSeconds).toBe(o.durationSeconds)
-      expect(Math.abs(r.startPower - (o.startPower / ftp) * 100)).toBeLessThanOrEqual(1)
-      expect(Math.abs(r.endPower - (o.endPower / ftp) * 100)).toBeLessThanOrEqual(1)
+      expect(
+        Math.abs(r.startPower - (o.startPower / ftp) * 100)
+      ).toBeLessThanOrEqual(1)
+      expect(
+        Math.abs(r.endPower - (o.endPower / ftp) * 100)
+      ).toBeLessThanOrEqual(1)
     }
   })
 
@@ -136,9 +140,12 @@ describe("parseMrc", () => {
   })
 
   it("returns missing-header when [COURSE HEADER] is absent", () => {
-    const mrc = ["[COURSE DATA]", "0.00\t50", "1.00\t60", "[END COURSE DATA]"].join(
-      "\n"
-    )
+    const mrc = [
+      "[COURSE DATA]",
+      "0.00\t50",
+      "1.00\t60",
+      "[END COURSE DATA]",
+    ].join("\n")
     const result = parseMrc(mrc)
     expect(result.kind).toBe("error")
     if (result.kind !== "error") return
@@ -239,9 +246,12 @@ describe("parseMrc", () => {
       "[COURSE DATA]",
     ]
 
-    const twoRow = [...baseHeader, "0.00\t50", "1.00\t60", "[END COURSE DATA]"].join(
-      "\n"
-    )
+    const twoRow = [
+      ...baseHeader,
+      "0.00\t50",
+      "1.00\t60",
+      "[END COURSE DATA]",
+    ].join("\n")
     const r1 = parseMrc(twoRow)
     expect(r1.kind).toBe("ok")
     if (r1.kind === "ok") {

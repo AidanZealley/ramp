@@ -1,11 +1,11 @@
-import { formatDuration } from "@/lib/workout-utils";
-import type { TimelineScale } from "@/hooks/use-timeline-scale";
-import { EDITOR_HEIGHT } from "@/lib/timeline/types";
+import { formatDuration } from "@/lib/workout-utils"
+import type { TimelineScale } from "@/hooks/use-timeline-scale"
+import { EDITOR_HEIGHT } from "@/lib/timeline/types"
 
 interface EditorGridProps {
-  scale: TimelineScale;
-  ftp: number;
-  powerMode: "absolute" | "percentage";
+  scale: TimelineScale
+  ftp: number
+  powerMode: "absolute" | "percentage"
 }
 
 /**
@@ -14,9 +14,9 @@ interface EditorGridProps {
  * All elements are absolutely positioned DOM divs/spans.
  */
 export function EditorGrid({ scale, ftp, powerMode }: EditorGridProps) {
-  const ftpPower = powerMode === "absolute" ? ftp : 100;
-  const ftpY = scale.powerToY(ftpPower);
-  const showFtpLine = ftpPower <= scale.maxPower && ftpPower > 0;
+  const ftpPower = powerMode === "absolute" ? ftp : 100
+  const ftpY = scale.powerToY(ftpPower)
+  const showFtpLine = ftpPower <= scale.maxPower && ftpPower > 0
 
   return (
     <>
@@ -24,14 +24,14 @@ export function EditorGrid({ scale, ftp, powerMode }: EditorGridProps) {
       {scale.powerTicks.map((power) => (
         <div
           key={`grid-h-${power}`}
-          className="pointer-events-none absolute left-0 right-0 border-t border-current opacity-[0.06]"
+          className="pointer-events-none absolute right-0 left-0 border-t border-current opacity-[0.06]"
           style={{ top: scale.powerToY(power) }}
         />
       ))}
 
       {/* Vertical time grid lines + labels */}
       {scale.timeTicks.map((t) => {
-        const x = scale.timeToX(t);
+        const x = scale.timeToX(t)
         return (
           <div key={`grid-v-${t}`}>
             <div
@@ -49,22 +49,22 @@ export function EditorGrid({ scale, ftp, powerMode }: EditorGridProps) {
               {formatDuration(t)}
             </span>
           </div>
-        );
+        )
       })}
 
       {/* FTP reference line */}
       {showFtpLine && (
         <div
-          className="pointer-events-none absolute left-0 right-0 border-t border-dashed border-current opacity-35"
+          className="pointer-events-none absolute right-0 left-0 border-t border-dashed border-current opacity-35"
           style={{ top: ftpY }}
         />
       )}
 
       {/* Baseline */}
       <div
-        className="pointer-events-none absolute left-0 right-0 border-t border-current opacity-[0.12]"
+        className="pointer-events-none absolute right-0 left-0 border-t border-current opacity-[0.12]"
         style={{ top: EDITOR_HEIGHT }}
       />
     </>
-  );
+  )
 }
