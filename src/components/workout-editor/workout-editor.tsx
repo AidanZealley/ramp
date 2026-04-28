@@ -128,12 +128,7 @@ const WorkoutEditorInner = forwardRef<WorkoutEditorHandle>(
             startDrag={startDrag}
           />
 
-          <FtpBadge
-            scale={scale}
-            ftp={ftp}
-            displayMode={displayMode}
-            maxPower={maxPower}
-          />
+          <FtpBadge scale={scale} ftp={ftp} maxPower={maxPower} />
 
           <EditorToolbar
             scrollContainerRef={scrollContainerRef}

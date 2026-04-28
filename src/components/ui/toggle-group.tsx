@@ -26,7 +26,7 @@ export function ToggleGroup<T extends string>({
         <Button
           key={option.value}
           type="button"
-          variant={value === option.value ? "default" : "outline"}
+          variant={value === option.value ? "default" : "secondary"}
           size={size}
           onClick={() => onValueChange(option.value)}
         >
