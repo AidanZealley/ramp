@@ -28,6 +28,7 @@ import {
 import type { Interval } from "@/lib/workout-utils"
 import { downloadTextFile, workoutToMrc } from "@/lib/exporters"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { WorkoutPageSkeleton } from "@/components/workout-page-skeleton"
 import {
   ArrowLeft,
   Download,
@@ -166,11 +167,7 @@ function WorkoutPage() {
 
   // Loading state
   if (workout === undefined) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-sm text-muted-foreground">Loading…</div>
-      </div>
-    )
+    return <WorkoutPageSkeleton />
   }
 
   // Not found

@@ -29,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { formatDuration } from "@/lib/workout-utils"
+import { PlanLibrarySkeleton } from "@/components/plan-library-skeleton"
 
 export const Route = createFileRoute("/plan/")({
   component: PlansPage,
@@ -41,6 +42,10 @@ function PlansPage() {
   const removePlan = useMutation(api.plans.remove)
   const navigate = useNavigate()
   const [deletingPlanId, setDeletingPlanId] = useState<Id<"plans"> | null>(null)
+
+  if (plans === undefined) {
+    return <PlanLibrarySkeleton />
+  }
 
   const handleCreate = async () => {
     const planId = await createPlan({ title: "New Plan" })
@@ -60,8 +65,7 @@ function PlansPage() {
     setDeletingPlanId(null)
   }
 
-  const deletingPlan =
-    plans?.find((plan) => plan._id === deletingPlanId) ?? null
+  const deletingPlan = plans.find((plan) => plan._id === deletingPlanId) ?? null
 
   return (
     <div className="flex justify-center">
@@ -83,7 +87,7 @@ function PlansPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {plans?.map((plan) => (
+          {plans.map((plan) => (
             <Card
               key={plan._id}
               size="sm"
@@ -145,7 +149,7 @@ function PlansPage() {
           ))}
         </div>
 
-        {plans && plans.length === 0 && (
+        {plans.length === 0 && (
           <div className="rounded-2xl border border-dashed border-border/60 px-6 py-12 text-center">
             <p className="text-muted-foreground">
               No training plans yet. Create your first one to get started!

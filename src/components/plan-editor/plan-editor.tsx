@@ -21,6 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { PlanEditorSkeleton } from "@/components/plan-editor-skeleton"
 import { PlanScheduleGrid } from "./components/plan-schedule-grid"
 import { SelectWorkoutsDialog } from "./components/select-workouts-dialog"
 import type { PlanEditorWeek } from "./types"
@@ -101,11 +102,7 @@ export function PlanEditor({ planId }: PlanEditorProps) {
   }
 
   if (plan === undefined) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-sm text-muted-foreground">Loading...</div>
-      </div>
-    )
+    return <PlanEditorSkeleton />
   }
 
   if (plan === null) {

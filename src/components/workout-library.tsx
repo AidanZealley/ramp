@@ -17,6 +17,7 @@ import { parseMrc } from "@/lib/importers"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ButtonGroup, ButtonGroupSeparator } from "@/components/ui/button-group"
+import { WorkoutLibrarySkeleton } from "@/components/workout-library-skeleton"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +34,10 @@ export function WorkoutLibrary() {
 
   const ftp = settings?.ftp ?? 150
   const displayMode = settings?.powerDisplayMode ?? "percentage"
+
+  if (workouts === undefined) {
+    return <WorkoutLibrarySkeleton />
+  }
 
   const handleCreate = async () => {
     const id = await createWorkout({

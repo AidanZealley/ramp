@@ -1,5 +1,5 @@
 import { CalendarPlus, Trash2 } from "lucide-react"
-import type { Id } from "../../../convex/_generated/dataModel"
+import type { Id } from "../../../../convex/_generated/dataModel"
 import { Button } from "@/components/ui/button"
 import {
   formatDuration,
@@ -7,7 +7,7 @@ import {
   type PowerDisplayMode,
 } from "@/lib/workout-utils"
 import { PlanDayCell } from "./plan-day-cell"
-import type { PlanEditorWeek } from "./types"
+import type { PlanEditorWeek } from "../types"
 
 interface PlanWeekRowProps {
   week: PlanEditorWeek

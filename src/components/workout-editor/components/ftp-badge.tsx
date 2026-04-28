@@ -1,6 +1,5 @@
 import type { TimelineScale } from "@/hooks/use-timeline-scale"
 import { Badge } from "@/components/ui/badge"
-import { type PowerDisplayMode } from "@/lib/workout-utils"
 
 interface FtpBadgeProps {
   scale: TimelineScale
