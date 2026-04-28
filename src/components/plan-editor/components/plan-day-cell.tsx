@@ -5,8 +5,8 @@ import {
   getTotalDuration,
   type PowerDisplayMode,
 } from "@/lib/workout-utils"
-import { WEEKDAY_SHORT } from "./constants"
-import type { PlanEditorSlot } from "./types"
+import { WEEKDAY_SHORT } from "../constants"
+import type { PlanEditorSlot } from "../types"
 
 interface PlanDayCellProps {
   slot: PlanEditorSlot

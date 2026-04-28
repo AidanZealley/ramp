@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import { toast } from "sonner"
 import { Trash2 } from "lucide-react"
-import { api } from "../../../../convex/_generated/api"
-import type { Id } from "../../../../convex/_generated/dataModel"
+import { api } from "../../../../../convex/_generated/api"
+import type { Id } from "../../../../../convex/_generated/dataModel"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -13,15 +13,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { DAYS_PER_WEEK, WEEKDAY_SHORT, WEEKDAYS } from "../constants"
-import type { PlanEditorWeek } from "../types"
+import { DAYS_PER_WEEK, WEEKDAY_SHORT, WEEKDAYS } from "../../constants"
+import type { PlanEditorWeek } from "../../types"
 import { DialogWeekdaySlot } from "./components/dialog-weekday-slot"
 import { DialogWorkoutFilters } from "./components/dialog-workout-filters"
 import { DialogWorkoutGrid } from "./components/dialog-workout-grid"
-import type {
-  DurationFilter,
-  SortOption,
-} from "./types"
+import type { DurationFilter, SortOption } from "./types"
 import type { PowerDisplayMode } from "@/lib/workout-utils"
 import { matchesWorkoutFilters, sortWorkouts } from "./utils"
 
@@ -151,13 +148,14 @@ export function SelectWorkoutsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[min(90vh,860px)] w-full max-w-[min(96vw,96rem)] flex-col overflow-hidden p-0">
+      <DialogContent className="flex min-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0">
         <DialogHeader className="px-6 pt-6">
           <DialogTitle>Select Workouts for Week {weekNumber}</DialogTitle>
           <DialogDescription>
             Build the Monday to Sunday schedule, then save the week.
           </DialogDescription>
         </DialogHeader>
+
         <div className="space-y-4 px-6 pb-4">
           <div className="overflow-x-auto pb-1">
             <div className="grid min-w-3xl grid-cols-7 gap-2">

@@ -1,8 +1,8 @@
-import type { Id } from "../../../convex/_generated/dataModel"
+import type { Id } from "../../../../convex/_generated/dataModel"
 import type { PowerDisplayMode } from "@/lib/workout-utils"
-import { WEEKDAYS } from "./constants"
+import { WEEKDAYS } from "../constants"
 import { PlanWeekRow } from "./plan-week-row"
-import type { PlanEditorWeek } from "./types"
+import type { PlanEditorWeek } from "../types"
 
 interface PlanScheduleGridProps {
   weeks: PlanEditorWeek[]

@@ -27,7 +27,7 @@ import {
 } from "@/lib/workout-utils"
 import type { Interval } from "@/lib/workout-utils"
 import { downloadTextFile, workoutToMrc } from "@/lib/exporters"
-import { ToggleGroup } from "@/components/ui/toggle-group"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
   ArrowLeft,
   Download,
@@ -241,21 +241,22 @@ function WorkoutPage() {
       )}
 
       {/* Controls */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-3">
         <ToggleGroup
-          value={displayMode}
-          onValueChange={handleDisplayModeChange}
-          options={[
-            { value: "absolute", label: "Watts" },
-            { value: "percentage", label: "% FTP" },
-          ]}
-        />
+          variant="outline"
+          value={[displayMode]}
+          onValueChange={(values) =>
+            handleDisplayModeChange(values[0] as "absolute" | "percentage")
+          }
+        >
+          <ToggleGroupItem value="absolute">Watts</ToggleGroupItem>
+          <ToggleGroupItem value="percentage">% FTP</ToggleGroupItem>
+        </ToggleGroup>
 
         <div className="mx-1 h-5 w-px bg-border" />
 
         <Button
           variant="outline"
-          size="sm"
           onClick={handleAddInterval}
           data-editor-action
         >
@@ -265,7 +266,6 @@ function WorkoutPage() {
 
         <Button
           variant="outline"
-          size="sm"
           onClick={handleExportMrc}
           disabled={workingCopy.intervals.length === 0}
         >
@@ -288,11 +288,7 @@ function WorkoutPage() {
           </>
         )}
 
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={() => setShowDeleteDialog(true)}
-        >
+        <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
           <Trash2 className="size-4" />
           Delete
         </Button>

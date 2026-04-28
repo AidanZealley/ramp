@@ -13,11 +13,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { ToggleGroup } from "@/components/ui/toggle-group"
-import {
-  DEFAULT_FTP,
-  type PowerDisplayMode,
-} from "@/lib/workout-utils"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { DEFAULT_FTP, type PowerDisplayMode } from "@/lib/workout-utils"
 import { Settings } from "lucide-react"
 
 export function SettingsDialog() {
@@ -78,13 +75,14 @@ export function SettingsDialog() {
           <div className="grid gap-2 pt-2">
             <Label>Power display</Label>
             <ToggleGroup
-              value={powerDisplayMode}
-              onValueChange={setPowerDisplayMode}
-              options={[
-                { value: "absolute", label: "Watts" },
-                { value: "percentage", label: "% FTP" },
-              ]}
-            />
+              value={[powerDisplayMode]}
+              onValueChange={(values) =>
+                setPowerDisplayMode(values[0] as PowerDisplayMode)
+              }
+            >
+              <ToggleGroupItem value="absolute">Watts</ToggleGroupItem>
+              <ToggleGroupItem value="percentage">% FTP</ToggleGroupItem>
+            </ToggleGroup>
           </div>
         </div>
 

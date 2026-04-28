@@ -21,8 +21,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { PlanScheduleGrid } from "./plan-schedule-grid"
-import { SelectWorkoutsDialog } from "./select-workouts-dialog"
+import { PlanScheduleGrid } from "./components/plan-schedule-grid"
+import { SelectWorkoutsDialog } from "./components/select-workouts-dialog"
 import type { PlanEditorWeek } from "./types"
 
 interface PlanEditorProps {

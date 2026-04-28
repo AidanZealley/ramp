@@ -1,6 +1,5 @@
 import { ChevronDown, ListFilter, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { ButtonGroup } from "@/components/ui/button-group"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,11 +8,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import type {
-  DurationFilter,
-  SortOption,
-} from "../types"
+import type { DurationFilter, SortOption } from "../types"
 import { sortLabels } from "../types"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
 interface DialogWorkoutFiltersProps {
   search: string
@@ -50,21 +47,25 @@ export function DialogWorkoutFilters({
           className="pl-9"
         />
       </div>
+
       <div className="flex flex-wrap items-center gap-2">
-        <ButtonGroup>
+        <ToggleGroup
+          variant="outline"
+          value={[durationFilter]}
+          onValueChange={(values) => {
+            const nextValue = values[0] as DurationFilter | undefined
+            if (nextValue) onDurationFilterChange(nextValue)
+          }}
+        >
           {durationFilterOptions.map(([value, label]) => (
-            <Button
-              key={value}
-              variant={durationFilter === value ? "default" : "outline"}
-              size="sm"
-              onClick={() => onDurationFilterChange(value)}
-            >
+            <ToggleGroupItem key={value} value={value}>
               {label}
-            </Button>
+            </ToggleGroupItem>
           ))}
-        </ButtonGroup>
+        </ToggleGroup>
+
         <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
+          <DropdownMenuTrigger render={<Button variant="outline" />}>
             <ListFilter className="size-4" />
             Sort: {sortLabels[sort]}
             <ChevronDown className="size-4" />

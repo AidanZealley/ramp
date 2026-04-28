@@ -119,7 +119,7 @@ const WorkoutEditorInner = forwardRef<WorkoutEditorHandle>(
       <div className="flex select-none">
         <EditorAxis scale={scale} displayMode={displayMode} ftp={ftp} />
 
-        <div className="relative min-w-0 flex-1">
+        <div className="relative flex min-w-0 flex-1 flex-col gap-3">
           <EditorCanvas
             scrollContainerRef={scrollContainerRef}
             editorRef={editorRef}
