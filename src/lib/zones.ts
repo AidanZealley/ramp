@@ -1,4 +1,4 @@
-export type Zone = 1 | 2 | 3 | 4 | 5
+export type Zone = 1 | 2 | 3 | 4 | 5 | 6
 
 export interface ZoneInfo {
   zone: Zone
@@ -9,7 +9,7 @@ export interface ZoneInfo {
 
 const ZONE_MAP: Record<Zone, Omit<ZoneInfo, "zone">> = {
   1: {
-    name: "Active Recovery",
+    name: "Recovery",
     color: "oklch(0.65 0.01 260)",
     colorMuted: "oklch(0.65 0.01 260 / 0.55)",
   },
@@ -20,16 +20,21 @@ const ZONE_MAP: Record<Zone, Omit<ZoneInfo, "zone">> = {
   },
   3: {
     name: "Tempo",
-    color: "oklch(0.80 0.16 85)",
-    colorMuted: "oklch(0.80 0.16 85 / 0.55)",
+    color: "oklch(0.72 0.18 145)",
+    colorMuted: "oklch(0.72 0.18 145 / 0.55)",
   },
   4: {
     name: "Threshold",
-    color: "oklch(0.72 0.18 50)",
-    colorMuted: "oklch(0.72 0.18 50 / 0.55)",
+    color: "oklch(0.84 0.17 95)",
+    colorMuted: "oklch(0.84 0.17 95 / 0.55)",
   },
   5: {
     name: "VO2 Max",
+    color: "oklch(0.73 0.19 55)",
+    colorMuted: "oklch(0.73 0.19 55 / 0.55)",
+  },
+  6: {
+    name: "Anaerobic",
     color: "oklch(0.63 0.22 25)",
     colorMuted: "oklch(0.63 0.22 25 / 0.55)",
   },
@@ -39,11 +44,12 @@ const ZONE_MAP: Record<Zone, Omit<ZoneInfo, "zone">> = {
  * Get the power zone based on power as a percentage of FTP.
  */
 export function getZone(ftpPercentage: number): Zone {
-  if (ftpPercentage < 69) return 1
-  if (ftpPercentage < 84) return 2
-  if (ftpPercentage < 95) return 3
-  if (ftpPercentage < 106) return 4
-  return 5
+  if (ftpPercentage < 60) return 1
+  if (ftpPercentage <= 75) return 2
+  if (ftpPercentage <= 89) return 3
+  if (ftpPercentage <= 104) return 4
+  if (ftpPercentage <= 118) return 5
+  return 6
 }
 
 /**
