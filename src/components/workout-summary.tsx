@@ -4,7 +4,6 @@ import { formatDuration, type WorkoutStats } from "@/lib/workout-utils"
 import { WorkoutZoneChart } from "@/components/workout-zone-chart"
 
 interface WorkoutSummaryProps {
-  ftp: number
   stats: WorkoutStats
 }
 
@@ -26,7 +25,7 @@ function formatZoneDuration(seconds: number): string {
   return `${minutes}m`
 }
 
-export function WorkoutSummary({ ftp, stats }: WorkoutSummaryProps) {
+export function WorkoutSummary({ stats }: WorkoutSummaryProps) {
   const roundedStressScore = Math.round(stats.stressScore)
 
   return (

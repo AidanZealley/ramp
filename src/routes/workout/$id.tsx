@@ -280,9 +280,7 @@ function WorkoutPage() {
       )}
 
       {/* Stats */}
-      {workingCopy.intervals.length > 0 && (
-        <WorkoutSummary ftp={ftp} stats={stats} />
-      )}
+      {workingCopy.intervals.length > 0 && <WorkoutSummary stats={stats} />}
 
       {/* Delete confirmation dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

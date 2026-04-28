@@ -1,16 +1,13 @@
-import { useRef } from "react"
+import { useEffect, useRef } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import { useMutation, useQuery } from "convex/react"
 import { toast } from "sonner"
-import { ChevronDown, Plus, Upload } from "lucide-react"
+import { ChevronDown, Clock3, Flame, Plus, Upload } from "lucide-react"
 import { api } from "../../convex/_generated/api"
 import { WorkoutMini } from "@/components/workout-mini"
 import {
   formatDuration,
-  formatPower,
-  getAveragePower,
   getDefaultIntervals,
-  getTotalDuration,
   wattsToPercentage,
 } from "@/lib/workout-utils"
 import { parseMrc } from "@/lib/importers"
@@ -29,11 +26,27 @@ export function WorkoutLibrary() {
   const workouts = useQuery(api.workouts.list)
   const settings = useQuery(api.settings.get)
   const createWorkout = useMutation(api.workouts.create)
+  const backfillWorkoutSummaries = useMutation(
+    api.workouts.backfillWorkoutSummaries
+  )
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const requestedSummaryBackfillRef = useRef(false)
 
   const ftp = settings?.ftp ?? 150
   const displayMode = settings?.powerDisplayMode ?? "percentage"
+
+  useEffect(() => {
+    if (workouts === undefined) return
+    if (requestedSummaryBackfillRef.current) return
+    if (!workouts.some((workout) => workout.summary === undefined)) return
+
+    requestedSummaryBackfillRef.current = true
+
+    void backfillWorkoutSummaries().catch(() => {
+      requestedSummaryBackfillRef.current = false
+    })
+  }, [backfillWorkoutSummaries, workouts])
 
   if (workouts === undefined) {
     return <WorkoutLibrarySkeleton />
@@ -124,9 +137,11 @@ export function WorkoutLibrary() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {workouts?.map((workout) => {
-          const totalDuration = getTotalDuration(workout.intervals)
-          const avgPower = getAveragePower(workout.intervals)
+        {workouts.map((workout) => {
+          const roundedStressScore =
+            workout.summary === undefined
+              ? null
+              : Math.round(workout.summary.stressScore)
 
           return (
             <Card
@@ -151,15 +166,23 @@ export function WorkoutLibrary() {
                   <h3 className="font-heading text-sm leading-tight font-medium">
                     {workout.title}
                   </h3>
-                  <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-                    <span>{formatDuration(totalDuration)}</span>
-                    <span className="text-border">•</span>
-                    <span>Avg {formatPower(avgPower, displayMode, ftp)}</span>
-                    <span className="text-border">•</span>
-                    <span>
-                      {workout.intervals.length} interval
-                      {workout.intervals.length !== 1 ? "s" : ""}
-                    </span>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1.5">
+                      <Clock3 className="size-3.5 text-foreground/70" />
+                      <span>
+                        {formatDuration(
+                          workout.summary?.totalDurationSeconds ?? 0
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Flame className="size-3.5 text-foreground/70" />
+                      <span>
+                        {roundedStressScore === null
+                          ? "Calculating"
+                          : `${roundedStressScore} stress points`}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -168,7 +191,7 @@ export function WorkoutLibrary() {
         })}
       </div>
 
-      {workouts && workouts.length === 0 && (
+      {workouts.length === 0 && (
         <div className="rounded-2xl border border-dashed border-border/60 px-6 py-12 text-center">
           <p className="text-muted-foreground">
             No workouts yet. Create your first one to get started!

@@ -4,6 +4,12 @@ import { v } from "convex/values"
 export default defineSchema({
   workouts: defineTable({
     title: v.string(),
+    summary: v.optional(
+      v.object({
+        totalDurationSeconds: v.number(),
+        stressScore: v.number(),
+      })
+    ),
     // Legacy field kept optional during rollout so existing docs validate
     // until `migrateAbsoluteWorkoutsToPercentage` has been run everywhere.
     powerMode: v.optional(
