@@ -7,6 +7,7 @@ import {
   WorkoutEditor,
   type WorkoutEditorHandle,
 } from "@/components/workout-editor"
+import { WorkoutSummary } from "@/components/workout-summary"
 import { EditableTitle } from "@/components/editable-title"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,13 +19,7 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog"
-import {
-  DEFAULT_FTP,
-  formatDuration,
-  formatPower,
-  getTotalDuration,
-  getAveragePower,
-} from "@/lib/workout-utils"
+import { DEFAULT_FTP, getWorkoutStats } from "@/lib/workout-utils"
 import type { Interval } from "@/lib/workout-utils"
 import { downloadTextFile, workoutToMrc } from "@/lib/exporters"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -188,8 +183,7 @@ function WorkoutPage() {
 
   if (!workingCopy) return null
 
-  const totalDuration = getTotalDuration(workingCopy.intervals)
-  const avgPower = getAveragePower(workingCopy.intervals)
+  const stats = getWorkoutStats(workingCopy.intervals)
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
@@ -209,33 +203,6 @@ function WorkoutPage() {
           />
         </div>
       </div>
-
-      {/* Stats */}
-      {workingCopy.intervals.length > 0 && (
-        <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
-          <div>
-            <span className="font-medium text-foreground">
-              {formatDuration(totalDuration)}
-            </span>{" "}
-            total
-          </div>
-          <div>
-            <span className="font-medium text-foreground">
-              {formatPower(avgPower, displayMode, ftp)}
-            </span>{" "}
-            avg power
-          </div>
-          <div>
-            <span className="font-medium text-foreground">
-              {workingCopy.intervals.length}
-            </span>{" "}
-            interval{workingCopy.intervals.length !== 1 ? "s" : ""}
-          </div>
-          <div>
-            <span className="font-medium text-foreground">{ftp}W</span> FTP
-          </div>
-        </div>
-      )}
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-3">
@@ -310,6 +277,11 @@ function WorkoutPage() {
             Add Interval
           </Button>
         </div>
+      )}
+
+      {/* Stats */}
+      {workingCopy.intervals.length > 0 && (
+        <WorkoutSummary ftp={ftp} stats={stats} />
       )}
 
       {/* Delete confirmation dialog */}
