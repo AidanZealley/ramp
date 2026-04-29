@@ -1,8 +1,8 @@
 import { Canvas } from "@react-three/fiber"
 import { Sky } from "@react-three/drei"
-import type { RideTelemetry } from "@ramp/ride-engine"
-import { RideCamera } from "./ride-camera"
-import { RideWorld } from "./ride-world"
+import type { RideTelemetry } from "@ramp/ride-core"
+import { RideCamera } from "./camera"
+import { RideWorld } from "./world"
 import { RiderMarker } from "./rider-marker"
 
 type RideSceneProps = {

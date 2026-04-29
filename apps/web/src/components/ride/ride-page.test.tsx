@@ -1,6 +1,9 @@
-import { act, fireEvent, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
+import { MockTrainer } from "@ramp/trainer-io"
 import { RidePage } from "./ride-page"
+
+const testTrainer = new MockTrainer()
 
 const workouts = [
   {
@@ -39,8 +42,16 @@ vi.mock("convex/react", () => ({
   }),
 }))
 
-vi.mock("./ride-scene", () => ({
-  RideScene: () => <div data-testid="ride-canvas" />,
+vi.mock("@ramp/game-countryside-r3f", () => ({
+  countrysideGame: {
+    id: "countryside-r3f",
+    displayName: "Countryside",
+    GameView: () => <div data-testid="ride-canvas" />,
+  },
+}))
+
+vi.mock("@/ride/use-ride-trainer", () => ({
+  useRideTrainer: () => testTrainer,
 }))
 
 describe("RidePage", () => {
@@ -58,14 +69,12 @@ describe("RidePage", () => {
     expect(container.textContent).toContain("Simulator")
   })
 
-  it("updates current watts from the power slider", () => {
+  it("updates current watts from the power slider", async () => {
     const { container } = render(<RidePage />)
 
-    fireEvent.change(screen.getByLabelText("Power"), {
-      target: { value: "240" },
-    })
+    testTrainer.setManualOverrides({ powerWatts: 240 })
 
-    expect(container.textContent).toContain("240 W")
+    await waitFor(() => expect(container.textContent).toContain("240 W"))
   })
 
   it("pause stops elapsed and distance advancement", () => {

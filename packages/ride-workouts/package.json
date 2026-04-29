@@ -1,5 +1,5 @@
 {
-  "name": "@ramp/trainer-io",
+  "name": "@ramp/ride-workouts",
   "private": true,
   "type": "module",
   "exports": {
@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ramp/ride-contracts": "workspace:*"
+    "@ramp/ride-core": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

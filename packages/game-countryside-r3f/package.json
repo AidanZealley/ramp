@@ -1,0 +1,29 @@
+{
+  "name": "@ramp/game-countryside-r3f",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ramp/ride-core": "workspace:*"
+  },
+  "peerDependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.4.2",
+    "react": "^19",
+    "react-dom": "^19",
+    "three": "^0.182.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/three": "^0.182.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

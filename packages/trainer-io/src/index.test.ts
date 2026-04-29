@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { MockTrainerSource } from "./index"
+import { Capability } from "@ramp/ride-contracts"
+import { MockTrainer } from "./mock-trainer"
 
-describe("MockTrainerSource", () => {
+describe("MockTrainer", () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(1000)
@@ -11,44 +12,39 @@ describe("MockTrainerSource", () => {
     vi.useRealTimers()
   })
 
-  it("emits normalized telemetry", async () => {
-    const source = new MockTrainerSource({
-      initialTelemetry: { powerWatts: 220, cadenceRpm: 96, speedMps: 9 },
-    })
+  it("emits telemetry and stops after disconnect", async () => {
+    const trainer = new MockTrainer({ intervalMs: 1000 })
     const listener = vi.fn()
-    source.subscribe(listener)
+    trainer.subscribeTelemetry(listener)
 
-    await source.connect()
-
-    expect(listener).toHaveBeenCalledWith({
-      powerWatts: 220,
-      cadenceRpm: 96,
-      speedMps: 9,
-      timestampMs: 1000,
-      source: "simulator",
-    })
-  })
-
-  it("allows subscribers to unsubscribe", async () => {
-    const source = new MockTrainerSource()
-    const listener = vi.fn()
-    const unsubscribe = source.subscribe(listener)
-
-    unsubscribe()
-    await source.connect()
-
-    expect(listener).not.toHaveBeenCalled()
-  })
-
-  it("stops emissions after disconnect", async () => {
-    const source = new MockTrainerSource({ intervalMs: 1000 })
-    const listener = vi.fn()
-    source.subscribe(listener)
-    await source.connect()
-    await source.disconnect()
-
+    await trainer.connect()
+    await trainer.disconnect()
     vi.advanceTimersByTime(3000)
 
     expect(listener).toHaveBeenCalledTimes(1)
+  })
+
+  it("reflects target power in telemetry", async () => {
+    const trainer = new MockTrainer()
+    const listener = vi.fn()
+    trainer.subscribeTelemetry(listener)
+    await trainer.connect()
+    await trainer.sendCommand({ type: "setTargetPower", watts: 240 })
+
+    vi.advanceTimersByTime(100)
+
+    expect(listener).toHaveBeenLastCalledWith(
+      expect.objectContaining({ powerWatts: 240 })
+    )
+  })
+
+  it("rejects unsupported commands", async () => {
+    const trainer = new MockTrainer({
+      capabilities: new Set([Capability.ReadPower]),
+    })
+
+    await expect(
+      trainer.sendCommand({ type: "setTargetPower", watts: 200 })
+    ).rejects.toMatchObject({ code: "command-rejected" })
   })
 })

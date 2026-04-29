@@ -8,8 +8,8 @@ import {
   Vector2,
   Vector3,
 } from "three"
-import type { RouteSample } from "@ramp/ride-engine"
-import { ROAD_HALF_WIDTH_METERS } from "./ride-world-config"
+import type { RouteSample } from "./procgen/types"
+import { ROAD_HALF_WIDTH_METERS } from "./world-config"
 
 type RideRoadProps = {
   routeSamples: Array<RouteSample>

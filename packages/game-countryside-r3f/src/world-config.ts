@@ -1,4 +1,4 @@
-import type { WorldState } from "@ramp/ride-engine"
+import type { WorldState } from "./procgen/types"
 
 export const RIDE_WORLD: WorldState = {
   theme: "countryside",

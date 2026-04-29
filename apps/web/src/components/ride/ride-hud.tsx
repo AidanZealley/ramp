@@ -1,28 +1,23 @@
 import { formatDuration } from "@/lib/workout-utils"
-import type { RideTelemetry, WorkoutSegment } from "@ramp/ride-engine"
+import { useRideSession, useRideSessionContext } from "@ramp/ride-core"
+import type { WorkoutSessionController } from "@ramp/ride-workouts"
 
 type RideHudProps = {
-  telemetry: RideTelemetry
-  targetWatts: number
-  activeSegment: WorkoutSegment | null
-  source: string
+  workoutState: ReturnType<WorkoutSessionController["getState"]>
 }
 
-export function RideHud({
-  activeSegment,
-  source,
-  targetWatts,
-  telemetry,
-}: RideHudProps) {
+export function RideHud({ workoutState }: RideHudProps) {
+  const session = useRideSessionContext()
+  const { telemetry } = useRideSession(session)
   const fields = [
     ["Time", formatDuration(telemetry.elapsedSeconds)],
     ["Distance", `${(telemetry.distanceMeters / 1000).toFixed(2)} km`],
-    ["Speed", `${(telemetry.speedMps * 3.6).toFixed(1)} km/h`],
-    ["Watts", `${Math.round(telemetry.powerWatts)} W`],
-    ["Cadence", `${Math.round(telemetry.cadenceRpm)} rpm`],
-    ["Target", `${targetWatts} W`],
-    ["Segment", activeSegment?.label ?? "Free ride"],
-    ["Source", source],
+    ["Speed", `${((telemetry.speedMps ?? 0) * 3.6).toFixed(1)} km/h`],
+    ["Watts", `${Math.round(telemetry.powerWatts ?? 0)} W`],
+    ["Cadence", `${Math.round(telemetry.cadenceRpm ?? 0)} rpm`],
+    ["Target", `${workoutState.targetWatts ?? telemetry.powerWatts ?? 0} W`],
+    ["Segment", workoutState.activeSegmentLabel ?? "Free ride"],
+    ["Source", "Simulator"],
   ]
 
   return (

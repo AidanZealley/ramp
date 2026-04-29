@@ -1,180 +1,17 @@
-export type WorldTheme = "countryside"
-
-export type Vec3Tuple = [number, number, number]
-
-export type RouteSample = {
-  position: Vec3Tuple
-  tangent: Vec3Tuple
-  grade: number
-}
-
-export type TerrainPatch = {
-  id: string
-  side: "left" | "right"
-  color: string
-  corners: [Vec3Tuple, Vec3Tuple, Vec3Tuple, Vec3Tuple]
-}
-
-export type WorldPropKind =
-  | "tree"
-  | "rock"
-  | "fence"
-  | "sign"
-  | "water"
-  | "field"
-  | "building"
-
-export type WorldProp = {
-  id: string
-  kind: WorldPropKind
-  position: Vec3Tuple
-  rotationY: number
-  scale: number
-}
-
-export type WorldChunk = {
-  id: string
-  index: number
-  startDistanceMeters: number
-  endDistanceMeters: number
-  routeSamples: RouteSample[]
-  terrainPatches: TerrainPatch[]
-  props: WorldProp[]
-}
-
-export type WorldState = {
-  theme: WorldTheme
-  seed: string
-  chunkLengthMeters: number
-  roadHalfWidthMeters?: number
-}
-
-export type GenerateWorldChunkInput = WorldState & {
-  index: number
-}
-
-export type RideInputMode = "manual" | "followWorkout"
-
-export type RideInput = {
-  powerWatts: number
-  cadenceRpm: number
-  mode: RideInputMode
-}
-
-export type RideTelemetry = {
-  elapsedSeconds: number
-  distanceMeters: number
-  speedMps: number
-  powerWatts: number
-  cadenceRpm: number
-}
-
-export type RideSimulatorConfig = {
-  input?: Partial<RideInput>
-  initialElapsedSeconds?: number
-  initialDistanceMeters?: number
-}
-
-export type RideSimulator = {
-  getInput(): RideInput
-  setInput(input: Partial<RideInput>): void
-  getTelemetry(): RideTelemetry
-  tick(deltaSeconds: number): RideTelemetry
-  reset(): void
-}
-
-export type WorkoutInterval = {
-  startPower: number
-  endPower: number
-  durationSeconds: number
-  comment?: string
-}
-
-export type WorkoutSegment = {
-  index: number
-  startSeconds: number
-  endSeconds: number
-  targetWatts: number
-  label: string
-}
-
-const DEFAULT_INPUT: RideInput = {
-  powerWatts: 180,
-  cadenceRpm: 90,
-  mode: "manual",
-}
+import type {
+  GenerateWorldChunkInput,
+  RouteSample,
+  TerrainPatch,
+  Vec3Tuple,
+  WorldChunk,
+  WorldProp,
+  WorldPropKind,
+  WorldState,
+} from "./types"
 
 const ROAD_HALF_WIDTH_METERS = 3.2
 const ROAD_CLEARANCE_METERS = 6
 const SAMPLE_SPACING_METERS = 12
-
-export function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value))
-}
-
-export function computeSpeedMps(input: RideInput): number {
-  return clamp(
-    2.5 + input.powerWatts * 0.035 + (input.cadenceRpm - 85) * 0.015,
-    2.5,
-    16
-  )
-}
-
-export function createRideSimulator(
-  config: RideSimulatorConfig = {}
-): RideSimulator {
-  let input: RideInput = { ...DEFAULT_INPUT, ...config.input }
-  const initialElapsedSeconds = config.initialElapsedSeconds ?? 0
-  const initialDistanceMeters = config.initialDistanceMeters ?? 0
-  let telemetry: RideTelemetry = {
-    elapsedSeconds: initialElapsedSeconds,
-    distanceMeters: initialDistanceMeters,
-    speedMps: computeSpeedMps(input),
-    powerWatts: input.powerWatts,
-    cadenceRpm: input.cadenceRpm,
-  }
-
-  return {
-    getInput() {
-      return { ...input }
-    },
-    setInput(nextInput) {
-      input = { ...input, ...nextInput }
-      telemetry = {
-        ...telemetry,
-        speedMps: computeSpeedMps(input),
-        powerWatts: input.powerWatts,
-        cadenceRpm: input.cadenceRpm,
-      }
-    },
-    getTelemetry() {
-      return { ...telemetry }
-    },
-    tick(deltaSeconds) {
-      const elapsedDelta = Math.max(0, deltaSeconds)
-      const speedMps = computeSpeedMps(input)
-      telemetry = {
-        elapsedSeconds: telemetry.elapsedSeconds + elapsedDelta,
-        distanceMeters:
-          telemetry.distanceMeters + elapsedDelta * telemetry.speedMps,
-        speedMps,
-        powerWatts: input.powerWatts,
-        cadenceRpm: input.cadenceRpm,
-      }
-      return { ...telemetry }
-    },
-    reset() {
-      input = { ...DEFAULT_INPUT, ...config.input }
-      telemetry = {
-        elapsedSeconds: initialElapsedSeconds,
-        distanceMeters: initialDistanceMeters,
-        speedMps: computeSpeedMps(input),
-        powerWatts: input.powerWatts,
-        cadenceRpm: input.cadenceRpm,
-      }
-    },
-  }
-}
 
 export function generateWorldChunk(
   input: GenerateWorldChunkInput
@@ -187,7 +24,9 @@ export function generateWorldChunk(
 
   for (let sampleIndex = 0; sampleIndex <= sampleCount; sampleIndex += 1) {
     const distance = startDistanceMeters + sampleIndex * SAMPLE_SPACING_METERS
-    routeSamples.push(sampleRouteAtDistance(input, Math.min(distance, endDistanceMeters)))
+    routeSamples.push(
+      sampleRouteAtDistance(input, Math.min(distance, endDistanceMeters))
+    )
   }
 
   return {
@@ -227,41 +66,6 @@ export function sampleRouteAtDistance(
   }
 }
 
-export function getWorkoutSegmentAtElapsed(
-  intervals: Array<WorkoutInterval>,
-  elapsedSeconds: number,
-  ftpWatts: number
-): WorkoutSegment | null {
-  if (intervals.length === 0) return null
-
-  let cursor = 0
-  const elapsed = Math.max(0, elapsedSeconds)
-
-  for (let index = 0; index < intervals.length; index += 1) {
-    const interval = intervals[index]
-    const duration = Math.max(0, interval.durationSeconds)
-    const startSeconds = cursor
-    const endSeconds = cursor + duration
-    const isLast = index === intervals.length - 1
-
-    if (elapsed < endSeconds || (isLast && elapsed === endSeconds)) {
-      const targetPercentage =
-        interval.startPower + (interval.endPower - interval.startPower) * 0.5
-      return {
-        index,
-        startSeconds,
-        endSeconds,
-        targetWatts: Math.round((targetPercentage * ftpWatts) / 100),
-        label: interval.comment?.trim() || `Segment ${index + 1}`,
-      }
-    }
-
-    cursor = endSeconds
-  }
-
-  return null
-}
-
 function createTerrainPatches(
   input: GenerateWorldChunkInput,
   samples: RouteSample[]
@@ -273,7 +77,10 @@ function createTerrainPatches(
     const current = samples[index]
     const next = samples[index + 1]
     const color =
-      colors[Math.abs(hashString(`${input.seed}-terrain-${input.index}-${index}`)) % colors.length]
+      colors[
+        Math.abs(hashString(`${input.seed}-terrain-${input.index}-${index}`)) %
+          colors.length
+      ]
 
     patches.push(
       makeTerrainPatch(input, "left", current, next, color, index),

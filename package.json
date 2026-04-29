@@ -8,7 +8,7 @@
     "dev:web": "pnpm --filter @ramp/web dev",
     "dev:ts": "pnpm --filter @ramp/web dev:ts",
     "dev:convex": "npx convex dev",
-    "build": "pnpm --filter @ramp/ride-engine build && pnpm --filter @ramp/trainer-io build && pnpm --filter @ramp/web build",
+    "build": "pnpm --filter @ramp/ride-contracts build && pnpm --filter @ramp/ride-core build && pnpm --filter @ramp/trainer-io build && pnpm --filter @ramp/ride-workouts build && pnpm --filter @ramp/game-countryside-r3f build && pnpm --filter @ramp/web build",
     "preview": "pnpm --filter @ramp/web preview",
     "test": "pnpm -r test",
     "lint": "eslint",
