@@ -1,3 +1,4 @@
+import { normalizeIntervalComment } from "../workout-utils"
 import type { Interval } from "../workout-utils"
 
 /**
@@ -36,6 +37,8 @@ const HEADER_OPEN = "[COURSE HEADER]"
 const HEADER_CLOSE = "[END COURSE HEADER]"
 const DATA_OPEN = "[COURSE DATA]"
 const DATA_CLOSE = "[END COURSE DATA]"
+const TEXT_OPEN = "[COURSE TEXT]"
+const TEXT_CLOSE = "[END COURSE TEXT]"
 
 export function parseMrc(content: string): MrcParseResult {
   const lines = content
@@ -139,6 +142,8 @@ export function parseMrc(content: string): MrcParseResult {
   }
 
   const intervals: Array<Interval> = []
+  const intervalStartToIndex = new Map<number, number>()
+  let elapsedSeconds = 0
   for (let i = 0; i < rows.length; i += 2) {
     const start = rows[i]
     const end = rows[i + 1]
@@ -154,11 +159,13 @@ export function parseMrc(content: string): MrcParseResult {
     // sliver and they'd be unselectable). Real seam-markers in correctly-formed
     // .mrc files appear *between* consecutive pairs, not within a pair.
     if (durationSeconds === 0) continue
+    intervalStartToIndex.set(Math.round(elapsedSeconds), intervals.length)
     intervals.push({
       startPower: start.power,
       endPower: end.power,
       durationSeconds,
     })
+    elapsedSeconds += durationSeconds
   }
 
   if (intervals.length === 0) {
@@ -166,6 +173,62 @@ export function parseMrc(content: string): MrcParseResult {
       kind: "error",
       reason: "no-intervals",
       message: "Data block did not contain any intervals.",
+    }
+  }
+
+  const textStart = lines.indexOf(TEXT_OPEN)
+  const textEnd = lines.indexOf(TEXT_CLOSE)
+  if (textStart !== -1 || textEnd !== -1) {
+    if (textStart === -1 || textEnd === -1 || textEnd < textStart) {
+      return {
+        kind: "error",
+        reason: "malformed-row",
+        message: `Missing or malformed ${TEXT_OPEN} block.`,
+      }
+    }
+
+    const rawTextLines = lines
+      .slice(textStart + 1, textEnd)
+      .filter((line) => line.length > 0)
+
+    for (const line of rawTextLines) {
+      const tokens = line.split(/\s+/).filter((t) => t.length > 0)
+      if (tokens.length < 3) {
+        return {
+          kind: "error",
+          reason: "malformed-row",
+          message: `${TEXT_OPEN} row "${line}" must include seconds, message, and duration.`,
+        }
+      }
+
+      const seconds = Number(tokens[0])
+      const duration = Number(tokens[tokens.length - 1])
+      if (
+        !Number.isFinite(seconds) ||
+        !Number.isFinite(duration) ||
+        seconds < 0 ||
+        duration < 0
+      ) {
+        return {
+          kind: "error",
+          reason: "malformed-row",
+          message: `${TEXT_OPEN} row "${line}" contains non-numeric or negative cue timing.`,
+        }
+      }
+
+      const comment = normalizeIntervalComment(tokens.slice(1, -1).join(" "))
+      if (!comment) continue
+
+      const intervalIndex = intervalStartToIndex.get(Math.round(seconds))
+      if (intervalIndex === undefined) continue
+
+      const existing = intervals[intervalIndex].comment
+      intervals[intervalIndex] = {
+        ...intervals[intervalIndex],
+        comment: normalizeIntervalComment(
+          existing ? `${existing} / ${comment}` : comment
+        ),
+      }
     }
   }
 

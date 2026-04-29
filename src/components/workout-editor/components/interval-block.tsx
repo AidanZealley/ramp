@@ -1,4 +1,5 @@
 import { useSortable } from "@dnd-kit/sortable"
+import { MessageSquareText } from "lucide-react"
 import {
   useWorkoutEditorActions,
   useWorkoutEditorDisplayMode,
@@ -82,6 +83,7 @@ export function IntervalBlock({
 
   const isRamp = interval.startPower !== interval.endPower
   const showSecondary = ftp > 0 && w > 65
+  const comment = interval.comment?.trim()
 
   const style: React.CSSProperties = {
     position: "absolute",
@@ -100,6 +102,7 @@ export function IntervalBlock({
       ref={setNodeRef}
       style={style}
       className={cn("outline-none", isSelected && "z-10")}
+      title={comment || undefined}
       onFocus={(event) => {
         if (event.target.matches(":focus-visible")) {
           actions.focusSelect(stableId)
@@ -190,6 +193,26 @@ export function IntervalBlock({
           <span className="text-[10px] leading-none font-medium text-foreground/60 tabular-nums">
             {formatDuration(interval.durationSeconds)}
           </span>
+        </div>
+      )}
+
+      {comment && w >= 80 && (
+        <div
+          className="pointer-events-none absolute right-1 left-1 truncate rounded bg-background/70 px-1.5 py-0.5 text-[9px] leading-none text-foreground/65 shadow-sm"
+          style={{ top: Math.max(4, Math.min(startYPx, endYPx) + 8) }}
+          title={comment}
+        >
+          {comment}
+        </div>
+      )}
+
+      {comment && w >= 28 && w < 80 && (
+        <div
+          className="pointer-events-none absolute top-1 right-1 rounded bg-background/70 p-0.5 text-foreground/60 shadow-sm"
+          title={comment}
+          aria-label="Interval comment"
+        >
+          <MessageSquareText className="size-3" />
         </div>
       )}
 

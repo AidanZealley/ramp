@@ -2,6 +2,7 @@ type Interval = {
   startPower: number
   endPower: number
   durationSeconds: number
+  comment?: string
 }
 
 export type WorkoutSummarySnapshot = {

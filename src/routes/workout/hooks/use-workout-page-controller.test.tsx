@@ -92,7 +92,7 @@ describe("useWorkoutPageController", () => {
     updateIntervalsMock = vi.fn().mockResolvedValue(undefined)
     duplicateWorkoutMock = vi
       .fn()
-      .mockResolvedValue("workout-2" as Id<"workouts">)
+      .mockResolvedValue("workout-2")
     removeWorkoutMock = vi.fn().mockResolvedValue(undefined)
     upsertSettingsMock = vi.fn().mockResolvedValue(undefined)
     convexQueryMock = vi.fn().mockResolvedValue({

@@ -103,6 +103,62 @@ describe("workoutToMrc", () => {
     expect(mrc.endsWith("\n\n")).toBe(false)
   })
 
+  it("omits course text when no comments exist", () => {
+    const mrc = workoutToMrc({
+      title: "No comments",
+      intervals: [{ startPower: 50, endPower: 50, durationSeconds: 60 }],
+    })
+
+    expect(mrc).not.toContain("[COURSE TEXT]")
+  })
+
+  it("emits course text after course data for commented intervals", () => {
+    const mrc = workoutToMrc({
+      title: "Comments",
+      intervals: [
+        { startPower: 50, endPower: 60, durationSeconds: 90 },
+        {
+          startPower: 70,
+          endPower: 70,
+          durationSeconds: 120,
+          comment: "Settle in",
+        },
+        { startPower: 80, endPower: 75, durationSeconds: 30, comment: "Push" },
+      ],
+    })
+
+    const lines = mrc.trimEnd().split("\n")
+    expect(lines.indexOf("[COURSE TEXT]")).toBeGreaterThan(
+      lines.indexOf("[END COURSE DATA]")
+    )
+    expect(extractTextRows(mrc)).toEqual([
+      "90\tSettle in\t120",
+      "210\tPush\t30",
+    ])
+  })
+
+  it("sanitizes text cue comments and omits blank comments", () => {
+    const mrc = workoutToMrc({
+      title: "Sanitize",
+      intervals: [
+        {
+          startPower: 50,
+          endPower: 50,
+          durationSeconds: 60,
+          comment: "  Hold\tsteady\nnow  ",
+        },
+        {
+          startPower: 50,
+          endPower: 50,
+          durationSeconds: 60,
+          comment: "\n\t  ",
+        },
+      ],
+    })
+
+    expect(extractTextRows(mrc)).toEqual(["0\tHold steady now\t60"])
+  })
+
   it("sanitizes illegal filename characters but leaves the description untouched", () => {
     const mrc = workoutToMrc({
       title: 'Sweet/Spot: "VO2"?',
@@ -117,5 +173,12 @@ function extractDataRows(mrc: string): Array<string> {
   const lines = mrc.split("\n")
   const start = lines.indexOf("[COURSE DATA]")
   const end = lines.indexOf("[END COURSE DATA]")
+  return lines.slice(start + 1, end)
+}
+
+function extractTextRows(mrc: string): Array<string> {
+  const lines = mrc.split("\n")
+  const start = lines.indexOf("[COURSE TEXT]")
+  const end = lines.indexOf("[END COURSE TEXT]")
   return lines.slice(start + 1, end)
 }

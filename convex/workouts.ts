@@ -9,7 +9,10 @@ const intervalValidator = v.object({
   startPower: v.number(),
   endPower: v.number(),
   durationSeconds: v.number(),
+  comment: v.optional(v.string()),
 })
+
+const MAX_INTERVAL_COMMENT_LENGTH = 240
 
 const LEGACY_POWER_MODE_BATCH_SIZE = 200
 const WORKOUT_SUMMARY_BACKFILL_BATCH_SIZE = 200
@@ -34,6 +37,35 @@ export function sanitizeWorkoutForClient(workout: WorkoutDoc) {
     ...rest,
     intervalsRevision: intervalsRevision ?? 0,
   }
+}
+
+function normalizeIntervalComment(comment: string): string {
+  return comment
+    .replace(/[\t\r\n]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, MAX_INTERVAL_COMMENT_LENGTH)
+}
+
+export function normalizeIntervalsForStorage(
+  intervals: Array<{
+    startPower: number
+    endPower: number
+    durationSeconds: number
+    comment?: string
+  }>
+) {
+  return intervals.map((interval) => {
+    const comment =
+      interval.comment === undefined
+        ? ""
+        : normalizeIntervalComment(interval.comment)
+    if (!comment) {
+      const { comment: _comment, ...rest } = interval
+      return rest
+    }
+    return { ...interval, comment }
+  })
 }
 
 export function createIntervalsConflictErrorData(
@@ -67,10 +99,12 @@ export const create = mutation({
     intervals: v.array(intervalValidator),
   },
   handler: async (ctx, args) => {
+    const intervals = normalizeIntervalsForStorage(args.intervals)
     return await ctx.db.insert("workouts", {
-      ...args,
+      title: args.title,
+      intervals,
       intervalsRevision: 0,
-      summary: computeWorkoutSummary(args.intervals),
+      summary: computeWorkoutSummary(intervals),
     })
   },
 })
@@ -98,10 +132,12 @@ export const updateIntervals = mutation({
       )
     }
 
+    const intervals = normalizeIntervalsForStorage(args.intervals)
+
     await ctx.db.patch(args.id, {
-      intervals: args.intervals,
+      intervals,
       intervalsRevision: currentIntervalsRevision + 1,
-      summary: computeWorkoutSummary(args.intervals),
+      summary: computeWorkoutSummary(intervals),
     })
   },
 })

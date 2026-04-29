@@ -57,6 +57,7 @@ export interface WorkoutEditorActions {
   pasteClipboard: (insertAtIndex?: number) => void
   deleteSelection: () => void
   deleteIntervals: (ids: Array<string>) => void
+  setSelectedComment: (comment: string) => void
   commitIntervals: (nextIntervals: Array<Interval>) => void
   insertAt: (index: number) => void
   insertAfterSelectionOrAppend: () => void

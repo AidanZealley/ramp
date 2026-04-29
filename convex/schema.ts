@@ -21,6 +21,7 @@ export default defineSchema({
         startPower: v.number(),
         endPower: v.number(),
         durationSeconds: v.number(),
+        comment: v.optional(v.string()),
       })
     ),
   }),

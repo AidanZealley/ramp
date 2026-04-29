@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   createIntervalsConflictErrorData,
+  normalizeIntervalsForStorage,
   resolveIntervalsRevision,
   sanitizeWorkoutForClient,
 } from "./workouts"
@@ -32,5 +33,32 @@ describe("workouts helpers", () => {
       kind: "intervalsRevisionConflict",
       currentIntervalsRevision: 4,
     })
+  })
+
+  it("normalizes interval comments for storage", () => {
+    expect(
+      normalizeIntervalsForStorage([
+        {
+          startPower: 100,
+          endPower: 100,
+          durationSeconds: 60,
+          comment: "  Hold\tsteady\nnow  ",
+        },
+        {
+          startPower: 50,
+          endPower: 50,
+          durationSeconds: 30,
+          comment: "\n\t ",
+        },
+      ])
+    ).toEqual([
+      {
+        startPower: 100,
+        endPower: 100,
+        durationSeconds: 60,
+        comment: "Hold steady now",
+      },
+      { startPower: 50, endPower: 50, durationSeconds: 30 },
+    ])
   })
 })

@@ -1,7 +1,9 @@
+import { useMemo, useState } from "react"
 import {
   BoxSelect,
   ClipboardPaste,
   Copy,
+  MessageSquareText,
   Redo2,
   Trash2,
   Undo2,
@@ -16,8 +18,11 @@ import {
   useWorkoutEditorDisplayMode,
   useWorkoutEditorFtp,
   useWorkoutEditorHasClipboard,
+  useWorkoutEditorIntervals,
   useWorkoutEditorMultiSelectMode,
   useWorkoutEditorSelectedCount,
+  useWorkoutEditorSelectedIds,
+  useWorkoutEditorStableIds,
 } from "../store"
 import { EditorMinimap } from "./editor-minimap"
 import { ZoomControls } from "./zoom-controls"
@@ -25,6 +30,18 @@ import { ClipboardPreview } from "./clipboard-preview"
 import type { TimelineZoom } from "@/hooks/use-timeline-zoom"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import {
+  MAX_INTERVAL_COMMENT_LENGTH,
+  normalizeIntervalComment,
+} from "@/lib/workout-utils"
 
 interface EditorToolbarProps {
   scrollContainerRef: React.RefObject<HTMLDivElement | null>
@@ -40,6 +57,9 @@ export function EditorToolbar({
   const ftp = useWorkoutEditorFtp()
   const displayMode = useWorkoutEditorDisplayMode()
   const selectedCount = useWorkoutEditorSelectedCount()
+  const intervals = useWorkoutEditorIntervals()
+  const stableIds = useWorkoutEditorStableIds()
+  const selectedIds = useWorkoutEditorSelectedIds()
   const multiSelectMode = useWorkoutEditorMultiSelectMode()
   const canCopy = useWorkoutEditorCanCopy()
   const canPaste = useWorkoutEditorHasClipboard()
@@ -52,6 +72,36 @@ export function EditorToolbar({
   const redoTitle = applePlatform
     ? "Redo (Cmd+Shift+Z)"
     : "Redo (Ctrl+Shift+Z / Ctrl+Y)"
+  const [commentDialogOpen, setCommentDialogOpen] = useState(false)
+  const [commentInput, setCommentInput] = useState("")
+  const selectedComments = useMemo(() => {
+    const selectedIdSet = new Set(selectedIds)
+    return stableIds
+      .map((id, index) =>
+        selectedIdSet.has(id)
+          ? normalizeIntervalComment(intervals[index]?.comment ?? "")
+          : null
+      )
+      .filter((comment): comment is string => comment !== null)
+  }, [intervals, selectedIds, stableIds])
+  const sharedSelectedComment =
+    selectedComments.length > 0 &&
+    selectedComments.every((comment) => comment === selectedComments[0])
+      ? selectedComments[0]
+      : ""
+  const hasMixedComments =
+    selectedComments.length > 1 &&
+    !selectedComments.every((comment) => comment === selectedComments[0])
+
+  const openCommentDialog = () => {
+    setCommentInput(sharedSelectedComment)
+    setCommentDialogOpen(true)
+  }
+
+  const applyComment = () => {
+    actions.setSelectedComment(commentInput)
+    setCommentDialogOpen(false)
+  }
 
   return (
     <div className="mt-1.5 flex items-center gap-2" data-selection-toolbar>
@@ -73,6 +123,14 @@ export function EditorToolbar({
         {selectedCount > 0 && (
           <>
             <Badge variant="secondary">{selectedCount} selected</Badge>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={openCommentDialog}
+              title="Add comment"
+            >
+              <MessageSquareText />
+            </Button>
             <Button
               variant="destructive"
               size="icon-sm"
@@ -151,6 +209,39 @@ export function EditorToolbar({
         onZoomOut={zoom.zoomOut}
         onResetZoom={zoom.resetZoom}
       />
+
+      <Dialog open={commentDialogOpen} onOpenChange={setCommentDialogOpen}>
+        <DialogContent
+          className="max-w-sm gap-4 rounded-2xl p-4"
+          data-selection-toolbar
+        >
+          <DialogHeader>
+            <DialogTitle>Interval comment</DialogTitle>
+          </DialogHeader>
+          <form
+            className="grid gap-4"
+            onSubmit={(event) => {
+              event.preventDefault()
+              applyComment()
+            }}
+          >
+            <Input
+              value={commentInput}
+              onChange={(event) => setCommentInput(event.target.value)}
+              placeholder={hasMixedComments ? "Mixed comments" : undefined}
+              maxLength={MAX_INTERVAL_COMMENT_LENGTH}
+              autoFocus
+            />
+            <DialogFooter>
+              <Button type="submit" onClick={applyComment}>
+                {normalizeIntervalComment(commentInput)
+                  ? "Apply"
+                  : "Clear comments"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

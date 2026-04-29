@@ -158,10 +158,20 @@ function HarnessContent() {
       <button onClick={() => actions.nudgeSelectedDuration(5)}>
         nudge-duration
       </button>
+      <button
+        onClick={() => actions.setSelectedComment("  Hold\tsteady\nnow  ")}
+      >
+        set-comment
+      </button>
+      <button onClick={() => actions.setSelectedComment("   ")}>
+        clear-comment
+      </button>
       <button onClick={actions.undo}>undo</button>
       <button onClick={actions.redo}>redo</button>
       <button onClick={actions.resetToBaseline}>reset-to-baseline</button>
-      <button onClick={actions.adoptPendingServerSnapshot}>adopt-pending</button>
+      <button onClick={actions.adoptPendingServerSnapshot}>
+        adopt-pending
+      </button>
       <button onClick={actions.reorderIntervals.bind(null, 0, 2, stableIds[0])}>
         reorder-0-2
       </button>
@@ -277,7 +287,10 @@ describe("workout editor store", () => {
     fireEvent.click(screen.getByText("plain-1"))
     const stableIds = readJson<Array<string>>("stable")
     fireEvent.click(screen.getByText("meta-0"))
-    expect(readJson<Array<string>>("selected")).toEqual([stableIds[1], stableIds[0]])
+    expect(readJson<Array<string>>("selected")).toEqual([
+      stableIds[1],
+      stableIds[0],
+    ])
 
     fireEvent.click(screen.getByText("meta-0"))
     expect(readJson<Array<string>>("selected")).toEqual([stableIds[1]])
@@ -290,7 +303,10 @@ describe("workout editor store", () => {
     const stableIds = readJson<Array<string>>("stable")
     fireEvent.click(screen.getByText("plain-0"))
     fireEvent.click(screen.getByText("plain-2"))
-    expect(readJson<Array<string>>("selected")).toEqual([stableIds[0], stableIds[2]])
+    expect(readJson<Array<string>>("selected")).toEqual([
+      stableIds[0],
+      stableIds[2],
+    ])
   })
 
   it("copies selection in document order instead of click order", () => {
@@ -317,7 +333,9 @@ describe("workout editor store", () => {
 
     await waitFor(() => {
       expect(
-        readJson<Array<Interval>>("intervals").map((interval) => interval.startPower)
+        readJson<Array<Interval>>("intervals").map(
+          (interval) => interval.startPower
+        )
       ).toEqual([100, 100, 150, 150, 200])
     })
     expect(screen.getByTestId("can-undo").textContent).toBe("yes")
@@ -332,7 +350,9 @@ describe("workout editor store", () => {
 
     await waitFor(() => {
       expect(
-        readJson<Array<Interval>>("intervals").map((interval) => interval.startPower)
+        readJson<Array<Interval>>("intervals").map(
+          (interval) => interval.startPower
+        )
       ).toEqual([100, 200, 150, 200])
     })
   })
@@ -401,7 +421,9 @@ describe("workout editor store", () => {
 
     await waitFor(() => {
       expect(
-        readJson<Array<Interval>>("intervals").map((interval) => interval.startPower)
+        readJson<Array<Interval>>("intervals").map(
+          (interval) => interval.startPower
+        )
       ).toEqual([150, 200, 100])
     })
     expect(readJson<Array<string>>("selected")).toEqual([stableIds[0]])
@@ -409,7 +431,9 @@ describe("workout editor store", () => {
     fireEvent.click(screen.getByText("undo"))
     await waitFor(() => {
       expect(
-        readJson<Array<Interval>>("intervals").map((interval) => interval.startPower)
+        readJson<Array<Interval>>("intervals").map(
+          (interval) => interval.startPower
+        )
       ).toEqual([100, 150, 200])
       expect(readJson<Array<string>>("selected")).toEqual([stableIds[0]])
     })
@@ -444,7 +468,9 @@ describe("workout editor store", () => {
 
     await waitFor(() => {
       expect(
-        readJson<Array<Interval>>("intervals").map((interval) => interval.startPower)
+        readJson<Array<Interval>>("intervals").map(
+          (interval) => interval.startPower
+        )
       ).toEqual([100, 150, 200, 200])
     })
   })
@@ -523,6 +549,56 @@ describe("workout editor store", () => {
     expect(screen.getByTestId("can-undo").textContent).toBe("no")
   })
 
+  it("applies and clears comments on all selected intervals", async () => {
+    render(<StoreHarness />)
+
+    fireEvent.click(screen.getByText("plain-0"))
+    fireEvent.click(screen.getByText("meta-2"))
+    fireEvent.click(screen.getByText("set-comment"))
+
+    await waitFor(() => {
+      const intervals = readJson<Array<Interval>>("intervals")
+      expect(intervals[0].comment).toBe("Hold steady now")
+      expect(intervals[1].comment).toBeUndefined()
+      expect(intervals[2].comment).toBe("Hold steady now")
+    })
+
+    fireEvent.click(screen.getByText("clear-comment"))
+
+    await waitFor(() => {
+      const intervals = readJson<Array<Interval>>("intervals")
+      expect(intervals[0].comment).toBeUndefined()
+      expect(intervals[2].comment).toBeUndefined()
+    })
+  })
+
+  it("comment edits create undo and redo history", async () => {
+    render(<StoreHarness />)
+
+    fireEvent.click(screen.getByText("plain-1"))
+    fireEvent.click(screen.getByText("set-comment"))
+
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("intervals")[1].comment).toBe(
+        "Hold steady now"
+      )
+      expect(screen.getByTestId("can-undo").textContent).toBe("yes")
+    })
+
+    fireEvent.click(screen.getByText("undo"))
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("intervals")[1].comment).toBeUndefined()
+      expect(screen.getByTestId("can-redo").textContent).toBe("yes")
+    })
+
+    fireEvent.click(screen.getByText("redo"))
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("intervals")[1].comment).toBe(
+        "Hold steady now"
+      )
+    })
+  })
+
   it("resetToBaseline clears dirty state and resets history", async () => {
     render(<StoreHarness />)
 
@@ -560,7 +636,9 @@ describe("workout editor store", () => {
     )
 
     await waitFor(() => {
-      expect(readJson<Array<Interval>>("intervals")).toEqual(baseIntervals.slice(0, 1))
+      expect(readJson<Array<Interval>>("intervals")).toEqual(
+        baseIntervals.slice(0, 1)
+      )
       expect(screen.getByTestId("is-dirty").textContent).toBe("no")
       expect(screen.getByTestId("can-undo").textContent).toBe("no")
     })
@@ -590,14 +668,18 @@ describe("workout editor store", () => {
     )
 
     await waitFor(() => {
-      expect(readJson<Array<Interval>>("intervals")).toEqual(baseIntervals.slice(0, 2))
+      expect(readJson<Array<Interval>>("intervals")).toEqual(
+        baseIntervals.slice(0, 2)
+      )
       expect(screen.getByTestId("has-incoming").textContent).toBe("yes")
     })
 
     fireEvent.click(screen.getByText("adopt-pending"))
 
     await waitFor(() => {
-      expect(readJson<Array<Interval>>("intervals")).toEqual(baseIntervals.slice(0, 1))
+      expect(readJson<Array<Interval>>("intervals")).toEqual(
+        baseIntervals.slice(0, 1)
+      )
       expect(screen.getByTestId("has-incoming").textContent).toBe("no")
       expect(screen.getByTestId("is-dirty").textContent).toBe("no")
     })
@@ -635,6 +717,72 @@ describe("WorkoutEditor keyboard shortcuts", () => {
       "disabled",
       true
     )
+  })
+
+  it("shows the comment toolbar button when intervals are selected", () => {
+    const { container } = render(<EditorActionHarness />)
+    const target = container.querySelector('[data-editor-interval-index="1"]')
+
+    expect(screen.queryByTitle("Add comment")).toBeNull()
+    fireEvent.click(target!)
+
+    expect(screen.getByTitle("Add comment")).toBeTruthy()
+  })
+
+  it("applies and clears comments through the toolbar dialog", async () => {
+    const { container } = render(<EditorActionHarness />)
+    const target = container.querySelector('[data-editor-interval-index="1"]')
+
+    fireEvent.click(target!)
+    fireEvent.click(screen.getByTitle("Add comment"))
+    fireEvent.change(screen.getAllByRole("textbox").at(-1)!, {
+      target: { value: "Attack now" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }))
+
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("editor-intervals")[1].comment).toBe(
+        "Attack now"
+      )
+    })
+
+    fireEvent.click(screen.getByTitle("Add comment"))
+    fireEvent.change(screen.getAllByRole("textbox").at(-1)!, {
+      target: { value: "" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "Clear comments" }))
+
+    await waitFor(() => {
+      expect(
+        readJson<Array<Interval>>("editor-intervals")[1].comment
+      ).toBeUndefined()
+    })
+  })
+
+  it("renders interval comments as text or icon-only depending on width", () => {
+    const { container } = render(
+      <EditorActionHarness
+        initialIntervals={[
+          {
+            startPower: 100,
+            endPower: 100,
+            durationSeconds: 300,
+            comment: "Long visible comment",
+          },
+          {
+            startPower: 100,
+            endPower: 100,
+            durationSeconds: 20,
+            comment: "Narrow comment",
+          },
+        ]}
+      />
+    )
+
+    expect(screen.getByText("Long visible comment")).toBeTruthy()
+    expect(
+      container.querySelector('[aria-label="Interval comment"]')
+    ).toBeTruthy()
   })
 
   it("supports mac undo and redo keyboard shortcuts", async () => {

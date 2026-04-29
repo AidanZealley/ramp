@@ -1,3 +1,4 @@
+import { normalizeIntervalComment } from "../workout-utils"
 import type { Interval } from "../workout-utils"
 
 export interface MrcExportInput {
@@ -43,14 +44,26 @@ export function workoutToMrc(input: MrcExportInput): string {
   ]
 
   let elapsed = 0
+  const textRows: Array<string> = []
   for (const interval of intervals) {
     const startMinutes = (elapsed / 60).toFixed(2)
     const endMinutes = ((elapsed + interval.durationSeconds) / 60).toFixed(2)
     lines.push(`${startMinutes}\t${Math.round(interval.startPower)}`)
     lines.push(`${endMinutes}\t${Math.round(interval.endPower)}`)
+
+    const comment = normalizeIntervalComment(interval.comment ?? "")
+    if (comment) {
+      textRows.push(
+        `${Math.round(elapsed)}\t${comment}\t${Math.round(interval.durationSeconds)}`
+      )
+    }
+
     elapsed += interval.durationSeconds
   }
 
   lines.push("[END COURSE DATA]")
+  if (textRows.length > 0) {
+    lines.push("[COURSE TEXT]", ...textRows, "[END COURSE TEXT]")
+  }
   return lines.join("\n") + "\n"
 }

@@ -20,7 +20,11 @@ import type {
   WorkoutEditorStoreProps,
   WorkoutEditorStoreState,
 } from "./types"
-import { clamp, computeMaxPower } from "@/lib/workout-utils"
+import {
+  clamp,
+  computeMaxPower,
+  normalizeIntervalComment,
+} from "@/lib/workout-utils"
 import { MIN_DURATION, MIN_POWER } from "@/lib/timeline/types"
 
 function areHistoryEntriesEqual(
@@ -335,10 +339,40 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
           const state = get()
           const toDelete = new Set(ids)
           const keepMask = state.stableIds.map((id) => !toDelete.has(id))
-          const stableIds = state.stableIds.filter((_, index) => keepMask[index])
-          const intervals = state.intervals.filter((_, index) => keepMask[index])
+          const stableIds = state.stableIds.filter(
+            (_, index) => keepMask[index]
+          )
+          const intervals = state.intervals.filter(
+            (_, index) => keepMask[index]
+          )
 
           commitHistoryEntry(createHistoryEntry(intervals, stableIds, [], null))
+        },
+        setSelectedComment: (comment) => {
+          const state = get()
+          if (state.selectedIds.length === 0) return
+
+          const normalized = normalizeIntervalComment(comment)
+          const selectedIdSet = new Set(state.selectedIds)
+          const updated = state.intervals.map((interval, index) => {
+            if (!selectedIdSet.has(state.stableIds[index])) return interval
+
+            if (!normalized) {
+              const { comment: _comment, ...rest } = interval
+              return rest
+            }
+
+            return { ...interval, comment: normalized }
+          })
+
+          commitHistoryEntry(
+            createHistoryEntry(
+              updated,
+              state.stableIds,
+              state.selectedIds,
+              state.anchorId
+            )
+          )
         },
         commitIntervals: (nextIntervals) => {
           const state = get()

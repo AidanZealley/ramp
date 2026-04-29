@@ -60,6 +60,83 @@ describe("parseMrc", () => {
     })
   })
 
+  it("imports course text comments onto matching interval start times", () => {
+    const mrc = [
+      "[COURSE HEADER]",
+      "DESCRIPTION = Commented",
+      "MINUTES PERCENT",
+      "[END COURSE HEADER]",
+      "[COURSE DATA]",
+      "0.00\t50",
+      "1.00\t60",
+      "1.00\t70",
+      "3.00\t70",
+      "[END COURSE DATA]",
+      "[COURSE TEXT]",
+      "60\tSettle in\t120",
+      "[END COURSE TEXT]",
+    ].join("\n")
+
+    const result = parseMrc(mrc)
+    expect(result.kind).toBe("ok")
+    if (result.kind !== "ok") return
+
+    expect(result.workout.intervals).toEqual([
+      { startPower: 50, endPower: 60, durationSeconds: 60 },
+      {
+        startPower: 70,
+        endPower: 70,
+        durationSeconds: 120,
+        comment: "Settle in",
+      },
+    ])
+  })
+
+  it("joins multiple cues on the same interval deterministically", () => {
+    const mrc = [
+      "[COURSE HEADER]",
+      "DESCRIPTION = Multi Cue",
+      "MINUTES PERCENT",
+      "[END COURSE HEADER]",
+      "[COURSE DATA]",
+      "0.00\t50",
+      "1.00\t60",
+      "[END COURSE DATA]",
+      "[COURSE TEXT]",
+      "0\tFirst cue\t10",
+      "0\tSecond cue\t20",
+      "[END COURSE TEXT]",
+    ].join("\n")
+
+    const result = parseMrc(mrc)
+    expect(result.kind).toBe("ok")
+    if (result.kind !== "ok") return
+
+    expect(result.workout.intervals[0].comment).toBe("First cue / Second cue")
+  })
+
+  it("rejects malformed course text rows with a useful error", () => {
+    const mrc = [
+      "[COURSE HEADER]",
+      "DESCRIPTION = Bad Cue",
+      "MINUTES PERCENT",
+      "[END COURSE HEADER]",
+      "[COURSE DATA]",
+      "0.00\t50",
+      "1.00\t60",
+      "[END COURSE DATA]",
+      "[COURSE TEXT]",
+      "0\tMissing duration",
+      "[END COURSE TEXT]",
+    ].join("\n")
+
+    const result = parseMrc(mrc)
+    expect(result.kind).toBe("error")
+    if (result.kind !== "error") return
+    expect(result.reason).toBe("malformed-row")
+    expect(result.message).toContain("[COURSE TEXT]")
+  })
+
   it("recognizes MINUTES WATTS and preserves raw watts", () => {
     const mrc = [
       "[COURSE HEADER]",

@@ -7,7 +7,7 @@ import type {
   WorkoutEditorStoreState,
 } from "./types"
 import type { Interval } from "@/lib/workout-utils"
-import { getWorkoutStats } from "@/lib/workout-utils"
+import { getWorkoutStats, normalizeIntervalComment } from "@/lib/workout-utils"
 
 export const DEFAULT_HISTORY_LIMIT = 100
 
@@ -39,15 +39,16 @@ export function areIntervalsEqual(a: Array<Interval>, b: Array<Interval>) {
     return (
       interval.startPower === other.startPower &&
       interval.endPower === other.endPower &&
-      interval.durationSeconds === other.durationSeconds
+      interval.durationSeconds === other.durationSeconds &&
+      normalizeIntervalComment(interval.comment ?? "") ===
+        normalizeIntervalComment(other.comment ?? "")
     )
   })
 }
 
-export function isDirtyState(state: Pick<
-  WorkoutEditorStoreState,
-  "intervals" | "baselineIntervals"
->) {
+export function isDirtyState(
+  state: Pick<WorkoutEditorStoreState, "intervals" | "baselineIntervals">
+) {
   return !areIntervalsEqual(state.intervals, state.baselineIntervals)
 }
 

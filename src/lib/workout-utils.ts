@@ -2,6 +2,7 @@ export interface Interval {
   startPower: number
   endPower: number
   durationSeconds: number
+  comment?: string
 }
 
 export type PowerDisplayMode = "absolute" | "percentage"
@@ -18,6 +19,15 @@ export interface WorkoutStats {
 }
 
 export const DEFAULT_FTP = 150
+export const MAX_INTERVAL_COMMENT_LENGTH = 240
+
+export function normalizeIntervalComment(comment: string): string {
+  return comment
+    .replace(/[\t\r\n]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, MAX_INTERVAL_COMMENT_LENGTH)
+}
 
 /**
  * Format seconds as M:SS or H:MM:SS
