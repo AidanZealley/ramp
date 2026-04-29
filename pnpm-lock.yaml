@@ -64,9 +64,15 @@ importers:
       '@fontsource-variable/oxanium':
         specifier: ^5.2.8
         version: 5.2.8
-      '@ramp/ride-engine':
+      '@ramp/game-countryside-r3f':
         specifier: workspace:*
-        version: link:../../packages/ride-engine
+        version: link:../../packages/game-countryside-r3f
+      '@ramp/ride-core':
+        specifier: workspace:*
+        version: link:../../packages/ride-core
+      '@ramp/ride-workouts':
+        specifier: workspace:*
+        version: link:../../packages/ride-workouts
       '@ramp/trainer-io':
         specifier: workspace:*
         version: link:../../packages/trainer-io
@@ -189,7 +195,76 @@ importers:
         specifier: ^5.1.0
         version: 5.2.0
 
-  packages/ride-engine:
+  packages/game-countryside-r3f:
+    dependencies:
+      '@ramp/ride-core':
+        specifier: workspace:*
+        version: link:../ride-core
+      '@react-three/drei':
+        specifier: ^10.7.7
+        version: 10.7.7(@react-three/fiber@9.6.1)(@types/react@19.2.14)(@types/three@0.182.0)(react-dom@19.2.5)(react@19.2.5)(three@0.182.0)
+      '@react-three/fiber':
+        specifier: ^9.4.2
+        version: 9.6.1(@types/react@19.2.14)(react-dom@19.2.5)(react@19.2.5)(three@0.182.0)
+      react:
+        specifier: ^19
+        version: 19.2.5
+      react-dom:
+        specifier: ^19
+        version: 19.2.5(react@19.2.5)
+      three:
+        specifier: ^0.182.0
+        version: 0.182.0
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.14
+      '@types/three':
+        specifier: ^0.182.0
+        version: 0.182.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/node@22.19.17)(jsdom@27.4.0)
+
+  packages/ride-contracts:
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/node@22.19.17)(jsdom@27.4.0)
+
+  packages/ride-core:
+    dependencies:
+      '@ramp/ride-contracts':
+        specifier: workspace:*
+        version: link:../ride-contracts
+      react:
+        specifier: ^19
+        version: 19.2.5
+    devDependencies:
+      '@testing-library/react':
+        specifier: ^16.3.2
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3)(@types/react@19.2.14)(react-dom@19.2.5)(react@19.2.5)
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.14
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/node@22.19.17)(jsdom@27.4.0)
+
+  packages/ride-workouts:
+    dependencies:
+      '@ramp/ride-core':
+        specifier: workspace:*
+        version: link:../ride-core
     devDependencies:
       typescript:
         specifier: ^5.9.3
@@ -199,6 +274,10 @@ importers:
         version: 3.2.4(@types/node@22.19.17)(jsdom@27.4.0)
 
   packages/trainer-io:
+    dependencies:
+      '@ramp/ride-contracts':
+        specifier: workspace:*
+        version: link:../ride-contracts
     devDependencies:
       typescript:
         specifier: ^5.9.3

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react"
 import { DoubleSide, Matrix4, Quaternion, Vector3 } from "three"
 import type { InstancedMesh } from "three"
-import type { WorldProp } from "@ramp/ride-engine"
+import type { WorldProp } from "./procgen/types"
 
 type RidePropsProps = {
   props: Array<WorldProp>

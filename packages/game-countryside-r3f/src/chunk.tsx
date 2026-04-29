@@ -1,7 +1,7 @@
-import type { WorldChunk } from "@ramp/ride-engine"
-import { RideProps } from "./ride-props"
-import { RideRoad } from "./ride-road"
-import { RideTerrain } from "./ride-terrain"
+import type { WorldChunk } from "./procgen/types"
+import { RideProps } from "./props"
+import { RideRoad } from "./road"
+import { RideTerrain } from "./terrain"
 
 type RideChunkProps = {
   chunk: WorldChunk

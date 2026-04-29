@@ -1,6 +1,6 @@
 import { useMemo } from "react"
 import { BufferAttribute, BufferGeometry, DoubleSide } from "three"
-import type { TerrainPatch } from "@ramp/ride-engine"
+import type { TerrainPatch } from "./procgen/types"
 
 type RideTerrainProps = {
   patches: Array<TerrainPatch>

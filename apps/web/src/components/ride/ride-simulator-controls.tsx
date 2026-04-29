@@ -1,8 +1,10 @@
 import { Pause, Play } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import type { RideInputMode } from "@ramp/ride-engine"
-import type { RideWorkout } from "./ride-page"
+import { Slider } from "@/components/ui/slider"
+import type { WorkoutDefinition } from "@ramp/ride-workouts"
+
+export type RideInputMode = "manual" | "followWorkout"
 
 type Preset = "endurance" | "tempo" | "vo2" | "workout"
 
@@ -11,7 +13,7 @@ type RideSimulatorControlsProps = {
   cadenceRpm: number
   mode: RideInputMode
   paused: boolean
-  workouts: Array<RideWorkout>
+  workouts: Array<WorkoutDefinition>
   selectedWorkoutId: string
   onPowerChange(powerWatts: number): void
   onCadenceChange(cadenceRpm: number): void
@@ -154,16 +156,18 @@ function RangeControl({
           {Math.round(value)} {unit}
         </span>
       </div>
-      <input
+      <Slider
         id={`ride-${label.toLowerCase()}`}
         aria-label={label}
-        className="h-5 w-full accent-[#355d3b]"
+        className="py-2"
         max={max}
         min={min}
         step={step}
-        type="range"
-        value={value}
-        onChange={(event) => onChange(Number(event.currentTarget.value))}
+        value={[value]}
+        onValueChange={(nextValue) => {
+          const values = Array.isArray(nextValue) ? nextValue : [nextValue]
+          onChange(values[0] ?? value)
+        }}
       />
     </div>
   )
