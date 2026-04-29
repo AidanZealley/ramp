@@ -759,7 +759,7 @@ describe("WorkoutEditor keyboard shortcuts", () => {
     })
   })
 
-  it("renders interval comments as text or icon-only depending on width", () => {
+  it("renders interval comments as a bottom-anchored icon, never inline text", () => {
     const { container } = render(
       <EditorActionHarness
         initialIntervals={[
@@ -779,10 +779,13 @@ describe("WorkoutEditor keyboard shortcuts", () => {
       />
     )
 
-    expect(screen.getByText("Long visible comment")).toBeTruthy()
+    // Chart no longer renders comment text inline — even on wide intervals.
+    // The full text is surfaced through the selection details panel; the
+    // chart uses a single bottom-anchored icon as the visual signal.
+    expect(screen.queryByText("Long visible comment")).toBeNull()
     expect(
-      container.querySelector('[aria-label="Interval comment"]')
-    ).toBeTruthy()
+      container.querySelectorAll('[aria-label="Interval comment"]').length
+    ).toBeGreaterThan(0)
   })
 
   it("supports mac undo and redo keyboard shortcuts", async () => {

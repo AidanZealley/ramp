@@ -7,7 +7,14 @@ import type {
   WorkoutEditorActions,
   WorkoutEditorStoreState,
 } from "./types"
+import type { Interval } from "@/lib/workout-utils"
 import { getWorkoutStats } from "@/lib/workout-utils"
+
+export interface SelectedIntervalRow {
+  id: string
+  index: number
+  interval: Interval
+}
 
 function useWorkoutEditorStore<T>(
   selector: (state: WorkoutEditorStoreState) => T
@@ -122,6 +129,20 @@ export const useWorkoutEditorIsHovered = (index: number) =>
 
 export const useWorkoutEditorIsSelected = (stableId: string) =>
   useWorkoutEditorStore((state) => state.selectedIds.includes(stableId))
+
+export const useWorkoutEditorSelectedIntervals = (): Array<SelectedIntervalRow> => {
+  const selectedIds = useWorkoutEditorSelectedIds()
+  const stableIds = useWorkoutEditorStableIds()
+  const intervals = useWorkoutEditorDisplayIntervals()
+  return useMemo(() => {
+    const idSet = new Set(selectedIds)
+    return stableIds
+      .map((id, index) =>
+        idSet.has(id) ? { id, index, interval: intervals[index] } : null
+      )
+      .filter((row): row is SelectedIntervalRow => row !== null)
+  }, [selectedIds, stableIds, intervals])
+}
 
 export { WorkoutEditorStoreProvider } from "./WorkoutStoreProvider"
 export type {
