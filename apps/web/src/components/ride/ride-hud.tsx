@@ -1,0 +1,42 @@
+import { formatDuration } from "@/lib/workout-utils"
+import type { RideTelemetry, WorkoutSegment } from "@ramp/ride-engine"
+
+type RideHudProps = {
+  telemetry: RideTelemetry
+  targetWatts: number
+  activeSegment: WorkoutSegment | null
+  source: string
+}
+
+export function RideHud({
+  activeSegment,
+  source,
+  targetWatts,
+  telemetry,
+}: RideHudProps) {
+  const fields = [
+    ["Time", formatDuration(telemetry.elapsedSeconds)],
+    ["Distance", `${(telemetry.distanceMeters / 1000).toFixed(2)} km`],
+    ["Speed", `${(telemetry.speedMps * 3.6).toFixed(1)} km/h`],
+    ["Watts", `${Math.round(telemetry.powerWatts)} W`],
+    ["Cadence", `${Math.round(telemetry.cadenceRpm)} rpm`],
+    ["Target", `${targetWatts} W`],
+    ["Segment", activeSegment?.label ?? "Free ride"],
+    ["Source", source],
+  ]
+
+  return (
+    <div className="pointer-events-auto grid w-[min(720px,calc(100vw-2rem))] grid-cols-2 gap-2 rounded-lg border border-white/35 bg-white/72 p-3 shadow-2xl shadow-emerald-950/20 backdrop-blur-md sm:grid-cols-4">
+      {fields.map(([label, value]) => (
+        <div key={label} className="min-w-0">
+          <div className="text-[0.65rem] font-semibold tracking-[0.12em] text-[#47564e] uppercase">
+            {label}
+          </div>
+          <div className="truncate font-heading text-lg font-semibold text-[#14201b]">
+            {value}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}

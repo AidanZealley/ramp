@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "vite.config.ts",
+    "components.json",
+    "../../convex/**/*.ts",
+    "../../convex/**/*.d.ts"
+  ],
+  "exclude": [".output", "dist"],
+  "compilerOptions": {
+    "types": ["vite/client"],
+    "noEmit": true,
+    "allowJs": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "#convex/*": ["../../convex/*"],
+      "@ramp/ride-engine": ["../../packages/ride-engine/src/index.ts"],
+      "@ramp/trainer-io": ["../../packages/trainer-io/src/index.ts"]
+    }
+  }
+}

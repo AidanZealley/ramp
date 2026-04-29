@@ -3,6 +3,13 @@
 import { tanstackConfig } from "@tanstack/eslint-config"
 
 export default [
-  { ignores: [".output/**", "convex/_generated/**"] },
+  {
+    ignores: [
+      ".output/**",
+      "apps/web/.output/**",
+      "apps/web/dist/**",
+      "convex/_generated/**",
+    ],
+  },
   ...tanstackConfig,
 ]
