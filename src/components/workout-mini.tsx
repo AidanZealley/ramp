@@ -1,21 +1,14 @@
-import type {
-  Interval,
-  PowerDisplayMode,
-} from "@/lib/workout-utils"
+import type { Interval } from "@/lib/workout-utils"
 import { getZoneColor } from "@/lib/zones"
 
 interface WorkoutMiniProps {
   intervals: Interval[]
-  ftp: number
-  displayMode: PowerDisplayMode
   className?: string
   compact?: boolean
 }
 
 export function WorkoutMini({
   intervals,
-  ftp: _ftp,
-  displayMode: _displayMode,
   className = "",
   compact = false,
 }: WorkoutMiniProps) {

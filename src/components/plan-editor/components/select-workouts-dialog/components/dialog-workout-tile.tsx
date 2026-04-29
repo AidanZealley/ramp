@@ -1,22 +1,14 @@
 import { WorkoutMini } from "@/components/workout-mini"
-import {
-  formatDuration,
-  getTotalDuration,
-  type PowerDisplayMode,
-} from "@/lib/workout-utils"
+import { formatDuration, getTotalDuration } from "@/lib/workout-utils"
 import type { WorkoutDoc } from "../types"
 
 interface DialogWorkoutTileProps {
   workout: WorkoutDoc
-  ftp: number
-  displayMode: PowerDisplayMode
   onClick: () => void
 }
 
 export function DialogWorkoutTile({
   workout,
-  ftp,
-  displayMode,
   onClick,
 }: DialogWorkoutTileProps) {
   const duration = getTotalDuration(workout.intervals)
@@ -29,8 +21,6 @@ export function DialogWorkoutTile({
     >
       <WorkoutMini
         intervals={workout.intervals}
-        ftp={ftp}
-        displayMode={displayMode}
         className="h-16 w-full rounded-md bg-muted/40"
         compact
       />

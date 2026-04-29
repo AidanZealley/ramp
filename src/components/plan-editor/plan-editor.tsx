@@ -33,15 +33,12 @@ interface PlanEditorProps {
 export function PlanEditor({ planId }: PlanEditorProps) {
   const navigate = useNavigate()
   const plan = useQuery(api.plans.get, { planId })
-  const settings = useQuery(api.settings.get)
   const updateTitle = useMutation(api.plans.updateTitle)
   const addWeek = useMutation(api.plans.addWeek)
   const removeWeek = useMutation(api.plans.removeWeek)
   const duplicatePlan = useMutation(api.plans.duplicatePlan)
   const removePlan = useMutation(api.plans.remove)
 
-  const ftp = settings?.ftp ?? 150
-  const displayMode = settings?.powerDisplayMode ?? "percentage"
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectionState, setSelectionState] = useState<{
     weekId: Id<"planWeeks">
@@ -162,8 +159,6 @@ export function PlanEditor({ planId }: PlanEditorProps) {
 
       <PlanScheduleGrid
         weeks={displayWeeks}
-        ftp={ftp}
-        displayMode={displayMode}
         onSelectWeek={(week) => openWeekDialog(week)}
         onSelectDay={(week, dayIndex) => openWeekDialog(week, dayIndex)}
         onDeleteWeek={(weekId) => void handleDeleteWeek(weekId)}
@@ -186,7 +181,6 @@ export function PlanEditor({ planId }: PlanEditorProps) {
         week={selectedWeek}
         weekNumber={selectedWeekNumber}
         initialDayIndex={selectionState?.dayIndex ?? 0}
-        displayMode={displayMode}
       />
 
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

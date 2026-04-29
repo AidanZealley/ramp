@@ -19,7 +19,6 @@ import { DialogWeekdaySlot } from "./components/dialog-weekday-slot"
 import { DialogWorkoutFilters } from "./components/dialog-workout-filters"
 import { DialogWorkoutGrid } from "./components/dialog-workout-grid"
 import type { DurationFilter, SortOption } from "./types"
-import type { PowerDisplayMode } from "@/lib/workout-utils"
 import { matchesWorkoutFilters, sortWorkouts } from "./utils"
 
 interface SelectWorkoutsDialogProps {
@@ -28,7 +27,6 @@ interface SelectWorkoutsDialogProps {
   week: PlanEditorWeek | null
   weekNumber: number
   initialDayIndex: number
-  displayMode: PowerDisplayMode
 }
 
 const defaultFilters = {
@@ -44,13 +42,10 @@ export function SelectWorkoutsDialog({
   week,
   weekNumber,
   initialDayIndex,
-  displayMode,
 }: SelectWorkoutsDialogProps) {
   const workouts = useQuery(api.workouts.list)
-  const settings = useQuery(api.settings.get)
   const updateWeekSchedule = useMutation(api.plans.updateWeekSchedule)
 
-  const ftp = settings?.ftp ?? 150
   const [activeDayIndex, setActiveDayIndex] = useState(0)
   const [scheduledWorkoutIds, setScheduledWorkoutIds] = useState<
     Array<Id<"workouts"> | null>
@@ -168,8 +163,6 @@ export function SelectWorkoutsDialog({
                       ? (workoutById.get(scheduledWorkoutIds[dayIndex]) ?? null)
                       : null
                   }
-                  ftp={ftp}
-                  displayMode={displayMode}
                   active={dayIndex === activeDayIndex}
                   onClick={() => setActiveDayIndex(dayIndex)}
                 />
@@ -201,8 +194,6 @@ export function SelectWorkoutsDialog({
         <div className="min-h-0 flex-1 overflow-y-auto border-t border-border/40 px-6 py-4">
           <DialogWorkoutGrid
             workouts={filteredWorkouts}
-            ftp={ftp}
-            displayMode={displayMode}
             onWorkoutSelect={(workout) => assignWorkout(workout._id)}
             onClearFilters={clearFilters}
           />

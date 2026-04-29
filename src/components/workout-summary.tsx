@@ -31,12 +31,12 @@ export function WorkoutSummary({ stats }: WorkoutSummaryProps) {
   return (
     <div className="rounded-[1.5rem] border border-border/70 bg-card/50 px-5 py-4">
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           <h2 className="font-heading text-base font-medium">
             Workout overview
           </h2>
 
-          <div className="space-y-2 text-sm text-muted-foreground">
+          <div className="flex flex-col gap-2 text-sm text-muted-foreground">
             <div className="flex items-center gap-2.5">
               <Clock3 className="size-4 text-foreground/70" />
               <span className="font-medium text-foreground">Duration:</span>
@@ -52,7 +52,7 @@ export function WorkoutSummary({ stats }: WorkoutSummaryProps) {
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           <h2 className="font-heading text-base font-medium">
             Zone distribution
           </h2>
@@ -71,7 +71,7 @@ export function WorkoutSummary({ stats }: WorkoutSummaryProps) {
           </div>
         </div>
 
-        <div className="space-y-3 md:col-span-2 xl:col-span-1">
+        <div className="flex flex-col gap-3 md:col-span-2 xl:col-span-1">
           <h2 className="font-heading text-base font-medium">Zones chart</h2>
 
           <WorkoutZoneChart zonePercentages={stats.zonePercentages} />

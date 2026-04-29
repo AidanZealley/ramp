@@ -1,19 +1,13 @@
 import { CalendarPlus, Trash2 } from "lucide-react"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { Button } from "@/components/ui/button"
-import {
-  formatDuration,
-  getTotalDuration,
-  type PowerDisplayMode,
-} from "@/lib/workout-utils"
+import { formatDuration, getTotalDuration } from "@/lib/workout-utils"
 import { PlanDayCell } from "./plan-day-cell"
 import type { PlanEditorWeek } from "../types"
 
 interface PlanWeekRowProps {
   week: PlanEditorWeek
   weekNumber: number
-  ftp: number
-  displayMode: PowerDisplayMode
   onSelectWeek: (week: PlanEditorWeek) => void
   onSelectDay: (week: PlanEditorWeek, dayIndex: number) => void
   onDeleteWeek: (weekId: Id<"planWeeks">) => void
@@ -22,8 +16,6 @@ interface PlanWeekRowProps {
 export function PlanWeekRow({
   week,
   weekNumber,
-  ftp,
-  displayMode,
   onSelectWeek,
   onSelectDay,
   onDeleteWeek,
@@ -36,7 +28,7 @@ export function PlanWeekRow({
   )
 
   return (
-    <div className="grid min-w-[62rem] grid-cols-[12rem_repeat(7,minmax(7rem,1fr))] gap-3 border-b border-border/60 py-3 last:border-b-0">
+    <div className="grid min-w-248 grid-cols-[12rem_repeat(7,minmax(7rem,1fr))] gap-3 border-b border-border/60 py-3 last:border-b-0">
       <div className="space-y-3 rounded-lg bg-muted/25 p-3">
         <div>
           <div className="font-heading text-lg font-medium">
@@ -74,8 +66,6 @@ export function PlanWeekRow({
         <PlanDayCell
           key={slot._id}
           slot={slot}
-          ftp={ftp}
-          displayMode={displayMode}
           onClick={() => onSelectDay(week, slot.dayIndex)}
         />
       ))}
