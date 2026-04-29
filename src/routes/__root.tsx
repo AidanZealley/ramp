@@ -15,6 +15,7 @@ import { ModeToggle } from "@/components/mode-toggle"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { getThemeServerFn } from "@/lib/theme"
+import { TriangleRight } from "lucide-react"
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
@@ -29,7 +30,7 @@ export const Route = createRootRouteWithContext<{
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "ERG Generator",
+        title: "Ramp",
       },
     ],
     links: [
@@ -68,10 +69,11 @@ function RootLayout() {
               <div className="flex items-center gap-6">
                 <Link
                   to="/"
-                  className="flex items-center gap-2 transition-opacity hover:opacity-80"
+                  className="flex items-center gap-0.5 transition-opacity hover:opacity-80"
                 >
+                  <TriangleRight className="-mt-1 size-4" strokeWidth={4} />
                   <span className="font-heading text-lg font-semibold tracking-tight">
-                    ERG Generator
+                    Ramp
                   </span>
                 </Link>
 
