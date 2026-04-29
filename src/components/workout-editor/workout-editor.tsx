@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef } from "react"
+import { useEffect, useRef } from "react"
 import type { Interval, PowerDisplayMode } from "@/lib/workout-utils"
 import { computeMaxPower } from "@/lib/workout-utils"
 import { TIMELINE_EDGE_GUTTER } from "@/lib/timeline/types"
@@ -22,34 +22,32 @@ import {
 } from "./store"
 import { useClearSelectionOnOutsideClick } from "./hooks/use-clear-selection-on-outside-click"
 import { useEditorAutoScroll } from "./hooks/use-editor-auto-scroll"
-import { useEditorInsertInterval } from "./hooks/use-editor-insert-interval"
 import { useEditorKeypresses } from "./hooks/use-editor-keypresses"
 import { useEditorZoom } from "./hooks/use-editor-zoom"
-
-export interface WorkoutEditorHandle {
-  insertInterval: () => void
-}
 
 interface WorkoutEditorProps {
   intervals: Array<Interval>
   displayMode: PowerDisplayMode
   ftp: number
   onIntervalsChange: (intervals: Array<Interval>) => void
+  onInsertActionReady?: (insertAction: (() => void) | null) => void
 }
 
-export const WorkoutEditor = forwardRef<
-  WorkoutEditorHandle,
-  WorkoutEditorProps
->(function WorkoutEditor(props, ref) {
+export function WorkoutEditor(props: WorkoutEditorProps) {
+  const { onInsertActionReady, ...storeProps } = props
+
   return (
-    <WorkoutEditorStoreProvider {...props}>
-      <WorkoutEditorInner ref={ref} />
+    <WorkoutEditorStoreProvider {...storeProps}>
+      <WorkoutEditorInner onInsertActionReady={onInsertActionReady} />
     </WorkoutEditorStoreProvider>
   )
-})
+}
 
-const WorkoutEditorInner = forwardRef<WorkoutEditorHandle>(
-  function WorkoutEditorInner(_, ref) {
+function WorkoutEditorInner({
+  onInsertActionReady,
+}: {
+  onInsertActionReady?: (insertAction: (() => void) | null) => void
+}) {
     const intervals = useWorkoutEditorIntervals()
     const displayIntervals = useWorkoutEditorDisplayIntervals()
     const displayMode = useWorkoutEditorDisplayMode()
@@ -69,13 +67,6 @@ const WorkoutEditorInner = forwardRef<WorkoutEditorHandle>(
       selectedIds,
       stableIds,
       scrollContainerRef,
-    })
-
-    const insertInterval = useEditorInsertInterval({
-      intervalsLength: intervals.length,
-      selectedIds,
-      stableIds,
-      actions,
     })
 
     const { activeDrag, startDrag } = useIntervalDrag({
@@ -107,13 +98,12 @@ const WorkoutEditorInner = forwardRef<WorkoutEditorHandle>(
 
     useClearSelectionOnOutsideClick({ editorRef, actions })
 
-    useImperativeHandle(
-      ref,
-      () => ({
-        insertInterval,
-      }),
-      [insertInterval]
-    )
+    useEffect(() => {
+      onInsertActionReady?.(actions.insertAfterSelectionOrAppend)
+      return () => {
+        onInsertActionReady?.(null)
+      }
+    }, [actions, onInsertActionReady])
 
     return (
       <div className="flex select-none">
@@ -138,5 +128,4 @@ const WorkoutEditorInner = forwardRef<WorkoutEditorHandle>(
         </div>
       </div>
     )
-  }
-)
+}

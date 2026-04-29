@@ -1,7 +1,7 @@
-import { StrictMode, useRef, useState } from "react"
+import { StrictMode, useState } from "react"
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
-import { WorkoutEditor, type WorkoutEditorHandle } from "./workout-editor"
+import { WorkoutEditor } from "./workout-editor"
 import {
   WorkoutEditorStoreProvider,
   useWorkoutEditorActions,
@@ -143,6 +143,9 @@ function HarnessContent() {
       >
         commit-2
       </button>
+      <button onClick={actions.insertAfterSelectionOrAppend}>
+        insert-relative
+      </button>
       <button onClick={() => actions.nudgeSelectedPower(5)}>nudge-power</button>
       <button onClick={() => actions.nudgeSelectedDuration(5)}>
         nudge-duration
@@ -188,27 +191,25 @@ function ControlledHarness({ intervals }: { intervals: Interval[] }) {
   )
 }
 
-function EditorRefHarness({
+function EditorActionHarness({
   initialIntervals = baseIntervals,
 }: {
   initialIntervals?: Interval[]
 }) {
   const [intervals, setIntervals] = useState(initialIntervals)
-  const editorRef = useRef<WorkoutEditorHandle>(null)
+  const [insertAction, setInsertAction] = useState<(() => void) | null>(null)
 
   return (
     <div>
-      <button onClick={() => editorRef.current?.insertInterval()}>
-        imperative-insert
-      </button>
+      <button onClick={() => insertAction?.()}>registered-insert</button>
       <input aria-label="notes-input" />
       <div data-testid="editor-intervals">{JSON.stringify(intervals)}</div>
       <WorkoutEditor
-        ref={editorRef}
         intervals={intervals}
         displayMode="absolute"
         ftp={250}
         onIntervalsChange={setIntervals}
+        onInsertActionReady={(fn) => setInsertAction(() => fn)}
       />
     </div>
   )
@@ -411,6 +412,57 @@ describe("workout editor store", () => {
     expect(screen.getByTestId("can-redo").textContent).toBe("no")
   })
 
+  it("appends when insertAfterSelectionOrAppend runs without a selection", async () => {
+    render(<StoreHarness />)
+
+    fireEvent.click(screen.getByText("insert-relative"))
+
+    await waitFor(() => {
+      expect(
+        readJson<Interval[]>("intervals").map((interval) => interval.startPower)
+      ).toEqual([100, 150, 200, 200])
+    })
+  })
+
+  it("inserts after the right-most selected interval through the store action", async () => {
+    render(<StoreHarness />)
+
+    fireEvent.click(screen.getByText("plain-0"))
+    fireEvent.click(screen.getByText("meta-1"))
+    fireEvent.click(screen.getByText("insert-relative"))
+
+    await waitFor(() => {
+      const intervals = readJson<Interval[]>("intervals")
+      expect(intervals).toHaveLength(4)
+      expect(intervals[2]).toEqual({
+        startPower: 150,
+        endPower: 200,
+        durationSeconds: 300,
+      })
+    })
+  })
+
+  it("supports undo and redo after insertion through the new store action", async () => {
+    render(<StoreHarness />)
+
+    const before = readJson<Interval[]>("intervals")
+    fireEvent.click(screen.getByText("insert-relative"))
+
+    await waitFor(() => {
+      expect(readJson<Interval[]>("intervals")).toHaveLength(4)
+    })
+
+    fireEvent.click(screen.getByText("undo"))
+    await waitFor(() => {
+      expect(readJson<Interval[]>("intervals")).toEqual(before)
+    })
+
+    fireEvent.click(screen.getByText("redo"))
+    await waitFor(() => {
+      expect(readJson<Interval[]>("intervals")).toHaveLength(4)
+    })
+  })
+
   it("undoes power and duration nudges exactly", async () => {
     render(<StoreHarness />)
 
@@ -464,19 +516,19 @@ describe("workout editor store", () => {
   })
 })
 
-describe("WorkoutEditor imperative handle and keyboard shortcuts", () => {
+describe("WorkoutEditor insert callback and keyboard shortcuts", () => {
   beforeEach(() => {
     setNavigatorPlatform("MacIntel")
   })
 
-  it("inserts after the right-most selected interval", async () => {
-    const { container } = render(<EditorRefHarness />)
+  it("registers an insert action that inserts after the right-most selected interval", async () => {
+    const { container } = render(<EditorActionHarness />)
 
     const target = container.querySelector('[data-editor-interval-index="1"]')
     expect(target).toBeTruthy()
 
     fireEvent.click(target!)
-    fireEvent.click(screen.getByText("imperative-insert"))
+    fireEvent.click(screen.getByText("registered-insert"))
 
     await waitFor(() => {
       const intervals = readJson<Interval[]>("editor-intervals")
@@ -492,7 +544,7 @@ describe("WorkoutEditor imperative handle and keyboard shortcuts", () => {
   it("does not loop when using the toolbar copy action", async () => {
     const { container } = render(
       <StrictMode>
-        <EditorRefHarness />
+        <EditorActionHarness />
       </StrictMode>
     )
 
@@ -508,7 +560,7 @@ describe("WorkoutEditor imperative handle and keyboard shortcuts", () => {
   })
 
   it("shows undo and redo toolbar buttons with mac titles", () => {
-    render(<EditorRefHarness />)
+    render(<EditorActionHarness />)
 
     expect(screen.getByTitle("Undo (Cmd+Z)")).toHaveProperty("disabled", true)
     expect(screen.getByTitle("Redo (Cmd+Shift+Z)")).toHaveProperty(
@@ -518,7 +570,7 @@ describe("WorkoutEditor imperative handle and keyboard shortcuts", () => {
   })
 
   it("supports mac undo and redo keyboard shortcuts", async () => {
-    const { container } = render(<EditorRefHarness />)
+    const { container } = render(<EditorActionHarness />)
     const target = container.querySelector('[data-editor-interval-index="1"]')
 
     fireEvent.click(target!)
@@ -541,7 +593,7 @@ describe("WorkoutEditor imperative handle and keyboard shortcuts", () => {
 
   it("supports windows undo and redo keyboard shortcuts", async () => {
     setNavigatorPlatform("Win32")
-    const { container } = render(<EditorRefHarness />)
+    const { container } = render(<EditorActionHarness />)
     const target = container.querySelector('[data-editor-interval-index="1"]')
 
     fireEvent.click(target!)
@@ -573,7 +625,7 @@ describe("WorkoutEditor imperative handle and keyboard shortcuts", () => {
   })
 
   it("does not fire keyboard shortcuts while typing in an input", async () => {
-    const { container } = render(<EditorRefHarness />)
+    const { container } = render(<EditorActionHarness />)
     const target = container.querySelector('[data-editor-interval-index="1"]')
     const input = screen.getByLabelText("notes-input")
 

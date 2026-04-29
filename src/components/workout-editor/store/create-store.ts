@@ -373,6 +373,24 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
             createHistoryEntry(nextIntervals, nextStableIds, [freshId], freshId)
           )
         },
+        insertAfterSelectionOrAppend: () => {
+          const state = get()
+          let insertAt = state.intervals.length
+
+          if (state.selectedIds.length > 0) {
+            const rightmost = Math.max(
+              ...state.selectedIds
+                .map((id) => state.stableIds.indexOf(id))
+                .filter((index) => index >= 0)
+            )
+
+            if (rightmost >= 0) {
+              insertAt = rightmost + 1
+            }
+          }
+
+          state.actions.insertAt(insertAt)
+        },
         reorderIntervals: (oldIndex, newIndex, activeId) => {
           const state = get()
           if (

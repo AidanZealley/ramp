@@ -40,6 +40,7 @@ export interface WorkoutEditorActions {
   deleteIntervals: (ids: string[]) => void
   commitIntervals: (nextIntervals: Interval[]) => void
   insertAt: (index: number) => void
+  insertAfterSelectionOrAppend: () => void
   reorderIntervals: (
     oldIndex: number,
     newIndex: number,
