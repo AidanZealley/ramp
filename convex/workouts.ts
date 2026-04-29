@@ -69,6 +69,16 @@ export const update = mutation({
   },
 })
 
+export const updateTitle = mutation({
+  args: {
+    id: v.id("workouts"),
+    title: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.id, { title: args.title })
+  },
+})
+
 export const remove = mutation({
   args: { id: v.id("workouts") },
   handler: async (ctx, args) => {

@@ -104,18 +104,6 @@ describe("useWorkoutPageController", () => {
     expect(controller.isDirty).toBe(false)
   })
 
-  it("marks the page dirty and updates the working copy when the title changes", () => {
-    const { result } = renderHook(() => useWorkoutPageController(workoutId))
-
-    act(() => {
-      getReadyState(result.current).actions.changeTitle("New Name")
-    })
-
-    const controller = getReadyState(result.current)
-    expect(controller.workingCopy.title).toBe("New Name")
-    expect(controller.isDirty).toBe(true)
-  })
-
   it("marks the page dirty and updates stats when intervals change", () => {
     const { result } = renderHook(() => useWorkoutPageController(workoutId))
     const nextIntervals: Interval[] = [
@@ -139,7 +127,10 @@ describe("useWorkoutPageController", () => {
 
     act(() => {
       const controller = getReadyState(result.current)
-      controller.actions.changeTitle("Edited")
+      controller.actions.changeIntervals([
+        ...baseIntervals,
+        { startPower: 180, endPower: 180, durationSeconds: 90 },
+      ])
       controller.actions.revert()
     })
 
@@ -156,9 +147,7 @@ describe("useWorkoutPageController", () => {
     ]
 
     act(() => {
-      const controller = getReadyState(result.current)
-      controller.actions.changeTitle("Saved Workout")
-      controller.actions.changeIntervals(nextIntervals)
+      getReadyState(result.current).actions.changeIntervals(nextIntervals)
     })
 
     await act(async () => {
@@ -167,7 +156,7 @@ describe("useWorkoutPageController", () => {
 
     expect(updateWorkoutMock).toHaveBeenCalledWith({
       id: workoutId,
-      title: "Saved Workout",
+      title: "Threshold Builder",
       intervals: nextIntervals,
     })
 
@@ -176,13 +165,9 @@ describe("useWorkoutPageController", () => {
     })
   })
 
-  it("exports the current working copy instead of stale fetched data", () => {
+  it("exports the current interval draft with the persisted workout title", () => {
     const { result } = renderHook(() => useWorkoutPageController(workoutId))
     const nextIntervals = [{ startPower: 88, endPower: 92, durationSeconds: 42 }]
-
-    act(() => {
-      getReadyState(result.current).actions.changeTitle("Draft Export")
-    })
 
     act(() => {
       getReadyState(result.current).actions.changeIntervals(nextIntervals)
@@ -193,12 +178,12 @@ describe("useWorkoutPageController", () => {
     })
 
     expect(workoutToMrc).toHaveBeenCalledWith({
-      title: "Draft Export",
+      title: "Threshold Builder",
       intervals: nextIntervals,
     })
     expect(downloadTextFile).toHaveBeenCalledWith(
       "MRC-CONTENT",
-      "Draft Export.mrc",
+      "Threshold Builder.mrc",
       "text/plain"
     )
   })

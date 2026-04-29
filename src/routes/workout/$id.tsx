@@ -31,9 +31,9 @@ function WorkoutPage() {
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <WorkoutPageHeader
+        workoutId={id as Id<"workouts">}
         title={workingCopy.title}
         onBack={actions.goBack}
-        onTitleChange={actions.changeTitle}
       />
 
       <WorkoutPageControls

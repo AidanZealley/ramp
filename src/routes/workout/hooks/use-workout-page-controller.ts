@@ -27,7 +27,6 @@ interface WorkoutPageControllerReadyState {
   showDeleteDialog: boolean
   setShowDeleteDialog: (open: boolean) => void
   actions: {
-    changeTitle: (title: string) => void
     changeIntervals: (intervals: Interval[]) => void
     changeDisplayMode: (mode: PowerDisplayMode) => Promise<void>
     save: () => Promise<void>
@@ -78,8 +77,7 @@ function intervalsEqual(a: Interval[], b: Interval[]) {
 }
 
 function draftMatchesWorkout(workout: WorkoutDraft, draft: WorkoutDraft) {
-  return workout.title === draft.title &&
-    intervalsEqual(workout.intervals, draft.intervals)
+  return intervalsEqual(workout.intervals, draft.intervals)
 }
 
 export function useWorkoutPageController(
@@ -118,7 +116,7 @@ export function useWorkoutPageController(
       setDraft((currentDraft) => {
         const base = currentDraft ?? sourceWorkout
         const nextDraft = updater({
-          title: base.title,
+          title: sourceWorkout.title,
           intervals: cloneIntervals(base.intervals),
         })
 
@@ -126,13 +124,6 @@ export function useWorkoutPageController(
       })
     },
     [sourceWorkout]
-  )
-
-  const changeTitle = useCallback(
-    (title: string) => {
-      updateDraft((base) => ({ ...base, title }))
-    },
-    [updateDraft]
   )
 
   const changeIntervals = useCallback(
@@ -181,7 +172,7 @@ export function useWorkoutPageController(
 
     await updateWorkout({
       id: workout._id,
-      title: draft.title,
+      title: workout.title,
       intervals: draft.intervals,
     })
     setDraft(null)
@@ -200,15 +191,17 @@ export function useWorkoutPageController(
   }, [navigate, removeWorkout, workout])
 
   const exportMrc = useCallback(() => {
+    if (!workout) return
+
     const workingCopy = draft ?? sourceWorkout
     if (!workingCopy || workingCopy.intervals.length === 0) return
 
     const content = workoutToMrc({
-      title: workingCopy.title,
+      title: workout.title,
       intervals: workingCopy.intervals,
     })
-    downloadTextFile(content, `${workingCopy.title}.mrc`, "text/plain")
-  }, [draft, sourceWorkout])
+    downloadTextFile(content, `${workout.title}.mrc`, "text/plain")
+  }, [draft, sourceWorkout, workout])
 
   const requestDelete = useCallback(() => {
     setShowDeleteDialog(true)
@@ -241,7 +234,6 @@ export function useWorkoutPageController(
     showDeleteDialog,
     setShowDeleteDialog,
     actions: {
-      changeTitle,
       changeIntervals,
       changeDisplayMode,
       save,
