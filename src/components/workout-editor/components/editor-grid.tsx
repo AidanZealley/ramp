@@ -14,7 +14,7 @@ interface EditorGridProps {
 export function EditorGrid({ scale }: EditorGridProps) {
   const ftpPower = 100
   const ftpY = scale.powerToY(ftpPower)
-  const showFtpLine = ftpPower <= scale.maxPower && ftpPower > 0
+  const showFtpLine = ftpPower <= scale.maxPower
 
   return (
     <>

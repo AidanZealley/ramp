@@ -361,15 +361,21 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
         insertAt: (index) => {
           const state = get()
           const displayIntervals = getDisplayIntervals(state)
-          const prev = displayIntervals[index - 1]
-          const next = displayIntervals[index]
           const defaultPower = 75
+          const hasPrev = index > 0
+          const hasNext = index < displayIntervals.length
 
           const newInterval: Interval = {
-            startPower: prev
-              ? prev.endPower
-              : (next?.startPower ?? defaultPower),
-            endPower: next ? next.startPower : (prev?.endPower ?? defaultPower),
+            startPower: hasPrev
+              ? displayIntervals[index - 1].endPower
+              : hasNext
+                ? displayIntervals[index].startPower
+                : defaultPower,
+            endPower: hasNext
+              ? displayIntervals[index].startPower
+              : hasPrev
+                ? displayIntervals[index - 1].endPower
+                : defaultPower,
             durationSeconds: 300,
           }
 

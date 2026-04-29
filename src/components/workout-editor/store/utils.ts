@@ -6,15 +6,21 @@ import type {
   WorkoutEditorStoreProps,
   WorkoutEditorStoreState,
 } from "./types"
-import type {Interval} from "@/lib/workout-utils";
-import {  getWorkoutStats } from "@/lib/workout-utils"
+import type { Interval } from "@/lib/workout-utils"
+import { getWorkoutStats } from "@/lib/workout-utils"
 
 export const DEFAULT_HISTORY_LIMIT = 100
 
 let idCounter = 0
 
-export const newWorkoutEditorId = () =>
-  globalThis.crypto?.randomUUID?.() ?? `workout-editor-${++idCounter}`
+export const newWorkoutEditorId = () => {
+  if (typeof globalThis.crypto.randomUUID === "function") {
+    return globalThis.crypto.randomUUID()
+  }
+
+  idCounter += 1
+  return `workout-editor-${idCounter}`
+}
 
 export function cloneIntervals(intervals: Array<Interval>) {
   return intervals.map((interval) => ({ ...interval }))
@@ -31,9 +37,9 @@ export function areIntervalsEqual(a: Array<Interval>, b: Array<Interval>) {
   return a.every((interval, index) => {
     const other = b[index]
     return (
-      interval.startPower === other?.startPower &&
-      interval.endPower === other?.endPower &&
-      interval.durationSeconds === other?.durationSeconds
+      interval.startPower === other.startPower &&
+      interval.endPower === other.endPower &&
+      interval.durationSeconds === other.durationSeconds
     )
   })
 }
@@ -45,7 +51,10 @@ export function isDirtyState(state: Pick<
   return !areIntervalsEqual(state.intervals, state.baselineIntervals)
 }
 
-function normalizeStableIds(stableIds: Array<string>, nextLength: number): Array<string> {
+function normalizeStableIds(
+  stableIds: Array<string>,
+  nextLength: number
+): Array<string> {
   const trimmed = stableIds.slice(0, nextLength)
   const seen = new Set<string>()
   const normalized = trimmed.map((id) => {

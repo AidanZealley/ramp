@@ -57,8 +57,6 @@ export function IntervalBlock({
     isDragging: isSortDragging,
   } = useSortable({ id: stableId })
 
-  if (!interval) return null
-
   const x = scale.getIntervalX(index)
   const w = scale.getIntervalWidth(interval)
   const displayW = Math.max(1, w - 1)

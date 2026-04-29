@@ -23,7 +23,7 @@ const baseIntervals: Array<Interval> = [
 ]
 
 function readJson<T>(testId: string): T {
-  return JSON.parse(screen.getByTestId(testId).textContent ?? "null") as T
+  return JSON.parse(screen.getByTestId(testId).textContent) as T
 }
 
 function setNavigatorPlatform(platform: string) {

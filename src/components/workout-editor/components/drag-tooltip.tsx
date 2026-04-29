@@ -28,7 +28,6 @@ export function DragTooltip({
   containerWidth,
 }: DragTooltipProps) {
   const interval = intervals[activeDrag.index]
-  if (!interval) return null
 
   const x = scale.getIntervalX(activeDrag.index)
   const w = scale.getIntervalWidth(interval)

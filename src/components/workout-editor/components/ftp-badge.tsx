@@ -9,7 +9,7 @@ interface FtpBadgeProps {
 
 export function FtpBadge({ scale, ftp, maxPower }: FtpBadgeProps) {
   const ftpPower = 100
-  const showFtpLine = ftpPower <= maxPower && ftpPower > 0
+  const showFtpLine = ftpPower <= maxPower
 
   if (!showFtpLine) {
     return null

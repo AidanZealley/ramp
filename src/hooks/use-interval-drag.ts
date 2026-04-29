@@ -158,7 +158,7 @@ export function useIntervalDrag({
         // Suppress the synthetic click the browser fires after pointerup.
         // Without this, the click bubbles to IntervalBlock's onClick and
         // toggles the selection off on every drag-end.
-        window.addEventListener("click", (e) => e.stopPropagation(), {
+        window.addEventListener("click", (event) => event.stopPropagation(), {
           capture: true,
           once: true,
         })

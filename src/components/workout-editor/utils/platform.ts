@@ -6,7 +6,10 @@ export function isApplePlatform() {
       userAgentData?: { platform?: string }
     }
   ).userAgentData
-  const platform = userAgentData?.platform ?? navigator.platform ?? ""
+  const platform =
+    typeof userAgentData?.platform === "string"
+      ? userAgentData.platform
+      : navigator.platform
 
   return /mac|iphone|ipad|ipod/i.test(platform)
 }

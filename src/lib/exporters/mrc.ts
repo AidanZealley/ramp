@@ -11,9 +11,13 @@ export interface MrcExportInput {
  * collapses runs of whitespace to a single space.
  */
 function sanitizeFileName(name: string): string {
-   
   return name
-    .replace(/[<>:"/\\|?*\x00-\x1f]/g, "")
+    .split("")
+    .filter((char) => {
+      const code = char.charCodeAt(0)
+      return !/[<>:"/\\|?*]/.test(char) && (code < 0 || code > 31)
+    })
+    .join("")
     .replace(/\s+/g, " ")
     .trim()
 }
