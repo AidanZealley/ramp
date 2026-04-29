@@ -1,4 +1,4 @@
-import { Bar, BarChart, LabelList, Rectangle } from "recharts"
+import { Bar, BarChart, LabelList, Rectangle, XAxis } from "recharts"
 import type {ChartConfig} from "@/components/ui/chart";
 import {  ChartContainer } from "@/components/ui/chart"
 import { getZoneInfoByZone } from "@/lib/zones"
@@ -47,6 +47,7 @@ export function WorkoutZoneChart({
 
     return {
       zoneKey: `zone${zone}`,
+      zoneLabel: `Z${zone}`,
       percentage: Number(zonePercentages[zone].toFixed(1)),
       fill: zoneInfo.color,
     }
@@ -57,8 +58,14 @@ export function WorkoutZoneChart({
       <BarChart
         accessibilityLayer
         data={chartData}
-        margin={{ top: 18, right: 8, left: 8, bottom: 0 }}
+        margin={{ top: 18, right: 8, left: 8, bottom: 12 }}
       >
+        <XAxis
+          axisLine={false}
+          dataKey="zoneLabel"
+          tickLine={false}
+          tickMargin={8}
+        />
         <Bar
           dataKey="percentage"
           maxBarSize={40}
