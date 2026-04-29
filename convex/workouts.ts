@@ -6,7 +6,7 @@ import {
   internalMutation,
   type MutationCtx,
 } from "./_generated/server"
-import { v } from "convex/values"
+import { ConvexError, v } from "convex/values"
 import { computeWorkoutSummary } from "./workoutSummary"
 
 const intervalValidator = v.object({
@@ -17,19 +17,43 @@ const intervalValidator = v.object({
 
 const LEGACY_POWER_MODE_BATCH_SIZE = 200
 const WORKOUT_SUMMARY_BACKFILL_BATCH_SIZE = 200
+const INTERVALS_REVISION_BACKFILL_BATCH_SIZE = 200
 
 type WorkoutDoc = Doc<"workouts">
 
-function sanitizeWorkout(workout: WorkoutDoc) {
-  const { powerMode: _powerMode, ...rest } = workout
-  return rest
+export type IntervalsConflictErrorData = {
+  kind: "intervalsRevisionConflict"
+  currentIntervalsRevision: number
+}
+
+export function resolveIntervalsRevision(
+  workout: Pick<WorkoutDoc, "intervalsRevision">
+) {
+  return workout.intervalsRevision ?? 0
+}
+
+export function sanitizeWorkoutForClient(workout: WorkoutDoc) {
+  const { powerMode: _powerMode, intervalsRevision, ...rest } = workout
+  return {
+    ...rest,
+    intervalsRevision: intervalsRevision ?? 0,
+  }
+}
+
+export function createIntervalsConflictErrorData(
+  currentIntervalsRevision: number
+): IntervalsConflictErrorData {
+  return {
+    kind: "intervalsRevisionConflict",
+    currentIntervalsRevision,
+  }
 }
 
 export const list = query({
   args: {},
   handler: async (ctx) => {
     const workouts = await ctx.db.query("workouts").collect()
-    return workouts.map(sanitizeWorkout)
+    return workouts.map(sanitizeWorkoutForClient)
   },
 })
 
@@ -37,7 +61,7 @@ export const get = query({
   args: { id: v.id("workouts") },
   handler: async (ctx, args) => {
     const workout = await ctx.db.get(args.id)
-    return workout ? sanitizeWorkout(workout) : null
+    return workout ? sanitizeWorkoutForClient(workout) : null
   },
 })
 
@@ -49,22 +73,39 @@ export const create = mutation({
   handler: async (ctx, args) => {
     return await ctx.db.insert("workouts", {
       ...args,
+      intervalsRevision: 0,
       summary: computeWorkoutSummary(args.intervals),
     })
   },
 })
 
-export const update = mutation({
+export const updateIntervals = mutation({
   args: {
     id: v.id("workouts"),
-    title: v.string(),
     intervals: v.array(intervalValidator),
+    expectedIntervalsRevision: v.number(),
+    force: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const { id, ...data } = args
-    await ctx.db.replace(id, {
-      ...data,
-      summary: computeWorkoutSummary(data.intervals),
+    const workout = await ctx.db.get(args.id)
+    if (!workout) {
+      throw new Error("Workout not found")
+    }
+
+    const currentIntervalsRevision = resolveIntervalsRevision(workout)
+    if (
+      args.force !== true &&
+      args.expectedIntervalsRevision !== currentIntervalsRevision
+    ) {
+      throw new ConvexError(
+        createIntervalsConflictErrorData(currentIntervalsRevision)
+      )
+    }
+
+    await ctx.db.patch(args.id, {
+      intervals: args.intervals,
+      intervalsRevision: currentIntervalsRevision + 1,
+      summary: computeWorkoutSummary(args.intervals),
     })
   },
 })
@@ -185,6 +226,43 @@ export const backfillWorkoutSummaries = mutation({
   },
 })
 
+export const backfillWorkoutIntervalsRevision = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const status = await runWorkoutIntervalsRevisionBackfillBatch(ctx, null)
+
+    if (status.hasMore) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.workouts.continueBackfillWorkoutIntervalsRevision,
+        { cursor: status.continueCursor }
+      )
+    }
+
+    return status
+  },
+})
+
+export const continueBackfillWorkoutIntervalsRevision = internalMutation({
+  args: { cursor: v.union(v.string(), v.null()) },
+  handler: async (ctx, args) => {
+    const status = await runWorkoutIntervalsRevisionBackfillBatch(
+      ctx,
+      args.cursor
+    )
+
+    if (status.hasMore) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.workouts.continueBackfillWorkoutIntervalsRevision,
+        { cursor: status.continueCursor }
+      )
+    }
+
+    return status
+  },
+})
+
 export const continueBackfillWorkoutSummaries = internalMutation({
   args: { cursor: v.union(v.string(), v.null()) },
   handler: async (ctx, args) => {
@@ -223,6 +301,7 @@ async function runWorkoutPowerMigrationBatch(ctx: MutationCtx) {
 
       return ctx.db.replace(workout._id, {
         title: workout.title,
+        intervalsRevision: resolveIntervalsRevision(workout),
         intervals,
         summary: computeWorkoutSummary(intervals),
       })
@@ -246,6 +325,7 @@ async function runWorkoutPowerMigrationBatch(ctx: MutationCtx) {
     percentageBatch.map((workout) =>
       ctx.db.replace(workout._id, {
         title: workout.title,
+        intervalsRevision: resolveIntervalsRevision(workout),
         intervals: workout.intervals,
         summary: computeWorkoutSummary(workout.intervals),
       })
@@ -278,6 +358,35 @@ async function runWorkoutSummaryBackfillBatch(
     workoutsToPatch.map((workout) =>
       ctx.db.patch(workout._id, {
         summary: computeWorkoutSummary(workout.intervals),
+      })
+    )
+  )
+
+  return {
+    scanned: page.page.length,
+    updated: workoutsToPatch.length,
+    continueCursor: page.continueCursor,
+    hasMore: !page.isDone,
+  }
+}
+
+async function runWorkoutIntervalsRevisionBackfillBatch(
+  ctx: MutationCtx,
+  cursor: string | null
+) {
+  const page = await ctx.db.query("workouts").order("asc").paginate({
+    cursor,
+    numItems: INTERVALS_REVISION_BACKFILL_BATCH_SIZE,
+  })
+
+  const workoutsToPatch = page.page.filter(
+    (workout) => workout.intervalsRevision === undefined
+  )
+
+  await Promise.all(
+    workoutsToPatch.map((workout) =>
+      ctx.db.patch(workout._id, {
+        intervalsRevision: 0,
       })
     )
   )

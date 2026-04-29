@@ -1,7 +1,8 @@
 import { useContext, useMemo } from "react"
 import { useStore } from "zustand"
+import { getWorkoutStats } from "@/lib/workout-utils"
 import { WorkoutEditorStoreContext } from "./context"
-import { buildClipboardPreviewData } from "./utils"
+import { buildClipboardPreviewData, isDirtyState } from "./utils"
 import type {
   ClipboardPreviewData,
   WorkoutEditorActions,
@@ -21,14 +22,17 @@ function useWorkoutEditorStore<T>(
 export const useWorkoutEditorIntervals = () =>
   useWorkoutEditorStore((state) => state.intervals)
 
+export const useWorkoutEditorCurrentIntervals = () =>
+  useWorkoutEditorStore((state) => state.intervals)
+
+export const useWorkoutEditorBaselineIntervals = () =>
+  useWorkoutEditorStore((state) => state.baselineIntervals)
+
 export const useWorkoutEditorDisplayMode = () =>
   useWorkoutEditorStore((state) => state.displayMode)
 
 export const useWorkoutEditorFtp = () =>
   useWorkoutEditorStore((state) => state.ftp)
-
-export const useWorkoutEditorOnIntervalsChange = () =>
-  useWorkoutEditorStore((state) => state.onIntervalsChange)
 
 export const useWorkoutEditorDisplayIntervals = () =>
   useWorkoutEditorStore((state) => state.dragPreview ?? state.intervals)
@@ -85,6 +89,28 @@ export const useWorkoutEditorCanUndo = () =>
 export const useWorkoutEditorCanRedo = () =>
   useWorkoutEditorStore((state) => state.history.future.length > 0)
 
+export const useWorkoutEditorIsDirty = () =>
+  useWorkoutEditorStore((state) => isDirtyState(state))
+
+export const useWorkoutEditorCanSave = () => useWorkoutEditorIsDirty()
+
+export const useWorkoutEditorCanRevert = () => useWorkoutEditorIsDirty()
+
+export const useWorkoutEditorPendingServerSnapshot = () =>
+  useWorkoutEditorStore((state) => state.pendingServerSnapshot)
+
+export const useWorkoutEditorHasIncomingServerChanges = () =>
+  useWorkoutEditorStore((state) => state.pendingServerSnapshot !== null)
+
+export const useWorkoutEditorBaselineRevision = () =>
+  useWorkoutEditorStore((state) => state.baselineIntervalsRevision)
+
+export const useWorkoutEditorStats = () => {
+  const intervals = useWorkoutEditorCurrentIntervals()
+
+  return useMemo(() => getWorkoutStats(intervals), [intervals])
+}
+
 export const useWorkoutEditorInterval = (index: number) =>
   useWorkoutEditorStore((state) => {
     const intervals = state.dragPreview ?? state.intervals
@@ -101,6 +127,7 @@ export { WorkoutEditorStoreProvider } from "./WorkoutStoreProvider"
 export type {
   ClipboardPreviewData,
   WorkoutEditorActions,
+  WorkoutEditorServerSnapshot,
   WorkoutEditorStoreProps,
   WorkoutEditorStoreState,
 } from "./types"

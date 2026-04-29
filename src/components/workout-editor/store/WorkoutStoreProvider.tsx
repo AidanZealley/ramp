@@ -16,8 +16,23 @@ export function WorkoutEditorStoreProvider({
   }
 
   useEffect(() => {
-    storeRef.current?.getState().actions.syncFromProps(props)
-  }, [props.intervals, props.displayMode, props.ftp, props.onIntervalsChange])
+    storeRef.current?.getState().actions.receiveServerSnapshot({
+      intervals: props.serverIntervals,
+      resetKey: props.serverResetKey,
+      intervalsRevision: props.serverIntervalsRevision,
+    })
+  }, [
+    props.serverIntervals,
+    props.serverIntervalsRevision,
+    props.serverResetKey,
+  ])
+
+  useEffect(() => {
+    storeRef.current?.getState().actions.syncExternalConfig({
+      displayMode: props.displayMode,
+      ftp: props.ftp,
+    })
+  }, [props.displayMode, props.ftp])
 
   return (
     <WorkoutEditorStoreContext.Provider value={storeRef.current}>

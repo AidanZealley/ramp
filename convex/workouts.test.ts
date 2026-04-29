@@ -1,0 +1,36 @@
+import { describe, expect, it } from "vitest"
+import {
+  createIntervalsConflictErrorData,
+  resolveIntervalsRevision,
+  sanitizeWorkoutForClient,
+} from "./workouts"
+
+describe("workouts helpers", () => {
+  it("defaults legacy missing intervalsRevision to zero", () => {
+    expect(resolveIntervalsRevision({ intervalsRevision: undefined })).toBe(0)
+  })
+
+  it("sanitizes legacy workouts with intervalsRevision zero", () => {
+    const workout = sanitizeWorkoutForClient({
+      _id: "workout-1",
+      _creationTime: 0,
+      title: "Threshold Builder",
+      intervals: [{ startPower: 100, endPower: 100, durationSeconds: 60 }],
+      summary: { totalDurationSeconds: 60, stressScore: 12 },
+      intervalsRevision: undefined,
+      powerMode: "percentage",
+    } as never)
+
+    expect(workout).toMatchObject({
+      title: "Threshold Builder",
+      intervalsRevision: 0,
+    })
+  })
+
+  it("builds structured conflict error data", () => {
+    expect(createIntervalsConflictErrorData(4)).toEqual({
+      kind: "intervalsRevisionConflict",
+      currentIntervalsRevision: 4,
+    })
+  })
+})

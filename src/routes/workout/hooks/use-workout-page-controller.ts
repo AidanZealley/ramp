@@ -1,46 +1,41 @@
-import { useCallback, useMemo, useState } from "react"
-import { useMutation, useQuery } from "convex/react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { useConvex, useMutation, useQuery } from "convex/react"
 import { useNavigate } from "@tanstack/react-router"
+import type { FunctionReturnType } from "convex/server"
+import type { ConvexError } from "convex/values"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { downloadTextFile, workoutToMrc } from "@/lib/exporters"
 import {
   DEFAULT_FTP,
-  getWorkoutStats,
   type Interval,
   type PowerDisplayMode,
-  type WorkoutStats,
 } from "@/lib/workout-utils"
 
-interface WorkoutDraft {
-  title: string
+type WorkoutRecord = NonNullable<FunctionReturnType<typeof api.workouts.get>>
+type SettingsRecord = FunctionReturnType<typeof api.settings.get>
+
+interface SaveIntervalsArgs {
   intervals: Interval[]
+  expectedIntervalsRevision: number
+  force?: boolean
 }
 
 interface WorkoutPageControllerReadyState {
   status: "ready"
+  workout: WorkoutRecord
+  settings: SettingsRecord | undefined
   ftp: number
   displayMode: PowerDisplayMode
-  workingCopy: WorkoutDraft
-  isDirty: boolean
-  stats: WorkoutStats
   showDeleteDialog: boolean
   setShowDeleteDialog: (open: boolean) => void
   actions: {
-    changeIntervals: (intervals: Interval[]) => void
     changeDisplayMode: (mode: PowerDisplayMode) => Promise<void>
-    save: () => Promise<void>
-    revert: () => void
+    saveIntervals: (args: SaveIntervalsArgs) => Promise<"saved" | "conflict">
     deleteWorkout: () => Promise<void>
-    exportMrc: () => void
+    exportIntervals: (intervals: Interval[]) => void
     requestDelete: () => void
     goBack: () => void
-    appendIntervalFallback: () => void
-  }
-  editorBridge: {
-    registerInsertAction: (fn: (() => void) | null) => void
-    addInterval: () => void
-    hasMountedEditor: boolean
   }
 }
 
@@ -58,106 +53,75 @@ export type WorkoutPageController =
   | WorkoutPageControllerNotFoundState
   | WorkoutPageControllerReadyState
 
-function cloneIntervals(intervals: Interval[]) {
-  return intervals.map((interval) => ({ ...interval }))
-}
-
-function intervalsEqual(a: Interval[], b: Interval[]) {
-  if (a === b) return true
-  if (a.length !== b.length) return false
-
-  return a.every((interval, index) => {
-    const other = b[index]
-    return (
-      interval.startPower === other?.startPower &&
-      interval.endPower === other?.endPower &&
-      interval.durationSeconds === other?.durationSeconds
-    )
-  })
-}
-
-function draftMatchesWorkout(workout: WorkoutDraft, draft: WorkoutDraft) {
-  return intervalsEqual(workout.intervals, draft.intervals)
+function isIntervalsRevisionConflictError(
+  error: unknown
+): error is ConvexError<{
+  kind: "intervalsRevisionConflict"
+  currentIntervalsRevision: number
+}> {
+  return (
+    error instanceof Error &&
+    "data" in error &&
+    typeof error.data === "object" &&
+    error.data !== null &&
+    "kind" in error.data &&
+    error.data.kind === "intervalsRevisionConflict"
+  )
 }
 
 export function useWorkoutPageController(
   workoutId: Id<"workouts">
 ): WorkoutPageController {
   const navigate = useNavigate()
+  const convex = useConvex()
   const workout = useQuery(api.workouts.get, { id: workoutId })
   const settings = useQuery(api.settings.get)
-  const updateWorkout = useMutation(api.workouts.update)
+  const updateIntervals = useMutation(api.workouts.updateIntervals)
   const removeWorkout = useMutation(api.workouts.remove)
   const upsertSettings = useMutation(api.settings.upsert)
 
-  const [draft, setDraft] = useState<WorkoutDraft | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [insertAction, setInsertAction] = useState<(() => void) | null>(null)
+  const [refreshedWorkout, setRefreshedWorkout] = useState<WorkoutRecord | null>(
+    null
+  )
 
   const ftp = settings?.ftp ?? DEFAULT_FTP
   const displayMode = settings?.powerDisplayMode ?? "percentage"
+
+  useEffect(() => {
+    if (
+      workout &&
+      refreshedWorkout &&
+      workout.intervalsRevision >= refreshedWorkout.intervalsRevision
+    ) {
+      setRefreshedWorkout(null)
+    }
+  }, [refreshedWorkout, workout])
+
+  const resolvedWorkout = useMemo(() => {
+    if (workout === undefined || workout === null) {
+      return workout
+    }
+
+    if (
+      refreshedWorkout &&
+      refreshedWorkout.intervalsRevision > workout.intervalsRevision
+    ) {
+      return refreshedWorkout
+    }
+
+    return workout
+  }, [refreshedWorkout, workout])
 
   const goBack = useCallback(() => {
     navigate({ to: "/" })
   }, [navigate])
 
-  const sourceWorkout = useMemo<WorkoutDraft | null>(() => {
-    if (!workout) return null
-    return {
-      title: workout.title,
-      intervals: cloneIntervals(workout.intervals),
-    }
-  }, [workout])
-
-  const updateDraft = useCallback(
-    (updater: (base: WorkoutDraft) => WorkoutDraft) => {
-      if (!sourceWorkout) return
-
-      setDraft((currentDraft) => {
-        const base = currentDraft ?? sourceWorkout
-        const nextDraft = updater({
-          title: sourceWorkout.title,
-          intervals: cloneIntervals(base.intervals),
-        })
-
-        return draftMatchesWorkout(sourceWorkout, nextDraft) ? null : nextDraft
-      })
-    },
-    [sourceWorkout]
-  )
-
-  const changeIntervals = useCallback(
-    (intervals: Interval[]) => {
-      updateDraft((base) => ({
-        ...base,
-        intervals: cloneIntervals(intervals),
-      }))
-    },
-    [updateDraft]
-  )
-
-  const appendIntervalFallback = useCallback(() => {
-    updateDraft((base) => ({
-      ...base,
-      intervals: [
-        ...base.intervals,
-        {
-          startPower: 75,
-          endPower: 75,
-          durationSeconds: 300,
-        },
-      ],
-    }))
-  }, [updateDraft])
-
-  const addInterval = useCallback(() => {
-    if (insertAction) {
-      insertAction()
-      return
-    }
-
-    appendIntervalFallback()
-  }, [appendIntervalFallback, insertAction])
+  const refreshLatestWorkout = useCallback(async () => {
+    const latest = await convex.query(api.workouts.get, { id: workoutId })
+    setRefreshedWorkout(latest)
+    return latest
+  }, [convex, workoutId])
 
   const changeDisplayMode = useCallback(
     async (value: PowerDisplayMode) => {
@@ -167,87 +131,81 @@ export function useWorkoutPageController(
     [displayMode, upsertSettings]
   )
 
-  const save = useCallback(async () => {
-    if (!draft || !workout) return
+  const saveIntervals = useCallback(
+    async ({ intervals, expectedIntervalsRevision, force }: SaveIntervalsArgs) => {
+      if (!resolvedWorkout) return "saved"
 
-    await updateWorkout({
-      id: workout._id,
-      title: workout.title,
-      intervals: draft.intervals,
-    })
-    setDraft(null)
-  }, [draft, updateWorkout, workout])
+      try {
+        await updateIntervals({
+          id: resolvedWorkout._id,
+          intervals,
+          expectedIntervalsRevision,
+          force,
+        })
+        return "saved" as const
+      } catch (error) {
+        if (!force && isIntervalsRevisionConflictError(error)) {
+          await refreshLatestWorkout()
+          return "conflict" as const
+        }
 
-  const revert = useCallback(() => {
-    setDraft(null)
-  }, [])
+        throw error
+      }
+    },
+    [refreshLatestWorkout, resolvedWorkout, updateIntervals]
+  )
 
   const deleteWorkout = useCallback(async () => {
-    if (!workout) return
+    if (!resolvedWorkout) return
 
-    await removeWorkout({ id: workout._id })
+    await removeWorkout({ id: resolvedWorkout._id })
     setShowDeleteDialog(false)
     navigate({ to: "/" })
-  }, [navigate, removeWorkout, workout])
+  }, [navigate, removeWorkout, resolvedWorkout])
 
-  const exportMrc = useCallback(() => {
-    if (!workout) return
+  const exportIntervals = useCallback(
+    (intervals: Interval[]) => {
+      if (!resolvedWorkout || intervals.length === 0) return
 
-    const workingCopy = draft ?? sourceWorkout
-    if (!workingCopy || workingCopy.intervals.length === 0) return
-
-    const content = workoutToMrc({
-      title: workout.title,
-      intervals: workingCopy.intervals,
-    })
-    downloadTextFile(content, `${workout.title}.mrc`, "text/plain")
-  }, [draft, sourceWorkout, workout])
+      const content = workoutToMrc({
+        title: resolvedWorkout.title,
+        intervals,
+      })
+      downloadTextFile(content, `${resolvedWorkout.title}.mrc`, "text/plain")
+    },
+    [resolvedWorkout]
+  )
 
   const requestDelete = useCallback(() => {
     setShowDeleteDialog(true)
   }, [])
 
-  const registerInsertAction = useCallback((fn: (() => void) | null) => {
-    setInsertAction(() => fn)
-  }, [])
-
-  if (workout === undefined) {
+  if (resolvedWorkout === undefined) {
     return { status: "loading" }
   }
 
-  if (workout === null || sourceWorkout === null) {
+  if (resolvedWorkout === null) {
     return {
       status: "notFound",
       goBack,
     }
   }
 
-  const workingCopy = draft ?? sourceWorkout
-
   return {
     status: "ready",
+    workout: resolvedWorkout,
+    settings,
     ftp,
     displayMode,
-    workingCopy,
-    isDirty: draft !== null,
-    stats: getWorkoutStats(workingCopy.intervals),
     showDeleteDialog,
     setShowDeleteDialog,
     actions: {
-      changeIntervals,
       changeDisplayMode,
-      save,
-      revert,
+      saveIntervals,
       deleteWorkout,
-      exportMrc,
+      exportIntervals,
       requestDelete,
       goBack,
-      appendIntervalFallback,
-    },
-    editorBridge: {
-      registerInsertAction,
-      addInterval,
-      hasMountedEditor: insertAction !== null,
     },
   }
 }

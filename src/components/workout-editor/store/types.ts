@@ -1,12 +1,19 @@
-import type { Interval } from "@/lib/workout-utils"
+import type { Interval, PowerDisplayMode } from "@/lib/workout-utils"
 import type { SelectModifiers } from "../components/interval-block"
 import type { HistoryState } from "./history"
 
-export interface WorkoutEditorStoreProps {
+export interface WorkoutEditorServerSnapshot {
   intervals: Interval[]
-  displayMode: "absolute" | "percentage"
+  resetKey: string
+  intervalsRevision: number
+}
+
+export interface WorkoutEditorStoreProps {
+  serverIntervals: Interval[]
+  serverResetKey: string
+  serverIntervalsRevision: number
+  displayMode: PowerDisplayMode
   ftp: number
-  onIntervalsChange: (intervals: Interval[]) => void
 }
 
 export interface ClipboardPreviewData {
@@ -22,8 +29,20 @@ export interface WorkoutEditorHistoryEntry {
 }
 
 export interface WorkoutEditorActions {
-  syncFromProps: (props: WorkoutEditorStoreProps) => void
-  syncStableIdsLength: (nextLength: number) => void
+  initializeFromServer: (
+    snapshot: WorkoutEditorServerSnapshot & {
+      displayMode: PowerDisplayMode
+      ftp: number
+    }
+  ) => void
+  receiveServerSnapshot: (snapshot: WorkoutEditorServerSnapshot) => void
+  syncExternalConfig: (config: {
+    displayMode: PowerDisplayMode
+    ftp: number
+  }) => void
+  resetToBaseline: () => void
+  adoptPendingServerSnapshot: () => void
+  clearPendingServerSnapshot: () => void
   setDragPreview: (preview: Interval[] | null) => void
   setHoveredIndex: (index: number | null) => void
   setActiveReorderId: (id: string | null) => void
@@ -52,7 +71,14 @@ export interface WorkoutEditorActions {
   redo: () => void
 }
 
-export interface WorkoutEditorStoreState extends WorkoutEditorStoreProps {
+export interface WorkoutEditorStoreState {
+  baselineIntervals: Interval[]
+  intervals: Interval[]
+  serverResetKey: string
+  baselineIntervalsRevision: number
+  pendingServerSnapshot: WorkoutEditorServerSnapshot | null
+  displayMode: PowerDisplayMode
+  ftp: number
   dragPreview: Interval[] | null
   hoveredIndex: number | null
   selectedIds: string[]

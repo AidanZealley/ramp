@@ -1,4 +1,4 @@
-import { StrictMode, useState } from "react"
+import { StrictMode } from "react"
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { WorkoutEditor } from "./workout-editor"
@@ -8,7 +8,9 @@ import {
   useWorkoutEditorCanRedo,
   useWorkoutEditorCanUndo,
   useWorkoutEditorClipboardIds,
-  useWorkoutEditorIntervals,
+  useWorkoutEditorCurrentIntervals,
+  useWorkoutEditorHasIncomingServerChanges,
+  useWorkoutEditorIsDirty,
   useWorkoutEditorSelectedIds,
   useWorkoutEditorStableIds,
 } from "./store"
@@ -36,12 +38,14 @@ function setNavigatorPlatform(platform: string) {
 }
 
 function HarnessContent() {
-  const intervals = useWorkoutEditorIntervals()
+  const intervals = useWorkoutEditorCurrentIntervals()
   const selectedIds = useWorkoutEditorSelectedIds()
   const clipboardIds = useWorkoutEditorClipboardIds()
   const stableIds = useWorkoutEditorStableIds()
   const canUndo = useWorkoutEditorCanUndo()
   const canRedo = useWorkoutEditorCanRedo()
+  const isDirty = useWorkoutEditorIsDirty()
+  const hasIncomingServerChanges = useWorkoutEditorHasIncomingServerChanges()
   const actions = useWorkoutEditorActions()
 
   return (
@@ -52,6 +56,10 @@ function HarnessContent() {
       <div data-testid="intervals">{JSON.stringify(intervals)}</div>
       <div data-testid="can-undo">{canUndo ? "yes" : "no"}</div>
       <div data-testid="can-redo">{canRedo ? "yes" : "no"}</div>
+      <div data-testid="is-dirty">{isDirty ? "yes" : "no"}</div>
+      <div data-testid="has-incoming">
+        {hasIncomingServerChanges ? "yes" : "no"}
+      </div>
 
       <button
         onClick={() =>
@@ -152,6 +160,8 @@ function HarnessContent() {
       </button>
       <button onClick={actions.undo}>undo</button>
       <button onClick={actions.redo}>redo</button>
+      <button onClick={actions.resetToBaseline}>reset-to-baseline</button>
+      <button onClick={actions.adoptPendingServerSnapshot}>adopt-pending</button>
       <button onClick={actions.reorderIntervals.bind(null, 0, 2, stableIds[0])}>
         reorder-0-2
       </button>
@@ -161,30 +171,42 @@ function HarnessContent() {
 
 function StoreHarness({
   initialIntervals = baseIntervals,
+  resetKey = "workout-1:0",
+  intervalsRevision = 0,
 }: {
   initialIntervals?: Interval[]
+  resetKey?: string
+  intervalsRevision?: number
 }) {
-  const [intervals, setIntervals] = useState(initialIntervals)
-
   return (
     <WorkoutEditorStoreProvider
-      intervals={intervals}
+      serverIntervals={initialIntervals}
+      serverResetKey={resetKey}
+      serverIntervalsRevision={intervalsRevision}
       displayMode="absolute"
       ftp={250}
-      onIntervalsChange={setIntervals}
     >
       <HarnessContent />
     </WorkoutEditorStoreProvider>
   )
 }
 
-function ControlledHarness({ intervals }: { intervals: Interval[] }) {
+function ControlledHarness({
+  intervals,
+  resetKey,
+  intervalsRevision,
+}: {
+  intervals: Interval[]
+  resetKey: string
+  intervalsRevision: number
+}) {
   return (
     <WorkoutEditorStoreProvider
-      intervals={intervals}
+      serverIntervals={intervals}
+      serverResetKey={resetKey}
+      serverIntervalsRevision={intervalsRevision}
       displayMode="absolute"
       ftp={250}
-      onIntervalsChange={vi.fn()}
     >
       <HarnessContent />
     </WorkoutEditorStoreProvider>
@@ -196,22 +218,25 @@ function EditorActionHarness({
 }: {
   initialIntervals?: Interval[]
 }) {
-  const [intervals, setIntervals] = useState(initialIntervals)
-  const [insertAction, setInsertAction] = useState<(() => void) | null>(null)
+  function EditorStateMirror() {
+    const intervals = useWorkoutEditorCurrentIntervals()
+    return <div data-testid="editor-intervals">{JSON.stringify(intervals)}</div>
+  }
 
   return (
-    <div>
-      <button onClick={() => insertAction?.()}>registered-insert</button>
-      <input aria-label="notes-input" />
-      <div data-testid="editor-intervals">{JSON.stringify(intervals)}</div>
-      <WorkoutEditor
-        intervals={intervals}
-        displayMode="absolute"
-        ftp={250}
-        onIntervalsChange={setIntervals}
-        onInsertActionReady={(fn) => setInsertAction(() => fn)}
-      />
-    </div>
+    <WorkoutEditorStoreProvider
+      serverIntervals={initialIntervals}
+      serverResetKey="workout-1:0"
+      serverIntervalsRevision={0}
+      displayMode="absolute"
+      ftp={250}
+    >
+      <div>
+        <input aria-label="notes-input" />
+        <EditorStateMirror />
+        <WorkoutEditor />
+      </div>
+    </WorkoutEditorStoreProvider>
   )
 }
 
@@ -498,47 +523,90 @@ describe("workout editor store", () => {
     expect(screen.getByTestId("can-undo").textContent).toBe("no")
   })
 
-  it("external prop replacement resets undo and redo history", async () => {
-    const { rerender } = render(<ControlledHarness intervals={baseIntervals} />)
+  it("resetToBaseline clears dirty state and resets history", async () => {
+    render(<StoreHarness />)
 
-    fireEvent.click(screen.getByText("plain-1"))
     fireEvent.click(screen.getByText("commit-2"))
     await waitFor(() => {
+      expect(screen.getByTestId("is-dirty").textContent).toBe("yes")
       expect(screen.getByTestId("can-undo").textContent).toBe("yes")
     })
 
-    rerender(<ControlledHarness intervals={baseIntervals.slice(0, 1)} />)
+    fireEvent.click(screen.getByText("reset-to-baseline"))
 
     await waitFor(() => {
+      expect(readJson<Interval[]>("intervals")).toEqual(baseIntervals)
+      expect(screen.getByTestId("is-dirty").textContent).toBe("no")
       expect(screen.getByTestId("can-undo").textContent).toBe("no")
       expect(screen.getByTestId("can-redo").textContent).toBe("no")
     })
   })
-})
 
-describe("WorkoutEditor insert callback and keyboard shortcuts", () => {
-  beforeEach(() => {
-    setNavigatorPlatform("MacIntel")
-  })
+  it("a clean editor auto-adopts a new server snapshot", async () => {
+    const { rerender } = render(
+      <ControlledHarness
+        intervals={baseIntervals}
+        resetKey="workout-1:0"
+        intervalsRevision={0}
+      />
+    )
 
-  it("registers an insert action that inserts after the right-most selected interval", async () => {
-    const { container } = render(<EditorActionHarness />)
-
-    const target = container.querySelector('[data-editor-interval-index="1"]')
-    expect(target).toBeTruthy()
-
-    fireEvent.click(target!)
-    fireEvent.click(screen.getByText("registered-insert"))
+    rerender(
+      <ControlledHarness
+        intervals={baseIntervals.slice(0, 1)}
+        resetKey="workout-1:1"
+        intervalsRevision={1}
+      />
+    )
 
     await waitFor(() => {
-      const intervals = readJson<Interval[]>("editor-intervals")
-      expect(intervals).toHaveLength(4)
-      expect(intervals[2]).toEqual({
-        startPower: 150,
-        endPower: 200,
-        durationSeconds: 300,
-      })
+      expect(readJson<Interval[]>("intervals")).toEqual(baseIntervals.slice(0, 1))
+      expect(screen.getByTestId("is-dirty").textContent).toBe("no")
+      expect(screen.getByTestId("can-undo").textContent).toBe("no")
     })
+  })
+
+  it("a dirty editor keeps local edits and stores an incoming snapshot", async () => {
+    const { rerender } = render(
+      <ControlledHarness
+        intervals={baseIntervals}
+        resetKey="workout-1:0"
+        intervalsRevision={0}
+      />
+    )
+
+    fireEvent.click(screen.getByText("plain-1"))
+    fireEvent.click(screen.getByText("commit-2"))
+    await waitFor(() => {
+      expect(screen.getByTestId("is-dirty").textContent).toBe("yes")
+    })
+
+    rerender(
+      <ControlledHarness
+        intervals={baseIntervals.slice(0, 1)}
+        resetKey="workout-1:1"
+        intervalsRevision={1}
+      />
+    )
+
+    await waitFor(() => {
+      expect(readJson<Interval[]>("intervals")).toEqual(baseIntervals.slice(0, 2))
+      expect(screen.getByTestId("has-incoming").textContent).toBe("yes")
+    })
+
+    fireEvent.click(screen.getByText("adopt-pending"))
+
+    await waitFor(() => {
+      expect(readJson<Interval[]>("intervals")).toEqual(baseIntervals.slice(0, 1))
+      expect(screen.getByTestId("has-incoming").textContent).toBe("no")
+      expect(screen.getByTestId("is-dirty").textContent).toBe("no")
+    })
+  })
+})
+
+describe("WorkoutEditor keyboard shortcuts", () => {
+  beforeEach(() => {
+    setNavigatorPlatform("MacIntel")
   })
 
   it("does not loop when using the toolbar copy action", async () => {

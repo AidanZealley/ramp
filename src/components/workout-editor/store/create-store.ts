@@ -7,14 +7,18 @@ import { pushHistory, redoHistory, resetHistory, undoHistory } from "./history"
 import {
   areIntervalsEqual,
   cleanupState,
+  cloneIntervals,
   createHistoryEntry,
   createInitialState,
+  createSessionState,
   getDisplayIntervals,
+  isDirtyState,
   newWorkoutEditorId,
   reconcileStableIds,
 } from "./utils"
 import type {
   WorkoutEditorHistoryEntry,
+  WorkoutEditorServerSnapshot,
   WorkoutEditorStoreProps,
   WorkoutEditorStoreState,
 } from "./types"
@@ -33,64 +37,87 @@ function areHistoryEntriesEqual(
   )
 }
 
+function buildPresentFromState(state: WorkoutEditorStoreState) {
+  return createHistoryEntry(
+    state.intervals,
+    state.stableIds,
+    state.selectedIds,
+    state.anchorId
+  )
+}
+
+function applyPresent(
+  state: WorkoutEditorStoreState,
+  present: WorkoutEditorHistoryEntry
+) {
+  const cleaned = cleanupState(
+    {
+      ...state,
+      selectedIds: present.selectedIds,
+      anchorId: present.anchorId,
+      stableIds: present.stableIds,
+      intervals: present.intervals,
+    },
+    present.stableIds,
+    present.intervals
+  )
+  const nextSelectedIds = cleaned.selectedIds
+  const nextAnchorId =
+    present.anchorId && nextSelectedIds.includes(present.anchorId)
+      ? present.anchorId
+      : cleaned.anchorId
+
+  return {
+    intervals: present.intervals,
+    stableIds: present.stableIds,
+    selectedIds: nextSelectedIds,
+    anchorId: nextAnchorId,
+    clipboardIds: cleaned.clipboardIds,
+    dragPreview: null,
+    hoveredIndex: null,
+    activeReorderId: null,
+  }
+}
+
+function initializeSessionState(
+  state: WorkoutEditorStoreState,
+  snapshot: WorkoutEditorServerSnapshot,
+  config?: Pick<WorkoutEditorStoreState, "displayMode" | "ftp">
+) {
+  const nextState = createSessionState(
+    {
+      intervals: cloneIntervals(snapshot.intervals),
+      resetKey: snapshot.resetKey,
+      intervalsRevision: snapshot.intervalsRevision,
+    },
+    {
+      displayMode: config?.displayMode ?? state.displayMode,
+      ftp: config?.ftp ?? state.ftp,
+    }
+  )
+
+  return {
+    ...state,
+    ...nextState,
+    historyLimit: state.historyLimit,
+  }
+}
+
 export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
   return createStore<WorkoutEditorStoreState>()((set, get) => {
-    const applyPresent = (
-      state: WorkoutEditorStoreState,
-      present: WorkoutEditorHistoryEntry
-    ) => {
-      const cleaned = cleanupState(
-        {
-          ...state,
-          selectedIds: present.selectedIds,
-          anchorId: present.anchorId,
-          stableIds: present.stableIds,
-          intervals: present.intervals,
-        },
-        present.stableIds,
-        present.intervals
-      )
-      const nextSelectedIds = cleaned.selectedIds
-      const nextAnchorId =
-        present.anchorId && nextSelectedIds.includes(present.anchorId)
-          ? present.anchorId
-          : cleaned.anchorId
-
-      return {
-        intervals: present.intervals,
-        stableIds: present.stableIds,
-        selectedIds: nextSelectedIds,
-        anchorId: nextAnchorId,
-        clipboardIds: cleaned.clipboardIds,
-        dragPreview: null,
-        hoveredIndex: null,
-        activeReorderId: null,
-      }
-    }
-
-    const commitHistoryEntry = (
-      nextPresent: WorkoutEditorHistoryEntry,
-      options?: { reset?: boolean }
-    ) => {
+    const commitHistoryEntry = (nextPresent: WorkoutEditorHistoryEntry) => {
       const state = get()
-      const currentPresent = createHistoryEntry(
-        state.intervals,
-        state.stableIds,
-        state.selectedIds,
-        state.anchorId
-      )
-      const history = options?.reset
-        ? resetHistory(nextPresent)
-        : areHistoryEntriesEqual(currentPresent, nextPresent)
-          ? state.history
-          : pushHistory(
-              {
-                ...state.history,
-                present: currentPresent,
-              },
-              nextPresent,
-              state.historyLimit
-            )
+      const currentPresent = buildPresentFromState(state)
+      const history = areHistoryEntriesEqual(currentPresent, nextPresent)
+        ? state.history
+        : pushHistory(
+            {
+              ...state.history,
+              present: currentPresent,
+            },
+            nextPresent,
+            state.historyLimit
+          )
 
       if (history === state.history) return
 
@@ -98,91 +125,77 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
         history,
         ...applyPresent(state, history.present),
       })
-      state.onIntervalsChange(history.present.intervals)
     }
 
     return {
       ...createInitialState(props),
       actions: {
-        syncFromProps: (nextProps) => {
+        initializeFromServer: (snapshot) => {
+          set((state) =>
+            initializeSessionState(state, snapshot, {
+              displayMode: snapshot.displayMode,
+              ftp: snapshot.ftp,
+            })
+          )
+        },
+        receiveServerSnapshot: (snapshot) => {
           set((state) => {
-            const onlyPropsChanged =
-              state.displayMode !== nextProps.displayMode ||
-              state.ftp !== nextProps.ftp ||
-              state.onIntervalsChange !== nextProps.onIntervalsChange
-
-            if (
-              areIntervalsEqual(
-                state.history.present.intervals,
-                nextProps.intervals
-              )
-            ) {
-              if (!onlyPropsChanged) return state
-
-              return {
-                displayMode: nextProps.displayMode,
-                ftp: nextProps.ftp,
-                onIntervalsChange: nextProps.onIntervalsChange,
-              }
+            if (snapshot.resetKey === state.serverResetKey) {
+              return state
             }
 
-            const stableIds = reconcileStableIds(
-              state.stableIds,
-              nextProps.intervals.length
-            )
-            const present = createHistoryEntry(
-              nextProps.intervals,
-              stableIds,
-              [],
-              null
-            )
-            const history = resetHistory(present)
-            const baseState = {
-              ...state,
-              ...nextProps,
-              history,
-              stableIds,
-              intervals: nextProps.intervals,
-              selectedIds: present.selectedIds,
-              anchorId: present.anchorId,
-              dragPreview: null,
-              hoveredIndex: null,
-              activeReorderId: null,
+            if (!isDirtyState(state)) {
+              return initializeSessionState(state, snapshot)
             }
 
             return {
-              ...nextProps,
-              history,
-              historyLimit: state.historyLimit,
-              stableIds,
-              ...cleanupState(baseState, stableIds, nextProps.intervals),
+              pendingServerSnapshot: {
+                intervals: cloneIntervals(snapshot.intervals),
+                resetKey: snapshot.resetKey,
+                intervalsRevision: snapshot.intervalsRevision,
+              },
             }
           })
         },
-        syncStableIdsLength: (nextLength) => {
+        syncExternalConfig: ({ displayMode, ftp }) => {
           set((state) => {
-            const stableIds = reconcileStableIds(state.stableIds, nextLength)
-            const present = createHistoryEntry(
-              state.history.present.intervals,
-              stableIds,
-              state.history.present.selectedIds.filter((id) =>
-                stableIds.includes(id)
-              ),
-              state.history.present.anchorId &&
-                stableIds.includes(state.history.present.anchorId)
-                ? state.history.present.anchorId
-                : null
-            )
+            if (state.displayMode === displayMode && state.ftp === ftp) {
+              return state
+            }
+
+            return { displayMode, ftp }
+          })
+        },
+        resetToBaseline: () => {
+          set((state) => {
+            const intervals = cloneIntervals(state.baselineIntervals)
+            const stableIds = reconcileStableIds([], intervals.length)
+            const present = createHistoryEntry(intervals, stableIds, [], null)
 
             return {
+              intervals,
               stableIds,
-              history: {
-                ...state.history,
-                present,
-              },
-              ...cleanupState(state, stableIds, state.intervals),
+              selectedIds: [],
+              anchorId: null,
+              dragPreview: null,
+              hoveredIndex: null,
+              activeReorderId: null,
+              history: resetHistory(present),
             }
           })
+        },
+        adoptPendingServerSnapshot: () => {
+          set((state) => {
+            if (!state.pendingServerSnapshot) return state
+            return initializeSessionState(state, state.pendingServerSnapshot)
+          })
+        },
+        clearPendingServerSnapshot: () => {
+          set((state) =>
+            state.pendingServerSnapshot === null
+              ? state
+              : { pendingServerSnapshot: null }
+          )
         },
         setDragPreview: (preview) => {
           set({ dragPreview: preview })
@@ -318,15 +331,12 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
         },
         deleteIntervals: (ids) => {
           if (ids.length === 0) return
+
           const state = get()
           const toDelete = new Set(ids)
           const keepMask = state.stableIds.map((id) => !toDelete.has(id))
-          const stableIds = state.stableIds.filter(
-            (_, index) => keepMask[index]
-          )
-          const intervals = state.intervals.filter(
-            (_, index) => keepMask[index]
-          )
+          const stableIds = state.stableIds.filter((_, index) => keepMask[index])
+          const intervals = state.intervals.filter((_, index) => keepMask[index])
 
           commitHistoryEntry(createHistoryEntry(intervals, stableIds, [], null))
         },
@@ -475,7 +485,6 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
             history,
             ...applyPresent(state, history.present),
           })
-          state.onIntervalsChange(history.present.intervals)
         },
         redo: () => {
           const state = get()
@@ -486,7 +495,6 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
             history,
             ...applyPresent(state, history.present),
           })
-          state.onIntervalsChange(history.present.intervals)
         },
       },
     }

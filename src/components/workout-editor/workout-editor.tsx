@@ -1,5 +1,4 @@
-import { useEffect, useRef } from "react"
-import type { Interval, PowerDisplayMode } from "@/lib/workout-utils"
+import { useRef } from "react"
 import { computeMaxPower } from "@/lib/workout-utils"
 import { TIMELINE_EDGE_GUTTER } from "@/lib/timeline/types"
 import { useIntervalDrag } from "@/hooks/use-interval-drag"
@@ -8,7 +7,6 @@ import { EditorCanvas } from "./components/editor-canvas"
 import { EditorToolbar } from "./components/editor-toolbar"
 import { FtpBadge } from "./components/ftp-badge"
 import {
-  WorkoutEditorStoreProvider,
   useWorkoutEditorActions,
   useWorkoutEditorActiveReorderId,
   useWorkoutEditorDisplayMode,
@@ -25,107 +23,78 @@ import { useEditorAutoScroll } from "./hooks/use-editor-auto-scroll"
 import { useEditorKeypresses } from "./hooks/use-editor-keypresses"
 import { useEditorZoom } from "./hooks/use-editor-zoom"
 
-interface WorkoutEditorProps {
-  intervals: Array<Interval>
-  displayMode: PowerDisplayMode
-  ftp: number
-  onIntervalsChange: (intervals: Array<Interval>) => void
-  onInsertActionReady?: (insertAction: (() => void) | null) => void
-}
+export function WorkoutEditor() {
+  const intervals = useWorkoutEditorIntervals()
+  const displayIntervals = useWorkoutEditorDisplayIntervals()
+  const displayMode = useWorkoutEditorDisplayMode()
+  const ftp = useWorkoutEditorFtp()
+  const selectedIds = useWorkoutEditorSelectedIds()
+  const selectedCount = useWorkoutEditorSelectedCount()
+  const stableIds = useWorkoutEditorStableIds()
+  const hasClipboard = useWorkoutEditorHasClipboard()
+  const activeReorderId = useWorkoutEditorActiveReorderId()
+  const actions = useWorkoutEditorActions()
 
-export function WorkoutEditor(props: WorkoutEditorProps) {
-  const { onInsertActionReady, ...storeProps } = props
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const editorRef = useRef<HTMLDivElement>(null)
+
+  const { zoom, toolbarZoom, scale } = useEditorZoom({
+    displayIntervals,
+    selectedIds,
+    stableIds,
+    scrollContainerRef,
+  })
+
+  const { activeDrag, startDrag } = useIntervalDrag({
+    intervals,
+    pixelsPerSecond: zoom.pixelsPerSecond,
+    onPreviewChange: actions.setDragPreview,
+    onCommit: actions.commitIntervals,
+  })
+
+  const isDragging = activeDrag !== null || activeReorderId !== null
+  const maxPower = computeMaxPower(displayIntervals)
+
+  useEditorKeypresses({
+    actions,
+    isDragging,
+    selectedCount,
+    stableIdsLength: stableIds.length,
+    hasClipboard,
+  })
+
+  useEditorAutoScroll({
+    intervals,
+    selectedIds,
+    stableIds,
+    scale,
+    pixelsPerSecond: zoom.pixelsPerSecond,
+    scrollContainerRef,
+  })
+
+  useClearSelectionOnOutsideClick({ editorRef, actions })
 
   return (
-    <WorkoutEditorStoreProvider {...storeProps}>
-      <WorkoutEditorInner onInsertActionReady={onInsertActionReady} />
-    </WorkoutEditorStoreProvider>
-  )
-}
+    <div className="flex select-none">
+      <EditorAxis scale={scale} displayMode={displayMode} ftp={ftp} />
 
-function WorkoutEditorInner({
-  onInsertActionReady,
-}: {
-  onInsertActionReady?: (insertAction: (() => void) | null) => void
-}) {
-    const intervals = useWorkoutEditorIntervals()
-    const displayIntervals = useWorkoutEditorDisplayIntervals()
-    const displayMode = useWorkoutEditorDisplayMode()
-    const ftp = useWorkoutEditorFtp()
-    const selectedIds = useWorkoutEditorSelectedIds()
-    const selectedCount = useWorkoutEditorSelectedCount()
-    const stableIds = useWorkoutEditorStableIds()
-    const hasClipboard = useWorkoutEditorHasClipboard()
-    const activeReorderId = useWorkoutEditorActiveReorderId()
-    const actions = useWorkoutEditorActions()
+      <div className="relative flex min-w-0 flex-1 flex-col gap-3">
+        <EditorCanvas
+          scrollContainerRef={scrollContainerRef}
+          editorRef={editorRef}
+          scale={scale}
+          activeDrag={activeDrag}
+          startDrag={startDrag}
+        />
 
-    const scrollContainerRef = useRef<HTMLDivElement>(null)
-    const editorRef = useRef<HTMLDivElement>(null)
+        <FtpBadge scale={scale} ftp={ftp} maxPower={maxPower} />
 
-    const { zoom, toolbarZoom, scale } = useEditorZoom({
-      displayIntervals,
-      selectedIds,
-      stableIds,
-      scrollContainerRef,
-    })
-
-    const { activeDrag, startDrag } = useIntervalDrag({
-      intervals,
-      pixelsPerSecond: zoom.pixelsPerSecond,
-      onPreviewChange: actions.setDragPreview,
-      onCommit: actions.commitIntervals,
-    })
-
-    const isDragging = activeDrag !== null || activeReorderId !== null
-    const maxPower = computeMaxPower(displayIntervals)
-
-    useEditorKeypresses({
-      actions,
-      isDragging,
-      selectedCount,
-      stableIdsLength: stableIds.length,
-      hasClipboard,
-    })
-
-    useEditorAutoScroll({
-      intervals,
-      selectedIds,
-      stableIds,
-      scale,
-      pixelsPerSecond: zoom.pixelsPerSecond,
-      scrollContainerRef,
-    })
-
-    useClearSelectionOnOutsideClick({ editorRef, actions })
-
-    useEffect(() => {
-      onInsertActionReady?.(actions.insertAfterSelectionOrAppend)
-      return () => {
-        onInsertActionReady?.(null)
-      }
-    }, [actions, onInsertActionReady])
-
-    return (
-      <div className="flex select-none">
-        <EditorAxis scale={scale} displayMode={displayMode} ftp={ftp} />
-
-        <div className="relative flex min-w-0 flex-1 flex-col gap-3">
-          <EditorCanvas
-            scrollContainerRef={scrollContainerRef}
-            editorRef={editorRef}
-            scale={scale}
-            activeDrag={activeDrag}
-            startDrag={startDrag}
-          />
-
-          <FtpBadge scale={scale} ftp={ftp} maxPower={maxPower} />
-
-          <EditorToolbar
-            scrollContainerRef={scrollContainerRef}
-            edgeGutterPx={TIMELINE_EDGE_GUTTER}
-            zoom={toolbarZoom}
-          />
-        </div>
+        <EditorToolbar
+          scrollContainerRef={scrollContainerRef}
+          edgeGutterPx={TIMELINE_EDGE_GUTTER}
+          zoom={toolbarZoom}
+        />
       </div>
-    )
+    </div>
+  )
 }

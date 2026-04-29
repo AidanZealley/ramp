@@ -10,6 +10,7 @@ export default defineSchema({
         stressScore: v.number(),
       })
     ),
+    intervalsRevision: v.optional(v.number()),
     // Legacy field kept optional during rollout so existing docs validate
     // until `migrateAbsoluteWorkoutsToPercentage` has been run everywhere.
     powerMode: v.optional(

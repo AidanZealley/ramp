@@ -1,7 +1,8 @@
-import type { Interval } from "@/lib/workout-utils"
+import { getWorkoutStats, type Interval } from "@/lib/workout-utils"
 import type {
   ClipboardPreviewData,
   WorkoutEditorHistoryEntry,
+  WorkoutEditorServerSnapshot,
   WorkoutEditorStoreProps,
   WorkoutEditorStoreState,
 } from "./types"
@@ -13,6 +14,10 @@ let idCounter = 0
 
 export const newWorkoutEditorId = () =>
   globalThis.crypto?.randomUUID?.() ?? `workout-editor-${++idCounter}`
+
+export function cloneIntervals(intervals: Interval[]) {
+  return intervals.map((interval) => ({ ...interval }))
+}
 
 export function getDisplayIntervals(state: WorkoutEditorStoreState) {
   return state.dragPreview ?? state.intervals
@@ -30,6 +35,13 @@ export function areIntervalsEqual(a: Interval[], b: Interval[]) {
       interval.durationSeconds === other?.durationSeconds
     )
   })
+}
+
+export function isDirtyState(state: Pick<
+  WorkoutEditorStoreState,
+  "intervals" | "baselineIntervals"
+>) {
+  return !areIntervalsEqual(state.intervals, state.baselineIntervals)
 }
 
 function normalizeStableIds(stableIds: string[], nextLength: number): string[] {
@@ -110,14 +122,36 @@ export function createHistoryEntry(
   }
 }
 
-export function createInitialState(
+export function createServerSnapshotFromProps(
   props: WorkoutEditorStoreProps
+): WorkoutEditorServerSnapshot {
+  return {
+    intervals: cloneIntervals(props.serverIntervals),
+    resetKey: props.serverResetKey,
+    intervalsRevision: props.serverIntervalsRevision,
+  }
+}
+
+export function createSessionState(
+  snapshot: WorkoutEditorServerSnapshot,
+  config: Pick<WorkoutEditorStoreState, "displayMode" | "ftp">,
+  stableIds?: string[]
 ): Omit<WorkoutEditorStoreState, "actions"> {
-  const stableIds = props.intervals.map(() => newWorkoutEditorId())
-  const present = createHistoryEntry(props.intervals, stableIds, [], null)
+  const baselineIntervals = cloneIntervals(snapshot.intervals)
+  const intervals = cloneIntervals(snapshot.intervals)
+  const nextStableIds = stableIds
+    ? reconcileStableIds(stableIds, intervals.length)
+    : intervals.map(() => newWorkoutEditorId())
+  const present = createHistoryEntry(intervals, nextStableIds, [], null)
 
   return {
-    ...props,
+    baselineIntervals,
+    intervals,
+    serverResetKey: snapshot.resetKey,
+    baselineIntervalsRevision: snapshot.intervalsRevision,
+    pendingServerSnapshot: null,
+    displayMode: config.displayMode,
+    ftp: config.ftp,
     dragPreview: null,
     hoveredIndex: null,
     selectedIds: [],
@@ -125,10 +159,19 @@ export function createInitialState(
     multiSelectMode: false,
     clipboardIds: [],
     activeReorderId: null,
-    stableIds,
+    stableIds: nextStableIds,
     historyLimit: DEFAULT_HISTORY_LIMIT,
     history: createHistory(present, DEFAULT_HISTORY_LIMIT),
   }
+}
+
+export function createInitialState(
+  props: WorkoutEditorStoreProps
+): Omit<WorkoutEditorStoreState, "actions"> {
+  return createSessionState(createServerSnapshotFromProps(props), {
+    displayMode: props.displayMode,
+    ftp: props.ftp,
+  })
 }
 
 export function buildClipboardPreviewData(
@@ -157,4 +200,8 @@ export function buildClipboardPreviewData(
       index > 0 ? sourceIndex !== sourceIndices[index - 1] + 1 : false
     ),
   }
+}
+
+export function getStatsForIntervals(intervals: Interval[]) {
+  return getWorkoutStats(intervals)
 }
