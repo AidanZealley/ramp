@@ -1,6 +1,7 @@
-import { useEffect, useRef, type PropsWithChildren } from "react"
+import {  useEffect, useRef } from "react"
 import { WorkoutEditorStoreContext } from "./context"
 import { createWorkoutEditorStore } from "./create-store"
+import type {PropsWithChildren} from "react";
 import type { WorkoutEditorStoreProps } from "./types"
 
 export function WorkoutEditorStoreProvider({

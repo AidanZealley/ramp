@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button"
 import { Minus, Plus } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 interface ZoomControlsProps {
   zoomLevel: number

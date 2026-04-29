@@ -2,7 +2,7 @@ import type { Interval } from "../workout-utils"
 
 export interface MrcExportInput {
   title: string
-  intervals: Interval[]
+  intervals: Array<Interval>
 }
 
 /**
@@ -11,7 +11,7 @@ export interface MrcExportInput {
  * collapses runs of whitespace to a single space.
  */
 function sanitizeFileName(name: string): string {
-  // eslint-disable-next-line no-control-regex
+   
   return name
     .replace(/[<>:"/\\|?*\x00-\x1f]/g, "")
     .replace(/\s+/g, " ")

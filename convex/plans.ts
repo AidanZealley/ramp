@@ -1,11 +1,12 @@
 import { v } from "convex/values"
-import type { Doc, Id } from "./_generated/dataModel"
 import {
+  
+  
   mutation,
-  query,
-  type MutationCtx,
-  type QueryCtx,
+  query
 } from "./_generated/server"
+import type {MutationCtx, QueryCtx} from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel"
 
 type PlanDoc = Doc<"plans">
 type PlanWeekDoc = Doc<"planWeeks">
@@ -26,7 +27,7 @@ function slotDayIndex(slot: PlanWeekWorkoutDoc): number {
 async function getPlanWeeks(
   ctx: QueryCtx | MutationCtx,
   planId: Id<"plans">
-): Promise<PlanWeekDoc[]> {
+): Promise<Array<PlanWeekDoc>> {
   return await ctx.db
     .query("planWeeks")
     .withIndex("by_plan_and_order", (q) => q.eq("planId", planId))
@@ -36,7 +37,7 @@ async function getPlanWeeks(
 async function getWeekSlots(
   ctx: QueryCtx | MutationCtx,
   weekId: Id<"planWeeks">
-): Promise<PlanWeekWorkoutDoc[]> {
+): Promise<Array<PlanWeekWorkoutDoc>> {
   const slots = await ctx.db
     .query("planWeekWorkouts")
     .withIndex("by_week_and_day", (q) => q.eq("weekId", weekId))
@@ -64,7 +65,7 @@ async function normalizeWeekSlots(
 ): Promise<void> {
   const existingSlots = await getWeekSlots(ctx, weekId)
   const firstSlotByDay = new Map<number, PlanWeekWorkoutDoc>()
-  const overflowSlots: PlanWeekWorkoutDoc[] = []
+  const overflowSlots: Array<PlanWeekWorkoutDoc> = []
 
   for (const slot of existingSlots) {
     const dayIndex = slotDayIndex(slot)
@@ -99,7 +100,7 @@ async function normalizeWeekSlots(
 
 async function getWorkoutMap(
   ctx: QueryCtx | MutationCtx,
-  workoutIds: WorkoutIdOrNull[]
+  workoutIds: Array<WorkoutIdOrNull>
 ): Promise<Map<Id<"workouts">, WorkoutDoc>> {
   const uniqueWorkoutIds = Array.from(
     new Set(
@@ -123,7 +124,7 @@ async function getWorkoutMap(
 }
 
 function fixedWeekSlots(
-  slots: PlanWeekWorkoutDoc[],
+  slots: Array<PlanWeekWorkoutDoc>,
   workoutMap: Map<Id<"workouts">, WorkoutDoc>
 ): Array<PlanWeekWorkoutDoc & { workout: WorkoutDoc | null }> {
   const slotsByDay = new Map<number, PlanWeekWorkoutDoc>()

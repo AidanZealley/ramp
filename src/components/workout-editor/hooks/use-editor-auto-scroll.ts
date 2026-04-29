@@ -3,9 +3,9 @@ import type { Interval } from "@/lib/workout-utils"
 import type { TimelineScale } from "@/hooks/use-timeline-scale"
 
 interface UseEditorAutoScrollProps {
-  intervals: Interval[]
-  selectedIds: string[]
-  stableIds: string[]
+  intervals: Array<Interval>
+  selectedIds: Array<string>
+  stableIds: Array<string>
   scale: TimelineScale
   pixelsPerSecond: number
   scrollContainerRef: React.RefObject<HTMLDivElement | null>

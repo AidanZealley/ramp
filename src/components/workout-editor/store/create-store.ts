@@ -1,8 +1,5 @@
 import { arrayMove } from "@dnd-kit/sortable"
 import { createStore } from "zustand"
-import type { Interval } from "@/lib/workout-utils"
-import { clamp, computeMaxPower } from "@/lib/workout-utils"
-import { MIN_DURATION, MIN_POWER } from "@/lib/timeline/types"
 import { pushHistory, redoHistory, resetHistory, undoHistory } from "./history"
 import {
   areIntervalsEqual,
@@ -16,12 +13,15 @@ import {
   newWorkoutEditorId,
   reconcileStableIds,
 } from "./utils"
+import type { Interval } from "@/lib/workout-utils"
 import type {
   WorkoutEditorHistoryEntry,
   WorkoutEditorServerSnapshot,
   WorkoutEditorStoreProps,
   WorkoutEditorStoreState,
 } from "./types"
+import { clamp, computeMaxPower } from "@/lib/workout-utils"
+import { MIN_DURATION, MIN_POWER } from "@/lib/timeline/types"
 
 function areHistoryEntriesEqual(
   a: WorkoutEditorHistoryEntry,
@@ -286,7 +286,7 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
           const state = get()
           if (state.clipboardIds.length === 0) return
 
-          const toPaste: Interval[] = []
+          const toPaste: Array<Interval> = []
           for (const id of state.clipboardIds) {
             const idx = state.stableIds.indexOf(id)
             if (idx !== -1) {

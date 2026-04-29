@@ -1,7 +1,7 @@
 import { ArrowLeft } from "lucide-react"
 import { useMutation } from "convex/react"
-import type { Id } from "../../../../convex/_generated/dataModel"
 import { api } from "../../../../convex/_generated/api"
+import type { Id } from "../../../../convex/_generated/dataModel"
 import { EditableTitle } from "@/components/editable-title"
 import { Button } from "@/components/ui/button"
 

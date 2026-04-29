@@ -1,8 +1,8 @@
+import { WEEKDAY_SHORT } from "../constants"
+import type { PlanEditorSlot } from "../types"
 import { WorkoutMini } from "@/components/workout-mini"
 import { cn } from "@/lib/utils"
 import { formatDuration, getTotalDuration } from "@/lib/workout-utils"
-import { WEEKDAY_SHORT } from "../constants"
-import type { PlanEditorSlot } from "../types"
 
 interface PlanDayCellProps {
   slot: PlanEditorSlot

@@ -8,8 +8,8 @@ import { getZoneColor } from "@/lib/zones"
 const GAP_WIDTH = 8
 
 interface ClipboardPreviewProps {
-  clipboardIntervals: Interval[]
-  gapBefore: boolean[]
+  clipboardIntervals: Array<Interval>
+  gapBefore: Array<boolean>
   ftp: number
   displayMode: PowerDisplayMode
 }

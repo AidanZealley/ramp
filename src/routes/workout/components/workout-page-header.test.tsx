@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { useMutation } from "convex/react"
-import type { Id } from "../../../../convex/_generated/dataModel"
 import { WorkoutPageHeader } from "./workout-page-header"
+import type { Id } from "../../../../convex/_generated/dataModel"
 
 vi.mock("convex/react", () => ({
   useMutation: vi.fn(),

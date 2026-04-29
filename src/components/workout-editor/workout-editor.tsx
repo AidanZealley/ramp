@@ -1,7 +1,4 @@
 import { useRef } from "react"
-import { computeMaxPower } from "@/lib/workout-utils"
-import { TIMELINE_EDGE_GUTTER } from "@/lib/timeline/types"
-import { useIntervalDrag } from "@/hooks/use-interval-drag"
 import { EditorAxis } from "./components/editor-axis"
 import { EditorCanvas } from "./components/editor-canvas"
 import { EditorToolbar } from "./components/editor-toolbar"
@@ -9,8 +6,8 @@ import { FtpBadge } from "./components/ftp-badge"
 import {
   useWorkoutEditorActions,
   useWorkoutEditorActiveReorderId,
-  useWorkoutEditorDisplayMode,
   useWorkoutEditorDisplayIntervals,
+  useWorkoutEditorDisplayMode,
   useWorkoutEditorFtp,
   useWorkoutEditorHasClipboard,
   useWorkoutEditorIntervals,
@@ -22,6 +19,9 @@ import { useClearSelectionOnOutsideClick } from "./hooks/use-clear-selection-on-
 import { useEditorAutoScroll } from "./hooks/use-editor-auto-scroll"
 import { useEditorKeypresses } from "./hooks/use-editor-keypresses"
 import { useEditorZoom } from "./hooks/use-editor-zoom"
+import { useIntervalDrag } from "@/hooks/use-interval-drag"
+import { TIMELINE_EDGE_GUTTER } from "@/lib/timeline/types"
+import { computeMaxPower } from "@/lib/workout-utils"
 
 export function WorkoutEditor() {
   const intervals = useWorkoutEditorIntervals()

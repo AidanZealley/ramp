@@ -2,7 +2,7 @@ import type { Interval } from "@/lib/workout-utils"
 import { getZoneColor } from "@/lib/zones"
 
 interface WorkoutMiniProps {
-  intervals: Interval[]
+  intervals: Array<Interval>
   className?: string
   compact?: boolean
 }

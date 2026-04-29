@@ -3,13 +3,13 @@ import type { SelectModifiers } from "../components/interval-block"
 import type { HistoryState } from "./history"
 
 export interface WorkoutEditorServerSnapshot {
-  intervals: Interval[]
+  intervals: Array<Interval>
   resetKey: string
   intervalsRevision: number
 }
 
 export interface WorkoutEditorStoreProps {
-  serverIntervals: Interval[]
+  serverIntervals: Array<Interval>
   serverResetKey: string
   serverIntervalsRevision: number
   displayMode: PowerDisplayMode
@@ -17,14 +17,14 @@ export interface WorkoutEditorStoreProps {
 }
 
 export interface ClipboardPreviewData {
-  intervals: Interval[]
-  gapBefore: boolean[]
+  intervals: Array<Interval>
+  gapBefore: Array<boolean>
 }
 
 export interface WorkoutEditorHistoryEntry {
-  intervals: Interval[]
-  stableIds: string[]
-  selectedIds: string[]
+  intervals: Array<Interval>
+  stableIds: Array<string>
+  selectedIds: Array<string>
   anchorId: string | null
 }
 
@@ -43,7 +43,7 @@ export interface WorkoutEditorActions {
   resetToBaseline: () => void
   adoptPendingServerSnapshot: () => void
   clearPendingServerSnapshot: () => void
-  setDragPreview: (preview: Interval[] | null) => void
+  setDragPreview: (preview: Array<Interval> | null) => void
   setHoveredIndex: (index: number | null) => void
   setActiveReorderId: (id: string | null) => void
   toggleMultiSelect: () => void
@@ -56,8 +56,8 @@ export interface WorkoutEditorActions {
   cutSelection: () => void
   pasteClipboard: (insertAtIndex?: number) => void
   deleteSelection: () => void
-  deleteIntervals: (ids: string[]) => void
-  commitIntervals: (nextIntervals: Interval[]) => void
+  deleteIntervals: (ids: Array<string>) => void
+  commitIntervals: (nextIntervals: Array<Interval>) => void
   insertAt: (index: number) => void
   insertAfterSelectionOrAppend: () => void
   reorderIntervals: (
@@ -72,21 +72,21 @@ export interface WorkoutEditorActions {
 }
 
 export interface WorkoutEditorStoreState {
-  baselineIntervals: Interval[]
-  intervals: Interval[]
+  baselineIntervals: Array<Interval>
+  intervals: Array<Interval>
   serverResetKey: string
   baselineIntervalsRevision: number
   pendingServerSnapshot: WorkoutEditorServerSnapshot | null
   displayMode: PowerDisplayMode
   ftp: number
-  dragPreview: Interval[] | null
+  dragPreview: Array<Interval> | null
   hoveredIndex: number | null
-  selectedIds: string[]
+  selectedIds: Array<string>
   anchorId: string | null
   multiSelectMode: boolean
-  clipboardIds: string[]
+  clipboardIds: Array<string>
   activeReorderId: string | null
-  stableIds: string[]
+  stableIds: Array<string>
   history: HistoryState<WorkoutEditorHistoryEntry>
   historyLimit: number
   actions: WorkoutEditorActions

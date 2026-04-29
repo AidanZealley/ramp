@@ -1,7 +1,8 @@
 import type { PropsWithChildren } from "react"
+import type {WorkoutEditorStoreProps} from "@/components/workout-editor/store";
 import {
-  WorkoutEditorStoreProvider,
-  type WorkoutEditorStoreProps,
+  
+  WorkoutEditorStoreProvider
 } from "@/components/workout-editor/store"
 
 export function WorkoutEditorSessionProvider({

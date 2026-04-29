@@ -1,4 +1,6 @@
 import { ChevronDown, ListFilter, Search } from "lucide-react"
+import { sortLabels } from "../types"
+import type { DurationFilter, SortOption } from "../types"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -8,8 +10,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import type { DurationFilter, SortOption } from "../types"
-import { sortLabels } from "../types"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
 interface DialogWorkoutFiltersProps {

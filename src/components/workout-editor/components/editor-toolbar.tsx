@@ -6,12 +6,6 @@ import {
   Trash2,
   Undo2,
 } from "lucide-react"
-import { EditorMinimap } from "./editor-minimap"
-import { ZoomControls } from "./zoom-controls"
-import { ClipboardPreview } from "./clipboard-preview"
-import type { TimelineZoom } from "@/hooks/use-timeline-zoom"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { isApplePlatform } from "../utils/platform"
 import {
   useWorkoutEditorActions,
@@ -25,6 +19,12 @@ import {
   useWorkoutEditorMultiSelectMode,
   useWorkoutEditorSelectedCount,
 } from "../store"
+import { EditorMinimap } from "./editor-minimap"
+import { ZoomControls } from "./zoom-controls"
+import { ClipboardPreview } from "./clipboard-preview"
+import type { TimelineZoom } from "@/hooks/use-timeline-zoom"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 
 interface EditorToolbarProps {
   scrollContainerRef: React.RefObject<HTMLDivElement | null>

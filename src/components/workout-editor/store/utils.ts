@@ -1,4 +1,4 @@
-import { getWorkoutStats, type Interval } from "@/lib/workout-utils"
+import { createHistory } from "./history"
 import type {
   ClipboardPreviewData,
   WorkoutEditorHistoryEntry,
@@ -6,7 +6,8 @@ import type {
   WorkoutEditorStoreProps,
   WorkoutEditorStoreState,
 } from "./types"
-import { createHistory } from "./history"
+import type {Interval} from "@/lib/workout-utils";
+import {  getWorkoutStats } from "@/lib/workout-utils"
 
 export const DEFAULT_HISTORY_LIMIT = 100
 
@@ -15,7 +16,7 @@ let idCounter = 0
 export const newWorkoutEditorId = () =>
   globalThis.crypto?.randomUUID?.() ?? `workout-editor-${++idCounter}`
 
-export function cloneIntervals(intervals: Interval[]) {
+export function cloneIntervals(intervals: Array<Interval>) {
   return intervals.map((interval) => ({ ...interval }))
 }
 
@@ -23,7 +24,7 @@ export function getDisplayIntervals(state: WorkoutEditorStoreState) {
   return state.dragPreview ?? state.intervals
 }
 
-export function areIntervalsEqual(a: Interval[], b: Interval[]) {
+export function areIntervalsEqual(a: Array<Interval>, b: Array<Interval>) {
   if (a === b) return true
   if (a.length !== b.length) return false
 
@@ -44,7 +45,7 @@ export function isDirtyState(state: Pick<
   return !areIntervalsEqual(state.intervals, state.baselineIntervals)
 }
 
-function normalizeStableIds(stableIds: string[], nextLength: number): string[] {
+function normalizeStableIds(stableIds: Array<string>, nextLength: number): Array<string> {
   const trimmed = stableIds.slice(0, nextLength)
   const seen = new Set<string>()
   const normalized = trimmed.map((id) => {
@@ -69,16 +70,16 @@ function normalizeStableIds(stableIds: string[], nextLength: number): string[] {
 }
 
 export function reconcileStableIds(
-  stableIds: string[],
+  stableIds: Array<string>,
   nextLength: number
-): string[] {
+): Array<string> {
   return normalizeStableIds(stableIds, nextLength)
 }
 
 export function cleanupState(
   state: WorkoutEditorStoreState,
-  nextStableIds: string[],
-  nextIntervals: Interval[]
+  nextStableIds: Array<string>,
+  nextIntervals: Array<Interval>
 ) {
   const liveIdSet = new Set(nextStableIds)
   const selectedIds = state.selectedIds.filter((id) => liveIdSet.has(id))
@@ -109,9 +110,9 @@ export function cleanupState(
 }
 
 export function createHistoryEntry(
-  intervals: Interval[],
-  stableIds: string[],
-  selectedIds: string[],
+  intervals: Array<Interval>,
+  stableIds: Array<string>,
+  selectedIds: Array<string>,
   anchorId: string | null
 ): WorkoutEditorHistoryEntry {
   return {
@@ -135,7 +136,7 @@ export function createServerSnapshotFromProps(
 export function createSessionState(
   snapshot: WorkoutEditorServerSnapshot,
   config: Pick<WorkoutEditorStoreState, "displayMode" | "ftp">,
-  stableIds?: string[]
+  stableIds?: Array<string>
 ): Omit<WorkoutEditorStoreState, "actions"> {
   const baselineIntervals = cloneIntervals(snapshot.intervals)
   const intervals = cloneIntervals(snapshot.intervals)
@@ -175,14 +176,14 @@ export function createInitialState(
 }
 
 export function buildClipboardPreviewData(
-  clipboardIds: string[],
-  stableIds: string[],
-  displayIntervals: Interval[]
+  clipboardIds: Array<string>,
+  stableIds: Array<string>,
+  displayIntervals: Array<Interval>
 ): ClipboardPreviewData | null {
   if (clipboardIds.length === 0) return null
 
-  const intervals: Interval[] = []
-  const sourceIndices: number[] = []
+  const intervals: Array<Interval> = []
+  const sourceIndices: Array<number> = []
 
   for (const id of clipboardIds) {
     const index = stableIds.indexOf(id)
@@ -202,6 +203,6 @@ export function buildClipboardPreviewData(
   }
 }
 
-export function getStatsForIntervals(intervals: Interval[]) {
+export function getStatsForIntervals(intervals: Array<Interval>) {
   return getWorkoutStats(intervals)
 }

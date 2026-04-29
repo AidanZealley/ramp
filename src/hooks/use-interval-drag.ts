@@ -1,19 +1,19 @@
-import { useState, useCallback, useRef, useEffect } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import type { Interval } from "@/lib/workout-utils"
-import { snap, clamp, computeMaxPower } from "@/lib/workout-utils"
 import type { DragType } from "@/lib/timeline/types"
+import { clamp, computeMaxPower, snap } from "@/lib/workout-utils"
 import {
-  EDITOR_HEIGHT,
-  MIN_POWER,
-  MIN_DURATION,
   DURATION_SNAP,
+  EDITOR_HEIGHT,
+  MIN_DURATION,
+  MIN_POWER,
 } from "@/lib/timeline/types"
 
 interface UseIntervalDragConfig {
-  intervals: Interval[]
+  intervals: Array<Interval>
   pixelsPerSecond: number
-  onPreviewChange: (preview: Interval[] | null) => void
-  onCommit: (intervals: Interval[]) => void
+  onPreviewChange: (preview: Array<Interval> | null) => void
+  onCommit: (intervals: Array<Interval>) => void
 }
 
 interface DragState {
@@ -57,7 +57,7 @@ export function useIntervalDrag({
       // Capture maxPower at drag start for consistent delta calculations
       const dragMaxPower = computeMaxPower(original)
 
-      let latestPreview: Interval[] | null = null
+      let latestPreview: Array<Interval> | null = null
 
       const handleMove = (ev: PointerEvent) => {
         const dx = ev.clientX - startX

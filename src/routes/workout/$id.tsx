@@ -1,14 +1,5 @@
 import { useState } from "react"
 import { createFileRoute } from "@tanstack/react-router"
-import type { Id } from "../../../convex/_generated/dataModel"
-import type { Interval } from "@/lib/workout-utils"
-import {
-  useWorkoutEditorActions,
-  useWorkoutEditorBaselineRevision,
-  useWorkoutEditorCurrentIntervals,
-  useWorkoutEditorPendingServerSnapshot,
-} from "@/components/workout-editor/store"
-import { WorkoutPageSkeleton } from "@/components/workout-page-skeleton"
 import { WorkoutDeleteDialog } from "./components/workout-delete-dialog"
 import { WorkoutEditorSessionProvider } from "./components/workout-editor-session-provider"
 import { WorkoutEditorSummary } from "./components/workout-editor-summary"
@@ -18,6 +9,15 @@ import { WorkoutPageEditorSection } from "./components/workout-page-editor-secti
 import { WorkoutPageHeader } from "./components/workout-page-header"
 import { WorkoutSaveConflictDialog } from "./components/workout-save-conflict-dialog"
 import { useWorkoutPageController } from "./hooks/use-workout-page-controller"
+import type { Interval } from "@/lib/workout-utils"
+import type { Id } from "../../../convex/_generated/dataModel"
+import { WorkoutPageSkeleton } from "@/components/workout-page-skeleton"
+import {
+  useWorkoutEditorActions,
+  useWorkoutEditorBaselineRevision,
+  useWorkoutEditorCurrentIntervals,
+  useWorkoutEditorPendingServerSnapshot,
+} from "@/components/workout-editor/store"
 
 export const Route = createFileRoute("/workout/$id")({
   component: WorkoutPage,
@@ -85,11 +85,11 @@ function WorkoutPageSessionContent({
   ) => void | Promise<void>
   onDelete: () => void
   onSaveIntervals: (args: {
-    intervals: Interval[]
+    intervals: Array<Interval>
     expectedIntervalsRevision: number
     force?: boolean
   }) => Promise<"saved" | "conflict">
-  onExport: (intervals: Interval[]) => void
+  onExport: (intervals: Array<Interval>) => void
 }) {
   const [showSaveConflictDialog, setShowSaveConflictDialog] = useState(false)
   const intervals = useWorkoutEditorCurrentIntervals()
@@ -102,7 +102,7 @@ function WorkoutPageSessionContent({
     expectedIntervalsRevision,
     hasIncomingServerChanges: hasIncomingChanges,
   }: {
-    intervals: Interval[]
+    intervals: Array<Interval>
     expectedIntervalsRevision: number
     hasIncomingServerChanges: boolean
   }) => {

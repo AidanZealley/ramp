@@ -1,8 +1,8 @@
 import { useCallback, useEffect } from "react"
-import { useKeypress } from "@/hooks/use-keypress"
-import { DURATION_SNAP } from "@/lib/timeline/types"
 import { isApplePlatform } from "../utils/platform"
 import type { WorkoutEditorActions } from "../store"
+import { useKeypress } from "@/hooks/use-keypress"
+import { DURATION_SNAP } from "@/lib/timeline/types"
 
 interface UseEditorKeypressesProps {
   actions: WorkoutEditorActions

@@ -1,7 +1,7 @@
-import { WorkoutMini } from "@/components/workout-mini"
-import { cn } from "@/lib/utils"
 import { WEEKDAY_SHORT } from "../../../constants"
 import type { WorkoutDoc } from "../types"
+import { WorkoutMini } from "@/components/workout-mini"
+import { cn } from "@/lib/utils"
 
 interface DialogWeekdaySlotProps {
   dayIndex: number

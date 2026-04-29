@@ -1,6 +1,7 @@
 import { Clock3, Flame } from "lucide-react"
 
-import { formatDuration, type WorkoutStats } from "@/lib/workout-utils"
+import type {WorkoutStats} from "@/lib/workout-utils";
+import {  formatDuration } from "@/lib/workout-utils"
 import { WorkoutZoneChart } from "@/components/workout-zone-chart"
 
 interface WorkoutSummaryProps {

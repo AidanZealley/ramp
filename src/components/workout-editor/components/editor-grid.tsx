@@ -1,5 +1,5 @@
-import { formatDuration } from "@/lib/workout-utils"
 import type { TimelineScale } from "@/hooks/use-timeline-scale"
+import { formatDuration } from "@/lib/workout-utils"
 import { EDITOR_HEIGHT } from "@/lib/timeline/types"
 
 interface EditorGridProps {

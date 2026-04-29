@@ -1,4 +1,12 @@
 import { useSortable } from "@dnd-kit/sortable"
+import {
+  useWorkoutEditorActions,
+  useWorkoutEditorDisplayMode,
+  useWorkoutEditorFtp,
+  useWorkoutEditorInterval,
+  useWorkoutEditorIsHovered,
+  useWorkoutEditorIsSelected,
+} from "../store"
 import { IntervalHandles } from "./interval-handles"
 import type { Interval } from "@/lib/workout-utils"
 import type { TimelineScale } from "@/hooks/use-timeline-scale"
@@ -11,14 +19,6 @@ import {
 import { getZoneColor, getZoneInfo } from "@/lib/zones"
 import { EDITOR_HEIGHT } from "@/lib/timeline/types"
 import { cn } from "@/lib/utils"
-import {
-  useWorkoutEditorActions,
-  useWorkoutEditorDisplayMode,
-  useWorkoutEditorFtp,
-  useWorkoutEditorInterval,
-  useWorkoutEditorIsHovered,
-  useWorkoutEditorIsSelected,
-} from "../store"
 
 export interface SelectModifiers {
   shift: boolean

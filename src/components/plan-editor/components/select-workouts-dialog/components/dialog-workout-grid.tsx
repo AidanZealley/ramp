@@ -1,9 +1,9 @@
-import { Button } from "@/components/ui/button"
-import type { WorkoutDoc } from "../types"
 import { DialogWorkoutTile } from "./dialog-workout-tile"
+import type { WorkoutDoc } from "../types"
+import { Button } from "@/components/ui/button"
 
 interface DialogWorkoutGridProps {
-  workouts: WorkoutDoc[]
+  workouts: Array<WorkoutDoc>
   onWorkoutSelect: (workout: WorkoutDoc) => void
   onClearFilters: () => void
 }

@@ -1,15 +1,15 @@
-import { useMemo, useCallback } from "react"
+import { useCallback, useMemo } from "react"
 import type { Interval } from "@/lib/workout-utils"
 import { computeMaxPower } from "@/lib/workout-utils"
 import {
-  timeToX,
-  xToTime,
-  powerToY as rawPowerToY,
-  yToPower as rawYToPower,
-  getIntervalStartX as rawGetIntervalStartX,
-  getIntervalWidth as rawGetIntervalWidth,
   computePowerTicks,
   computeTimeTicks,
+  getIntervalStartX as rawGetIntervalStartX,
+  getIntervalWidth as rawGetIntervalWidth,
+  powerToY as rawPowerToY,
+  yToPower as rawYToPower,
+  timeToX,
+  xToTime,
 } from "@/lib/timeline/coordinate-system"
 import { EDITOR_HEIGHT, TIMELINE_EDGE_GUTTER } from "@/lib/timeline/types"
 
@@ -33,8 +33,8 @@ export interface TimelineScale {
   getIntervalWidth: (interval: Interval) => number
 
   // Grid data
-  powerTicks: number[]
-  timeTicks: number[]
+  powerTicks: Array<number>
+  timeTicks: Array<number>
 }
 
 /**
@@ -43,7 +43,7 @@ export interface TimelineScale {
  * the current intervals, power mode, and pixelsPerSecond.
  */
 export function useTimelineScale(
-  intervals: Interval[],
+  intervals: Array<Interval>,
   pixelsPerSecond: number
 ): TimelineScale {
   const maxPower = useMemo(() => computeMaxPower(intervals), [intervals])

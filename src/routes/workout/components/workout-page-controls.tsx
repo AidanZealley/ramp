@@ -1,4 +1,5 @@
 import { Download, Plus, RefreshCw, Save, Trash2 } from "lucide-react"
+import type { Interval, PowerDisplayMode } from "@/lib/workout-utils"
 import { Button } from "@/components/ui/button"
 import {
   useWorkoutEditorActions,
@@ -8,15 +9,14 @@ import {
   useWorkoutEditorHasIncomingServerChanges,
   useWorkoutEditorIsDirty,
 } from "@/components/workout-editor/store"
-import type { Interval, PowerDisplayMode } from "@/lib/workout-utils"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
 interface WorkoutPageControlsProps {
   displayMode: PowerDisplayMode
   onDisplayModeChange: (mode: PowerDisplayMode) => void | Promise<void>
-  onExport: (intervals: Interval[]) => void
+  onExport: (intervals: Array<Interval>) => void
   onSave: (args: {
-    intervals: Interval[]
+    intervals: Array<Interval>
     expectedIntervalsRevision: number
     hasIncomingServerChanges: boolean
   }) => void | Promise<void>

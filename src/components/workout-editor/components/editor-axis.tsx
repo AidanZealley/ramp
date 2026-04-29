@@ -1,5 +1,6 @@
 import type { TimelineScale } from "@/hooks/use-timeline-scale"
-import { percentageToWatts, type PowerDisplayMode } from "@/lib/workout-utils"
+import type {PowerDisplayMode} from "@/lib/workout-utils";
+import {  percentageToWatts } from "@/lib/workout-utils"
 import { EDITOR_HEIGHT } from "@/lib/timeline/types"
 
 interface EditorAxisProps {

@@ -2,13 +2,13 @@ import type {
   Interval,
   PowerDisplayMode,
 } from "@/lib/workout-utils"
-import { formatDuration, formatPower, clamp } from "@/lib/workout-utils"
 import type { TimelineScale } from "@/hooks/use-timeline-scale"
 import type { DragType } from "@/lib/timeline/types"
+import { clamp, formatDuration, formatPower } from "@/lib/workout-utils"
 
 interface DragTooltipProps {
   activeDrag: { type: DragType; index: number }
-  intervals: Interval[]
+  intervals: Array<Interval>
   scale: TimelineScale
   displayMode: PowerDisplayMode
   ftp: number

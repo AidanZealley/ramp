@@ -1,10 +1,10 @@
-import type { Id } from "../../../../convex/_generated/dataModel"
 import { WEEKDAYS } from "../constants"
 import { PlanWeekRow } from "./plan-week-row"
+import type { Id } from "../../../../convex/_generated/dataModel"
 import type { PlanEditorWeek } from "../types"
 
 interface PlanScheduleGridProps {
-  weeks: PlanEditorWeek[]
+  weeks: Array<PlanEditorWeek>
   onSelectWeek: (week: PlanEditorWeek) => void
   onSelectDay: (week: PlanEditorWeek, dayIndex: number) => void
   onDeleteWeek: (weekId: Id<"planWeeks">) => void

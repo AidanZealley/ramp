@@ -5,9 +5,9 @@ import { useTimelineZoom } from "@/hooks/use-timeline-zoom"
 import { TIMELINE_EDGE_GUTTER } from "@/lib/timeline/types"
 
 interface UseEditorZoomProps {
-  displayIntervals: Interval[]
-  selectedIds: string[]
-  stableIds: string[]
+  displayIntervals: Array<Interval>
+  selectedIds: Array<string>
+  stableIds: Array<string>
   scrollContainerRef: React.RefObject<HTMLDivElement | null>
 }
 

@@ -1,17 +1,17 @@
 import {
-  useState,
-  useMemo,
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
+  useState,
 } from "react"
 import { clamp } from "@/lib/workout-utils"
 import {
   DEFAULT_PIXELS_PER_SECOND,
   MAX_PIXELS_PER_SECOND,
-  MIN_ZOOM,
   MAX_ZOOM,
+  MIN_ZOOM,
   ZOOM_STEP,
 } from "@/lib/timeline/types"
 

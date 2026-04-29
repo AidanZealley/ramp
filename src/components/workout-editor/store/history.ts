@@ -1,7 +1,7 @@
 export interface HistoryState<T> {
-  past: T[]
+  past: Array<T>
   present: T
-  future: T[]
+  future: Array<T>
 }
 
 export function createHistory<T>(

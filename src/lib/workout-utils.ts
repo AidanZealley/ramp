@@ -57,14 +57,14 @@ export function wattsToPercentage(power: number, ftp: number): number {
 /**
  * Get total workout duration in seconds
  */
-export function getTotalDuration(intervals: Interval[]): number {
+export function getTotalDuration(intervals: Array<Interval>): number {
   return intervals.reduce((sum, i) => sum + i.durationSeconds, 0)
 }
 
 /**
  * Get weighted average power across all intervals
  */
-export function getAveragePower(intervals: Interval[]): number {
+export function getAveragePower(intervals: Array<Interval>): number {
   if (intervals.length === 0) return 0
   const totalDuration = getTotalDuration(intervals)
   if (totalDuration === 0) return 0
@@ -86,8 +86,8 @@ function getZoneForPercentage(ftpPercentage: number): WorkoutZone {
   return 6
 }
 
-function getPerSecondPowerSamples(intervals: Interval[]): number[] {
-  const samples: number[] = []
+function getPerSecondPowerSamples(intervals: Array<Interval>): Array<number> {
+  const samples: Array<number> = []
 
   for (const interval of intervals) {
     const duration = Math.max(0, Math.round(interval.durationSeconds))
@@ -105,7 +105,7 @@ function getPerSecondPowerSamples(intervals: Interval[]): number[] {
   return samples
 }
 
-export function getWorkoutStats(intervals: Interval[]): WorkoutStats {
+export function getWorkoutStats(intervals: Array<Interval>): WorkoutStats {
   const totalDurationSeconds = getTotalDuration(intervals)
   const averagePower = getAveragePower(intervals)
   const zoneDurations: Record<WorkoutZone, number> = {
@@ -193,7 +193,7 @@ export function clamp(value: number, min: number, max: number): number {
 /**
  * Compute the maximum power for the y-axis display
  */
-export function computeMaxPower(intervals: Interval[]): number {
+export function computeMaxPower(intervals: Array<Interval>): number {
   if (intervals.length === 0) {
     return 150
   }
@@ -209,7 +209,7 @@ export function computeMaxPower(intervals: Interval[]): number {
 /**
  * Default intervals for a new workout
  */
-export function getDefaultIntervals(): Interval[] {
+export function getDefaultIntervals(): Array<Interval> {
   return [
     { startPower: 55, endPower: 75, durationSeconds: 300 },
     { startPower: 100, endPower: 100, durationSeconds: 300 },

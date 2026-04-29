@@ -40,7 +40,7 @@ export function yToPower(y: number, maxPower: number, height: number): number {
  */
 export function getIntervalStartX(
   index: number,
-  intervals: Interval[],
+  intervals: Array<Interval>,
   pixelsPerSecond: number
 ): number {
   return intervals
@@ -63,9 +63,9 @@ export function getIntervalWidth(
 /**
  * Compute power tick values for horizontal grid lines in canonical %FTP units.
  */
-export function computePowerTicks(maxPower: number): number[] {
+export function computePowerTicks(maxPower: number): Array<number> {
   const step = 20
-  const ticks: number[] = []
+  const ticks: Array<number> = []
   for (let p = step; p < maxPower; p += step) {
     ticks.push(p)
   }
@@ -80,7 +80,7 @@ export function computePowerTicks(maxPower: number): number[] {
 export function computeTimeTicks(
   totalDurationSec: number,
   pixelsPerSecond: number
-): number[] {
+): Array<number> {
   // Minimum pixel gap we want between adjacent tick labels (~width of "1:00:00")
   const MIN_LABEL_GAP_PX = 60
   const minStepSec =
@@ -91,7 +91,7 @@ export function computeTimeTicks(
   const step =
     NICE_STEPS.find((s) => s >= minStepSec) ?? NICE_STEPS[NICE_STEPS.length - 1]
 
-  const ticks: number[] = []
+  const ticks: Array<number> = []
   for (let t = step; t < totalDurationSec; t += step) {
     ticks.push(t)
   }

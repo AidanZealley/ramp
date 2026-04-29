@@ -1,6 +1,7 @@
-import { ChartContainer, type ChartConfig } from "@/components/ui/chart"
-import { getZoneInfoByZone } from "@/lib/zones"
 import { Bar, BarChart, LabelList, Rectangle } from "recharts"
+import type {ChartConfig} from "@/components/ui/chart";
+import {  ChartContainer } from "@/components/ui/chart"
+import { getZoneInfoByZone } from "@/lib/zones"
 
 interface WorkoutZoneChartProps {
   zonePercentages: Record<1 | 2 | 3 | 4 | 5 | 6, number>

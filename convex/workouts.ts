@@ -1,13 +1,14 @@
-import { internal } from "./_generated/api"
-import type { Doc } from "./_generated/dataModel"
-import {
-  query,
-  mutation,
-  internalMutation,
-  type MutationCtx,
-} from "./_generated/server"
 import { ConvexError, v } from "convex/values"
+import { internal } from "./_generated/api"
+import {
+  
+  internalMutation,
+  mutation,
+  query
+} from "./_generated/server"
 import { computeWorkoutSummary } from "./workoutSummary"
+import type {MutationCtx} from "./_generated/server";
+import type { Doc } from "./_generated/dataModel"
 
 const intervalValidator = v.object({
   startPower: v.number(),

@@ -1,6 +1,6 @@
+import type { WorkoutDoc } from "../types"
 import { WorkoutMini } from "@/components/workout-mini"
 import { formatDuration, getTotalDuration } from "@/lib/workout-utils"
-import type { WorkoutDoc } from "../types"
 
 interface DialogWorkoutTileProps {
   workout: WorkoutDoc

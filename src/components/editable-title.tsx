@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from "react"
+import { useEffect, useRef, useState } from "react"
+import { Check, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Check, X } from "lucide-react"
 
 interface EditableTitleProps {
   value: string

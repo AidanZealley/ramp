@@ -1,6 +1,5 @@
 import { useContext, useMemo } from "react"
 import { useStore } from "zustand"
-import { getWorkoutStats } from "@/lib/workout-utils"
 import { WorkoutEditorStoreContext } from "./context"
 import { buildClipboardPreviewData, isDirtyState } from "./utils"
 import type {
@@ -8,6 +7,7 @@ import type {
   WorkoutEditorActions,
   WorkoutEditorStoreState,
 } from "./types"
+import { getWorkoutStats } from "@/lib/workout-utils"
 
 function useWorkoutEditorStore<T>(
   selector: (state: WorkoutEditorStoreState) => T

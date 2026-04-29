@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react"
+import { useCallback, useEffect } from "react"
 
 /**
  * Registers a document-level keydown listener for a specific key.

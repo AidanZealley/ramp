@@ -1,15 +1,16 @@
 import { useCallback } from "react"
 import {
+  
+  
   PointerSensor,
   useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragStartEvent,
+  useSensors
 } from "@dnd-kit/core"
+import type {DragEndEvent, DragStartEvent} from "@dnd-kit/core";
 import type { WorkoutEditorActions } from "../store"
 
 interface UseReorderDndProps {
-  stableIds: string[]
+  stableIds: Array<string>
   actions: WorkoutEditorActions
 }
 

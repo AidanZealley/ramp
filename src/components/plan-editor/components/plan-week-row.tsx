@@ -1,9 +1,9 @@
 import { CalendarPlus, Trash2 } from "lucide-react"
+import { PlanDayCell } from "./plan-day-cell"
 import type { Id } from "../../../../convex/_generated/dataModel"
+import type { PlanEditorWeek } from "../types"
 import { Button } from "@/components/ui/button"
 import { formatDuration, getTotalDuration } from "@/lib/workout-utils"
-import { PlanDayCell } from "./plan-day-cell"
-import type { PlanEditorWeek } from "../types"
 
 interface PlanWeekRowProps {
   week: PlanEditorWeek

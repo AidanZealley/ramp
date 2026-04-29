@@ -44,7 +44,7 @@ export const MOVE_DRAG_THRESHOLD = 5 // px
  */
 export function getIntervalStartTime(
   index: number,
-  intervals: Interval[]
+  intervals: Array<Interval>
 ): number {
   return intervals
     .slice(0, index)

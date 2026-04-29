@@ -4,7 +4,10 @@ import { useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 import { ArrowLeft, Copy, MoreHorizontal, Plus, Trash2 } from "lucide-react"
 import { api } from "../../../convex/_generated/api"
+import { PlanScheduleGrid } from "./components/plan-schedule-grid"
+import { SelectWorkoutsDialog } from "./components/select-workouts-dialog"
 import type { Id } from "../../../convex/_generated/dataModel"
+import type { PlanEditorWeek } from "./types"
 import { EditableTitle } from "@/components/editable-title"
 import { Button } from "@/components/ui/button"
 import {
@@ -22,9 +25,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { PlanEditorSkeleton } from "@/components/plan-editor-skeleton"
-import { PlanScheduleGrid } from "./components/plan-schedule-grid"
-import { SelectWorkoutsDialog } from "./components/select-workouts-dialog"
-import type { PlanEditorWeek } from "./types"
 
 interface PlanEditorProps {
   planId: Id<"plans">
@@ -45,7 +45,7 @@ export function PlanEditor({ planId }: PlanEditorProps) {
     dayIndex: number
   } | null>(null)
 
-  const displayWeeks = useMemo<PlanEditorWeek[]>(() => {
+  const displayWeeks = useMemo<Array<PlanEditorWeek>>(() => {
     if (!plan) return []
     return plan.weeks.map((week) => ({
       ...week,

@@ -3,23 +3,23 @@ import {
   SortableContext,
   horizontalListSortingStrategy,
 } from "@dnd-kit/sortable"
-import type { TimelineScale } from "@/hooks/use-timeline-scale"
-import type { DragType } from "@/lib/timeline/types"
-import { AXIS_HEIGHT, EDITOR_HEIGHT } from "@/lib/timeline/types"
-import { EditorGrid } from "./editor-grid"
-import { IntervalBlock, IntervalBlockOverlay } from "./interval-block"
-import { InsertZone } from "./insert-zone"
-import { DragTooltip } from "./drag-tooltip"
 import {
   useWorkoutEditorActions,
   useWorkoutEditorActiveReorderId,
-  useWorkoutEditorDisplayMode,
   useWorkoutEditorDisplayIntervals,
+  useWorkoutEditorDisplayMode,
   useWorkoutEditorDragPreview,
   useWorkoutEditorFtp,
   useWorkoutEditorStableIds,
 } from "../store"
 import { useReorderDnd } from "../hooks/use-reorder-dnd"
+import { EditorGrid } from "./editor-grid"
+import { IntervalBlock, IntervalBlockOverlay } from "./interval-block"
+import { InsertZone } from "./insert-zone"
+import { DragTooltip } from "./drag-tooltip"
+import type { TimelineScale } from "@/hooks/use-timeline-scale"
+import type { DragType } from "@/lib/timeline/types"
+import { AXIS_HEIGHT, EDITOR_HEIGHT } from "@/lib/timeline/types"
 
 interface EditorCanvasProps {
   scrollContainerRef: React.RefObject<HTMLDivElement | null>

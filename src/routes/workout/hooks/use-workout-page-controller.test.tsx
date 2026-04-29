@@ -2,14 +2,15 @@ import { act, renderHook } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { useConvex, useMutation, useQuery } from "convex/react"
 import { useNavigate } from "@tanstack/react-router"
+import {
+  
+  useWorkoutPageController
+} from "./use-workout-page-controller"
+import type {WorkoutPageController} from "./use-workout-page-controller";
 import type { ConvexError } from "convex/values"
 import type { Id } from "../../../../convex/_generated/dataModel"
-import { downloadTextFile, workoutToMrc } from "@/lib/exporters"
 import type { Interval } from "@/lib/workout-utils"
-import {
-  useWorkoutPageController,
-  type WorkoutPageController,
-} from "./use-workout-page-controller"
+import { downloadTextFile, workoutToMrc } from "@/lib/exporters"
 
 vi.mock("convex/react", () => ({
   useConvex: vi.fn(),
@@ -26,7 +27,7 @@ vi.mock("@/lib/exporters", () => ({
   workoutToMrc: vi.fn(() => "MRC-CONTENT"),
 }))
 
-const baseIntervals: Interval[] = [
+const baseIntervals: Array<Interval> = [
   { startPower: 100, endPower: 100, durationSeconds: 60 },
   { startPower: 150, endPower: 150, durationSeconds: 120 },
 ]
@@ -58,7 +59,7 @@ describe("useWorkoutPageController", () => {
     | {
         _id: Id<"workouts">
         title: string
-        intervals: Interval[]
+        intervals: Array<Interval>
         intervalsRevision: number
       }
     | null

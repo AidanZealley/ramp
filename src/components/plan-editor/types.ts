@@ -6,9 +6,9 @@ export type PlanEditorSlot = Omit<Doc<"planWeekWorkouts">, "dayIndex"> & {
 }
 
 export type PlanEditorWeek = Doc<"planWeeks"> & {
-  slots: PlanEditorSlot[]
+  slots: Array<PlanEditorSlot>
 }
 
 export type PlanEditorPlan = Doc<"plans"> & {
-  weeks: PlanEditorWeek[]
+  weeks: Array<PlanEditorWeek>
 }

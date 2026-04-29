@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react"
-import { WorkoutMini } from "@/components/workout-mini"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   useWorkoutEditorDisplayIntervals,
   useWorkoutEditorSelectedIds,
   useWorkoutEditorStableIds,
 } from "../store"
+import { WorkoutMini } from "@/components/workout-mini"
 
 const MINIMAP_PX_PER_SEC = 0.2
 const MINIMAP_MIN_WIDTH = 120

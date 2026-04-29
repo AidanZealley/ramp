@@ -1,5 +1,5 @@
-import { getTotalDuration } from "@/lib/workout-utils"
 import type { DurationFilter, SortOption, WorkoutDoc } from "./types"
+import { getTotalDuration } from "@/lib/workout-utils"
 
 export function matchesWorkoutFilters(
   workout: WorkoutDoc,
@@ -25,7 +25,7 @@ export function matchesWorkoutFilters(
   return true
 }
 
-export function sortWorkouts(workouts: WorkoutDoc[], sort: SortOption) {
+export function sortWorkouts(workouts: Array<WorkoutDoc>, sort: SortOption) {
   return [...workouts].sort((a, b) => {
     if (sort === "title") return a.title.localeCompare(b.title)
     if (sort === "duration-asc") {

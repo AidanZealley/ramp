@@ -1,9 +1,9 @@
 import type { DragType } from "@/lib/timeline/types"
 import {
-  EDITOR_HEIGHT,
-  HANDLE_SIZE,
   CORNER_HIT_RADIUS,
   EDGE_HIT_WIDTH,
+  EDITOR_HEIGHT,
+  HANDLE_SIZE,
 } from "@/lib/timeline/types"
 
 interface IntervalHandlesProps {

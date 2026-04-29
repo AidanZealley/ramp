@@ -1,22 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useConvex, useMutation, useQuery } from "convex/react"
 import { useNavigate } from "@tanstack/react-router"
+import { api } from "../../../../convex/_generated/api"
 import type { FunctionReturnType } from "convex/server"
 import type { ConvexError } from "convex/values"
-import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
+import type {Interval, PowerDisplayMode} from "@/lib/workout-utils";
 import { downloadTextFile, workoutToMrc } from "@/lib/exporters"
 import {
-  DEFAULT_FTP,
-  type Interval,
-  type PowerDisplayMode,
+  DEFAULT_FTP
+  
+  
 } from "@/lib/workout-utils"
 
 type WorkoutRecord = NonNullable<FunctionReturnType<typeof api.workouts.get>>
 type SettingsRecord = FunctionReturnType<typeof api.settings.get>
 
 interface SaveIntervalsArgs {
-  intervals: Interval[]
+  intervals: Array<Interval>
   expectedIntervalsRevision: number
   force?: boolean
 }
@@ -33,7 +34,7 @@ interface WorkoutPageControllerReadyState {
     changeDisplayMode: (mode: PowerDisplayMode) => Promise<void>
     saveIntervals: (args: SaveIntervalsArgs) => Promise<"saved" | "conflict">
     deleteWorkout: () => Promise<void>
-    exportIntervals: (intervals: Interval[]) => void
+    exportIntervals: (intervals: Array<Interval>) => void
     requestDelete: () => void
     goBack: () => void
   }
@@ -164,7 +165,7 @@ export function useWorkoutPageController(
   }, [navigate, removeWorkout, resolvedWorkout])
 
   const exportIntervals = useCallback(
-    (intervals: Interval[]) => {
+    (intervals: Array<Interval>) => {
       if (!resolvedWorkout || intervals.length === 0) return
 
       const content = workoutToMrc({

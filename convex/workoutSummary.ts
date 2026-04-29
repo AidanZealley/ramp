@@ -10,7 +10,7 @@ export type WorkoutSummarySnapshot = {
 }
 
 export function computeWorkoutSummary(
-  intervals: Interval[]
+  intervals: Array<Interval>
 ): WorkoutSummarySnapshot {
   const totalDurationSeconds = intervals.reduce(
     (sum, interval) => sum + interval.durationSeconds,
@@ -24,7 +24,7 @@ export function computeWorkoutSummary(
     }
   }
 
-  const rollingWindow: number[] = []
+  const rollingWindow: Array<number> = []
   let rollingSum = 0
   let rollingFourthPowerSum = 0
   let sampleCount = 0

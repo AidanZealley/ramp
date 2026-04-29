@@ -9,7 +9,7 @@ class ResizeObserverMock {
   disconnect() {}
 }
 
-globalThis.ResizeObserver = ResizeObserverMock as typeof ResizeObserver
+globalThis.ResizeObserver = ResizeObserverMock
 
 Object.defineProperty(HTMLElement.prototype, "scrollTo", {
   configurable: true,
