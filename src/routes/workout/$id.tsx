@@ -19,12 +19,16 @@ import {
 } from "@/components/workout-editor/store"
 
 export const Route = createFileRoute("/workout/$id")({
+  params: {
+    parse: (params) => ({ id: params.id as Id<"workouts"> }),
+    stringify: (params) => ({ id: params.id }),
+  },
   component: WorkoutPage,
 })
 
 function WorkoutPage() {
   const { id } = Route.useParams()
-  const controller = useWorkoutPageController(id as Id<"workouts">)
+  const controller = useWorkoutPageController(id)
 
   if (controller.status === "loading") {
     return <WorkoutPageSkeleton />
@@ -40,7 +44,7 @@ function WorkoutPage() {
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <WorkoutPageHeader
-        workoutId={id as Id<"workouts">}
+        workoutId={id}
         title={workout.title}
         onBack={actions.goBack}
         onDuplicate={actions.duplicateWorkout}

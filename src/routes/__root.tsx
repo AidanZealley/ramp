@@ -2,7 +2,9 @@ import {
   HeadContent,
   Link,
   Outlet,
-  Scripts, createRootRouteWithContext, useRouterState 
+  Scripts,
+  createRootRouteWithContext,
+  useRouterState,
 } from "@tanstack/react-router"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
@@ -54,14 +56,14 @@ function RootLayout() {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
-  const workoutsActive = !pathname.startsWith("/plan")
+  const workoutsActive = pathname.startsWith("/workout")
   const plansActive = pathname.startsWith("/plan")
 
   return (
     <ThemeProvider theme={theme}>
       <RootDocument theme={theme}>
         <div className="flex min-h-svh flex-col">
-          <header className="sticky top-0 z-40 border-b border-border/50 bg-background/80 backdrop-blur-lg">
+          <header className="sticky top-0 z-40 border-b border-border/50 bg-background/50 backdrop-blur-lg">
             <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-6 px-4">
               <div className="flex items-center gap-6">
                 <Link
@@ -75,7 +77,7 @@ function RootLayout() {
 
                 <nav className="flex items-center gap-4 text-sm">
                   <Link
-                    to="/"
+                    to="/workout"
                     className={
                       workoutsActive
                         ? "font-medium text-foreground"

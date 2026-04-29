@@ -112,7 +112,7 @@ export function IntervalBlock({
         style={{
           clipPath: `polygon(0% ${startPowerPct}%, 100% ${endPowerPct}%, 100% 100%, 0% 100%)`,
           background: `linear-gradient(to right, ${startColor}, ${endColor})`,
-          opacity: 0.6,
+          opacity: 0.8,
           cursor: isDragging ? "grabbing" : "grab",
         }}
         {...listeners}
@@ -230,7 +230,7 @@ export function IntervalBlockOverlay({
       style={{
         width: w,
         height: EDITOR_HEIGHT,
-        opacity: 0.6,
+        opacity: 0.8,
         filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.3))",
       }}
     >
@@ -239,7 +239,7 @@ export function IntervalBlockOverlay({
         style={{
           clipPath: `polygon(0% ${startPowerPct}%, 100% ${endPowerPct}%, 100% 100%, 0% 100%)`,
           background: `linear-gradient(to right, ${startColor}, ${endColor})`,
-          opacity: 0.6,
+          opacity: 0.8,
         }}
       />
     </div>
