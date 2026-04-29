@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { useConvex, useMutation, useQuery } from "convex/react"
 import { useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
-import { useWorkoutPageController } from "./use-workout-page-controller"
-import type { WorkoutPageController } from "./use-workout-page-controller"
+import { useWorkoutPageController } from "@/hooks/workout/use-workout-page-controller"
+import type { WorkoutPageController } from "@/hooks/workout/use-workout-page-controller"
 import type { ConvexError } from "convex/values"
-import type { Id } from "../../../../convex/_generated/dataModel"
+import type { Id } from "../../../convex/_generated/dataModel"
 import type { Interval } from "@/lib/workout-utils"
 import { downloadTextFile, workoutToMrc } from "@/lib/exporters"
 
@@ -90,9 +90,7 @@ describe("useWorkoutPageController", () => {
     settingsValue = { ftp: 255, powerDisplayMode: "percentage" }
     navigateMock = vi.fn()
     updateIntervalsMock = vi.fn().mockResolvedValue(undefined)
-    duplicateWorkoutMock = vi
-      .fn()
-      .mockResolvedValue("workout-2")
+    duplicateWorkoutMock = vi.fn().mockResolvedValue("workout-2")
     removeWorkoutMock = vi.fn().mockResolvedValue(undefined)
     upsertSettingsMock = vi.fn().mockResolvedValue(undefined)
     convexQueryMock = vi.fn().mockResolvedValue({

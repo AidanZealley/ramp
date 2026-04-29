@@ -23,7 +23,11 @@ const config = defineConfig(({ mode }) => ({
             projects: ["./tsconfig.json"],
           }),
           tailwindcss(),
-          tanstackStart(),
+          tanstackStart({
+            router: {
+              routeFileIgnorePattern: "(^|/)(components)(/|$)",
+            },
+          }),
           viteReact(),
         ],
   test: {
