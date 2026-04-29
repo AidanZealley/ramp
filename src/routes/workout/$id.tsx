@@ -1,6 +1,5 @@
 import { useState } from "react"
 import { createFileRoute } from "@tanstack/react-router"
-import { WorkoutDeleteDialog } from "./components/workout-delete-dialog"
 import { WorkoutEditorSessionProvider } from "./components/workout-editor-session-provider"
 import { WorkoutEditorSummary } from "./components/workout-editor-summary"
 import { WorkoutNotFound } from "./components/workout-not-found"
@@ -44,6 +43,8 @@ function WorkoutPage() {
         workoutId={id as Id<"workouts">}
         title={workout.title}
         onBack={actions.goBack}
+        onDuplicate={actions.duplicateWorkout}
+        onDelete={actions.deleteWorkout}
       />
 
       <WorkoutEditorSessionProvider
@@ -56,18 +57,10 @@ function WorkoutPage() {
         <WorkoutPageSessionContent
           displayMode={displayMode}
           onDisplayModeChange={actions.changeDisplayMode}
-          onDelete={actions.requestDelete}
           onSaveIntervals={actions.saveIntervals}
           onExport={actions.exportIntervals}
         />
       </WorkoutEditorSessionProvider>
-
-      <WorkoutDeleteDialog
-        open={controller.showDeleteDialog}
-        onOpenChange={controller.setShowDeleteDialog}
-        title={workout.title}
-        onConfirmDelete={actions.deleteWorkout}
-      />
     </div>
   )
 }
@@ -75,15 +68,11 @@ function WorkoutPage() {
 function WorkoutPageSessionContent({
   displayMode,
   onDisplayModeChange,
-  onDelete,
   onSaveIntervals,
   onExport,
 }: {
   displayMode: "absolute" | "percentage"
-  onDisplayModeChange: (
-    mode: "absolute" | "percentage"
-  ) => void | Promise<void>
-  onDelete: () => void
+  onDisplayModeChange: (mode: "absolute" | "percentage") => void | Promise<void>
   onSaveIntervals: (args: {
     intervals: Array<Interval>
     expectedIntervalsRevision: number
@@ -143,7 +132,6 @@ function WorkoutPageSessionContent({
         onDisplayModeChange={onDisplayModeChange}
         onExport={onExport}
         onSave={handleSave}
-        onDelete={onDelete}
       />
 
       <WorkoutPageEditorSection />

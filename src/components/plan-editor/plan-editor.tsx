@@ -2,28 +2,15 @@ import { useMemo, useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import { useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
-import { ArrowLeft, Copy, MoreHorizontal, Plus, Trash2 } from "lucide-react"
+import { ArrowLeft, Plus } from "lucide-react"
 import { api } from "../../../convex/_generated/api"
 import { PlanScheduleGrid } from "./components/plan-schedule-grid"
+import { PlanActionsMenu } from "./components/plan-actions-menu"
 import { SelectWorkoutsDialog } from "./components/select-workouts-dialog"
 import type { Id } from "../../../convex/_generated/dataModel"
 import type { PlanEditorWeek } from "./types"
 import { EditableTitle } from "@/components/editable-title"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { PlanEditorSkeleton } from "@/components/plan-editor-skeleton"
 
 interface PlanEditorProps {
@@ -39,7 +26,6 @@ export function PlanEditor({ planId }: PlanEditorProps) {
   const duplicatePlan = useMutation(api.plans.duplicatePlan)
   const removePlan = useMutation(api.plans.remove)
 
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectionState, setSelectionState] = useState<{
     weekId: Id<"planWeeks">
     dayIndex: number
@@ -132,28 +118,10 @@ export function PlanEditor({ planId }: PlanEditorProps) {
             value={plan.title}
             onChange={(title) => void handleTitleChange(title)}
           />
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button variant="outline" size="sm" aria-label="Plan actions" />
-              }
-            >
-              <MoreHorizontal className="size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => void handleDuplicatePlan()}>
-                <Copy className="size-4" />
-                Duplicate plan
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => setDeleteDialogOpen(true)}
-              >
-                <Trash2 className="size-4" />
-                Delete plan
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <PlanActionsMenu
+            onDuplicate={handleDuplicatePlan}
+            onDelete={handleDeletePlan}
+          />
         </div>
       </div>
 
@@ -182,32 +150,6 @@ export function PlanEditor({ planId }: PlanEditorProps) {
         weekNumber={selectedWeekNumber}
         initialDayIndex={selectionState?.dayIndex ?? 0}
       />
-
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Delete plan?</DialogTitle>
-            <DialogDescription>
-              This removes the plan, its weeks, and every workout reference in
-              it.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => void handleDeletePlan()}
-            >
-              Delete plan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

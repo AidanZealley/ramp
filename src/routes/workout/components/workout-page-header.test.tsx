@@ -39,6 +39,8 @@ describe("WorkoutPageHeader", () => {
         workoutId={workoutId}
         title="Threshold Builder"
         onBack={vi.fn()}
+        onDuplicate={vi.fn().mockResolvedValue(undefined)}
+        onDelete={vi.fn().mockResolvedValue(undefined)}
       />
     )
 

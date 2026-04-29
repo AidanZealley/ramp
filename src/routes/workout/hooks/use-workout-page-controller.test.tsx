@@ -2,11 +2,9 @@ import { act, renderHook } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { useConvex, useMutation, useQuery } from "convex/react"
 import { useNavigate } from "@tanstack/react-router"
-import {
-  
-  useWorkoutPageController
-} from "./use-workout-page-controller"
-import type {WorkoutPageController} from "./use-workout-page-controller";
+import { toast } from "sonner"
+import { useWorkoutPageController } from "./use-workout-page-controller"
+import type { WorkoutPageController } from "./use-workout-page-controller"
 import type { ConvexError } from "convex/values"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import type { Interval } from "@/lib/workout-utils"
@@ -20,6 +18,12 @@ vi.mock("convex/react", () => ({
 
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: vi.fn(),
+}))
+
+vi.mock("sonner", () => ({
+  toast: {
+    success: vi.fn(),
+  },
 }))
 
 vi.mock("@/lib/exporters", () => ({
@@ -69,6 +73,7 @@ describe("useWorkoutPageController", () => {
     | undefined
   let navigateMock: ReturnType<typeof vi.fn>
   let updateIntervalsMock: ReturnType<typeof vi.fn>
+  let duplicateWorkoutMock: ReturnType<typeof vi.fn>
   let removeWorkoutMock: ReturnType<typeof vi.fn>
   let upsertSettingsMock: ReturnType<typeof vi.fn>
   let convexQueryMock: ReturnType<typeof vi.fn>
@@ -85,6 +90,9 @@ describe("useWorkoutPageController", () => {
     settingsValue = { ftp: 255, powerDisplayMode: "percentage" }
     navigateMock = vi.fn()
     updateIntervalsMock = vi.fn().mockResolvedValue(undefined)
+    duplicateWorkoutMock = vi
+      .fn()
+      .mockResolvedValue("workout-2" as Id<"workouts">)
     removeWorkoutMock = vi.fn().mockResolvedValue(undefined)
     upsertSettingsMock = vi.fn().mockResolvedValue(undefined)
     convexQueryMock = vi.fn().mockResolvedValue({
@@ -95,7 +103,6 @@ describe("useWorkoutPageController", () => {
     })
     queryCallIndex = 0
     mutationCallIndex = 0
-
     ;(useNavigate as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
       navigateMock
     )
@@ -113,10 +120,12 @@ describe("useWorkoutPageController", () => {
       () => {
         const mutations = [
           updateIntervalsMock,
+          duplicateWorkoutMock,
           removeWorkoutMock,
           upsertSettingsMock,
         ]
-        const mutation = mutations[mutationCallIndex % mutations.length] ?? vi.fn()
+        const mutation =
+          mutations[mutationCallIndex % mutations.length] ?? vi.fn()
         mutationCallIndex += 1
         return mutation
       }
@@ -138,7 +147,10 @@ describe("useWorkoutPageController", () => {
 
     await act(async () => {
       const status = await getReadyState(result.current).actions.saveIntervals({
-        intervals: [...baseIntervals, { startPower: 180, endPower: 180, durationSeconds: 90 }],
+        intervals: [
+          ...baseIntervals,
+          { startPower: 180, endPower: 180, durationSeconds: 90 },
+        ],
         expectedIntervalsRevision: 0,
         force: false,
       })
@@ -175,7 +187,9 @@ describe("useWorkoutPageController", () => {
 
   it("exports passed intervals with the persisted workout title", () => {
     const { result } = renderHook(() => useWorkoutPageController(workoutId))
-    const nextIntervals = [{ startPower: 88, endPower: 92, durationSeconds: 42 }]
+    const nextIntervals = [
+      { startPower: 88, endPower: 92, durationSeconds: 42 },
+    ]
 
     act(() => {
       getReadyState(result.current).actions.exportIntervals(nextIntervals)
@@ -196,7 +210,9 @@ describe("useWorkoutPageController", () => {
     const { result } = renderHook(() => useWorkoutPageController(workoutId))
 
     await act(async () => {
-      await getReadyState(result.current).actions.changeDisplayMode("percentage")
+      await getReadyState(result.current).actions.changeDisplayMode(
+        "percentage"
+      )
     })
     expect(upsertSettingsMock).not.toHaveBeenCalled()
 
@@ -211,17 +227,27 @@ describe("useWorkoutPageController", () => {
   it("deletes the workout and navigates back to the root route", async () => {
     const { result } = renderHook(() => useWorkoutPageController(workoutId))
 
-    act(() => {
-      getReadyState(result.current).actions.requestDelete()
-    })
-    expect(getReadyState(result.current).showDeleteDialog).toBe(true)
-
     await act(async () => {
       await getReadyState(result.current).actions.deleteWorkout()
     })
 
     expect(removeWorkoutMock).toHaveBeenCalledWith({ id: workoutId })
     expect(navigateMock).toHaveBeenCalledWith({ to: "/" })
-    expect(getReadyState(result.current).showDeleteDialog).toBe(false)
+    expect(toast.success).toHaveBeenCalledWith("Workout deleted")
+  })
+
+  it("duplicates the workout and navigates to the copied workout", async () => {
+    const { result } = renderHook(() => useWorkoutPageController(workoutId))
+
+    await act(async () => {
+      await getReadyState(result.current).actions.duplicateWorkout()
+    })
+
+    expect(duplicateWorkoutMock).toHaveBeenCalledWith({ id: workoutId })
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: "/workout/$id",
+      params: { id: "workout-2" },
+    })
+    expect(toast.success).toHaveBeenCalledWith("Workout duplicated")
   })
 })

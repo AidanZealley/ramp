@@ -1,13 +1,8 @@
 import { ConvexError, v } from "convex/values"
 import { internal } from "./_generated/api"
-import {
-  
-  internalMutation,
-  mutation,
-  query
-} from "./_generated/server"
+import { internalMutation, mutation, query } from "./_generated/server"
 import { computeWorkoutSummary } from "./workoutSummary"
-import type {MutationCtx} from "./_generated/server";
+import type { MutationCtx } from "./_generated/server"
 import type { Doc } from "./_generated/dataModel"
 
 const intervalValidator = v.object({
@@ -118,6 +113,26 @@ export const updateTitle = mutation({
   },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.id, { title: args.title })
+  },
+})
+
+export const duplicateWorkout = mutation({
+  args: {
+    id: v.id("workouts"),
+    title: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const workout = await ctx.db.get(args.id)
+    if (!workout) {
+      throw new Error("Workout not found")
+    }
+
+    return await ctx.db.insert("workouts", {
+      title: args.title ?? `${workout.title} (copy)`,
+      intervals: workout.intervals,
+      intervalsRevision: 0,
+      summary: computeWorkoutSummary(workout.intervals),
+    })
   },
 })
 

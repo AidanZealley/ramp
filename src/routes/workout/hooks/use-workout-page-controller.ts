@@ -1,17 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useConvex, useMutation, useQuery } from "convex/react"
 import { useNavigate } from "@tanstack/react-router"
+import { toast } from "sonner"
 import { api } from "../../../../convex/_generated/api"
 import type { FunctionReturnType } from "convex/server"
 import type { ConvexError } from "convex/values"
 import type { Id } from "../../../../convex/_generated/dataModel"
-import type {Interval, PowerDisplayMode} from "@/lib/workout-utils";
+import type { Interval, PowerDisplayMode } from "@/lib/workout-utils"
 import { downloadTextFile, workoutToMrc } from "@/lib/exporters"
-import {
-  DEFAULT_FTP
-  
-  
-} from "@/lib/workout-utils"
+import { DEFAULT_FTP } from "@/lib/workout-utils"
 
 type WorkoutRecord = NonNullable<FunctionReturnType<typeof api.workouts.get>>
 type SettingsRecord = FunctionReturnType<typeof api.settings.get>
@@ -28,14 +25,12 @@ interface WorkoutPageControllerReadyState {
   settings: SettingsRecord | undefined
   ftp: number
   displayMode: PowerDisplayMode
-  showDeleteDialog: boolean
-  setShowDeleteDialog: (open: boolean) => void
   actions: {
     changeDisplayMode: (mode: PowerDisplayMode) => Promise<void>
     saveIntervals: (args: SaveIntervalsArgs) => Promise<"saved" | "conflict">
+    duplicateWorkout: () => Promise<void>
     deleteWorkout: () => Promise<void>
     exportIntervals: (intervals: Array<Interval>) => void
-    requestDelete: () => void
     goBack: () => void
   }
 }
@@ -78,13 +73,12 @@ export function useWorkoutPageController(
   const workout = useQuery(api.workouts.get, { id: workoutId })
   const settings = useQuery(api.settings.get)
   const updateIntervals = useMutation(api.workouts.updateIntervals)
+  const duplicateWorkoutMutation = useMutation(api.workouts.duplicateWorkout)
   const removeWorkout = useMutation(api.workouts.remove)
   const upsertSettings = useMutation(api.settings.upsert)
 
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [refreshedWorkout, setRefreshedWorkout] = useState<WorkoutRecord | null>(
-    null
-  )
+  const [refreshedWorkout, setRefreshedWorkout] =
+    useState<WorkoutRecord | null>(null)
 
   const ftp = settings?.ftp ?? DEFAULT_FTP
   const displayMode = settings?.powerDisplayMode ?? "percentage"
@@ -133,7 +127,11 @@ export function useWorkoutPageController(
   )
 
   const saveIntervals = useCallback(
-    async ({ intervals, expectedIntervalsRevision, force }: SaveIntervalsArgs) => {
+    async ({
+      intervals,
+      expectedIntervalsRevision,
+      force,
+    }: SaveIntervalsArgs) => {
       if (!resolvedWorkout) return "saved"
 
       try {
@@ -160,9 +158,19 @@ export function useWorkoutPageController(
     if (!resolvedWorkout) return
 
     await removeWorkout({ id: resolvedWorkout._id })
-    setShowDeleteDialog(false)
+    toast.success("Workout deleted")
     navigate({ to: "/" })
   }, [navigate, removeWorkout, resolvedWorkout])
+
+  const duplicateWorkout = useCallback(async () => {
+    if (!resolvedWorkout) return
+
+    const newWorkoutId = await duplicateWorkoutMutation({
+      id: resolvedWorkout._id,
+    })
+    toast.success("Workout duplicated")
+    navigate({ to: "/workout/$id", params: { id: newWorkoutId } })
+  }, [duplicateWorkoutMutation, navigate, resolvedWorkout])
 
   const exportIntervals = useCallback(
     (intervals: Array<Interval>) => {
@@ -176,10 +184,6 @@ export function useWorkoutPageController(
     },
     [resolvedWorkout]
   )
-
-  const requestDelete = useCallback(() => {
-    setShowDeleteDialog(true)
-  }, [])
 
   if (resolvedWorkout === undefined) {
     return { status: "loading" }
@@ -198,14 +202,12 @@ export function useWorkoutPageController(
     settings,
     ftp,
     displayMode,
-    showDeleteDialog,
-    setShowDeleteDialog,
     actions: {
       changeDisplayMode,
       saveIntervals,
+      duplicateWorkout,
       deleteWorkout,
       exportIntervals,
-      requestDelete,
       goBack,
     },
   }

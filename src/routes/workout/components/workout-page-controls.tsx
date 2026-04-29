@@ -1,4 +1,4 @@
-import { Download, Plus, RefreshCw, Save, Trash2 } from "lucide-react"
+import { Download, Plus, RefreshCw, Save } from "lucide-react"
 import type { Interval, PowerDisplayMode } from "@/lib/workout-utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -20,7 +20,6 @@ interface WorkoutPageControlsProps {
     expectedIntervalsRevision: number
     hasIncomingServerChanges: boolean
   }) => void | Promise<void>
-  onDelete: () => void
 }
 
 export function WorkoutPageControls({
@@ -28,7 +27,6 @@ export function WorkoutPageControls({
   onDisplayModeChange,
   onExport,
   onSave,
-  onDelete,
 }: WorkoutPageControlsProps) {
   const intervals = useWorkoutEditorCurrentIntervals()
   const baselineRevision = useWorkoutEditorBaselineRevision()
@@ -102,11 +100,6 @@ export function WorkoutPageControls({
           </Button>
         </>
       )}
-
-      <Button variant="destructive" onClick={onDelete}>
-        <Trash2 className="size-4" />
-        Delete
-      </Button>
     </div>
   )
 }
