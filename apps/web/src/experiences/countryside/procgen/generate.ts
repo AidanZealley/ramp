@@ -13,9 +13,7 @@ const ROAD_HALF_WIDTH_METERS = 3.2
 const ROAD_CLEARANCE_METERS = 6
 const SAMPLE_SPACING_METERS = 12
 
-export function generateWorldChunk(
-  input: GenerateWorldChunkInput
-): WorldChunk {
+export function generateWorldChunk(input: GenerateWorldChunkInput): WorldChunk {
   const chunkLength = input.chunkLengthMeters
   const startDistanceMeters = input.index * chunkLength
   const endDistanceMeters = startDistanceMeters + chunkLength

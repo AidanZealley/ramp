@@ -1,7 +1,7 @@
 import { useMemo } from "react"
 import { Vector3 } from "three"
-import { sampleRouteAtDistance } from "./procgen/generate"
-import { RIDE_WORLD } from "./world-config"
+import { sampleRouteAtDistance } from "../procgen/generate"
+import { RIDE_WORLD } from "../world-config"
 
 type RiderMarkerProps = {
   distanceMeters: number
@@ -20,7 +20,11 @@ export function RiderMarker({ distanceMeters }: RiderMarkerProps) {
 
   return (
     <group
-      position={[sample.position[0], sample.position[1] + 0.22, sample.position[2]]}
+      position={[
+        sample.position[0],
+        sample.position[1] + 0.22,
+        sample.position[2],
+      ]}
       rotation={[0, yaw, 0]}
     >
       <mesh castShadow position={[-0.6, 0.28, 0]}>

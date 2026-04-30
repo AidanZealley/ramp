@@ -1,13 +1,10 @@
 import { useEffect } from "react"
-import {
-  useRideSession,
-  type RideSessionController,
-} from "@ramp/ride-core"
+import { useRideSession, type RideSessionController } from "@ramp/ride-core"
 import { sampleRouteAtDistance } from "./procgen/generate"
-import { RideScene } from "./scene"
+import { RideScene } from "./components/ride-scene"
 import { RIDE_WORLD } from "./world-config"
 
-export function CountrysideGameView({
+export function CountrysideExperienceView({
   session,
 }: {
   session: RideSessionController
@@ -19,7 +16,7 @@ export function CountrysideGameView({
     const sample = sampleRouteAtDistance(RIDE_WORLD, distanceMeters)
     void session.controls.dispatch(
       { type: "setSimulationGrade", gradePercent: sample.grade * 100 },
-      "game"
+      "experience"
     )
   }, [distanceMeters, session])
 

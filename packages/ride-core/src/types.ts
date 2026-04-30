@@ -20,11 +20,11 @@ export type RideSessionState = {
   telemetry: RideTelemetry
   trainerConnected: boolean
   paused: boolean
-  activeControlMode: "manual" | "workout" | "game"
+  activeControlMode: "manual" | "workout" | "experience"
   lastError: string | null
 }
 
-export type TrainerCommandSource = "user" | "workout" | "game" | "system"
+export type TrainerCommandSource = "user" | "workout" | "experience" | "system"
 
 export type DispatchResult = { ok: true } | { ok: false; reason: string }
 
@@ -66,10 +66,10 @@ export interface RideSessionController {
   controls: TrainerControlAPI
 }
 
-export type RideGamePlugin = {
+export type RideExperiencePlugin = {
   id: string
   displayName: string
-  GameView: React.ComponentType<{
+  ExperienceView: React.ComponentType<{
     session: RideSessionController
   }>
 }

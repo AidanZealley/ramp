@@ -8,8 +8,8 @@ import {
   Vector2,
   Vector3,
 } from "three"
-import type { RouteSample } from "./procgen/types"
-import { ROAD_HALF_WIDTH_METERS } from "./world-config"
+import type { RouteSample } from "../procgen/types"
+import { ROAD_HALF_WIDTH_METERS } from "../world-config"
 
 type RideRoadProps = {
   routeSamples: Array<RouteSample>
@@ -47,7 +47,11 @@ export function RideRoad({ routeSamples }: RideRoadProps) {
   return (
     <group>
       <mesh geometry={roadGeometry} receiveShadow>
-        <meshStandardMaterial color="#6f736d" roughness={0.88} side={DoubleSide} />
+        <meshStandardMaterial
+          color="#6f736d"
+          roughness={0.88}
+          side={DoubleSide}
+        />
       </mesh>
       {centerLine.getPoints(18).map((point, index) => (
         <mesh
@@ -56,7 +60,11 @@ export function RideRoad({ routeSamples }: RideRoadProps) {
           rotation={[-Math.PI / 2, 0, 0]}
         >
           <shapeGeometry args={[markerGeometry]} />
-          <meshStandardMaterial color="#e6e1ba" roughness={0.8} side={DoubleSide} />
+          <meshStandardMaterial
+            color="#e6e1ba"
+            roughness={0.8}
+            side={DoubleSide}
+          />
         </mesh>
       ))}
     </group>
@@ -70,7 +78,14 @@ function createRoadGeometry(routeSamples: Array<RouteSample>): BufferGeometry {
   routeSamples.forEach((sample) => {
     const left = offsetSample(sample, -ROAD_HALF_WIDTH_METERS)
     const right = offsetSample(sample, ROAD_HALF_WIDTH_METERS)
-    positions.push(left.x, left.y + 0.06, left.z, right.x, right.y + 0.06, right.z)
+    positions.push(
+      left.x,
+      left.y + 0.06,
+      left.z,
+      right.x,
+      right.y + 0.06,
+      right.z
+    )
   })
 
   for (let index = 0; index < routeSamples.length - 1; index += 1) {
@@ -79,7 +94,10 @@ function createRoadGeometry(routeSamples: Array<RouteSample>): BufferGeometry {
   }
 
   const geometry = new BufferGeometry()
-  geometry.setAttribute("position", new BufferAttribute(new Float32Array(positions), 3))
+  geometry.setAttribute(
+    "position",
+    new BufferAttribute(new Float32Array(positions), 3)
+  )
   geometry.setIndex(indices)
   geometry.computeVertexNormals()
   return geometry

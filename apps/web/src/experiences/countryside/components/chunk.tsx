@@ -1,4 +1,4 @@
-import type { WorldChunk } from "./procgen/types"
+import type { WorldChunk } from "../procgen/types"
 import { RideProps } from "./props"
 import { RideRoad } from "./road"
 import { RideTerrain } from "./terrain"

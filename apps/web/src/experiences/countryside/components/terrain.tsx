@@ -1,6 +1,6 @@
 import { useMemo } from "react"
 import { BufferAttribute, BufferGeometry, DoubleSide } from "three"
-import type { TerrainPatch } from "./procgen/types"
+import type { TerrainPatch } from "../procgen/types"
 
 type RideTerrainProps = {
   patches: Array<TerrainPatch>
@@ -31,7 +31,11 @@ function TerrainPatchMesh({ patch }: { patch: TerrainPatch }) {
 
   return (
     <mesh geometry={geometry} receiveShadow>
-      <meshStandardMaterial color={patch.color} roughness={0.95} side={DoubleSide} />
+      <meshStandardMaterial
+        color={patch.color}
+        roughness={0.95}
+        side={DoubleSide}
+      />
     </mesh>
   )
 }

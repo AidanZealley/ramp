@@ -1,4 +1,7 @@
-import { Capability, type Capability as CapabilityName } from "@ramp/ride-contracts"
+import {
+  Capability,
+  type Capability as CapabilityName,
+} from "@ramp/ride-contracts"
 import type {
   DispatchResult,
   TrainerCapabilities,
@@ -13,7 +16,7 @@ export type ArbitrationPolicy = {
 }
 
 export const defaultPolicy: ArbitrationPolicy = {
-  precedence: { system: 100, user: 75, workout: 50, game: 25 },
+  precedence: { system: 100, user: 75, workout: 50, experience: 25 },
   coalesceMs: {
     [Capability.SimulationGrade]: 200,
     [Capability.TargetPower]: 50,
@@ -22,7 +25,9 @@ export const defaultPolicy: ArbitrationPolicy = {
   alwaysAllow: ["disconnect", "requestCalibration"],
 }
 
-export function commandCapability(command: TrainerCommand): CapabilityName | null {
+export function commandCapability(
+  command: TrainerCommand
+): CapabilityName | null {
   if (command.type === "setTargetPower") return Capability.TargetPower
   if (command.type === "setResistance") return Capability.Resistance
   if (command.type === "setSimulationGrade") return Capability.SimulationGrade

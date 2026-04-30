@@ -22,9 +22,7 @@ class TestTrainer implements RideTrainerAdapter {
   private timer: ReturnType<typeof setInterval> | null = null
   private targetWatts: number | null = null
 
-  constructor(
-    capabilities = new Set(Object.values(Capability))
-  ) {
+  constructor(capabilities = new Set(Object.values(Capability))) {
     this.capabilities = capabilities
   }
 
@@ -55,7 +53,9 @@ class TestTrainer implements RideTrainerAdapter {
     }
   }
 
-  subscribeState(listener: (s: RideTrainerConnectionState) => void): () => void {
+  subscribeState(
+    listener: (s: RideTrainerConnectionState) => void
+  ): () => void {
     this.stateListener = listener
     return () => {
       if (this.stateListener === listener) this.stateListener = null
@@ -115,7 +115,7 @@ describe("ride-core", () => {
     for (let index = 0; index < 5; index += 1) {
       await session.controls.dispatch(
         { type: "setSimulationGrade", gradePercent: index },
-        "game"
+        "experience"
       )
     }
 

@@ -1,11 +1,15 @@
 import { Link } from "@tanstack/react-router"
-import type { RideGameDefinition } from "@/games/types"
+import type { RideExperienceDefinition } from "@/experiences/types"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 
-export function RideGameTile({ game }: { game: RideGameDefinition }) {
+export function RideExperienceTile({
+  experience,
+}: {
+  experience: RideExperienceDefinition
+}) {
   return (
-    <Link to="/ride/$gameId" params={{ gameId: game.id }}>
+    <Link to="/ride/$experienceId" params={{ experienceId: experience.id }}>
       <Card
         size="sm"
         className="group cursor-pointer py-0! transition-all hover:shadow-lg hover:ring-2 hover:ring-primary/20"
@@ -14,26 +18,24 @@ export function RideGameTile({ game }: { game: RideGameDefinition }) {
           <div
             className="flex h-24 flex-col justify-end gap-1 px-4 py-3"
             style={{
-              background: `linear-gradient(145deg, ${game.accent.from}, ${game.accent.to})`,
-              color: game.accent.ink,
+              background: `linear-gradient(145deg, ${experience.accent.from}, ${experience.accent.to})`,
+              color: experience.accent.ink,
             }}
           >
             <p className="text-[10px] font-semibold tracking-[0.2em] uppercase opacity-75">
-              {game.preview.eyebrow}
+              {experience.preview.eyebrow}
             </p>
             <h3 className="font-heading text-xl font-semibold tracking-tight">
-              {game.displayName}
+              {experience.displayName}
             </h3>
           </div>
           <div className="flex flex-col gap-2 px-3 pb-3">
-            <p className="text-sm text-muted-foreground">{game.description}</p>
+            <p className="text-sm text-muted-foreground">
+              {experience.description}
+            </p>
             <div className="flex flex-wrap gap-1">
-              {game.tags.map((tag) => (
-                <Badge
-                  key={tag}
-                  variant="secondary"
-                  className="text-[10px]"
-                >
+              {experience.tags.map((tag) => (
+                <Badge key={tag} variant="secondary" className="text-[10px]">
                   {tag}
                 </Badge>
               ))}

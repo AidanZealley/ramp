@@ -11,7 +11,7 @@ export {
 export * from "@ramp/ride-contracts"
 export type {
   DispatchResult,
-  RideGamePlugin,
+  RideExperiencePlugin,
   RideSessionController,
   RideSessionState,
   RideTrainerAdapter,

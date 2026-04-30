@@ -1,6 +1,6 @@
-import type { RideGamePlugin } from "@ramp/ride-core"
+import type { RideExperiencePlugin } from "@ramp/ride-core"
 
-export type RideGameDefinition = {
+export type RideExperienceDefinition = {
   id: string
   displayName: string
   description: string
@@ -14,5 +14,5 @@ export type RideGameDefinition = {
     eyebrow: string
     spotlight: string
   }
-  plugin: RideGamePlugin
+  plugin: RideExperiencePlugin
 }

@@ -1,13 +1,13 @@
-import type { RideGamePlugin } from "@ramp/ride-core"
-import { CountrysideGameView } from "./game-view"
+import type { RideExperiencePlugin } from "@ramp/ride-core"
+import { CountrysideExperienceView } from "./countryside-experience-view"
 
-export const countrysideGame: RideGamePlugin = {
+export const countrysideExperience: RideExperiencePlugin = {
   id: "countryside-r3f",
   displayName: "Countryside",
-  GameView: CountrysideGameView,
+  ExperienceView: CountrysideExperienceView,
 }
 
-export { CountrysideGameView }
+export { CountrysideExperienceView }
 export { generateWorldChunk, sampleRouteAtDistance } from "./procgen/generate"
 export type {
   GenerateWorldChunkInput,

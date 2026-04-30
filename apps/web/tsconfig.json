@@ -17,12 +17,6 @@
     "paths": {
       "@/*": ["./src/*"],
       "#convex/*": ["../../convex/*"],
-      "@ramp/game-countryside-r3f": [
-        "../../packages/game-countryside-r3f/src/index.ts"
-      ],
-      "@ramp/game-hill-climb": [
-        "../../packages/game-hill-climb/src/index.ts"
-      ],
       "@ramp/ride-core": ["../../packages/ride-core/src/index.ts"],
       "@ramp/ride-workouts": ["../../packages/ride-workouts/src/index.ts"],
       "@ramp/trainer-io": ["../../packages/trainer-io/src/index.ts"]

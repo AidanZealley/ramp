@@ -1,7 +1,7 @@
-import { RideGameTile } from "./ride-game-tile"
-import { rideGames } from "@/games/registry"
+import { RideExperienceTile } from "./ride-experience-tile"
+import { rideExperiences } from "@/experiences/catalog"
 
-export function RideGamePickerPage() {
+export function RideExperiencePickerPage() {
   return (
     <div className="flex justify-center">
       <div className="flex w-full max-w-5xl flex-col gap-10">
@@ -15,8 +15,8 @@ export function RideGamePickerPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          {rideGames.map((game) => (
-            <RideGameTile key={game.id} game={game} />
+          {rideExperiences.map((experience) => (
+            <RideExperienceTile key={experience.id} experience={experience} />
           ))}
         </div>
       </div>

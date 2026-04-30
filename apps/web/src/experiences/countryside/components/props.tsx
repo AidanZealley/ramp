@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react"
 import { DoubleSide, Matrix4, Quaternion, Vector3 } from "three"
 import type { InstancedMesh } from "three"
-import type { WorldProp } from "./procgen/types"
+import type { WorldProp } from "../procgen/types"
 
 type RidePropsProps = {
   props: Array<WorldProp>
@@ -30,11 +30,19 @@ function InstancedTrees({ props }: { props: Array<WorldProp> }) {
   const canopyRef = useRef<InstancedMesh>(null)
 
   useInstanceMatrices(props, trunkRef, (prop) => ({
-    position: [prop.position[0], prop.position[1] + 0.75 * prop.scale, prop.position[2]],
+    position: [
+      prop.position[0],
+      prop.position[1] + 0.75 * prop.scale,
+      prop.position[2],
+    ],
     scale: [0.28 * prop.scale, 1.5 * prop.scale, 0.28 * prop.scale],
   }))
   useInstanceMatrices(props, canopyRef, (prop) => ({
-    position: [prop.position[0], prop.position[1] + 2.0 * prop.scale, prop.position[2]],
+    position: [
+      prop.position[0],
+      prop.position[1] + 2.0 * prop.scale,
+      prop.position[2],
+    ],
     scale: [1.4 * prop.scale, 1.8 * prop.scale, 1.4 * prop.scale],
   }))
 
@@ -42,11 +50,19 @@ function InstancedTrees({ props }: { props: Array<WorldProp> }) {
 
   return (
     <group>
-      <instancedMesh castShadow ref={trunkRef} args={[undefined, undefined, props.length]}>
+      <instancedMesh
+        castShadow
+        ref={trunkRef}
+        args={[undefined, undefined, props.length]}
+      >
         <cylinderGeometry args={[1, 1, 1, 6]} />
         <meshStandardMaterial color="#6b4d35" roughness={0.9} />
       </instancedMesh>
-      <instancedMesh castShadow ref={canopyRef} args={[undefined, undefined, props.length]}>
+      <instancedMesh
+        castShadow
+        ref={canopyRef}
+        args={[undefined, undefined, props.length]}
+      >
         <coneGeometry args={[1, 1, 6]} />
         <meshStandardMaterial color="#315f38" roughness={0.86} />
       </instancedMesh>
@@ -57,14 +73,22 @@ function InstancedTrees({ props }: { props: Array<WorldProp> }) {
 function InstancedRocks({ props }: { props: Array<WorldProp> }) {
   const ref = useRef<InstancedMesh>(null)
   useInstanceMatrices(props, ref, (prop) => ({
-    position: [prop.position[0], prop.position[1] + 0.22 * prop.scale, prop.position[2]],
+    position: [
+      prop.position[0],
+      prop.position[1] + 0.22 * prop.scale,
+      prop.position[2],
+    ],
     scale: [0.7 * prop.scale, 0.42 * prop.scale, 0.55 * prop.scale],
   }))
 
   if (props.length === 0) return null
 
   return (
-    <instancedMesh castShadow ref={ref} args={[undefined, undefined, props.length]}>
+    <instancedMesh
+      castShadow
+      ref={ref}
+      args={[undefined, undefined, props.length]}
+    >
       <dodecahedronGeometry args={[1, 0]} />
       <meshStandardMaterial color="#7d8179" roughness={0.92} />
     </instancedMesh>
@@ -80,7 +104,11 @@ function SimpleProp({ prop }: { prop: WorldProp }) {
 
   if (prop.kind === "fence") {
     return (
-      <group position={position} rotation={[0, prop.rotationY, 0]} scale={prop.scale}>
+      <group
+        position={position}
+        rotation={[0, prop.rotationY, 0]}
+        scale={prop.scale}
+      >
         <mesh castShadow position={[-1.2, 0.45, 0]}>
           <boxGeometry args={[0.12, 0.9, 0.12]} />
           <meshStandardMaterial color="#8a653f" roughness={0.88} />
@@ -99,7 +127,11 @@ function SimpleProp({ prop }: { prop: WorldProp }) {
 
   if (prop.kind === "sign") {
     return (
-      <group position={position} rotation={[0, prop.rotationY, 0]} scale={prop.scale}>
+      <group
+        position={position}
+        rotation={[0, prop.rotationY, 0]}
+        scale={prop.scale}
+      >
         <mesh castShadow position={[0, 0.6, 0]}>
           <cylinderGeometry args={[0.05, 0.05, 1.2, 6]} />
           <meshStandardMaterial color="#6b4d35" roughness={0.85} />
@@ -114,7 +146,11 @@ function SimpleProp({ prop }: { prop: WorldProp }) {
 
   if (prop.kind === "building") {
     return (
-      <group position={position} rotation={[0, prop.rotationY, 0]} scale={prop.scale}>
+      <group
+        position={position}
+        rotation={[0, prop.rotationY, 0]}
+        scale={prop.scale}
+      >
         <mesh castShadow receiveShadow position={[0, 0.75, 0]}>
           <boxGeometry args={[2.6, 1.5, 2.2]} />
           <meshStandardMaterial color="#c9b38b" roughness={0.88} />
@@ -129,17 +165,31 @@ function SimpleProp({ prop }: { prop: WorldProp }) {
 
   if (prop.kind === "water") {
     return (
-      <mesh position={[position[0], position[1] + 0.02, position[2]]} scale={prop.scale}>
+      <mesh
+        position={[position[0], position[1] + 0.02, position[2]]}
+        scale={prop.scale}
+      >
         <circleGeometry args={[2.2, 12]} />
-        <meshStandardMaterial color="#6fb6bf" roughness={0.45} side={DoubleSide} />
+        <meshStandardMaterial
+          color="#6fb6bf"
+          roughness={0.45}
+          side={DoubleSide}
+        />
       </mesh>
     )
   }
 
   return (
-    <mesh position={[position[0], position[1] + 0.03, position[2]]} scale={prop.scale}>
+    <mesh
+      position={[position[0], position[1] + 0.03, position[2]]}
+      scale={prop.scale}
+    >
       <boxGeometry args={[3.4, 0.05, 2.2]} />
-      <meshStandardMaterial color="#d7bd61" roughness={0.92} side={DoubleSide} />
+      <meshStandardMaterial
+        color="#d7bd61"
+        roughness={0.92}
+        side={DoubleSide}
+      />
     </mesh>
   )
 }

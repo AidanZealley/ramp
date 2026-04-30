@@ -112,7 +112,11 @@ export function createRideSession(
         state = {
           ...state,
           activeControlMode:
-            command.mode === "erg" ? "workout" : command.mode === "free" ? "manual" : "game",
+            command.mode === "erg"
+              ? "workout"
+              : command.mode === "free"
+                ? "manual"
+                : "experience",
         }
         notify()
       }
