@@ -24,6 +24,49 @@ describe("MockTrainer", () => {
     expect(listener).toHaveBeenCalledTimes(1)
   })
 
+  it("keeps state authoritative through connect and disconnect", async () => {
+    const trainer = new MockTrainer()
+    const states: Array<string> = []
+    trainer.subscribeState((state) => states.push(state.kind))
+
+    const connect = trainer.connect()
+    expect(trainer.state.kind).toBe("connecting")
+    await connect
+    expect(trainer.state.kind).toBe("connected")
+
+    await trainer.disconnect()
+    expect(trainer.state.kind).toBe("disconnected")
+    expect(states).toEqual(["connecting", "connected", "disconnected"])
+  })
+
+  it("makes connecting state observable before connected", async () => {
+    const trainer = new MockTrainer()
+    const listener = vi.fn()
+    trainer.subscribeState(listener)
+
+    const connect = trainer.connect()
+
+    expect(listener).toHaveBeenCalledWith({ kind: "connecting" })
+    expect(listener).not.toHaveBeenCalledWith({ kind: "connected" })
+
+    await connect
+    expect(listener).toHaveBeenCalledWith({ kind: "connected" })
+  })
+
+  it("does not publish connected after disconnect during delayed connect", async () => {
+    const trainer = new MockTrainer({ connectDelayMs: 1000 })
+    const listener = vi.fn()
+    trainer.subscribeState(listener)
+
+    const connect = trainer.connect()
+    await trainer.disconnect()
+    vi.advanceTimersByTime(1000)
+    await connect
+
+    expect(trainer.state.kind).toBe("disconnected")
+    expect(listener).not.toHaveBeenCalledWith({ kind: "connected" })
+  })
+
   it("reflects target power in telemetry", async () => {
     const trainer = new MockTrainer()
     const listener = vi.fn()
@@ -35,6 +78,19 @@ describe("MockTrainer", () => {
 
     expect(listener).toHaveBeenLastCalledWith(
       expect.objectContaining({ powerWatts: 240 })
+    )
+  })
+
+  it("applies manual override telemetry for simulator controls", async () => {
+    const trainer = new MockTrainer()
+    const listener = vi.fn()
+    trainer.subscribeTelemetry(listener)
+    await trainer.connect()
+
+    trainer.setManualOverrides({ powerWatts: 205, cadenceRpm: 88 })
+
+    expect(listener).toHaveBeenLastCalledWith(
+      expect.objectContaining({ powerWatts: 205, cadenceRpm: 88 })
     )
   })
 

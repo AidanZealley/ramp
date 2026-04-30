@@ -1,19 +1,17 @@
 import type { WorkoutDefinition } from "@ramp/ride-workouts"
+import type { Doc } from "#convex/_generated/dataModel"
 
-type ConvexWorkoutLike = {
-  _id: string
-  title: string
-  intervals: WorkoutDefinition["intervals"]
-  powerMode?: "percentage" | "absolute"
+export type ClientWorkoutDoc = Omit<Doc<"workouts">, "powerMode"> & {
+  intervalsRevision: number
 }
 
 export function toWorkoutDefinition(
-  doc: ConvexWorkoutLike
+  doc: ClientWorkoutDoc
 ): WorkoutDefinition {
   return {
     id: doc._id,
     title: doc.title,
     intervals: doc.intervals,
-    powerMode: doc.powerMode ?? "percentage",
+    powerMode: "percentage",
   }
 }

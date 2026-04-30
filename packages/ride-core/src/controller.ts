@@ -1,17 +1,20 @@
 import { CommandArbiter } from "./arbiter"
+import {  defaultPolicy, enforce } from "./policy"
+import type {ArbitrationPolicy} from "./policy";
 import type { TrainerControlAPI } from "./controls"
-import { type ArbitrationPolicy, defaultPolicy, enforce } from "./policy"
 import type {
   DispatchResult,
   RideSessionController,
   RideSessionState,
-  TrainerCapabilities,
   RideTrainerAdapter,
+  TrainerCapabilities,
 } from "./types"
 
 export type CreateRideSessionOptions = {
   now?: () => number
   tickIntervalMs?: number
+  telemetryIntervalMs?: number
+  flushIntervalMs?: number
   policy?: ArbitrationPolicy
 }
 
@@ -21,14 +24,18 @@ export function createRideSession(
   options: CreateRideSessionOptions = {}
 ): RideSessionController {
   const now = options.now ?? (() => Date.now())
-  const tickIntervalMs = options.tickIntervalMs ?? 100
+  const telemetryIntervalMs =
+    options.telemetryIntervalMs ?? options.tickIntervalMs ?? 100
+  const flushIntervalMs = options.flushIntervalMs ?? 50
   const policy = options.policy ?? defaultPolicy
   const listeners = new Set<() => void>()
   const arbiter = new CommandArbiter(policy, now)
   let trainer: RideTrainerAdapter | null = null
-  let timer: ReturnType<typeof setInterval> | null = null
+  let telemetryTimer: ReturnType<typeof setInterval> | null = null
+  let flushTimer: ReturnType<typeof setInterval> | null = null
   let cleanup: Array<() => void> = []
   let lastTickMs = now()
+  let connectionGeneration = 0
   let latestTelemetry = {
     powerWatts: null as number | null,
     cadenceRpm: null as number | null,
@@ -55,46 +62,99 @@ export function createRideSession(
     for (const listener of listeners) listener()
   }
 
-  const setState = (next: RideSessionState) => {
-    state = next
+  const setState = (
+    next:
+      | RideSessionState
+      | ((previous: RideSessionState) => RideSessionState)
+  ) => {
+    const previous = state
+    state = typeof next === "function" ? next(previous) : next
+    if (state === previous) return
     notify()
   }
 
-  const tick = () => {
-    if (!state.paused) {
-      const current = now()
-      const deltaSeconds = Math.max(0, (current - lastTickMs) / 1000)
-      lastTickMs = current
-      const speedMps = latestTelemetry.speedMps
-      state = {
-        ...state,
-        telemetry: {
-          ...state.telemetry,
-          elapsedSeconds: state.telemetry.elapsedSeconds + deltaSeconds,
-          distanceMeters:
-            state.telemetry.distanceMeters + deltaSeconds * (speedMps ?? 0),
-          speedMps,
-          powerWatts: latestTelemetry.powerWatts,
-          cadenceRpm: latestTelemetry.cadenceRpm,
-          heartRateBpm: latestTelemetry.heartRateBpm,
-        },
-      }
-      notify()
-    } else {
-      lastTickMs = now()
-    }
+  const telemetryEqual = (
+    previous: RideSessionState["telemetry"],
+    next: RideSessionState["telemetry"]
+  ) =>
+    previous.elapsedSeconds === next.elapsedSeconds &&
+    previous.distanceMeters === next.distanceMeters &&
+    previous.speedMps === next.speedMps &&
+    previous.powerWatts === next.powerWatts &&
+    previous.cadenceRpm === next.cadenceRpm &&
+    previous.heartRateBpm === next.heartRateBpm &&
+    previous.trainerStatus === next.trainerStatus
 
-    void arbiter.flush(trainer).catch((error: unknown) => {
-      setState({
-        ...state,
-        lastError: error instanceof Error ? error.message : String(error),
-        telemetry: { ...state.telemetry, trainerStatus: "error" },
-      })
+  const startTimers = () => {
+    if (!telemetryTimer) {
+      telemetryTimer = setInterval(tickTelemetry, telemetryIntervalMs)
+    }
+    if (!flushTimer) {
+      flushTimer = setInterval(flushCommands, flushIntervalMs)
+    }
+  }
+
+  const stopTimers = () => {
+    if (telemetryTimer) {
+      clearInterval(telemetryTimer)
+      telemetryTimer = null
+    }
+    if (flushTimer) {
+      clearInterval(flushTimer)
+      flushTimer = null
+    }
+  }
+
+  const tickTelemetry = () => {
+    if (state.paused) {
+      lastTickMs = now()
+      return
+    }
+    const current = now()
+    const deltaSeconds = Math.max(0, (current - lastTickMs) / 1000)
+    lastTickMs = current
+    const speedMps = latestTelemetry.speedMps
+    setState((previous) => {
+      const nextTelemetry = {
+        ...previous.telemetry,
+        elapsedSeconds: previous.telemetry.elapsedSeconds + deltaSeconds,
+        distanceMeters:
+          previous.telemetry.distanceMeters + deltaSeconds * (speedMps ?? 0),
+        speedMps,
+        powerWatts: latestTelemetry.powerWatts,
+        cadenceRpm: latestTelemetry.cadenceRpm,
+        heartRateBpm: latestTelemetry.heartRateBpm,
+      }
+      if (telemetryEqual(previous.telemetry, nextTelemetry)) return previous
+      return { ...previous, telemetry: nextTelemetry }
     })
   }
 
+  const flushCommands = () => {
+    void arbiter.flush(trainer).catch((error: unknown) => {
+      setState((previous) => ({
+        ...previous,
+        lastError: error instanceof Error ? error.message : String(error),
+        telemetry: { ...previous.telemetry, trainerStatus: "error" },
+      }))
+    })
+  }
+
+  const resetLatestTelemetry = () => {
+    latestTelemetry = {
+      powerWatts: null,
+      cadenceRpm: null,
+      speedMps: null,
+      heartRateBpm: null,
+    }
+  }
+
+  const setLatestTelemetry = (telemetry: typeof latestTelemetry) => {
+    latestTelemetry = telemetry
+  }
+
   const controls: TrainerControlAPI = {
-    async dispatch(command, source): Promise<DispatchResult> {
+    async dispatch(command, source, dispatchOptions): Promise<DispatchResult> {
       const result = enforce(
         command,
         source,
@@ -109,19 +169,18 @@ export function createRideSession(
       }
 
       if (command.type === "setMode") {
-        state = {
-          ...state,
+        setState((previous) => ({
+          ...previous,
           activeControlMode:
             command.mode === "erg"
               ? "workout"
               : command.mode === "free"
                 ? "manual"
                 : "experience",
-        }
-        notify()
+        }))
       }
 
-      arbiter.enqueue(command, source)
+      arbiter.enqueue(command, source, dispatchOptions)
       return { ok: true }
     },
     getCapabilities() {
@@ -141,27 +200,28 @@ export function createRideSession(
     },
     async connectTrainer(nextTrainer) {
       if (trainer) await controller.disconnectTrainer()
+      const generation = ++connectionGeneration
       trainer = nextTrainer
-      setState({
-        ...state,
-        telemetry: { ...state.telemetry, trainerStatus: "connecting" },
-      })
+      setState((previous) => ({
+        ...previous,
+        telemetry: { ...previous.telemetry, trainerStatus: "connecting" },
+      }))
       cleanup = [
         nextTrainer.subscribeTelemetry((telemetry) => {
-          latestTelemetry = {
+          setLatestTelemetry({
             powerWatts: telemetry.powerWatts,
             cadenceRpm: telemetry.cadenceRpm,
             speedMps: telemetry.speedMps,
             heartRateBpm: telemetry.heartRateBpm,
-          }
+          })
         }),
         nextTrainer.subscribeState((connectionState) => {
           const ready = connectionState.kind === "connected"
-          setState({
-            ...state,
+          setState((previous) => ({
+            ...previous,
             trainerConnected: ready,
             telemetry: {
-              ...state.telemetry,
+              ...previous.telemetry,
               trainerStatus:
                 connectionState.kind === "error"
                   ? "error"
@@ -174,53 +234,42 @@ export function createRideSession(
             lastError:
               connectionState.kind === "error"
                 ? connectionState.error.message
-                : state.lastError,
-          })
+                : previous.lastError,
+          }))
         }),
         nextTrainer.subscribeError((error) => {
-          setState({
-            ...state,
+          setState((previous) => ({
+            ...previous,
             lastError: error.message,
-            telemetry: { ...state.telemetry, trainerStatus: "error" },
-          })
+            telemetry: { ...previous.telemetry, trainerStatus: "error" },
+          }))
         }),
       ]
       await nextTrainer.connect()
+      if (generation !== connectionGeneration || trainer !== nextTrainer) return
       lastTickMs = now()
-      if (!timer) timer = setInterval(tick, tickIntervalMs)
-      setState({
-        ...state,
-        trainerConnected: true,
-        telemetry: { ...state.telemetry, trainerStatus: "ready" },
-      })
+      startTimers()
     },
     async disconnectTrainer() {
-      if (timer) {
-        clearInterval(timer)
-        timer = null
-      }
+      connectionGeneration += 1
+      stopTimers()
       for (const dispose of cleanup) dispose()
       cleanup = []
       await trainer?.disconnect()
       trainer = null
-      latestTelemetry = {
-        powerWatts: null,
-        cadenceRpm: null,
-        speedMps: null,
-        heartRateBpm: null,
-      }
-      setState({
-        ...state,
+      resetLatestTelemetry()
+      setState((previous) => ({
+        ...previous,
         trainerConnected: false,
-        telemetry: { ...state.telemetry, trainerStatus: "disconnected" },
-      })
+        telemetry: { ...previous.telemetry, trainerStatus: "disconnected" },
+      }))
     },
     pause() {
-      setState({ ...state, paused: true })
+      setState((previous) => ({ ...previous, paused: true }))
     },
     resume() {
       lastTickMs = now()
-      setState({ ...state, paused: false })
+      setState((previous) => ({ ...previous, paused: false }))
     },
     controls,
   }

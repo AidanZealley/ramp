@@ -1,4 +1,5 @@
 import type {
+  DispatchOptions,
   DispatchResult,
   TrainerCapabilities,
   TrainerCommand,
@@ -6,9 +7,10 @@ import type {
 } from "./types"
 
 export interface TrainerControlAPI {
-  dispatch(
+  dispatch: (
     command: TrainerCommand,
-    source: TrainerCommandSource
-  ): Promise<DispatchResult>
-  getCapabilities(): TrainerCapabilities
+    source: TrainerCommandSource,
+    options?: DispatchOptions
+  ) => Promise<DispatchResult>
+  getCapabilities: () => TrainerCapabilities
 }

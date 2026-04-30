@@ -1,4 +1,5 @@
 import { countrysideExperience } from "./countryside"
+import { liveWorkoutExperience } from "./live-workout"
 import type { RideExperienceDefinition } from "./types"
 
 export const rideExperiences: Array<RideExperienceDefinition> = [
@@ -18,6 +19,23 @@ export const rideExperiences: Array<RideExperienceDefinition> = [
       spotlight: "Reactive R3F scenery",
     },
     plugin: countrysideExperience,
+  },
+  {
+    id: liveWorkoutExperience.id,
+    displayName: liveWorkoutExperience.displayName,
+    description:
+      "Pick a saved workout and ride it in ERG mode against the simulated trainer.",
+    tags: ["workout", "ERG", "simulator"],
+    accent: {
+      from: "#d8e3ff",
+      to: "#3553b8",
+      ink: "#0c1530",
+    },
+    preview: {
+      eyebrow: "Structured ride",
+      spotlight: "ERG-controlled intervals",
+    },
+    plugin: liveWorkoutExperience,
   },
 ]
 
