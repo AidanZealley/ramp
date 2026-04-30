@@ -5,3 +5,9 @@ When working on Convex code, **always read `convex/_generated/ai/guidelines.md` 
 
 Convex agent skills for common tasks can be installed by running `npx convex ai-files install`.
 <!-- convex-ai-end -->
+
+## Component structure
+
+- Do not define multiple React components in a single file unless they are truly trivial.
+- If a component needs local subcomponents, create a folder for it and place those subcomponents in a `components/` directory within that folder.
+- Prefer a top-level `index.tsx` (or similarly focused entry file) that only defines the main exported component and imports subcomponents from sibling files.

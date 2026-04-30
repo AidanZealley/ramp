@@ -14,6 +14,7 @@ vi.mock("@tanstack/react-router", async () => {
 
   return {
     ...actual,
+    useNavigate: () => vi.fn(),
     Link: ({
       children,
       to,
@@ -31,43 +32,6 @@ vi.mock("@tanstack/react-router", async () => {
 })
 
 const testTrainer = new MockTrainer()
-
-const workouts = [
-  {
-    _id: "workout-1",
-    _creationTime: 1,
-    title: "Ramp Test",
-    intervalsRevision: 0,
-    intervals: [
-      {
-        startPower: 110,
-        endPower: 110,
-        durationSeconds: 60,
-        comment: "Threshold",
-      },
-    ],
-    summary: {
-      totalDurationSeconds: 60,
-      stressScore: 12,
-    },
-  },
-]
-
-vi.mock("#convex/_generated/api", () => ({
-  api: {
-    settings: { get: "settings.get" },
-    workouts: { list: "workouts.list" },
-  },
-}))
-
-vi.mock("convex/react", () => ({
-  useQuery: vi.fn((query) => {
-    if (query === "settings.get") {
-      return { ftp: 200, powerDisplayMode: "percentage" }
-    }
-    return workouts
-  }),
-}))
 
 vi.mock("@/ride/use-ride-trainer", () => ({
   useRideTrainer: () => testTrainer,
@@ -99,44 +63,48 @@ describe("RideSessionPage", () => {
     const { container } = render(<RideSessionPage game={countrysideGame} />)
 
     expect(screen.getByTestId("ride-canvas")).toBeTruthy()
-    expect(container.textContent).toContain("Simulator")
     expect(container.textContent).toContain("Countryside")
   })
 
-  it("updates current watts from the power slider", async () => {
-    const { container } = render(<RideSessionPage game={countrysideGame} />)
+  it("updates current watts from the HUD", async () => {
+    render(<RideSessionPage game={countrysideGame} />)
+
+    fireEvent.click(screen.getByLabelText("Show ride overlay panels"))
 
     testTrainer.setManualOverrides({ powerWatts: 240 })
 
-    await waitFor(() => expect(container.textContent).toContain("240 W"))
+    await waitFor(() =>
+      expect(screen.getAllByText("240 W").length).toBeGreaterThan(0)
+    )
   })
 
   it("pause stops elapsed and distance advancement", () => {
     vi.useFakeTimers()
-    const { container } = render(<RideSessionPage game={countrysideGame} />)
+    render(<RideSessionPage game={countrysideGame} />)
 
+    fireEvent.click(screen.getByLabelText("Show ride overlay panels"))
+    fireEvent.click(screen.getByRole("tab", { name: "Controls" }))
     fireEvent.click(screen.getByLabelText("Pause ride"))
+    fireEvent.click(screen.getByRole("tab", { name: "HUD" }))
 
     act(() => {
       vi.advanceTimersByTime(2000)
     })
 
-    expect(container.textContent).toContain("0:00")
-    expect(container.textContent).toContain("0.00 km")
+    expect(screen.getByText("0:00")).toBeTruthy()
+    expect(screen.getByText("0.00 km")).toBeTruthy()
     vi.useRealTimers()
   })
 
-  it("follow workout mode displays a target watt value", () => {
-    const { container } = render(<RideSessionPage game={countrysideGame} />)
-    const followWorkoutButton = Array.from(
-      container.querySelectorAll("button")
-    ).find((button) => button.textContent === "Follow Workout")
+  it("renders manual simulator controls", () => {
+    render(<RideSessionPage game={countrysideGame} />)
 
-    expect(followWorkoutButton).toBeTruthy()
-    fireEvent.click(followWorkoutButton!)
+    fireEvent.click(screen.getByLabelText("Show ride overlay panels"))
+    fireEvent.click(screen.getByRole("tab", { name: "Controls" }))
 
-    expect(container.textContent).toContain("220 W")
-    expect(container.textContent).toContain("Threshold")
+    expect(screen.getByText("Manual inputs")).toBeTruthy()
+    expect(screen.getByText("Power")).toBeTruthy()
+    expect(screen.getByText("Cadence")).toBeTruthy()
   })
 })
 
