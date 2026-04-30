@@ -41,7 +41,7 @@ export function SettingsDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="ghost" size="icon-sm" />}>
+      <DialogTrigger render={<Button variant="ghost" size="icon" />}>
         <Settings className="size-4" />
       </DialogTrigger>
       <DialogContent>

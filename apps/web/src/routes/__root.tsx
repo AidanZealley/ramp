@@ -67,61 +67,65 @@ function RootLayout() {
       <RootDocument theme={theme}>
         <div className="flex min-h-svh flex-col">
           {!rideImmersive && (
-          <header className="sticky top-0 z-40 border-b border-border/50 bg-background/50 backdrop-blur-lg">
-            <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-6 px-4">
-              <div className="flex items-center gap-6">
-                <Link
-                  to="/"
-                  className="flex items-center gap-0.5 transition-opacity hover:opacity-80"
-                >
-                  <TriangleRight className="-mt-1 size-4" strokeWidth={4} />
-                  <span className="font-heading text-lg font-semibold tracking-tight">
-                    Ramp
-                  </span>
-                </Link>
+            <header className="sticky top-0 z-40 border-b border-border/50 bg-background/50 px-4 backdrop-blur-lg">
+              <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-6">
+                <div className="flex items-center gap-6">
+                  <Link
+                    to="/"
+                    className="flex items-center gap-0.5 transition-opacity hover:opacity-80"
+                  >
+                    <TriangleRight className="-mt-1 size-4" strokeWidth={4} />
+                    <span className="font-heading text-lg font-semibold tracking-tight">
+                      Ramp
+                    </span>
+                  </Link>
 
-                <nav className="flex items-center gap-4 text-sm">
-                  <Link
-                    to="/workout"
-                    className={
-                      workoutsActive
-                        ? "font-medium text-foreground"
-                        : "text-muted-foreground transition-colors hover:text-foreground"
-                    }
-                  >
-                    Workouts
-                  </Link>
-                  <Link
-                    to="/plan"
-                    className={
-                      plansActive
-                        ? "font-medium text-foreground"
-                        : "text-muted-foreground transition-colors hover:text-foreground"
-                    }
-                  >
-                    Plans
-                  </Link>
-                  <Link
-                    to="/ride"
-                    className={
-                      rideActive
-                        ? "font-medium text-foreground"
-                        : "text-muted-foreground transition-colors hover:text-foreground"
-                    }
-                  >
-                    Ride
-                  </Link>
-                </nav>
-              </div>
+                  <nav className="flex items-center gap-4 text-sm">
+                    <Link
+                      to="/workout"
+                      className={
+                        workoutsActive
+                          ? "font-medium text-foreground"
+                          : "text-muted-foreground transition-colors hover:text-foreground"
+                      }
+                    >
+                      Workouts
+                    </Link>
+                    <Link
+                      to="/plan"
+                      className={
+                        plansActive
+                          ? "font-medium text-foreground"
+                          : "text-muted-foreground transition-colors hover:text-foreground"
+                      }
+                    >
+                      Plans
+                    </Link>
+                    <Link
+                      to="/ride"
+                      className={
+                        rideActive
+                          ? "font-medium text-foreground"
+                          : "text-muted-foreground transition-colors hover:text-foreground"
+                      }
+                    >
+                      Ride
+                    </Link>
+                  </nav>
+                </div>
 
-              <div className="flex items-center gap-3">
-                <ModeToggle />
-                <SettingsDialog />
+                <div className="flex items-center gap-3">
+                  <ModeToggle />
+                  <SettingsDialog />
+                </div>
               </div>
-            </div>
-          </header>
+            </header>
           )}
-          <main className={rideImmersive ? "w-full flex-1" : "w-full flex-1 px-4 py-6"}>
+          <main
+            className={
+              rideImmersive ? "w-full flex-1" : "w-full flex-1 px-4 py-6"
+            }
+          >
             <Outlet />
           </main>
           <Toaster />
