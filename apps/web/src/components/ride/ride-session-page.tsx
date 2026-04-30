@@ -2,14 +2,14 @@ import { useEffect, useMemo, useState } from "react"
 import { useQuery } from "convex/react"
 import { RideSessionContext } from "@ramp/ride-core"
 import { createWorkoutController } from "@ramp/ride-workouts"
+import type { RideGameDefinition } from "@/games/types"
 import { api } from "#convex/_generated/api"
-import { defaultGameId, gameRegistry } from "@/games/registry"
 import { toWorkoutDefinition } from "@/ride/convex-workout-mapper"
 import { useRideSessionBootstrap } from "@/ride/use-ride-session-bootstrap"
 import { useRideTrainer } from "@/ride/use-ride-trainer"
 import { RideOverlay } from "./ride-overlay"
 
-export function RidePage() {
+export function RideSessionPage({ game }: { game: RideGameDefinition }) {
   const workouts = useQuery(api.workouts.list)
   const settings = useQuery(api.settings.get)
   const trainer = useRideTrainer()
@@ -23,7 +23,6 @@ export function RidePage() {
     () => workouts?.map(toWorkoutDefinition) ?? [],
     [workouts]
   )
-  const GameView = gameRegistry[defaultGameId].GameView
   const ftpWatts = settings?.ftp ?? 150
 
   useEffect(() => {
@@ -32,20 +31,20 @@ export function RidePage() {
     }
   }, [rideWorkouts, selectedWorkoutId])
 
+  const GameView = game.plugin.GameView
+
   return (
     <RideSessionContext.Provider value={session}>
-      <section className="relative h-svh min-h-[620px] overflow-hidden bg-[#b9d6d0] text-[#14201b]">
-        <div className="ride-world-fallback" aria-hidden="true">
-          <div className="ride-world-fallback__field ride-world-fallback__field--left" />
-          <div className="ride-world-fallback__field ride-world-fallback__field--right" />
-          <div className="ride-world-fallback__road" />
-          <div className="ride-world-fallback__road-line" />
-          <div className="ride-world-fallback__tree ride-world-fallback__tree--one" />
-          <div className="ride-world-fallback__tree ride-world-fallback__tree--two" />
-          <div className="ride-world-fallback__tree ride-world-fallback__tree--three" />
-        </div>
+      <section
+        aria-label={`${game.displayName} ride`}
+        className="relative h-svh min-h-[620px] overflow-hidden text-[#14201b]"
+        style={{
+          background: `linear-gradient(180deg, ${game.accent.from}, ${game.accent.to})`,
+        }}
+      >
+        <h1 className="sr-only">{game.displayName}</h1>
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.34),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.18),rgba(18,27,31,0.22))]" />
         <GameView session={session} />
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.22),rgba(255,255,255,0)_34%,rgba(34,46,38,0.22))]" />
         <RideOverlay
           ftpWatts={ftpWatts}
           onWorkoutChange={setSelectedWorkoutId}

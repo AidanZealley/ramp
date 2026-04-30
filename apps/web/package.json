@@ -22,6 +22,7 @@
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.4.2",
     "@ramp/game-countryside-r3f": "workspace:*",
+    "@ramp/game-hill-climb": "workspace:*",
     "@ramp/ride-core": "workspace:*",
     "@ramp/ride-workouts": "workspace:*",
     "@ramp/trainer-io": "workspace:*",

@@ -1,0 +1,28 @@
+{
+  "name": "@ramp/game-hill-climb",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ramp/ride-core": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19",
+    "react-dom": "^19"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.14",
+    "@vitejs/plugin-react": "^5.2.0",
+    "jsdom": "^27.4.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

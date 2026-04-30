@@ -60,12 +60,13 @@ function RootLayout() {
   const workoutsActive = pathname.startsWith("/workout")
   const plansActive = pathname.startsWith("/plan")
   const rideActive = pathname.startsWith("/ride")
+  const rideImmersive = pathname.startsWith("/ride/")
 
   return (
     <ThemeProvider theme={theme}>
       <RootDocument theme={theme}>
         <div className="flex min-h-svh flex-col">
-          {!rideActive && (
+          {!rideImmersive && (
           <header className="sticky top-0 z-40 border-b border-border/50 bg-background/50 backdrop-blur-lg">
             <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-6 px-4">
               <div className="flex items-center gap-6">
@@ -120,7 +121,7 @@ function RootLayout() {
             </div>
           </header>
           )}
-          <main className={rideActive ? "w-full flex-1" : "w-full flex-1 px-4 py-6"}>
+          <main className={rideImmersive ? "w-full flex-1" : "w-full flex-1 px-4 py-6"}>
             <Outlet />
           </main>
           <Toaster />

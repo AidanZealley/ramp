@@ -9,23 +9,25 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as RideRouteImport } from './routes/ride'
 import { Route as WorkoutRouteRouteImport } from './routes/workout/route'
+import { Route as RideRouteRouteImport } from './routes/ride/route'
 import { Route as PlanRouteRouteImport } from './routes/plan/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WorkoutIndexRouteImport } from './routes/workout/index'
+import { Route as RideIndexRouteImport } from './routes/ride/index'
 import { Route as PlanIndexRouteImport } from './routes/plan/index'
 import { Route as WorkoutIdRouteImport } from './routes/workout/$id'
+import { Route as RideGameIdRouteImport } from './routes/ride/$gameId'
 import { Route as PlanIdRouteImport } from './routes/plan/$id'
 
-const RideRoute = RideRouteImport.update({
-  id: '/ride',
-  path: '/ride',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const WorkoutRouteRoute = WorkoutRouteRouteImport.update({
   id: '/workout',
   path: '/workout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RideRouteRoute = RideRouteRouteImport.update({
+  id: '/ride',
+  path: '/ride',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlanRouteRoute = PlanRouteRouteImport.update({
@@ -43,6 +45,11 @@ const WorkoutIndexRoute = WorkoutIndexRouteImport.update({
   path: '/',
   getParentRoute: () => WorkoutRouteRoute,
 } as any)
+const RideIndexRoute = RideIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => RideRouteRoute,
+} as any)
 const PlanIndexRoute = PlanIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -53,6 +60,11 @@ const WorkoutIdRoute = WorkoutIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => WorkoutRouteRoute,
 } as any)
+const RideGameIdRoute = RideGameIdRouteImport.update({
+  id: '/$gameId',
+  path: '/$gameId',
+  getParentRoute: () => RideRouteRoute,
+} as any)
 const PlanIdRoute = PlanIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -62,30 +74,35 @@ const PlanIdRoute = PlanIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/plan': typeof PlanRouteRouteWithChildren
+  '/ride': typeof RideRouteRouteWithChildren
   '/workout': typeof WorkoutRouteRouteWithChildren
-  '/ride': typeof RideRoute
   '/plan/$id': typeof PlanIdRoute
+  '/ride/$gameId': typeof RideGameIdRoute
   '/workout/$id': typeof WorkoutIdRoute
   '/plan/': typeof PlanIndexRoute
+  '/ride/': typeof RideIndexRoute
   '/workout/': typeof WorkoutIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/ride': typeof RideRoute
   '/plan/$id': typeof PlanIdRoute
+  '/ride/$gameId': typeof RideGameIdRoute
   '/workout/$id': typeof WorkoutIdRoute
   '/plan': typeof PlanIndexRoute
+  '/ride': typeof RideIndexRoute
   '/workout': typeof WorkoutIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/plan': typeof PlanRouteRouteWithChildren
+  '/ride': typeof RideRouteRouteWithChildren
   '/workout': typeof WorkoutRouteRouteWithChildren
-  '/ride': typeof RideRoute
   '/plan/$id': typeof PlanIdRoute
+  '/ride/$gameId': typeof RideGameIdRoute
   '/workout/$id': typeof WorkoutIdRoute
   '/plan/': typeof PlanIndexRoute
+  '/ride/': typeof RideIndexRoute
   '/workout/': typeof WorkoutIndexRoute
 }
 export interface FileRouteTypes {
@@ -93,47 +110,58 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/plan'
-    | '/workout'
     | '/ride'
+    | '/workout'
     | '/plan/$id'
+    | '/ride/$gameId'
     | '/workout/$id'
     | '/plan/'
+    | '/ride/'
     | '/workout/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/ride' | '/plan/$id' | '/workout/$id' | '/plan' | '/workout'
+  to:
+    | '/'
+    | '/plan/$id'
+    | '/ride/$gameId'
+    | '/workout/$id'
+    | '/plan'
+    | '/ride'
+    | '/workout'
   id:
     | '__root__'
     | '/'
     | '/plan'
-    | '/workout'
     | '/ride'
+    | '/workout'
     | '/plan/$id'
+    | '/ride/$gameId'
     | '/workout/$id'
     | '/plan/'
+    | '/ride/'
     | '/workout/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PlanRouteRoute: typeof PlanRouteRouteWithChildren
+  RideRouteRoute: typeof RideRouteRouteWithChildren
   WorkoutRouteRoute: typeof WorkoutRouteRouteWithChildren
-  RideRoute: typeof RideRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/ride': {
-      id: '/ride'
-      path: '/ride'
-      fullPath: '/ride'
-      preLoaderRoute: typeof RideRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/workout': {
       id: '/workout'
       path: '/workout'
       fullPath: '/workout'
       preLoaderRoute: typeof WorkoutRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ride': {
+      id: '/ride'
+      path: '/ride'
+      fullPath: '/ride'
+      preLoaderRoute: typeof RideRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/plan': {
@@ -157,6 +185,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkoutIndexRouteImport
       parentRoute: typeof WorkoutRouteRoute
     }
+    '/ride/': {
+      id: '/ride/'
+      path: '/'
+      fullPath: '/ride/'
+      preLoaderRoute: typeof RideIndexRouteImport
+      parentRoute: typeof RideRouteRoute
+    }
     '/plan/': {
       id: '/plan/'
       path: '/'
@@ -170,6 +205,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/workout/$id'
       preLoaderRoute: typeof WorkoutIdRouteImport
       parentRoute: typeof WorkoutRouteRoute
+    }
+    '/ride/$gameId': {
+      id: '/ride/$gameId'
+      path: '/$gameId'
+      fullPath: '/ride/$gameId'
+      preLoaderRoute: typeof RideGameIdRouteImport
+      parentRoute: typeof RideRouteRoute
     }
     '/plan/$id': {
       id: '/plan/$id'
@@ -195,6 +237,20 @@ const PlanRouteRouteWithChildren = PlanRouteRoute._addFileChildren(
   PlanRouteRouteChildren,
 )
 
+interface RideRouteRouteChildren {
+  RideGameIdRoute: typeof RideGameIdRoute
+  RideIndexRoute: typeof RideIndexRoute
+}
+
+const RideRouteRouteChildren: RideRouteRouteChildren = {
+  RideGameIdRoute: RideGameIdRoute,
+  RideIndexRoute: RideIndexRoute,
+}
+
+const RideRouteRouteWithChildren = RideRouteRoute._addFileChildren(
+  RideRouteRouteChildren,
+)
+
 interface WorkoutRouteRouteChildren {
   WorkoutIdRoute: typeof WorkoutIdRoute
   WorkoutIndexRoute: typeof WorkoutIndexRoute
@@ -212,8 +268,8 @@ const WorkoutRouteRouteWithChildren = WorkoutRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PlanRouteRoute: PlanRouteRouteWithChildren,
+  RideRouteRoute: RideRouteRouteWithChildren,
   WorkoutRouteRoute: WorkoutRouteRouteWithChildren,
-  RideRoute: RideRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
