@@ -1,5 +1,4 @@
 import { countrysideGame } from "@ramp/game-countryside-r3f"
-import { hillClimbGame } from "@ramp/game-hill-climb"
 import type { RideGameDefinition } from "./types"
 
 export const rideGames: Array<RideGameDefinition> = [
@@ -20,30 +19,12 @@ export const rideGames: Array<RideGameDefinition> = [
     },
     plugin: countrysideGame,
   },
-  {
-    id: hillClimbGame.id,
-    displayName: hillClimbGame.displayName,
-    description:
-      "Attack an authored summit with grade changes, stage markers, and a proper finish summary.",
-    tags: ["climbing", "2.5D profile", "workout compatible"],
-    accent: {
-      from: "#ffe38a",
-      to: "#ff7b44",
-      ink: "#24150f",
-    },
-    preview: {
-      eyebrow: "Summit run",
-      spotlight: "Authored climbing stage",
-    },
-    plugin: hillClimbGame,
-  },
 ]
 
 export const defaultGameId = countrysideGame.id
 
-export const gameRegistry: Record<string, RideGameDefinition> = Object.fromEntries(
-  rideGames.map((game) => [game.id, game])
-)
+export const gameRegistry: Record<string, RideGameDefinition> =
+  Object.fromEntries(rideGames.map((game) => [game.id, game]))
 
 export function getRideGameDefinition(gameId: string) {
   return gameRegistry[gameId] ?? null
