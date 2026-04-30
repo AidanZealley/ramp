@@ -1,15 +1,15 @@
 import { Pause, Play } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { RangeControl } from "./components/range-control"
 import { SectionHeader } from "./components/section-header"
+import { Button } from "@/components/ui/button"
 
 type RideSimulatorControlsProps = {
   powerWatts: number
   cadenceRpm: number
   paused: boolean
-  onPowerChange(powerWatts: number): void
-  onCadenceChange(cadenceRpm: number): void
-  onPauseToggle(): void
+  onPowerChange: (powerWatts: number) => void
+  onCadenceChange: (cadenceRpm: number) => void
+  onPauseToggle: () => void
 }
 
 export function RideSimulatorControls({

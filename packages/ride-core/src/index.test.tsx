@@ -1,18 +1,19 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import {
-  Capability,
-  type RideTrainerAdapter,
-  type TrainerCommand as PublicTrainerCommand,
-} from "./index"
 import { createRideSession } from "./controller"
+import { useRideSession } from "./use-ride-session"
+import {
+  Capability
+  
+  
+} from "./index"
+import type {TrainerCommand as PublicTrainerCommand, RideTrainerAdapter} from "./index";
 import type {
   RideTrainerConnectionState,
   RideTrainerError,
   RideTrainerTelemetry,
 } from "./types"
-import { useRideSession } from "./use-ride-session"
 
 class TestTrainer implements RideTrainerAdapter {
   readonly capabilities: RideTrainerAdapter["capabilities"]
@@ -26,19 +27,21 @@ class TestTrainer implements RideTrainerAdapter {
     this.capabilities = capabilities
   }
 
-  async connect(): Promise<void> {
+  connect(): Promise<void> {
     this.stateListener?.({ kind: "connecting" })
     this.stateListener?.({ kind: "connected" })
     this.telemetryListener?.(this.telemetry())
     this.timer = setInterval(() => {
       this.telemetryListener?.(this.telemetry())
     }, 100)
+    return Promise.resolve()
   }
 
-  async disconnect(): Promise<void> {
+  disconnect(): Promise<void> {
     if (this.timer) clearInterval(this.timer)
     this.timer = null
     this.stateListener?.({ kind: "disconnected" })
+    return Promise.resolve()
   }
 
   async sendCommand(command: PublicTrainerCommand): Promise<void> {
@@ -75,6 +78,20 @@ class TestTrainer implements RideTrainerAdapter {
       speedMps: 8,
       heartRateBpm: null,
     }
+  }
+}
+
+class DeferredConnectTrainer extends TestTrainer {
+  private resolveConnect: (() => void) | null = null
+
+  override async connect(): Promise<void> {
+    await new Promise<void>((resolve) => {
+      this.resolveConnect = resolve
+    })
+  }
+
+  finishConnect(): void {
+    this.resolveConnect?.()
   }
 }
 
@@ -127,6 +144,144 @@ describe("ride-core", () => {
       type: "setSimulationGrade",
       gradePercent: 4,
     })
+  })
+
+  it("does not mark connected when connect resolves after disconnect", async () => {
+    const trainer = new DeferredConnectTrainer()
+    const session = createRideSession()
+    const connect = session.connectTrainer(trainer)
+
+    await session.disconnectTrainer()
+    trainer.finishConnect()
+    await connect
+
+    expect(session.getState().trainerConnected).toBe(false)
+    expect(session.getState().telemetry.trainerStatus).toBe("disconnected")
+  })
+
+  it("retries a pending command after a send failure", async () => {
+    const trainer = new TestTrainer()
+    const sendCommand = vi.spyOn(trainer, "sendCommand")
+    sendCommand.mockRejectedValueOnce(new Error("temporary failure"))
+    const session = createRideSession()
+    await session.connectTrainer(trainer)
+
+    await session.controls.dispatch(
+      { type: "setTargetPower", watts: 225 },
+      "user",
+      { priority: "immediate" }
+    )
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+    expect(session.getState().lastError).toBe("temporary failure")
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+
+    expect(sendCommand).toHaveBeenCalledTimes(2)
+  })
+
+  it("continues flushing other command keys when one send fails", async () => {
+    const trainer = new TestTrainer()
+    const sendCommand = vi.spyOn(trainer, "sendCommand")
+    sendCommand.mockImplementation((command) => {
+      if (command.type === "setTargetPower") {
+        return Promise.reject(new Error("target failed"))
+      }
+      return Promise.resolve()
+    })
+    const session = createRideSession()
+    await session.connectTrainer(trainer)
+
+    await session.controls.dispatch(
+      { type: "setTargetPower", watts: 225 },
+      "user",
+      { priority: "immediate" }
+    )
+    await session.controls.dispatch(
+      { type: "setSimulationGrade", gradePercent: 4 },
+      "experience",
+      { priority: "immediate" }
+    )
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+
+    expect(sendCommand).toHaveBeenCalledWith({
+      type: "setSimulationGrade",
+      gradePercent: 4,
+    })
+  })
+
+  it("does not overlap sends for the same command key", async () => {
+    const trainer = new TestTrainer()
+    let resolveSend: () => void = () => undefined
+    const sendCommand = vi.spyOn(trainer, "sendCommand").mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSend = resolve
+        })
+    )
+    const session = createRideSession()
+    await session.connectTrainer(trainer)
+
+    await session.controls.dispatch(
+      { type: "setTargetPower", watts: 225 },
+      "user",
+      { priority: "immediate" }
+    )
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100)
+    })
+    expect(sendCommand).toHaveBeenCalledTimes(1)
+
+    resolveSend()
+    await act(async () => {
+      await Promise.resolve()
+    })
+  })
+
+  it("sends immediate commands without waiting for the first coalesce window", async () => {
+    const trainer = new TestTrainer()
+    const sendCommand = vi.spyOn(trainer, "sendCommand")
+    const session = createRideSession()
+    await session.connectTrainer(trainer)
+
+    await session.controls.dispatch(
+      { type: "setTargetPower", watts: 225 },
+      "user",
+      { priority: "immediate" }
+    )
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+
+    expect(sendCommand).toHaveBeenCalledWith({
+      type: "setTargetPower",
+      watts: 225,
+    })
+  })
+
+  it("does not notify telemetry subscribers when the snapshot is unchanged", async () => {
+    const session = createRideSession({ now: () => 0 })
+    await session.connectTrainer(new TestTrainer())
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+    const listener = vi.fn()
+    session.subscribe(listener)
+
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+
+    expect(listener).not.toHaveBeenCalled()
   })
 
   it("notifies the React hook after telemetry ticks", async () => {

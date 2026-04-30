@@ -5,7 +5,7 @@ type RangeControlProps = {
   label: string
   max: number
   min: number
-  onChange(value: number): void
+  onChange: (value: number) => void
   step: number
   unit: string
   value: number

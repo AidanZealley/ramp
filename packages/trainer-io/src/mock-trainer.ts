@@ -1,9 +1,10 @@
 import {
-  Capability,
-  type TrainerCapabilities,
-  type TrainerCommand,
+  Capability
+  
+  
 } from "@ramp/ride-contracts"
 import { Subject } from "./observable"
+import type {TrainerCapabilities, TrainerCommand} from "@ramp/ride-contracts";
 import type {
   TrainerConnectionState,
   TrainerError,
@@ -13,6 +14,7 @@ import type {
 
 export type MockTrainerOptions = {
   intervalMs?: number
+  connectDelayMs?: number
   initial?: Partial<TrainerTelemetryMessage>
   now?: () => number
   basePowerToSpeed?: number
@@ -26,6 +28,7 @@ export class MockTrainer implements TrainerSource {
   private readonly stateSubject = new Subject<TrainerConnectionState>()
   private readonly errorSubject = new Subject<TrainerError>()
   private readonly intervalMs: number
+  private readonly connectDelayMs: number
   private readonly now: () => number
   private readonly basePowerToSpeed: number
   private timer: ReturnType<typeof setInterval> | null = null
@@ -33,31 +36,44 @@ export class MockTrainer implements TrainerSource {
   private manualCadenceRpm: number
   private ergTargetWatts: number | null = null
   private gradePercent = 0
+  private connectGeneration = 0
   state: TrainerConnectionState = { kind: "disconnected" }
 
   constructor(options: MockTrainerOptions = {}) {
     this.intervalMs = options.intervalMs ?? 100
+    this.connectDelayMs = options.connectDelayMs ?? 0
     this.now = options.now ?? (() => Date.now())
     this.basePowerToSpeed = options.basePowerToSpeed ?? 0.035
     this.manualPowerWatts = options.initial?.powerWatts ?? 180
     this.manualCadenceRpm = options.initial?.cadenceRpm ?? 90
     this.capabilities =
       options.capabilities ??
-      new Set(Object.values(Capability)) as TrainerCapabilities
+      new Set(Object.values(Capability))
   }
 
   async connect(): Promise<void> {
-    if (this.timer) return
+    if (this.timer || this.state.kind === "connecting") return
+    const generation = ++this.connectGeneration
     this.setState({ kind: "connecting" })
+    if (this.connectDelayMs > 0) {
+      await new Promise<void>((resolve) =>
+        setTimeout(resolve, this.connectDelayMs)
+      )
+    } else {
+      await Promise.resolve()
+    }
+    if (generation !== this.connectGeneration) return
     this.setState({ kind: "connected" })
     this.emitTelemetry()
     this.timer = setInterval(() => this.emitTelemetry(), this.intervalMs)
   }
 
-  async disconnect(): Promise<void> {
+  disconnect(): Promise<void> {
+    this.connectGeneration += 1
     if (this.timer) clearInterval(this.timer)
     this.timer = null
     this.setState({ kind: "disconnected" })
+    return Promise.resolve()
   }
 
   async sendCommand(command: TrainerCommand): Promise<void> {

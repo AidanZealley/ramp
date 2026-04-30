@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, Settings } from "lucide-react"
-import type { MockTrainer } from "@ramp/trainer-io"
-import { useRideSession, type RideSessionController } from "@ramp/ride-core"
-import type { WorkoutSessionController } from "@ramp/ride-workouts"
+import {  useRideSession } from "@ramp/ride-core"
+import { RideHud } from "./ride-hud"
+import { RideSimulatorControls } from "./ride-simulator-controls"
+import type {RideSessionController} from "@ramp/ride-core";
+import type { MockTrainer, TrainerSource } from "@ramp/trainer-io"
 import { Button } from "@/components/ui/button"
 import {
   AlertDialog,
@@ -22,13 +24,10 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { RideHud } from "./ride-hud"
-import { RideSimulatorControls } from "./ride-simulator-controls"
 
 type RideOverlayProps = {
   session: RideSessionController
-  trainer: MockTrainer
-  workoutController: WorkoutSessionController
+  trainer: TrainerSource
 }
 
 const HIDE_DELAY_MS = 2000
@@ -37,18 +36,10 @@ const OVERLAY_TABS = {
   controls: "controls",
 } as const
 
-export function RideOverlay({
-  session,
-  trainer,
-  workoutController,
-}: RideOverlayProps) {
+export function RideOverlay({ session, trainer }: RideOverlayProps) {
   const navigate = useNavigate()
   const state = useRideSession(session)
-  const workoutState = useSyncExternalStore(
-    workoutController.subscribe,
-    workoutController.getState,
-    workoutController.getState
-  )
+  const hasSimulatorControls = isMockTrainerWithManualOverrides(trainer)
 
   const [shown, setShown] = useState(true)
   const [isOverlayOpen, setIsOverlayOpen] = useState(false)
@@ -173,37 +164,34 @@ export function RideOverlay({
               <Tabs defaultValue={OVERLAY_TABS.hud} className="gap-2">
                 <TabsList>
                   <TabsTrigger value={OVERLAY_TABS.hud}>HUD</TabsTrigger>
-                  <TabsTrigger value={OVERLAY_TABS.controls}>
-                    Controls
-                  </TabsTrigger>
+                  {hasSimulatorControls && (
+                    <TabsTrigger value={OVERLAY_TABS.controls}>
+                      Controls
+                    </TabsTrigger>
+                  )}
                 </TabsList>
                 <TabsContent value={OVERLAY_TABS.hud}>
-                  <RideHud workoutState={workoutState} />
+                  <RideHud />
                 </TabsContent>
-                <TabsContent value={OVERLAY_TABS.controls}>
-                  <RideSimulatorControls
-                    cadenceRpm={state.telemetry.cadenceRpm ?? 90}
-                    onCadenceChange={(cadenceRpm) => {
-                      trainer.setManualOverrides({ cadenceRpm })
-                    }}
-                    onPauseToggle={() => {
-                      if (state.paused) session.resume()
-                      else session.pause()
-                    }}
-                    onPowerChange={(powerWatts) => {
-                      if (state.activeControlMode === "workout") {
-                        workoutController.clearWorkout()
-                      }
-                      trainer.setManualOverrides({ powerWatts })
-                    }}
-                    paused={state.paused}
-                    powerWatts={
-                      workoutState.targetWatts ??
-                      state.telemetry.powerWatts ??
-                      180
-                    }
-                  />
-                </TabsContent>
+                {hasSimulatorControls && (
+                  <TabsContent value={OVERLAY_TABS.controls}>
+                    <RideSimulatorControls
+                      cadenceRpm={state.telemetry.cadenceRpm ?? 90}
+                      onCadenceChange={(cadenceRpm) => {
+                        trainer.setManualOverrides({ cadenceRpm })
+                      }}
+                      onPauseToggle={() => {
+                        if (state.paused) session.resume()
+                        else session.pause()
+                      }}
+                      onPowerChange={(powerWatts) => {
+                        trainer.setManualOverrides({ powerWatts })
+                      }}
+                      paused={state.paused}
+                      powerWatts={state.telemetry.powerWatts ?? 180}
+                    />
+                  </TabsContent>
+                )}
               </Tabs>
             </PopoverContent>
           </Popover>
@@ -211,4 +199,10 @@ export function RideOverlay({
       </div>
     </div>
   )
+}
+
+function isMockTrainerWithManualOverrides(
+  trainer: TrainerSource
+): trainer is MockTrainer {
+  return trainer.kind === "mock" && "setManualOverrides" in trainer
 }

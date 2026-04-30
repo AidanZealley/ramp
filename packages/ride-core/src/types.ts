@@ -28,6 +28,10 @@ export type TrainerCommandSource = "user" | "workout" | "experience" | "system"
 
 export type DispatchResult = { ok: true } | { ok: false; reason: string }
 
+export type DispatchOptions = {
+  priority?: "normal" | "immediate"
+}
+
 export type RideTrainerTelemetry = {
   powerWatts: number | null
   cadenceRpm: number | null
@@ -48,21 +52,21 @@ export type RideTrainerConnectionState =
 
 export interface RideTrainerAdapter {
   readonly capabilities: TrainerCapabilities
-  connect(): Promise<void>
-  disconnect(): Promise<void>
-  sendCommand(command: TrainerCommand): Promise<void>
-  subscribeTelemetry(listener: (t: RideTrainerTelemetry) => void): () => void
-  subscribeState(listener: (s: RideTrainerConnectionState) => void): () => void
-  subscribeError(listener: (e: RideTrainerError) => void): () => void
+  connect: () => Promise<void>
+  disconnect: () => Promise<void>
+  sendCommand: (command: TrainerCommand) => Promise<void>
+  subscribeTelemetry: (listener: (t: RideTrainerTelemetry) => void) => () => void
+  subscribeState: (listener: (s: RideTrainerConnectionState) => void) => () => void
+  subscribeError: (listener: (e: RideTrainerError) => void) => () => void
 }
 
 export interface RideSessionController {
-  getState(): RideSessionState
-  subscribe(listener: () => void): () => void
-  connectTrainer(trainer: RideTrainerAdapter): Promise<void>
-  disconnectTrainer(): Promise<void>
-  pause(): void
-  resume(): void
+  getState: () => RideSessionState
+  subscribe: (listener: () => void) => () => void
+  connectTrainer: (trainer: RideTrainerAdapter) => Promise<void>
+  disconnectTrainer: () => Promise<void>
+  pause: () => void
+  resume: () => void
   controls: TrainerControlAPI
 }
 

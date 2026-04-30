@@ -19,11 +19,11 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@fontsource-variable/geist": "^5.2.8",
     "@fontsource-variable/oxanium": "^5.2.8",
-    "@react-three/drei": "^10.7.7",
-    "@react-three/fiber": "^9.4.2",
     "@ramp/ride-core": "workspace:*",
     "@ramp/ride-workouts": "workspace:*",
     "@ramp/trainer-io": "workspace:*",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.4.2",
     "@tailwindcss/vite": "^4.2.1",
     "@tanstack/react-devtools": "^0.10.0",
     "@tanstack/react-query": "^5.99.2",
@@ -48,6 +48,7 @@
     "three": "^0.182.0",
     "tw-animate-css": "^1.4.0",
     "vite-tsconfig-paths": "^5.1.4",
+    "zod": "^4.4.1",
     "zustand": "^5.0.12"
   },
   "devDependencies": {

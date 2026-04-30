@@ -1,7 +1,8 @@
 import {
-  Capability,
-  type Capability as CapabilityName,
+  Capability
+  
 } from "@ramp/ride-contracts"
+import type {Capability as CapabilityName} from "@ramp/ride-contracts";
 import type {
   DispatchResult,
   TrainerCapabilities,
@@ -41,6 +42,8 @@ export function enforce(
   policy: ArbitrationPolicy,
   capabilities: TrainerCapabilities
 ): DispatchResult {
+  // Source precedence is applied by CommandArbiter; enforcement only checks
+  // always-allowed commands and trainer capability support.
   if (policy.alwaysAllow.includes(command.type)) return { ok: true }
   if (command.type === "setMode") return { ok: true }
 

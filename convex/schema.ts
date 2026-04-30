@@ -11,8 +11,8 @@ export default defineSchema({
       })
     ),
     intervalsRevision: v.optional(v.number()),
-    // Legacy field kept optional during rollout so existing docs validate
-    // until `migrateAbsoluteWorkoutsToPercentage` has been run everywhere.
+    // Deprecated legacy field kept optional so old docs validate. It is
+    // stripped from client responses after percentage-storage migration.
     powerMode: v.optional(
       v.union(v.literal("absolute"), v.literal("percentage"))
     ),

@@ -26,6 +26,7 @@ describe("workouts helpers", () => {
       title: "Threshold Builder",
       intervalsRevision: 0,
     })
+    expect("powerMode" in workout).toBe(false)
   })
 
   it("builds structured conflict error data", () => {

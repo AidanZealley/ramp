@@ -19,8 +19,11 @@ export function getWorkoutSegmentAtElapsed(
     const isLast = index === intervals.length - 1
 
     if (elapsed < endSeconds || (isLast && elapsed === endSeconds)) {
+      const progress =
+        duration > 0 ? clamp((elapsed - startSeconds) / duration, 0, 1) : 1
       const targetPower =
-        interval.startPower + (interval.endPower - interval.startPower) * 0.5
+        interval.startPower +
+        (interval.endPower - interval.startPower) * progress
       return {
         index,
         startSeconds,
@@ -37,4 +40,8 @@ export function getWorkoutSegmentAtElapsed(
   }
 
   return null
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value))
 }

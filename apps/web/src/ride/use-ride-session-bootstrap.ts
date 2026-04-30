@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from "react"
 import { createRideSession } from "@ramp/ride-core"
-import type { MockTrainer } from "@ramp/trainer-io"
+import type { TrainerSource } from "@ramp/trainer-io"
 
-export function useRideSessionBootstrap(trainer: MockTrainer) {
+export function useRideSessionBootstrap(trainer: TrainerSource) {
   const session = useMemo(() => createRideSession(), [])
 
   useEffect(() => {

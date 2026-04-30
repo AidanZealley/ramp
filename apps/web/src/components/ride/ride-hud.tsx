@@ -1,23 +1,17 @@
-import { formatDuration } from "@/lib/workout-utils"
 import { useRideSession, useRideSessionContext } from "@ramp/ride-core"
-import type { WorkoutSessionController } from "@ramp/ride-workouts"
+import { formatDuration } from "@/lib/workout-utils"
 
-type RideHudProps = {
-  workoutState: ReturnType<WorkoutSessionController["getState"]>
-}
-
-export function RideHud({ workoutState }: RideHudProps) {
+export function RideHud() {
   const session = useRideSessionContext()
   const { telemetry } = useRideSession(session)
   const primaryFields = [
     ["Watts", `${Math.round(telemetry.powerWatts ?? 0)} W`],
     ["Cadence", `${Math.round(telemetry.cadenceRpm ?? 0)} rpm`],
-    ["Target", `${workoutState.targetWatts ?? telemetry.powerWatts ?? 0} W`],
+    ["Speed", `${((telemetry.speedMps ?? 0) * 3.6).toFixed(1)} km/h`],
   ]
   const secondaryFields = [
     ["Time", formatDuration(telemetry.elapsedSeconds)],
     ["Distance", `${(telemetry.distanceMeters / 1000).toFixed(2)} km`],
-    ["Speed", `${((telemetry.speedMps ?? 0) * 3.6).toFixed(1)} km/h`],
     ["Source", "Simulator"],
   ]
 
@@ -39,10 +33,10 @@ export function RideHud({ workoutState }: RideHudProps) {
       <div className="border-t border-border/60 pt-3">
         <div className="px-1 pb-3">
           <div className="text-[0.65rem] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-            Current segment
+            Ride status
           </div>
           <div className="mt-1 truncate font-heading text-lg font-semibold text-foreground">
-            {workoutState.activeSegmentLabel ?? "Free ride"}
+            {telemetry.trainerStatus === "ready" ? "Connected" : "Free ride"}
           </div>
         </div>
 
