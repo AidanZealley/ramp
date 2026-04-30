@@ -10,7 +10,7 @@ export function RideExperiencePickerPage() {
             Ride
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Pick a world to ride in.
+            Pick an experience to ride.
           </p>
         </div>
 
