@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest"
 import {
   createIntervalsConflictErrorData,
   normalizeIntervalsForStorage,
+  normalizeWorkoutTitle,
   resolveIntervalsRevision,
   sanitizeWorkoutForClient,
 } from "./workouts"
+import { validateFtp } from "./settings"
 
 describe("workouts helpers", () => {
   it("defaults legacy missing intervalsRevision to zero", () => {
@@ -61,5 +63,32 @@ describe("workouts helpers", () => {
       },
       { startPower: 50, endPower: 50, durationSeconds: 30 },
     ])
+  })
+
+  it("rejects invalid workout intervals", () => {
+    expect(() =>
+      normalizeIntervalsForStorage([
+        { startPower: 100, endPower: 100, durationSeconds: 60.5 },
+      ])
+    ).toThrow("durationSeconds")
+    expect(() =>
+      normalizeIntervalsForStorage([
+        { startPower: 100, endPower: 301, durationSeconds: 60 },
+      ])
+    ).toThrow("endPower")
+  })
+
+  it("rejects invalid FTP values", () => {
+    expect(() => validateFtp(49)).toThrow("FTP")
+    expect(() => validateFtp(250.5)).toThrow("FTP")
+  })
+
+  it("normalizes and validates titles", () => {
+    expect(normalizeWorkoutTitle("  Threshold   Builder ")).toBe(
+      "Threshold Builder"
+    )
+    expect(() => normalizeWorkoutTitle("  ")).toThrow(
+      "Workout title must not be empty"
+    )
   })
 })

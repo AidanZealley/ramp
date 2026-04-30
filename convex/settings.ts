@@ -5,6 +5,21 @@ const powerDisplayModeValidator = v.union(
   v.literal("absolute"),
   v.literal("percentage")
 )
+const MIN_FTP = 50
+const MAX_FTP = 500
+
+export function validateFtp(ftp: number): number {
+  if (!Number.isFinite(ftp)) {
+    throw new Error("FTP must be finite")
+  }
+  if (!Number.isInteger(ftp)) {
+    throw new Error("FTP must be an integer")
+  }
+  if (ftp < MIN_FTP || ftp > MAX_FTP) {
+    throw new Error(`FTP must be between ${MIN_FTP} and ${MAX_FTP}`)
+  }
+  return ftp
+}
 
 export const get = query({
   args: {},
@@ -24,7 +39,7 @@ export const upsert = mutation({
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db.query("userSettings").first()
-    const nextFtp = args.ftp ?? existing?.ftp ?? 150
+    const nextFtp = validateFtp(args.ftp ?? existing?.ftp ?? 150)
     const nextPowerDisplayMode =
       args.powerDisplayMode ?? existing?.powerDisplayMode ?? "percentage"
 

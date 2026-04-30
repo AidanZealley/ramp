@@ -1,8 +1,12 @@
 import { ConvexError, v } from "convex/values"
 import { internal } from "./_generated/api"
-import { internalMutation, mutation, query } from "./_generated/server"
+import {
+  internalMutation,
+  mutation,
+  query,
+  type MutationCtx,
+} from "./_generated/server"
 import { computeWorkoutSummary } from "./workoutSummary"
-import type { MutationCtx } from "./_generated/server"
 import type { Doc } from "./_generated/dataModel"
 
 const intervalValidator = v.object({
@@ -13,12 +17,20 @@ const intervalValidator = v.object({
 })
 
 const MAX_INTERVAL_COMMENT_LENGTH = 240
-
+const MAX_WORKOUT_DURATION_SECONDS = 24 * 60 * 60
+const MAX_WORKOUT_POWER_PERCENT = 300
 const LEGACY_POWER_MODE_BATCH_SIZE = 200
 const WORKOUT_SUMMARY_BACKFILL_BATCH_SIZE = 200
 const INTERVALS_REVISION_BACKFILL_BATCH_SIZE = 200
 
 type WorkoutDoc = Doc<"workouts">
+
+type WorkoutIntervalInput = {
+  startPower: number
+  endPower: number
+  durationSeconds: number
+  comment?: string
+}
 
 export type IntervalsConflictErrorData = {
   kind: "intervalsRevisionConflict"
@@ -39,6 +51,14 @@ export function sanitizeWorkoutForClient(workout: WorkoutDoc) {
   }
 }
 
+export function normalizeWorkoutTitle(title: string): string {
+  const normalized = title.replace(/\s+/g, " ").trim()
+  if (!normalized) {
+    throw new Error("Workout title must not be empty")
+  }
+  return normalized
+}
+
 function normalizeIntervalComment(comment: string): string {
   return comment
     .replace(/[\t\r\n]+/g, " ")
@@ -47,24 +67,70 @@ function normalizeIntervalComment(comment: string): string {
     .slice(0, MAX_INTERVAL_COMMENT_LENGTH)
 }
 
-export function normalizeIntervalsForStorage(
-  intervals: Array<{
-    startPower: number
-    endPower: number
-    durationSeconds: number
-    comment?: string
-  }>
+function assertFiniteIntegerInRange(
+  value: number,
+  min: number,
+  max: number,
+  label: string
 ) {
-  return intervals.map((interval) => {
+  if (!Number.isFinite(value)) {
+    throw new Error(`${label} must be finite`)
+  }
+  if (!Number.isInteger(value)) {
+    throw new Error(`${label} must be an integer`)
+  }
+  if (value < min || value > max) {
+    throw new Error(`${label} must be between ${min} and ${max}`)
+  }
+}
+
+function assertFiniteNumberInRange(
+  value: number,
+  min: number,
+  max: number,
+  label: string
+) {
+  if (!Number.isFinite(value)) {
+    throw new Error(`${label} must be finite`)
+  }
+  if (value < min || value > max) {
+    throw new Error(`${label} must be between ${min} and ${max}`)
+  }
+}
+
+export function normalizeIntervalsForStorage(
+  intervals: Array<WorkoutIntervalInput>
+) {
+  return intervals.map((interval, index) => {
+    assertFiniteNumberInRange(
+      interval.startPower,
+      0,
+      MAX_WORKOUT_POWER_PERCENT,
+      `intervals[${index}].startPower`
+    )
+    assertFiniteNumberInRange(
+      interval.endPower,
+      0,
+      MAX_WORKOUT_POWER_PERCENT,
+      `intervals[${index}].endPower`
+    )
+    const durationSeconds = Math.round(interval.durationSeconds)
+    assertFiniteIntegerInRange(
+      durationSeconds,
+      0,
+      MAX_WORKOUT_DURATION_SECONDS,
+      `intervals[${index}].durationSeconds`
+    )
+
     const comment =
       interval.comment === undefined
         ? ""
         : normalizeIntervalComment(interval.comment)
     if (!comment) {
       const { comment: _comment, ...rest } = interval
-      return rest
+      return { ...rest, durationSeconds }
     }
-    return { ...interval, comment }
+    return { ...interval, durationSeconds, comment }
   })
 }
 
@@ -99,9 +165,10 @@ export const create = mutation({
     intervals: v.array(intervalValidator),
   },
   handler: async (ctx, args) => {
+    const title = normalizeWorkoutTitle(args.title)
     const intervals = normalizeIntervalsForStorage(args.intervals)
     return await ctx.db.insert("workouts", {
-      title: args.title,
+      title,
       intervals,
       intervalsRevision: 0,
       summary: computeWorkoutSummary(intervals),
@@ -148,7 +215,7 @@ export const updateTitle = mutation({
     title: v.string(),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.id, { title: args.title })
+    await ctx.db.patch(args.id, { title: normalizeWorkoutTitle(args.title) })
   },
 })
 
@@ -163,8 +230,9 @@ export const duplicateWorkout = mutation({
       throw new Error("Workout not found")
     }
 
+    const title = normalizeWorkoutTitle(args.title ?? `${workout.title} (copy)`)
     return await ctx.db.insert("workouts", {
-      title: args.title ?? `${workout.title} (copy)`,
+      title,
       intervals: workout.intervals,
       intervalsRevision: 0,
       summary: computeWorkoutSummary(workout.intervals),

@@ -1,11 +1,11 @@
 import { Play } from "lucide-react"
-import { TrainerStatusBadge } from "./components/trainer-status-badge"
-import { WorkoutDetail } from "./components/workout-detail"
 import type { RideTelemetry } from "@ramp/ride-core"
 import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { TrainerStatusBadge } from "./components/trainer-status-badge"
+import { WorkoutDetail } from "./components/workout-detail"
 
 type TrainerStatus = RideTelemetry["trainerStatus"]
 
@@ -13,8 +13,10 @@ type WorkoutDetailPanelProps = {
   ftp: number
   isLoading: boolean
   onStart: () => void
+  startError: string | null
   trainerConnected: boolean
   trainerStatus: TrainerStatus
+  trainerSupportsTargetPower: boolean
   workout: ClientWorkoutDoc | null
   workoutHasDuration: boolean
 }
@@ -23,13 +25,19 @@ export function WorkoutDetailPanel({
   ftp,
   isLoading,
   onStart,
+  startError,
   trainerConnected,
   trainerStatus,
+  trainerSupportsTargetPower,
   workout,
   workoutHasDuration,
 }: WorkoutDetailPanelProps) {
   const startDisabled =
-    !workout || !trainerConnected || isLoading || !workoutHasDuration
+    !workout ||
+    !trainerConnected ||
+    isLoading ||
+    !workoutHasDuration ||
+    !trainerSupportsTargetPower
 
   return (
     <Card
@@ -71,12 +79,19 @@ export function WorkoutDetailPanel({
         <p className="text-center text-[0.7rem] text-muted-foreground">
           {!trainerConnected
             ? "Waiting for the trainer to connect."
-            : !workout
-              ? "Pick a workout to begin."
-              : !workoutHasDuration
-                ? "Workout needs at least one timed interval."
-                : `ERG mode at FTP ${ftp} W`}
+            : !trainerSupportsTargetPower
+              ? "Connected trainer does not support ERG target power."
+              : !workout
+                ? "Pick a workout to begin."
+                : !workoutHasDuration
+                  ? "Workout needs at least one timed interval."
+                  : `ERG mode at FTP ${ftp} W`}
         </p>
+        {startError ? (
+          <p className="text-center text-[0.75rem] text-destructive">
+            {startError}
+          </p>
+        ) : null}
       </CardContent>
     </Card>
   )

@@ -14,5 +14,5 @@ export type RideExperienceDefinition = {
     eyebrow: string
     spotlight: string
   }
-  plugin: RideExperiencePlugin
+  loadPlugin: () => Promise<RideExperiencePlugin>
 }

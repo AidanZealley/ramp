@@ -1,19 +1,28 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react"
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react"
 import { useQuery } from "convex/react"
+import {
+  Capability,
+  useRideSession,
+  type RideSessionController,
+} from "@ramp/ride-core"
 import { createWorkoutController } from "@ramp/ride-workouts"
-import {  useRideSession } from "@ramp/ride-core"
+import { api } from "#convex/_generated/api"
+import type { Id } from "#convex/_generated/dataModel"
+import { DEFAULT_FTP } from "@/lib/workout-utils"
+import {
+  InvalidWorkoutDefinitionError,
+  toWorkoutDefinition,
+  type ClientWorkoutDoc,
+} from "@/ride/convex-workout-mapper"
 import { LiveWorkoutDashboard } from "./components/live-workout-dashboard"
 import { WorkoutDetailPanel } from "./components/workout-detail-panel"
 import { WorkoutPickerPanel } from "./components/workout-picker-panel"
-import type {RideSessionController} from "@ramp/ride-core";
-import type { Id } from "#convex/_generated/dataModel"
-import type {ClientWorkoutDoc} from "@/ride/convex-workout-mapper";
-import { api } from "#convex/_generated/api"
-import {
-  
-  toWorkoutDefinition
-} from "@/ride/convex-workout-mapper"
-import { DEFAULT_FTP } from "@/lib/workout-utils"
 
 type WorkoutDoc = ClientWorkoutDoc
 
@@ -21,6 +30,20 @@ function hasPositiveDuration(workout: WorkoutDoc | null): boolean {
   return (
     workout?.intervals.some((interval) => interval.durationSeconds > 0) ?? false
   )
+}
+
+function getWorkoutErrorCopy(reason: string | null): string | null {
+  if (!reason) return null
+  if (reason === "capability-unsupported") {
+    return "Connected trainer does not support ERG target power."
+  }
+  if (reason.startsWith("invalid-workout:")) {
+    return "Workout data is invalid."
+  }
+  if (reason.startsWith("invalid-command:")) {
+    return "Workout command was rejected as unsafe."
+  }
+  return "Unable to start workout."
 }
 
 export function LiveWorkoutExperienceView({
@@ -53,27 +76,59 @@ export function LiveWorkoutExperienceView({
   const [selectedWorkoutId, setSelectedWorkoutId] =
     useState<Id<"workouts"> | null>(null)
   const [activeWorkout, setActiveWorkout] = useState<WorkoutDoc | null>(null)
+  const [startError, setStartError] = useState<string | null>(null)
 
   const ftp = settings?.ftp ?? DEFAULT_FTP
   const trainerConnected = sessionState.trainerConnected
   const trainerStatus = sessionState.telemetry.trainerStatus
+  const supportsTargetPower = session.controls
+    .getCapabilities()
+    .has(Capability.TargetPower)
 
   const isLoading = workouts === undefined || settings === undefined
   const selectedWorkout: WorkoutDoc | null =
     workouts?.find((workout) => workout._id === selectedWorkoutId) ?? null
   const selectedWorkoutHasDuration = hasPositiveDuration(selectedWorkout)
 
-  const handleStart = useCallback(() => {
-    if (!selectedWorkout) return
-    if (!trainerConnected) return
-    if (!hasPositiveDuration(selectedWorkout)) return
-    workoutController.loadWorkout(toWorkoutDefinition(selectedWorkout), ftp)
-    setActiveWorkout(selectedWorkout)
-  }, [ftp, selectedWorkout, trainerConnected, workoutController])
+  useEffect(() => {
+    setStartError(null)
+  }, [selectedWorkoutId, trainerConnected, supportsTargetPower])
+
+  const handleStart = useCallback(async () => {
+    if (!selectedWorkout || !trainerConnected || !selectedWorkoutHasDuration) {
+      return
+    }
+
+    try {
+      const definition = toWorkoutDefinition(selectedWorkout)
+      const result = await workoutController.loadWorkout(definition, ftp)
+      if (!result.ok) {
+        setStartError(getWorkoutErrorCopy(result.reason))
+        setActiveWorkout(null)
+        return
+      }
+      setStartError(null)
+      setActiveWorkout(selectedWorkout)
+    } catch (error: unknown) {
+      setActiveWorkout(null)
+      if (error instanceof InvalidWorkoutDefinitionError) {
+        setStartError("Workout data is invalid.")
+        return
+      }
+      setStartError("Unable to start workout.")
+    }
+  }, [
+    ftp,
+    selectedWorkout,
+    selectedWorkoutHasDuration,
+    trainerConnected,
+    workoutController,
+  ])
 
   const handleEnd = useCallback(() => {
     workoutController.clearWorkout()
     setActiveWorkout(null)
+    setStartError(null)
   }, [workoutController])
 
   return (
@@ -96,9 +151,15 @@ export function LiveWorkoutExperienceView({
           <WorkoutDetailPanel
             ftp={ftp}
             isLoading={isLoading}
-            onStart={handleStart}
+            onStart={() => {
+              void handleStart()
+            }}
+            startError={
+              startError ?? getWorkoutErrorCopy(workoutState.lastError)
+            }
             trainerConnected={trainerConnected}
             trainerStatus={trainerStatus}
+            trainerSupportsTargetPower={supportsTargetPower}
             workout={selectedWorkout}
             workoutHasDuration={selectedWorkoutHasDuration}
           />

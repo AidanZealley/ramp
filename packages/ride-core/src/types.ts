@@ -1,8 +1,12 @@
 import type React from "react"
 import type {
   Capability,
+  TrainerConnectionState,
   TrainerCapabilities,
   TrainerCommand,
+  TrainerError,
+  TrainerSourceKind,
+  TrainerTelemetry,
 } from "@ramp/ride-contracts"
 import type { TrainerControlAPI } from "./controls"
 
@@ -14,6 +18,10 @@ export type RideTelemetry = {
   cadenceRpm: number | null
   heartRateBpm: number | null
   trainerStatus: "disconnected" | "connecting" | "ready" | "error"
+  telemetryStatus: "missing" | "fresh" | "stale"
+  lastTelemetryAtMs: number | null
+  telemetryAgeMs: number | null
+  telemetrySource: TrainerSourceKind | null
 }
 
 export type RideSessionState = {
@@ -22,6 +30,7 @@ export type RideSessionState = {
   paused: boolean
   activeControlMode: "manual" | "workout" | "experience"
   lastError: string | null
+  lastTrainerError: TrainerError | null
 }
 
 export type TrainerCommandSource = "user" | "workout" | "experience" | "system"
@@ -32,31 +41,21 @@ export type DispatchOptions = {
   priority?: "normal" | "immediate"
 }
 
-export type RideTrainerTelemetry = {
-  powerWatts: number | null
-  cadenceRpm: number | null
-  speedMps: number | null
-  heartRateBpm: number | null
-}
-
-export type RideTrainerError = {
-  message: string
-}
-
-export type RideTrainerConnectionState =
-  | { kind: "disconnected" }
-  | { kind: "connecting" }
-  | { kind: "connected" }
-  | { kind: "reconnecting"; attempts: number }
-  | { kind: "error"; error: RideTrainerError }
+export type RideTrainerTelemetry = TrainerTelemetry
+export type RideTrainerError = TrainerError
+export type RideTrainerConnectionState = TrainerConnectionState
 
 export interface RideTrainerAdapter {
   readonly capabilities: TrainerCapabilities
   connect: () => Promise<void>
   disconnect: () => Promise<void>
   sendCommand: (command: TrainerCommand) => Promise<void>
-  subscribeTelemetry: (listener: (t: RideTrainerTelemetry) => void) => () => void
-  subscribeState: (listener: (s: RideTrainerConnectionState) => void) => () => void
+  subscribeTelemetry: (
+    listener: (t: RideTrainerTelemetry) => void
+  ) => () => void
+  subscribeState: (
+    listener: (s: RideTrainerConnectionState) => void
+  ) => () => void
   subscribeError: (listener: (e: RideTrainerError) => void) => () => void
 }
 

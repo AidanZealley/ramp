@@ -1,3 +1,4 @@
+import { lazy, Suspense, useMemo } from "react"
 import { RideSessionContext } from "@ramp/ride-core"
 import { RideOverlay } from "./ride-overlay"
 import type { RideExperienceDefinition } from "@/experiences/types"
@@ -11,8 +12,14 @@ export function RideSessionPage({
 }) {
   const trainer = useRideTrainer()
   const { session } = useRideSessionBootstrap(trainer)
-
-  const ExperienceView = experience.plugin.ExperienceView
+  const ExperienceView = useMemo(
+    () =>
+      lazy(async () => {
+        const plugin = await experience.loadPlugin()
+        return { default: plugin.ExperienceView }
+      }),
+    [experience]
+  )
 
   return (
     <RideSessionContext.Provider value={session}>
@@ -25,7 +32,9 @@ export function RideSessionPage({
       >
         <h1 className="sr-only">{experience.displayName}</h1>
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.34),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.18),rgba(18,27,31,0.22))]" />
-        <ExperienceView session={session} />
+        <Suspense fallback={null}>
+          <ExperienceView session={session} />
+        </Suspense>
         <RideOverlay session={session} trainer={trainer} />
       </section>
     </RideSessionContext.Provider>

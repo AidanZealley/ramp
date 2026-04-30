@@ -4,11 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { createRideSession } from "./controller"
 import { useRideSession } from "./use-ride-session"
 import {
-  Capability
-  
-  
+  Capability,
+  type RideTrainerAdapter,
+  type TrainerCommand,
 } from "./index"
-import type {TrainerCommand as PublicTrainerCommand, RideTrainerAdapter} from "./index";
 import type {
   RideTrainerConnectionState,
   RideTrainerError,
@@ -23,7 +22,10 @@ class TestTrainer implements RideTrainerAdapter {
   private timer: ReturnType<typeof setInterval> | null = null
   private targetWatts: number | null = null
 
-  constructor(capabilities = new Set(Object.values(Capability))) {
+  constructor(
+    private readonly now: () => number = () => Date.now(),
+    capabilities = new Set(Object.values(Capability))
+  ) {
     this.capabilities = capabilities
   }
 
@@ -44,7 +46,7 @@ class TestTrainer implements RideTrainerAdapter {
     return Promise.resolve()
   }
 
-  async sendCommand(command: PublicTrainerCommand): Promise<void> {
+  async sendCommand(command: TrainerCommand): Promise<void> {
     if (command.type === "setTargetPower") this.targetWatts = command.watts
     if (command.type === "disconnect") await this.disconnect()
   }
@@ -71,12 +73,23 @@ class TestTrainer implements RideTrainerAdapter {
       if (this.errorListener === listener) this.errorListener = null
     }
   }
+
+  pushTelemetry(partial: Partial<RideTrainerTelemetry> = {}) {
+    this.telemetryListener?.({
+      ...this.telemetry(),
+      ...partial,
+      timestampMs: this.now(),
+    })
+  }
+
   private telemetry(): RideTrainerTelemetry {
     return {
       powerWatts: this.targetWatts ?? 180,
       cadenceRpm: 90,
       speedMps: 8,
       heartRateBpm: null,
+      timestampMs: this.now(),
+      source: "mock",
     }
   }
 }
@@ -95,6 +108,15 @@ class DeferredConnectTrainer extends TestTrainer {
   }
 }
 
+class FailingConnectTrainer extends TestTrainer {
+  override async connect(): Promise<void> {
+    throw {
+      code: "transport",
+      message: "connect failed",
+    } satisfies RideTrainerError
+  }
+}
+
 describe("ride-core", () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -105,22 +127,35 @@ describe("ride-core", () => {
     vi.useRealTimers()
   })
 
-  it("connects a trainer and updates idle state", async () => {
+  it("connects a trainer and updates ready state", async () => {
     const session = createRideSession()
     await session.connectTrainer(new TestTrainer())
 
     expect(session.getState().trainerConnected).toBe(true)
+    expect(session.getState().telemetry.trainerStatus).toBe("ready")
   })
 
   it("rejects unsupported capabilities", async () => {
     const session = createRideSession()
     await session.connectTrainer(
-      new TestTrainer(new Set([Capability.ReadPower]))
+      new TestTrainer(() => Date.now(), new Set([Capability.ReadPower]))
     )
 
     await expect(
       session.controls.dispatch({ type: "setTargetPower", watts: 200 }, "user")
     ).resolves.toEqual({ ok: false, reason: "capability-unsupported" })
+  })
+
+  it("rejects invalid trainer commands before enqueueing", async () => {
+    const session = createRideSession()
+    await session.connectTrainer(new TestTrainer())
+
+    await expect(
+      session.controls.dispatch({ type: "setTargetPower", watts: -1 }, "user")
+    ).resolves.toEqual({
+      ok: false,
+      reason: "invalid-command:setTargetPower.watts:out-of-range",
+    })
   })
 
   it("coalesces simulation grade commands to the latest value", async () => {
@@ -136,13 +171,29 @@ describe("ride-core", () => {
       )
     }
 
-    act(() => {
-      vi.advanceTimersByTime(200)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200)
     })
 
     expect(sendCommand).toHaveBeenCalledWith({
       type: "setSimulationGrade",
       gradePercent: 4,
+    })
+  })
+
+  it("leaves a recoverable error state after connect failure", async () => {
+    const session = createRideSession()
+
+    await session.connectTrainer(new FailingConnectTrainer())
+
+    expect(session.getState()).toMatchObject({
+      trainerConnected: false,
+      lastError: "connect failed",
+      lastTrainerError: { code: "transport", message: "connect failed" },
+      telemetry: {
+        trainerStatus: "error",
+        telemetryStatus: "missing",
+      },
     })
   })
 
@@ -157,6 +208,77 @@ describe("ride-core", () => {
 
     expect(session.getState().trainerConnected).toBe(false)
     expect(session.getState().telemetry.trainerStatus).toBe("disconnected")
+  })
+
+  it("stops distance and elapsed progression after telemetry goes stale", async () => {
+    let nowMs = 0
+    const trainer = new TestTrainer(() => nowMs)
+    const session = createRideSession({
+      now: () => nowMs,
+      telemetryIntervalMs: 100,
+      flushIntervalMs: 50,
+      telemetryStaleAfterMs: 2000,
+    })
+    await session.connectTrainer(trainer)
+
+    await act(async () => {
+      nowMs = 1000
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+    const freshState = session.getState()
+    expect(freshState.telemetry.telemetryStatus).toBe("fresh")
+    expect(freshState.telemetry.elapsedSeconds).toBeGreaterThan(0)
+    expect(freshState.telemetry.distanceMeters).toBeGreaterThan(0)
+
+    const staleElapsed = freshState.telemetry.elapsedSeconds
+    const staleDistance = freshState.telemetry.distanceMeters
+
+    await trainer.disconnect()
+    await act(async () => {
+      nowMs = 3200
+      await vi.advanceTimersByTimeAsync(2200)
+    })
+
+    const staleState = session.getState()
+    expect(staleState.telemetry.telemetryStatus).toBe("stale")
+    expect(staleState.telemetry.elapsedSeconds).toBe(staleElapsed)
+    expect(staleState.telemetry.distanceMeters).toBe(staleDistance)
+
+    trainer.pushTelemetry()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(session.getState().telemetry.telemetryStatus).toBe("stale")
+
+    await act(async () => {
+      nowMs = 3300
+      await vi.advanceTimersByTimeAsync(100)
+    })
+    expect(session.getState().telemetry.telemetryStatus).toBe("fresh")
+  })
+
+  it("clears pending commands across reconnect boundaries", async () => {
+    const firstTrainer = new TestTrainer()
+    const secondTrainer = new TestTrainer()
+    const firstSend = vi.spyOn(firstTrainer, "sendCommand")
+    const secondSend = vi.spyOn(secondTrainer, "sendCommand")
+    const session = createRideSession()
+    await session.connectTrainer(firstTrainer)
+
+    await session.controls.dispatch(
+      { type: "setTargetPower", watts: 225 },
+      "user"
+    )
+    await session.disconnectTrainer()
+    await session.connectTrainer(secondTrainer)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100)
+    })
+
+    expect(firstSend).not.toHaveBeenCalled()
+    expect(secondSend).not.toHaveBeenCalled()
   })
 
   it("retries a pending command after a send failure", async () => {
@@ -184,46 +306,13 @@ describe("ride-core", () => {
     expect(sendCommand).toHaveBeenCalledTimes(2)
   })
 
-  it("continues flushing other command keys when one send fails", async () => {
+  it("serializes command writes globally across keys", async () => {
     const trainer = new TestTrainer()
-    const sendCommand = vi.spyOn(trainer, "sendCommand")
-    sendCommand.mockImplementation((command) => {
-      if (command.type === "setTargetPower") {
-        return Promise.reject(new Error("target failed"))
-      }
-      return Promise.resolve()
-    })
-    const session = createRideSession()
-    await session.connectTrainer(trainer)
-
-    await session.controls.dispatch(
-      { type: "setTargetPower", watts: 225 },
-      "user",
-      { priority: "immediate" }
-    )
-    await session.controls.dispatch(
-      { type: "setSimulationGrade", gradePercent: 4 },
-      "experience",
-      { priority: "immediate" }
-    )
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(50)
-    })
-
-    expect(sendCommand).toHaveBeenCalledWith({
-      type: "setSimulationGrade",
-      gradePercent: 4,
-    })
-  })
-
-  it("does not overlap sends for the same command key", async () => {
-    const trainer = new TestTrainer()
-    let resolveSend: () => void = () => undefined
+    const release: Array<() => void> = []
     const sendCommand = vi.spyOn(trainer, "sendCommand").mockImplementation(
       () =>
         new Promise<void>((resolve) => {
-          resolveSend = resolve
+          release.push(resolve)
         })
     )
     const session = createRideSession()
@@ -234,26 +323,37 @@ describe("ride-core", () => {
       "user",
       { priority: "immediate" }
     )
+    await session.controls.dispatch(
+      { type: "setSimulationGrade", gradePercent: 3 },
+      "experience",
+      { priority: "immediate" }
+    )
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(100)
+      await vi.advanceTimersByTimeAsync(50)
     })
     expect(sendCommand).toHaveBeenCalledTimes(1)
 
-    resolveSend()
+    release.shift()?.()
     await act(async () => {
       await Promise.resolve()
+      await vi.advanceTimersByTimeAsync(50)
     })
+    expect(sendCommand).toHaveBeenCalledTimes(2)
   })
 
-  it("sends immediate commands without waiting for the first coalesce window", async () => {
+  it("sends immediate commands before normal queued commands", async () => {
     const trainer = new TestTrainer()
     const sendCommand = vi.spyOn(trainer, "sendCommand")
     const session = createRideSession()
     await session.connectTrainer(trainer)
 
     await session.controls.dispatch(
-      { type: "setTargetPower", watts: 225 },
+      { type: "setSimulationGrade", gradePercent: 4 },
+      "experience"
+    )
+    await session.controls.dispatch(
+      { type: "setTargetPower", watts: 230 },
       "user",
       { priority: "immediate" }
     )
@@ -262,26 +362,10 @@ describe("ride-core", () => {
       await vi.advanceTimersByTimeAsync(50)
     })
 
-    expect(sendCommand).toHaveBeenCalledWith({
+    expect(sendCommand.mock.calls[0]?.[0]).toEqual({
       type: "setTargetPower",
-      watts: 225,
+      watts: 230,
     })
-  })
-
-  it("does not notify telemetry subscribers when the snapshot is unchanged", async () => {
-    const session = createRideSession({ now: () => 0 })
-    await session.connectTrainer(new TestTrainer())
-    act(() => {
-      vi.advanceTimersByTime(100)
-    })
-    const listener = vi.fn()
-    session.subscribe(listener)
-
-    act(() => {
-      vi.advanceTimersByTime(300)
-    })
-
-    expect(listener).not.toHaveBeenCalled()
   })
 
   it("notifies the React hook after telemetry ticks", async () => {
@@ -289,15 +373,15 @@ describe("ride-core", () => {
     await session.connectTrainer(new TestTrainer())
     const { result } = renderHook(() => useRideSession(session))
 
-    act(() => {
-      vi.advanceTimersByTime(300)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300)
     })
 
     expect(result.current.telemetry.elapsedSeconds).toBeGreaterThan(0)
   })
 
   it("re-exports trainer contracts through the public API", () => {
-    const command: PublicTrainerCommand = { type: "setTargetPower", watts: 215 }
+    const command: TrainerCommand = { type: "setTargetPower", watts: 215 }
 
     expect(Capability.TargetPower).toBe("write.targetPower")
     expect(command.type).toBe("setTargetPower")

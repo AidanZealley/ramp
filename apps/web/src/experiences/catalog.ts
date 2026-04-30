@@ -1,11 +1,9 @@
-import { countrysideExperience } from "./countryside"
-import { liveWorkoutExperience } from "./live-workout"
 import type { RideExperienceDefinition } from "./types"
 
 export const rideExperiences: Array<RideExperienceDefinition> = [
   {
-    id: countrysideExperience.id,
-    displayName: countrysideExperience.displayName,
+    id: "countryside-r3f",
+    displayName: "Countryside",
     description:
       "Cruise an endless countryside road with a reactive 3D world and live terrain grade.",
     tags: ["3D scenery", "free ride", "workout compatible"],
@@ -18,11 +16,12 @@ export const rideExperiences: Array<RideExperienceDefinition> = [
       eyebrow: "Open roads",
       spotlight: "Reactive R3F scenery",
     },
-    plugin: countrysideExperience,
+    loadPlugin: async () =>
+      (await import("./countryside")).countrysideExperience,
   },
   {
-    id: liveWorkoutExperience.id,
-    displayName: liveWorkoutExperience.displayName,
+    id: "live-workout",
+    displayName: "Live Workout",
     description:
       "Pick a saved workout and ride it in ERG mode against the simulated trainer.",
     tags: ["workout", "ERG", "simulator"],
@@ -35,7 +34,8 @@ export const rideExperiences: Array<RideExperienceDefinition> = [
       eyebrow: "Structured ride",
       spotlight: "ERG-controlled intervals",
     },
-    plugin: liveWorkoutExperience,
+    loadPlugin: async () =>
+      (await import("./live-workout")).liveWorkoutExperience,
   },
 ]
 

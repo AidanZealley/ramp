@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest"
-import { Capability, type TrainerCommand } from "./index"
+import {
+  Capability,
+  clampTargetPowerWatts,
+  type TrainerCommand,
+  TRAINER_COMMAND_LIMITS,
+  validateTrainerCommand,
+} from "./index"
 
 describe("ride-contracts", () => {
   it("exports the canonical capability values", () => {
@@ -15,5 +21,41 @@ describe("ride-contracts", () => {
     }
 
     expect(command.type).toBe("setSimulationGrade")
+  })
+
+  it("validates command bounds and numeric safety", () => {
+    expect(
+      validateTrainerCommand({ type: "setTargetPower", watts: 200.5 })
+    ).toEqual({
+      ok: false,
+      reason: "setTargetPower.watts:must-be-integer",
+    })
+    expect(
+      validateTrainerCommand({
+        type: "setSimulationGrade",
+        gradePercent: Number.POSITIVE_INFINITY,
+      })
+    ).toEqual({
+      ok: false,
+      reason: "setSimulationGrade.gradePercent:must-be-finite",
+    })
+    expect(
+      validateTrainerCommand({ type: "setResistance", level: 101 })
+    ).toEqual({
+      ok: false,
+      reason: "setResistance.level:out-of-range",
+    })
+    expect(
+      validateTrainerCommand({ type: "setTargetPower", watts: 250 })
+    ).toEqual({ ok: true })
+  })
+
+  it("clamps target power to the declared shared range", () => {
+    expect(clampTargetPowerWatts(-50)).toBe(
+      TRAINER_COMMAND_LIMITS.targetPowerWatts.min
+    )
+    expect(clampTargetPowerWatts(9999)).toBe(
+      TRAINER_COMMAND_LIMITS.targetPowerWatts.max
+    )
   })
 })

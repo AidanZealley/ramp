@@ -103,4 +103,12 @@ describe("MockTrainer", () => {
       trainer.sendCommand({ type: "setTargetPower", watts: 200 })
     ).rejects.toMatchObject({ code: "command-rejected" })
   })
+
+  it("rejects invalid commands before applying trainer state", async () => {
+    const trainer = new MockTrainer()
+
+    await expect(
+      trainer.sendCommand({ type: "setTargetPower", watts: -1 })
+    ).rejects.toMatchObject({ code: "validation" })
+  })
 })

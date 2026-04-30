@@ -6,12 +6,10 @@ export function useRideSessionBootstrap(trainer: TrainerSource) {
   const session = useMemo(() => createRideSession(), [])
 
   useEffect(() => {
-    let mounted = true
     void session.connectTrainer(trainer).catch((error: unknown) => {
-      if (mounted) console.error(error)
+      console.error(error)
     })
     return () => {
-      mounted = false
       void session.disconnectTrainer()
     }
   }, [session, trainer])

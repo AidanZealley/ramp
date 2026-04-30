@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { toWorkoutDefinition } from "./convex-workout-mapper"
+import {
+  InvalidWorkoutDefinitionError,
+  toWorkoutDefinition,
+} from "./convex-workout-mapper"
 import type { Id } from "#convex/_generated/dataModel"
 
 describe("toWorkoutDefinition", () => {
@@ -13,5 +16,17 @@ describe("toWorkoutDefinition", () => {
         intervalsRevision: 0,
       })
     ).toMatchObject({ id: "w1", powerMode: "percentage" })
+  })
+
+  it("rejects unsafe workout docs", () => {
+    expect(() =>
+      toWorkoutDefinition({
+        _id: "w1" as Id<"workouts">,
+        _creationTime: 1,
+        title: "  ",
+        intervals: [{ startPower: 110, endPower: 110, durationSeconds: 60 }],
+        intervalsRevision: 0,
+      })
+    ).toThrow(InvalidWorkoutDefinitionError)
   })
 })

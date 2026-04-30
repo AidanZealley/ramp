@@ -20,7 +20,7 @@ type Pending = {
 export class CommandArbiter {
   private readonly pending = new Map<CommandKey, Pending>()
   private readonly lastSentAt = new Map<CommandKey, number>()
-  private readonly inFlight = new Set<CommandKey>()
+  private inFlight: { key: CommandKey; pending: Pending } | null = null
 
   constructor(
     private readonly policy: ArbitrationPolicy,
@@ -48,46 +48,72 @@ export class CommandArbiter {
     })
   }
 
+  clear(options: { clearLastSent?: boolean } = {}): void {
+    this.pending.clear()
+    this.inFlight = null
+    if (options.clearLastSent ?? false) {
+      this.lastSentAt.clear()
+    }
+  }
+
   async flush(trainer: RideTrainerAdapter | null): Promise<void> {
-    if (!trainer) return
+    if (!trainer || this.inFlight) return
     const now = this.now()
-    const entries = Array.from(this.pending.entries())
-    const errors: Array<unknown> = []
+    const nextEntry = this.nextSendableEntry(now)
+    if (!nextEntry) return
 
-    for (const [key, pending] of entries) {
-      if (this.inFlight.has(key)) continue
-      const coalesceMs = isCapabilityKey(key)
-        ? (this.policy.coalesceMs[key] ?? 0)
-        : 0
-      const lastSentAt = this.lastSentAt.get(key) ?? -Infinity
-      const firstSend = lastSentAt === -Infinity
-
-      if (!firstSend && now - lastSentAt < coalesceMs) continue
-      if (
-        pending.priority !== "immediate" &&
-        firstSend &&
-        coalesceMs > 0 &&
-        now - pending.requestedAt < coalesceMs
-      ) {
-        continue
+    const [key, pending] = nextEntry
+    this.inFlight = { key, pending }
+    try {
+      await trainer.sendCommand(pending.command)
+      if (this.pending.get(key) === pending) {
+        this.pending.delete(key)
       }
+      this.lastSentAt.set(key, now)
+    } finally {
+      this.inFlight = null
+    }
+  }
 
-      this.inFlight.add(key)
-      try {
-        await trainer.sendCommand(pending.command)
-        if (this.pending.get(key) === pending) this.pending.delete(key)
-        this.lastSentAt.set(key, now)
-      } catch (error: unknown) {
-        errors.push(error)
-      } finally {
-        this.inFlight.delete(key)
+  private nextSendableEntry(now: number): [CommandKey, Pending] | null {
+    const entries = Array.from(this.pending.entries()).filter(
+      ([key, pending]) => this.isSendable(key, pending, now)
+    )
+    if (entries.length === 0) return null
+
+    entries.sort((left, right) => {
+      const [, leftPending] = left
+      const [, rightPending] = right
+      if (leftPending.priority !== rightPending.priority) {
+        return leftPending.priority === "immediate" ? -1 : 1
       }
-    }
+      const precedenceDelta =
+        this.policy.precedence[rightPending.source] -
+        this.policy.precedence[leftPending.source]
+      if (precedenceDelta !== 0) return precedenceDelta
+      return leftPending.requestedAt - rightPending.requestedAt
+    })
 
-    if (errors.length === 1) throw errors[0]
-    if (errors.length > 1) {
-      throw new AggregateError(errors, "Multiple trainer commands failed")
+    return entries[0] ?? null
+  }
+
+  private isSendable(key: CommandKey, pending: Pending, now: number): boolean {
+    const coalesceMs = isCapabilityKey(key)
+      ? (this.policy.coalesceMs[key] ?? 0)
+      : 0
+    const lastSentAt = this.lastSentAt.get(key) ?? -Infinity
+    const firstSend = lastSentAt === -Infinity
+
+    if (!firstSend && now - lastSentAt < coalesceMs) return false
+    if (
+      pending.priority !== "immediate" &&
+      firstSend &&
+      coalesceMs > 0 &&
+      now - pending.requestedAt < coalesceMs
+    ) {
+      return false
     }
+    return true
   }
 
   private keyFor(command: TrainerCommand): CommandKey {

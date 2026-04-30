@@ -1,10 +1,10 @@
 import {
-  Capability
-  
-  
+  Capability,
+  validateTrainerCommand,
+  type TrainerCapabilities,
+  type TrainerCommand,
 } from "@ramp/ride-contracts"
 import { Subject } from "./observable"
-import type {TrainerCapabilities, TrainerCommand} from "@ramp/ride-contracts";
 import type {
   TrainerConnectionState,
   TrainerError,
@@ -47,8 +47,7 @@ export class MockTrainer implements TrainerSource {
     this.manualPowerWatts = options.initial?.powerWatts ?? 180
     this.manualCadenceRpm = options.initial?.cadenceRpm ?? 90
     this.capabilities =
-      options.capabilities ??
-      new Set(Object.values(Capability))
+      options.capabilities ?? new Set(Object.values(Capability))
   }
 
   async connect(): Promise<void> {
@@ -77,6 +76,16 @@ export class MockTrainer implements TrainerSource {
   }
 
   async sendCommand(command: TrainerCommand): Promise<void> {
+    const validation = validateTrainerCommand(command)
+    if (!validation.ok) {
+      const error: TrainerError = {
+        code: "validation",
+        message: validation.reason,
+      }
+      this.errorSubject.emit(error)
+      throw error
+    }
+
     const capability = commandCapability(command)
     if (capability && !this.capabilities.has(capability)) {
       const error: TrainerError = {
@@ -97,7 +106,9 @@ export class MockTrainer implements TrainerSource {
     if (command.type === "disconnect") await this.disconnect()
   }
 
-  subscribeTelemetry(listener: (t: TrainerTelemetryMessage) => void): () => void {
+  subscribeTelemetry(
+    listener: (t: TrainerTelemetryMessage) => void
+  ): () => void {
     return this.telemetrySubject.subscribe(listener)
   }
 
@@ -109,7 +120,10 @@ export class MockTrainer implements TrainerSource {
     return this.errorSubject.subscribe(listener)
   }
 
-  setManualOverrides(input: { powerWatts?: number; cadenceRpm?: number }): void {
+  setManualOverrides(input: {
+    powerWatts?: number
+    cadenceRpm?: number
+  }): void {
     this.manualPowerWatts = input.powerWatts ?? this.manualPowerWatts
     this.manualCadenceRpm = input.cadenceRpm ?? this.manualCadenceRpm
     this.emitTelemetry()
