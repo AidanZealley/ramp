@@ -1,33 +1,20 @@
 import { Canvas } from "@react-three/fiber"
 import { Sky } from "@react-three/drei"
+import { useRideR3FFrame } from "@ramp/ride-core"
 import { RideCamera } from "./camera"
 import { RideWorld } from "./world"
 import { RiderMarker } from "./rider-marker"
-import type { RideTelemetry } from "@ramp/ride-core"
+import type { RideSessionController } from "@ramp/ride-core"
 
 type RideSceneProps = {
-  telemetry: RideTelemetry
+  session: RideSessionController
 }
 
-export function RideScene({ telemetry }: RideSceneProps) {
+function RideSceneContent({ session }: { session: RideSessionController }) {
+  const frameRef = useRideR3FFrame(session)
+
   return (
-    <Canvas
-      className="ride-canvas h-full w-full"
-      shadows
-      orthographic
-      camera={{
-        position: [72, 58, 72],
-        rotation: [-Math.PI / 4, Math.PI / 4, 0],
-        zoom: 9,
-        near: 0.1,
-        far: 1200,
-      }}
-      gl={{
-        antialias: true,
-        alpha: false,
-      }}
-      data-testid="ride-canvas"
-    >
+    <>
       <color attach="background" args={["#b9d6d0"]} />
       <fog attach="fog" args={["#b9d6d0", 120, 360]} />
       <ambientLight intensity={0.7} />
@@ -46,9 +33,33 @@ export function RideScene({ telemetry }: RideSceneProps) {
         rayleigh={1.1}
         turbidity={4}
       />
-      <RideCamera distanceMeters={telemetry.distanceMeters} />
-      <RideWorld distanceMeters={telemetry.distanceMeters} />
-      <RiderMarker distanceMeters={telemetry.distanceMeters} />
+      <RideCamera frameRef={frameRef} />
+      <RideWorld frameRef={frameRef} />
+      <RiderMarker frameRef={frameRef} />
+    </>
+  )
+}
+
+export function RideScene({ session }: RideSceneProps) {
+  return (
+    <Canvas
+      className="ride-canvas h-full w-full"
+      shadows
+      orthographic
+      camera={{
+        position: [72, 58, 72],
+        rotation: [-Math.PI / 4, Math.PI / 4, 0],
+        zoom: 9,
+        near: 0.1,
+        far: 1200,
+      }}
+      gl={{
+        antialias: true,
+        alpha: false,
+      }}
+      data-testid="ride-canvas"
+    >
+      <RideSceneContent session={session} />
     </Canvas>
   )
 }

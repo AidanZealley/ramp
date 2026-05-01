@@ -53,6 +53,10 @@ export type CreateRideSessionOptions = {
   telemetryStaleAfterMs?: number
   connectTimeoutMs?: number
   policy?: ArbitrationPolicy
+  /** Injectable rAF for testing; defaults to globalThis.requestAnimationFrame */
+  requestAnimationFrame?: (callback: (timestamp: number) => void) => number
+  /** Injectable cAF for testing; defaults to globalThis.cancelAnimationFrame */
+  cancelAnimationFrame?: (handle: number) => void
 }
 
 const emptyCapabilities: TrainerCapabilities = new Set()
@@ -83,11 +87,18 @@ export function createRideSession(
   const telemetryStaleAfterMs = options.telemetryStaleAfterMs ?? 2000
   const connectTimeoutMs = options.connectTimeoutMs ?? 20_000
   const policy = options.policy ?? defaultPolicy
+  const raf =
+    options.requestAnimationFrame ??
+    ((cb: (ts: number) => void) => globalThis.requestAnimationFrame(cb))
+  const caf =
+    options.cancelAnimationFrame ??
+    ((id: number) => globalThis.cancelAnimationFrame(id))
   const listeners = new Set<() => void>()
   const arbiter = new CommandArbiter(policy, now)
   const frameSubject = new FrameSubject()
   let trainer: RideTrainerAdapter | null = null
-  let telemetryTimer: ReturnType<typeof setInterval> | null = null
+  let rafHandle: number | null = null
+  let rafLastTickMs = 0
   let flushTimer: ReturnType<typeof setInterval> | null = null
   let cleanup: Array<() => void> = []
   let lastTickMs = now()
@@ -138,19 +149,35 @@ export function createRideSession(
     previous.telemetryAgeMs === next.telemetryAgeMs &&
     previous.telemetrySource === next.telemetrySource
 
-  const startTimers = () => {
-    if (!telemetryTimer) {
-      telemetryTimer = setInterval(tickTelemetry, telemetryIntervalMs)
+  // rAF-driven tick loop — runs at display frame rate, fires tickTelemetry
+  // at telemetryIntervalMs cadence. Compares wall-clock (now()) so the timing
+  // is consistent regardless of whether the rAF timestamp origin matches now().
+  const rafLoop = (_timestamp: number) => {
+    if (disposed) return
+    const current = now()
+    if (!state.paused && current - rafLastTickMs >= telemetryIntervalMs) {
+      rafLastTickMs = current
+      tickTelemetry()
     }
+    rafHandle = raf(rafLoop)
+  }
+
+  const startTimers = () => {
+    if (rafHandle === null) {
+      // Seed so the first tick fires after one full interval
+      rafLastTickMs = now()
+      rafHandle = raf(rafLoop)
+    }
+    // flushCommands must keep running in background tabs, so keep setInterval
     if (!flushTimer) {
       flushTimer = setInterval(flushCommands, flushIntervalMs)
     }
   }
 
   const stopTimers = () => {
-    if (telemetryTimer) {
-      clearInterval(telemetryTimer)
-      telemetryTimer = null
+    if (rafHandle !== null) {
+      caf(rafHandle)
+      rafHandle = null
     }
     if (flushTimer) {
       clearInterval(flushTimer)

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef } from "react"
 import { Gauge, Square, Timer, Zap } from "lucide-react"
+import { useRideHeartbeat, useRideSelector } from "@ramp/ride-core"
 import { Stat } from "./components/stat"
 import { UpcomingPreview } from "./components/upcoming-preview"
 import { DisconnectedOverlay } from "./components/disconnected-overlay"
 import { TelemetryStaleBadge } from "./components/telemetry-stale-badge"
 import type { WorkoutSessionState } from "@ramp/ride-workouts"
-import type { RideSessionState } from "@ramp/ride-core"
+import type { RideSessionController } from "@ramp/ride-core"
 import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
 import type { UpcomingPreviewItem } from "./components/upcoming-preview"
 import { Button } from "@/components/ui/button"
@@ -24,7 +25,7 @@ type LiveWorkoutDashboardProps = {
   onReconnect?: () => void
   onPause?: () => void
   onResume?: () => void
-  sessionState?: RideSessionState
+  session: RideSessionController
   workout: ClientWorkoutDoc
   workoutState: WorkoutSessionState
 }
@@ -49,13 +50,21 @@ export function LiveWorkoutDashboard({
   onReconnect,
   onPause,
   onResume,
-  sessionState,
+  session,
   workout,
   workoutState,
 }: LiveWorkoutDashboardProps) {
-  const trainerConnected = sessionState?.trainerConnected ?? true
-  const telemetryStatus = sessionState?.telemetry.telemetryStatus ?? "fresh"
-  const lastTrainerErrorCode = sessionState?.lastTrainerError?.code
+  const trainerConnected = useRideSelector(session, (s) => s.trainerConnected)
+  const telemetryStatus = useRideSelector(
+    session,
+    (s) => s.telemetry.telemetryStatus
+  )
+  const lastTrainerErrorCode = useRideSelector(
+    session,
+    (s) => s.lastTrainerError?.code
+  )
+  // Ensure at-minimum 1 Hz re-renders for time displays
+  useRideHeartbeat(session, 1)
   const hasPausedForDisconnect = useRef(false)
 
   // Auto-pause when trainer disconnects

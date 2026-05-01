@@ -6,6 +6,7 @@ import {
   useRef,
   useSyncExternalStore,
 } from "react"
+import type { MutableRefObject } from "react"
 import type {
   RideFrameData,
   RideSessionController,
@@ -82,6 +83,25 @@ export function useRideFrame(
       callbackRef.current(frame)
     })
   }, [session])
+}
+
+/**
+ * Bridge ride-core frame events to R3F's render loop.
+ * Returns a ref that updates on each ride tick; read inside R3F's useFrame
+ * to get telemetry without triggering React re-renders.
+ */
+export function useRideR3FFrame(
+  session: RideSessionController
+): MutableRefObject<RideFrameData | null> {
+  const frameRef = useRef<RideFrameData | null>(null)
+
+  useEffect(() => {
+    return session.subscribeFrame((frame) => {
+      frameRef.current = frame
+    })
+  }, [session])
+
+  return frameRef
 }
 
 // Shared heartbeat subjects per session and Hz

@@ -9,8 +9,7 @@ import {
 import { useQuery } from "convex/react"
 import {
   Capability,
-  
-  useRideSession
+  useRideSelector,
 } from "@ramp/ride-core"
 import { createWorkoutController } from "@ramp/ride-workouts"
 import { LiveWorkoutDashboard } from "./components/live-workout-dashboard"
@@ -72,7 +71,12 @@ export function LiveWorkoutExperienceView({
 }: {
   session: RideSessionController
 }) {
-  const sessionState = useRideSession(session)
+  const trainerConnected = useRideSelector(session, (s) => s.trainerConnected)
+  const trainerStatus = useRideSelector(
+    session,
+    (s) => s.telemetry.trainerStatus
+  )
+  const lastTrainerError = useRideSelector(session, (s) => s.lastTrainerError)
   const workoutController = useMemo(
     () => createWorkoutController({ session }),
     [session]
@@ -108,8 +112,6 @@ export function LiveWorkoutExperienceView({
   const [startError, setStartError] = useState<string | null>(null)
 
   const ftp = settings?.ftp ?? DEFAULT_FTP
-  const trainerConnected = sessionState.trainerConnected
-  const trainerStatus = sessionState.telemetry.trainerStatus
   const supportsTargetPower = session.controls
     .getCapabilities()
     .has(Capability.TargetPower)
@@ -170,7 +172,7 @@ export function LiveWorkoutExperienceView({
           onEnd={handleEnd}
           onPause={session.pause}
           onResume={session.resume}
-          sessionState={sessionState}
+          session={session}
           workout={activeWorkout}
           workoutState={workoutState}
         />
@@ -190,7 +192,7 @@ export function LiveWorkoutExperienceView({
             }}
             startError={
               startError ??
-              getTrainerErrorCopy(sessionState.lastTrainerError?.code) ??
+              getTrainerErrorCopy(lastTrainerError?.code) ??
               getWorkoutErrorCopy(workoutState.lastError)
             }
             trainerConnected={trainerConnected}

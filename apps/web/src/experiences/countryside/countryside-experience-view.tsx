@@ -1,25 +1,46 @@
-import { useEffect } from "react"
-import {  useRideSession } from "@ramp/ride-core"
+import { useCallback, useRef } from "react"
+import { useRideFrame } from "@ramp/ride-core"
 import { sampleRouteAtDistance } from "./procgen/generate"
 import { RideScene } from "./components/ride-scene"
 import { RIDE_WORLD } from "./world-config"
-import type {RideSessionController} from "@ramp/ride-core";
+import type { RideSessionController } from "@ramp/ride-core"
+
+const GRADE_DEADBAND = 0.005 // 0.5%
+const MIN_DISPATCH_INTERVAL_MS = 250
 
 export function CountrysideExperienceView({
   session,
 }: {
   session: RideSessionController
 }) {
-  const state = useRideSession(session)
-  const distanceMeters = state.telemetry.distanceMeters
+  const lastDispatchedGrade = useRef<number | null>(null)
+  const lastDispatchTimeMs = useRef(0)
 
-  useEffect(() => {
-    const sample = sampleRouteAtDistance(RIDE_WORLD, distanceMeters)
-    void session.controls.dispatch(
-      { type: "setSimulationGrade", gradePercent: sample.grade * 100 },
-      "experience"
+  useRideFrame(
+    session,
+    useCallback(
+      (frame) => {
+        const now = Date.now()
+        if (now - lastDispatchTimeMs.current < MIN_DISPATCH_INTERVAL_MS) return
+
+        const sample = sampleRouteAtDistance(RIDE_WORLD, frame.distanceMeters)
+        const grade = sample.grade
+
+        if (
+          lastDispatchedGrade.current === null ||
+          Math.abs(grade - lastDispatchedGrade.current) >= GRADE_DEADBAND
+        ) {
+          lastDispatchedGrade.current = grade
+          lastDispatchTimeMs.current = now
+          void session.controls.dispatch(
+            { type: "setSimulationGrade", gradePercent: grade * 100 },
+            "experience"
+          )
+        }
+      },
+      [session]
     )
-  }, [distanceMeters, session])
+  )
 
-  return <RideScene telemetry={state.telemetry} />
+  return <RideScene session={session} />
 }

@@ -3,22 +3,32 @@ import { useLayoutEffect, useMemo } from "react"
 import { Vector3 } from "three"
 import { sampleRouteAtDistance } from "../procgen/generate"
 import { RIDE_WORLD } from "../world-config"
+import type { MutableRefObject } from "react"
+import type { RideFrameData } from "@ramp/ride-core"
 import type { Camera } from "three"
 
 type RideCameraProps = {
-  distanceMeters: number
+  frameRef: MutableRefObject<RideFrameData | null>
 }
 
-export function RideCamera({ distanceMeters }: RideCameraProps) {
+export function RideCamera({ frameRef }: RideCameraProps) {
   const camera = useThree((state) => state.camera)
   const target = useMemo(() => new Vector3(), [])
   const desiredPosition = useMemo(() => new Vector3(), [])
 
+  // Snap to initial position at mount
   useLayoutEffect(() => {
-    setCameraTarget(camera, distanceMeters, target, desiredPosition, 1)
-  }, [camera, desiredPosition, distanceMeters, target])
+    setCameraTarget(
+      camera,
+      frameRef.current?.distanceMeters ?? 0,
+      target,
+      desiredPosition,
+      1
+    )
+  }, [camera, desiredPosition, frameRef, target])
 
   useFrame((_, delta) => {
+    const distanceMeters = frameRef.current?.distanceMeters ?? 0
     setCameraTarget(
       camera,
       distanceMeters,

@@ -7,6 +7,7 @@ export {
   RideSessionContext,
   useRideFrame,
   useRideHeartbeat,
+  useRideR3FFrame,
   useRideSelector,
   useRideSession,
   useRideSessionContext,

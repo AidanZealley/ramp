@@ -1,32 +1,39 @@
-import { useMemo } from "react"
+import { memo, useMemo, useRef } from "react"
+import { useFrame } from "@react-three/fiber"
 import { Vector3 } from "three"
 import { sampleRouteAtDistance } from "../procgen/generate"
 import { RIDE_WORLD } from "../world-config"
+import type { MutableRefObject } from "react"
+import type { RideFrameData } from "@ramp/ride-core"
+import type { Group } from "three"
 
 type RiderMarkerProps = {
-  distanceMeters: number
+  frameRef: MutableRefObject<RideFrameData | null>
 }
 
-export function RiderMarker({ distanceMeters }: RiderMarkerProps) {
-  const sample = sampleRouteAtDistance(RIDE_WORLD, distanceMeters)
-  const yaw = useMemo(() => {
-    const tangent = new Vector3(
-      sample.tangent[0],
-      sample.tangent[1],
-      sample.tangent[2]
+export const RiderMarker = memo(function RiderMarker({
+  frameRef,
+}: RiderMarkerProps) {
+  const groupRef = useRef<Group>(null)
+  const tangent = useMemo(() => new Vector3(), [])
+
+  useFrame(() => {
+    if (!groupRef.current) return
+    const distanceMeters = frameRef.current?.distanceMeters ?? 0
+    const sample = sampleRouteAtDistance(RIDE_WORLD, distanceMeters)
+
+    groupRef.current.position.set(
+      sample.position[0],
+      sample.position[1] + 0.22,
+      sample.position[2]
     )
-    return Math.atan2(tangent.x, tangent.z)
-  }, [sample.tangent])
+
+    tangent.set(sample.tangent[0], sample.tangent[1], sample.tangent[2])
+    groupRef.current.rotation.set(0, Math.atan2(tangent.x, tangent.z), 0)
+  })
 
   return (
-    <group
-      position={[
-        sample.position[0],
-        sample.position[1] + 0.22,
-        sample.position[2],
-      ]}
-      rotation={[0, yaw, 0]}
-    >
+    <group ref={groupRef}>
       <mesh castShadow position={[-0.6, 0.28, 0]}>
         <torusGeometry args={[0.32, 0.045, 6, 16]} />
         <meshStandardMaterial color="#17211c" roughness={0.7} />
@@ -49,4 +56,4 @@ export function RiderMarker({ distanceMeters }: RiderMarkerProps) {
       </mesh>
     </group>
   )
-}
+})

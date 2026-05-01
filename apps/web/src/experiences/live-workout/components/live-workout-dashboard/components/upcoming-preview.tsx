@@ -1,3 +1,4 @@
+import { memo } from "react"
 import { CheckCircle2, ChevronRight } from "lucide-react"
 import { formatDuration } from "@/lib/workout-utils"
 
@@ -7,7 +8,7 @@ export type UpcomingPreviewItem = {
   targetWatts: number
 }
 
-export function UpcomingPreview({
+export const UpcomingPreview = memo(function UpcomingPreview({
   isComplete,
   upcoming,
 }: {
@@ -53,4 +54,4 @@ export function UpcomingPreview({
       </div>
     </div>
   )
-}
+})
