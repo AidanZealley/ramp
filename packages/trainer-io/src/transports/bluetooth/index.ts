@@ -1,1 +1,7 @@
-export * from "./wahoo-kickr"
+import "./web-bluetooth/globals"
+
+export * from "./request-ble-trainer"
+export * from "./web-bluetooth/request-device"
+export * from "./ftms"
+export type { BleTrainerDeviceInfo } from "./ftms/device-info"
+export { FtmsBleTrainer as WahooKickrTrainer } from "./ftms"

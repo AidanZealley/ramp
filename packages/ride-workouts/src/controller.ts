@@ -258,6 +258,7 @@ export function createWorkoutController({
         "workout",
         { priority: "immediate" }
       )
+      console.info("[ride-workouts] setMode erg result", modeResult)
       if (!modeResult.ok) {
         failState(modeResult.reason)
         return modeResult
@@ -268,6 +269,10 @@ export function createWorkoutController({
         "workout",
         { priority: "immediate" }
       )
+      console.info("[ride-workouts] initial target result", {
+        targetWatts: firstSegment.targetWatts,
+        result: targetResult,
+      })
       if (!targetResult.ok) {
         failState(targetResult.reason)
         freeModeSent = false

@@ -12,6 +12,7 @@ type TrainerStatus = RideTelemetry["trainerStatus"]
 type WorkoutDetailPanelProps = {
   ftp: number
   isLoading: boolean
+  isStarting: boolean
   onStart: () => void
   startError: string | null
   trainerConnected: boolean
@@ -24,6 +25,7 @@ type WorkoutDetailPanelProps = {
 export function WorkoutDetailPanel({
   ftp,
   isLoading,
+  isStarting,
   onStart,
   startError,
   trainerConnected,
@@ -36,6 +38,7 @@ export function WorkoutDetailPanel({
     !workout ||
     !trainerConnected ||
     isLoading ||
+    isStarting ||
     !workoutHasDuration ||
     !trainerSupportsTargetPower
 
@@ -74,7 +77,7 @@ export function WorkoutDetailPanel({
           className="w-full"
         >
           <Play data-icon="inline-start" />
-          Start workout
+          {isStarting ? "Starting..." : "Start workout"}
         </Button>
         <p className="text-center text-[0.7rem] text-muted-foreground">
           {!trainerConnected

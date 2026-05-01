@@ -82,13 +82,6 @@ export function LiveWorkoutExperienceView({
     [session]
   )
 
-  useEffect(
-    () => () => {
-      workoutController.dispose()
-    },
-    [workoutController]
-  )
-
   const workoutState = useSyncExternalStore(
     workoutController.subscribe,
     workoutController.getState,
@@ -97,6 +90,7 @@ export function LiveWorkoutExperienceView({
 
   const mounted = useRef(true)
   useEffect(() => {
+    mounted.current = true
     return () => {
       mounted.current = false
       workoutController.clearWorkout()
@@ -110,6 +104,7 @@ export function LiveWorkoutExperienceView({
     useState<Id<"workouts"> | null>(null)
   const [activeWorkout, setActiveWorkout] = useState<WorkoutDoc | null>(null)
   const [startError, setStartError] = useState<string | null>(null)
+  const [isStarting, setIsStarting] = useState(false)
 
   const ftp = settings?.ftp ?? DEFAULT_FTP
   const supportsTargetPower = session.controls
@@ -127,12 +122,27 @@ export function LiveWorkoutExperienceView({
 
   const handleStart = useCallback(async () => {
     if (!selectedWorkout || !trainerConnected || !selectedWorkoutHasDuration) {
+      console.info("[live-workout] start ignored", {
+        hasWorkout: Boolean(selectedWorkout),
+        trainerConnected,
+        selectedWorkoutHasDuration,
+      })
       return
     }
+
+    setIsStarting(true)
+    console.info("[live-workout] start requested", {
+      workoutId: selectedWorkout._id,
+      title: selectedWorkout.title,
+      trainerConnected,
+      supportsTargetPower,
+      capabilities: Array.from(session.controls.getCapabilities()),
+    })
 
     try {
       const definition = toWorkoutDefinition(selectedWorkout)
       const result = await workoutController.loadWorkout(definition, ftp)
+      console.info("[live-workout] loadWorkout result", result)
       if (!mounted.current) return
       if (!result.ok) {
         setStartError(getWorkoutErrorCopy(result.reason))
@@ -142,6 +152,7 @@ export function LiveWorkoutExperienceView({
       setStartError(null)
       setActiveWorkout(selectedWorkout)
     } catch (error: unknown) {
+      console.error("[live-workout] start failed", error)
       if (!mounted.current) return
       setActiveWorkout(null)
       if (error instanceof InvalidWorkoutDefinitionError) {
@@ -149,11 +160,17 @@ export function LiveWorkoutExperienceView({
         return
       }
       setStartError("Unable to start workout.")
+    } finally {
+      if (mounted.current) {
+        setIsStarting(false)
+      }
     }
   }, [
     ftp,
     selectedWorkout,
     selectedWorkoutHasDuration,
+    session,
+    supportsTargetPower,
     trainerConnected,
     workoutController,
   ])
@@ -187,6 +204,7 @@ export function LiveWorkoutExperienceView({
           <WorkoutDetailPanel
             ftp={ftp}
             isLoading={isLoading}
+            isStarting={isStarting}
             onStart={() => {
               void handleStart()
             }}

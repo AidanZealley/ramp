@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, Settings } from "lucide-react"
-import {  useRideSession } from "@ramp/ride-core"
+import { useRideSession } from "@ramp/ride-core"
 import { RideHud } from "./ride-hud"
 import { RideSimulatorControls } from "./ride-simulator-controls"
-import type {RideSessionController} from "@ramp/ride-core";
+import type { RideSessionController } from "@ramp/ride-core"
 import type { MockTrainer, TrainerSource } from "@ramp/trainer-io"
+import type { RideTrainerController } from "@/ride/use-ride-trainer"
 import { Button } from "@/components/ui/button"
 import {
   AlertDialog,
@@ -28,6 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 type RideOverlayProps = {
   session: RideSessionController
   trainer: TrainerSource
+  trainerController: RideTrainerController
 }
 
 const HIDE_DELAY_MS = 2000
@@ -36,10 +38,15 @@ const OVERLAY_TABS = {
   controls: "controls",
 } as const
 
-export function RideOverlay({ session, trainer }: RideOverlayProps) {
+export function RideOverlay({
+  session,
+  trainer,
+  trainerController,
+}: RideOverlayProps) {
   const navigate = useNavigate()
   const state = useRideSession(session)
   const hasSimulatorControls = isMockTrainerWithManualOverrides(trainer)
+  const usingMockTrainer = trainer.kind === "mock"
 
   const [shown, setShown] = useState(true)
   const [isOverlayOpen, setIsOverlayOpen] = useState(false)
@@ -104,40 +111,73 @@ export function RideOverlay({ session, trainer }: RideOverlayProps) {
             overlayVisible ? "pointer-events-auto" : "pointer-events-none"
           }`}
         >
-          <AlertDialog
-            open={isExitDialogOpen}
-            onOpenChange={setIsExitDialogOpen}
-          >
-            <AlertDialogTrigger
-              render={
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  aria-label="Back to ride picker"
-                />
-              }
+          <div className="flex items-center gap-2">
+            <AlertDialog
+              open={isExitDialogOpen}
+              onOpenChange={setIsExitDialogOpen}
             >
-              <ArrowLeft />
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Exit ride?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Your current ride session will end and you&apos;ll return to
-                  the ride picker.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel type="button">Stay here</AlertDialogCancel>
-                <AlertDialogAction
-                  type="button"
-                  onClick={() => void navigate({ to: "/ride" })}
-                >
-                  Exit ride
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+              <AlertDialogTrigger
+                render={
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    aria-label="Back to ride picker"
+                  />
+                }
+              >
+                <ArrowLeft />
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Exit ride?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Your current ride session will end and you&apos;ll return to
+                    the ride picker.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel type="button">Stay here</AlertDialogCancel>
+                  <AlertDialogAction
+                    type="button"
+                    onClick={() => void navigate({ to: "/ride" })}
+                  >
+                    Exit ride
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={
+                !trainerController.bleAvailable ||
+                trainerController.selectingBleTrainer
+              }
+              onClick={() => {
+                void trainerController.connectBleTrainer()
+              }}
+            >
+              {trainerController.selectingBleTrainer
+                ? "Opening Bluetooth"
+                : "Connect trainer"}
+            </Button>
+            {!trainerController.bleAvailable && (
+              <span className="text-xs text-muted-foreground">
+                Web Bluetooth requires a Chromium-class browser.
+              </span>
+            )}
+            {!usingMockTrainer && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={trainerController.useMockTrainer}
+              >
+                Use mock trainer
+              </Button>
+            )}
+          </div>
 
           <Popover open={isOverlayOpen} onOpenChange={setIsOverlayOpen}>
             <PopoverTrigger

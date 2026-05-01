@@ -12,7 +12,7 @@ export type TrainerTelemetryMessage = TrainerTelemetry
 export interface TrainerSource {
   readonly kind: TrainerSourceKind
   readonly capabilities: TrainerCapabilities
-  readonly state: TrainerConnectionState
+  state: TrainerConnectionState
   connect: () => Promise<void>
   disconnect: () => Promise<void>
   sendCommand: (command: TrainerCommand) => Promise<void>

@@ -10,7 +10,8 @@ export function RideSessionPage({
 }: {
   experience: RideExperienceDefinition
 }) {
-  const trainer = useRideTrainer()
+  const trainerController = useRideTrainer()
+  const { trainer } = trainerController
   const { session } = useRideSessionBootstrap(trainer)
   const ExperienceView = useMemo(
     () =>
@@ -35,7 +36,11 @@ export function RideSessionPage({
         <Suspense fallback={null}>
           <ExperienceView session={session} />
         </Suspense>
-        <RideOverlay session={session} trainer={trainer} />
+        <RideOverlay
+          session={session}
+          trainer={trainer}
+          trainerController={trainerController}
+        />
       </section>
     </RideSessionContext.Provider>
   )
