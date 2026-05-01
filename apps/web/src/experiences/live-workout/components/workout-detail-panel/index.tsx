@@ -1,4 +1,4 @@
-import { Play } from "lucide-react"
+import { Play, RefreshCw } from "lucide-react"
 import type { RideTelemetry } from "@ramp/ride-core"
 import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
 import { Button } from "@/components/ui/button"
@@ -88,9 +88,21 @@ export function WorkoutDetailPanel({
                   : `ERG mode at FTP ${ftp} W`}
         </p>
         {startError ? (
-          <p className="text-center text-[0.75rem] text-destructive">
-            {startError}
-          </p>
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-center text-[0.75rem] text-destructive">
+              {startError}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onStart}
+              disabled={!trainerConnected}
+            >
+              <RefreshCw data-icon="inline-start" />
+              Retry
+            </Button>
+          </div>
         ) : null}
       </CardContent>
     </Card>

@@ -8,12 +8,40 @@ import type { TrainerControlAPI } from "./controls"
 import { defaultPolicy, enforce, type ArbitrationPolicy } from "./policy"
 import type {
   DispatchResult,
+  RideFrameData,
   RideSessionController,
   RideSessionState,
   RideTelemetry,
   RideTrainerAdapter,
+  RideTrainerTelemetry,
   TrainerCapabilities,
 } from "./types"
+
+// Simple Subject implementation for frame events
+class FrameSubject {
+  private readonly listeners = new Set<(frame: RideFrameData) => void>()
+
+  subscribe(listener: (frame: RideFrameData) => void): () => void {
+    this.listeners.add(listener)
+    return () => {
+      this.listeners.delete(listener)
+    }
+  }
+
+  emit(frame: RideFrameData): void {
+    for (const listener of this.listeners) {
+      try {
+        listener(frame)
+      } catch (err) {
+        console.error("Frame listener threw", err)
+      }
+    }
+  }
+
+  clear(): void {
+    this.listeners.clear()
+  }
+}
 
 export type CreateRideSessionOptions = {
   now?: () => number
@@ -21,6 +49,7 @@ export type CreateRideSessionOptions = {
   telemetryIntervalMs?: number
   flushIntervalMs?: number
   telemetryStaleAfterMs?: number
+  connectTimeoutMs?: number
   policy?: ArbitrationPolicy
 }
 
@@ -50,9 +79,11 @@ export function createRideSession(
     options.telemetryIntervalMs ?? options.tickIntervalMs ?? 100
   const flushIntervalMs = options.flushIntervalMs ?? 50
   const telemetryStaleAfterMs = options.telemetryStaleAfterMs ?? 2000
+  const connectTimeoutMs = options.connectTimeoutMs ?? 20_000
   const policy = options.policy ?? defaultPolicy
   const listeners = new Set<() => void>()
   const arbiter = new CommandArbiter(policy, now)
+  const frameSubject = new FrameSubject()
   let trainer: RideTrainerAdapter | null = null
   let telemetryTimer: ReturnType<typeof setInterval> | null = null
   let flushTimer: ReturnType<typeof setInterval> | null = null
@@ -68,9 +99,16 @@ export function createRideSession(
     lastError: null,
     lastTrainerError: null,
   }
+  let disposed = false
 
   const notify = () => {
-    for (const listener of listeners) listener()
+    for (const listener of listeners) {
+      try {
+        listener()
+      } catch (err) {
+        console.error("RideSession listener threw", err)
+      }
+    }
   }
 
   const setState = (
@@ -213,6 +251,14 @@ export function createRideSession(
       if (telemetryEqual(previous.telemetry, nextTelemetry)) return previous
       return { ...previous, telemetry: nextTelemetry }
     })
+
+    // Emit frame event for game/render loops
+    frameSubject.emit({
+      telemetry: latestTelemetry,
+      elapsedSeconds: state.telemetry.elapsedSeconds,
+      distanceMeters: state.telemetry.distanceMeters,
+      deltaMs: deltaSeconds * 1000,
+    })
   }
 
   const setTrainerErrorState = (error: TrainerError) => {
@@ -224,10 +270,36 @@ export function createRideSession(
     }))
   }
 
-  const flushCommands = () => {
-    void arbiter.flush(trainer).catch((error: unknown) => {
-      setTrainerErrorState(toTrainerError(error))
+  // Subscribe to arbiter errors for max-retries failures
+  arbiter.errors.subscribe((error) => {
+    setTrainerErrorState({
+      code: "command-rejected",
+      message: error.reason,
     })
+  })
+
+  const flushCommands = () => {
+    void arbiter
+      .flush(trainer)
+      .then((result) => {
+        if (result.sent && state.lastError !== null) {
+          setState((previous) => ({
+            ...previous,
+            lastError: null,
+            lastTrainerError: null,
+            telemetry: {
+              ...previous.telemetry,
+              trainerStatus:
+                previous.telemetry.trainerStatus === "error"
+                  ? "ready"
+                  : previous.telemetry.trainerStatus,
+            },
+          }))
+        }
+      })
+      .catch((error: unknown) => {
+        setTrainerErrorState(toTrainerError(error))
+      })
   }
 
   const controls: TrainerControlAPI = {
@@ -275,13 +347,22 @@ export function createRideSession(
     getState() {
       return state
     },
+    getLatestTelemetry(): RideTrainerTelemetry | null {
+      return latestTelemetry
+    },
     subscribe(listener) {
       listeners.add(listener)
       return () => {
         listeners.delete(listener)
       }
     },
+    subscribeFrame(listener) {
+      return frameSubject.subscribe(listener)
+    },
     async connectTrainer(nextTrainer) {
+      if (disposed) {
+        throw new Error("Session disposed")
+      }
       if (trainer) {
         await controller.disconnectTrainer()
       }
@@ -335,9 +416,23 @@ export function createRideSession(
       ]
 
       try {
-        await nextTrainer.connect()
+        await Promise.race([
+          nextTrainer.connect(),
+          new Promise<never>((_, reject) =>
+            setTimeout(
+              () =>
+                reject({
+                  code: "timeout",
+                  message: "Trainer connect timed out",
+                } as TrainerError),
+              connectTimeoutMs
+            )
+          ),
+        ])
       } catch (error: unknown) {
         if (generation !== connectionGeneration || trainer !== nextTrainer) {
+          // Superseded by a newer connection attempt, clean up the stale adapter
+          void nextTrainer.disconnect().catch(() => undefined)
           return
         }
 
@@ -361,7 +456,11 @@ export function createRideSession(
         return
       }
 
-      if (generation !== connectionGeneration || trainer !== nextTrainer) return
+      if (generation !== connectionGeneration || trainer !== nextTrainer) {
+        // Superseded by a newer connection attempt, clean up the stale adapter
+        void nextTrainer.disconnect().catch(() => undefined)
+        return
+      }
       lastTickMs = now()
       startTimers()
     },
@@ -390,6 +489,12 @@ export function createRideSession(
     resume() {
       lastTickMs = now()
       setState((previous) => ({ ...previous, paused: false }))
+    },
+    async dispose() {
+      if (disposed) return
+      disposed = true
+      await controller.disconnectTrainer()
+      listeners.clear()
     },
     controls,
   }

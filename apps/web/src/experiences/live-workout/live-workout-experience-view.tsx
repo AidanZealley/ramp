@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react"
@@ -46,6 +47,24 @@ function getWorkoutErrorCopy(reason: string | null): string | null {
   return "Unable to start workout."
 }
 
+function getTrainerErrorCopy(code: string | undefined): string | null {
+  if (!code) return null
+  switch (code) {
+    case "permission":
+      return "Permission denied. Please allow Bluetooth access."
+    case "timeout":
+      return "Connection timed out. Please try again."
+    case "unsupported":
+      return "This trainer is not supported."
+    case "command-rejected":
+      return "Trainer rejected the command."
+    case "transport":
+      return "Communication error with trainer."
+    default:
+      return "An unexpected error occurred."
+  }
+}
+
 export function LiveWorkoutExperienceView({
   session,
 }: {
@@ -69,6 +88,14 @@ export function LiveWorkoutExperienceView({
     workoutController.getState,
     workoutController.getState
   )
+
+  const mounted = useRef(true)
+  useEffect(() => {
+    return () => {
+      mounted.current = false
+      workoutController.clearWorkout()
+    }
+  }, [workoutController])
 
   const workouts = useQuery(api.workouts.list)
   const settings = useQuery(api.settings.get)
@@ -102,6 +129,7 @@ export function LiveWorkoutExperienceView({
     try {
       const definition = toWorkoutDefinition(selectedWorkout)
       const result = await workoutController.loadWorkout(definition, ftp)
+      if (!mounted.current) return
       if (!result.ok) {
         setStartError(getWorkoutErrorCopy(result.reason))
         setActiveWorkout(null)
@@ -110,6 +138,7 @@ export function LiveWorkoutExperienceView({
       setStartError(null)
       setActiveWorkout(selectedWorkout)
     } catch (error: unknown) {
+      if (!mounted.current) return
       setActiveWorkout(null)
       if (error instanceof InvalidWorkoutDefinitionError) {
         setStartError("Workout data is invalid.")
@@ -137,6 +166,9 @@ export function LiveWorkoutExperienceView({
         <LiveWorkoutDashboard
           ftp={ftp}
           onEnd={handleEnd}
+          onPause={session.pause}
+          onResume={session.resume}
+          sessionState={sessionState}
           workout={activeWorkout}
           workoutState={workoutState}
         />
@@ -155,7 +187,9 @@ export function LiveWorkoutExperienceView({
               void handleStart()
             }}
             startError={
-              startError ?? getWorkoutErrorCopy(workoutState.lastError)
+              startError ??
+              getTrainerErrorCopy(sessionState.lastTrainerError?.code) ??
+              getWorkoutErrorCopy(workoutState.lastError)
             }
             trainerConnected={trainerConnected}
             trainerStatus={trainerStatus}

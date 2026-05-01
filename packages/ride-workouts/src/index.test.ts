@@ -6,12 +6,14 @@ import type { WorkoutDefinition } from "./types"
 
 function createSessionHarness(options?: {
   telemetryStatus?: "missing" | "fresh" | "stale"
+  trainerConnected?: boolean
   capabilities?: ReadonlySet<Capability>
   dispatchImpl?: ReturnType<typeof vi.fn>
 }) {
   const listeners = new Set<() => void>()
   let elapsedSeconds = 0
   let telemetryStatus = options?.telemetryStatus ?? "fresh"
+  let trainerConnected = options?.trainerConnected ?? true
   const dispatch =
     options?.dispatchImpl ??
     vi.fn(async () => {
@@ -21,6 +23,7 @@ function createSessionHarness(options?: {
   const session = {
     getState: () => ({
       telemetry: { elapsedSeconds, telemetryStatus },
+      trainerConnected,
     }),
     subscribe: (listener: () => void) => {
       listeners.add(listener)
@@ -42,6 +45,9 @@ function createSessionHarness(options?: {
     },
     setTelemetryStatus(next: "missing" | "fresh" | "stale") {
       telemetryStatus = next
+    },
+    setTrainerConnected(next: boolean) {
+      trainerConnected = next
     },
     tick() {
       for (const listener of listeners) listener()
@@ -278,5 +284,91 @@ describe("ride-workouts", () => {
     )
 
     expect(() => controller.dispose()).not.toThrow()
+  })
+
+  it("sets controlStatus to error when dispatch rejects then clears on success", async () => {
+    let callCount = 0
+    const dispatch = vi.fn(async () => {
+      callCount++
+      // First two calls are setMode and setTargetPower during loadWorkout
+      if (callCount <= 2) return { ok: true } as const
+      // Third call rejects
+      if (callCount === 3)
+        return Promise.reject(new Error("transient failure"))
+      // Fourth call succeeds
+      return { ok: true } as const
+    })
+    const harness = createSessionHarness({ dispatchImpl: dispatch })
+    const controller = createWorkoutController({
+      session: harness.session,
+      dispatchIntervalSeconds: 1,
+    })
+    await controller.loadWorkout(
+      {
+        id: "w1",
+        title: "Workout",
+        powerMode: "percentage",
+        intervals: [
+          { startPower: 100, endPower: 100, durationSeconds: 10 },
+          { startPower: 150, endPower: 150, durationSeconds: 10 },
+        ],
+      },
+      200
+    )
+
+    // Advance to trigger periodic dispatch that will reject
+    harness.setElapsedSeconds(1)
+    harness.tick()
+    // Wait for the rejection to be processed
+    await vi.waitFor(() => {
+      expect(controller.getState().controlStatus).toBe("error")
+    })
+    expect(controller.getState().lastError).toBe("transient failure")
+
+    // Advance to trigger another dispatch that succeeds
+    harness.setElapsedSeconds(2)
+    harness.tick()
+    await vi.waitFor(() => {
+      expect(controller.getState().controlStatus).toBe("active")
+    })
+    expect(controller.getState().lastError).toBeNull()
+  })
+
+  it("stops dispatch when trainer disconnects and resumes on reconnect", async () => {
+    const harness = createSessionHarness({ trainerConnected: true })
+    const controller = createWorkoutController({ session: harness.session })
+    await controller.loadWorkout(
+      {
+        id: "w1",
+        title: "Workout",
+        powerMode: "percentage",
+        intervals: [
+          { startPower: 100, endPower: 100, durationSeconds: 10 },
+          { startPower: 150, endPower: 150, durationSeconds: 10 },
+        ],
+      },
+      200
+    )
+
+    harness.dispatch.mockClear()
+
+    // Disconnect trainer and advance to segment change
+    harness.setTrainerConnected(false)
+    harness.setElapsedSeconds(11)
+    harness.tick()
+
+    // Should not dispatch while disconnected
+    expect(harness.dispatch).not.toHaveBeenCalled()
+
+    // Reconnect trainer
+    harness.setTrainerConnected(true)
+    harness.tick()
+
+    // Now it should dispatch
+    expect(harness.dispatch).toHaveBeenCalledWith(
+      { type: "setTargetPower", watts: 300 },
+      "workout",
+      { priority: "immediate" }
+    )
   })
 })

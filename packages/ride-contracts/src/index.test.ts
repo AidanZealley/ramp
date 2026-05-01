@@ -51,11 +51,46 @@ describe("ride-contracts", () => {
   })
 
   it("clamps target power to the declared shared range", () => {
-    expect(clampTargetPowerWatts(-50)).toBe(
-      TRAINER_COMMAND_LIMITS.targetPowerWatts.min
-    )
-    expect(clampTargetPowerWatts(9999)).toBe(
-      TRAINER_COMMAND_LIMITS.targetPowerWatts.max
-    )
+    const underResult = clampTargetPowerWatts(-50)
+    expect(underResult).toEqual({
+      ok: true,
+      value: TRAINER_COMMAND_LIMITS.targetPowerWatts.min,
+    })
+
+    const overResult = clampTargetPowerWatts(9999)
+    expect(overResult).toEqual({
+      ok: true,
+      value: TRAINER_COMMAND_LIMITS.targetPowerWatts.max,
+    })
+  })
+
+  it("rejects non-finite values in clampTargetPowerWatts", () => {
+    expect(clampTargetPowerWatts(Number.NaN)).toEqual({
+      ok: false,
+      reason: "must-be-finite",
+    })
+    expect(clampTargetPowerWatts(Number.POSITIVE_INFINITY)).toEqual({
+      ok: false,
+      reason: "must-be-finite",
+    })
+  })
+
+  it("validates setMode against allowed values", () => {
+    expect(validateTrainerCommand({ type: "setMode", mode: "erg" })).toEqual({
+      ok: true,
+    })
+    expect(validateTrainerCommand({ type: "setMode", mode: "free" })).toEqual({
+      ok: true,
+    })
+    // Test invalid mode by casting to bypass TypeScript
+    expect(
+      validateTrainerCommand({
+        type: "setMode",
+        mode: "invalid" as "erg",
+      })
+    ).toEqual({
+      ok: false,
+      reason: "setMode.mode:invalid-value",
+    })
   })
 })

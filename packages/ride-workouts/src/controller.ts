@@ -71,7 +71,13 @@ export function createWorkoutController({
   let disposed = false
 
   const notify = () => {
-    for (const listener of listeners) listener()
+    for (const listener of listeners) {
+      try {
+        listener()
+      } catch (err) {
+        console.error("WorkoutSession listener threw", err)
+      }
+    }
   }
 
   const statesAreEqual = (
@@ -110,14 +116,24 @@ export function createWorkoutController({
   const dispatchFreeMode = async () => {
     if (freeModeSent) return
     freeModeSent = true
-    const result = await session.controls.dispatch(
-      { type: "setMode", mode: "free" },
-      "workout"
-    )
-    if (!result.ok) {
+    try {
+      const result = await session.controls.dispatch(
+        { type: "setMode", mode: "free" },
+        "workout"
+      )
+      if (!result.ok) {
+        setWorkoutState({
+          ...state,
+          lastError: result.reason,
+        })
+      }
+    } catch (err) {
+      freeModeSent = false
+      const message = err instanceof Error ? err.message : String(err)
       setWorkoutState({
         ...state,
-        lastError: result.reason,
+        controlStatus: "error",
+        lastError: message,
       })
     }
   }
@@ -165,7 +181,7 @@ export function createWorkoutController({
       lastError: state.lastError,
     })
 
-    if (!telemetryFresh) return
+    if (!telemetryFresh || !sessionState.trainerConnected) return
 
     const dispatchSecond = Math.floor(elapsed / dispatchIntervalSeconds)
     const segmentChanged = lastDispatchSegmentIndex !== segment.index
@@ -195,6 +211,14 @@ export function createWorkoutController({
             ...state,
             controlStatus: "error",
             lastError: result.reason,
+          })
+        })
+        .catch((err: unknown) => {
+          const message = err instanceof Error ? err.message : String(err)
+          setWorkoutState({
+            ...state,
+            controlStatus: "error",
+            lastError: message,
           })
         })
     }

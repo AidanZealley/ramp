@@ -40,8 +40,16 @@ export class MockTrainer implements TrainerSource {
   state: TrainerConnectionState = { kind: "disconnected" }
 
   constructor(options: MockTrainerOptions = {}) {
-    this.intervalMs = options.intervalMs ?? 100
-    this.connectDelayMs = options.connectDelayMs ?? 0
+    const intervalMs = options.intervalMs ?? 100
+    const connectDelayMs = options.connectDelayMs ?? 0
+    if (!Number.isFinite(intervalMs) || intervalMs < 1) {
+      throw new Error("intervalMs must be a finite number >= 1")
+    }
+    if (!Number.isFinite(connectDelayMs) || connectDelayMs < 0) {
+      throw new Error("connectDelayMs must be a finite number >= 0")
+    }
+    this.intervalMs = intervalMs
+    this.connectDelayMs = connectDelayMs
     this.now = options.now ?? (() => Date.now())
     this.basePowerToSpeed = options.basePowerToSpeed ?? 0.035
     this.manualPowerWatts = options.initial?.powerWatts ?? 180
@@ -124,6 +132,12 @@ export class MockTrainer implements TrainerSource {
     powerWatts?: number
     cadenceRpm?: number
   }): void {
+    if (input.powerWatts !== undefined && !Number.isFinite(input.powerWatts)) {
+      throw new Error("powerWatts must be a finite number")
+    }
+    if (input.cadenceRpm !== undefined && !Number.isFinite(input.cadenceRpm)) {
+      throw new Error("cadenceRpm must be a finite number")
+    }
     this.manualPowerWatts = input.powerWatts ?? this.manualPowerWatts
     this.manualCadenceRpm = input.cadenceRpm ?? this.manualCadenceRpm
     this.emitTelemetry()

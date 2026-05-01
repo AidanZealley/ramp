@@ -111,4 +111,20 @@ describe("MockTrainer", () => {
       trainer.sendCommand({ type: "setTargetPower", watts: -1 })
     ).rejects.toMatchObject({ code: "validation" })
   })
+
+  it("throwing listener does not prevent later listeners from receiving the value", async () => {
+    const trainer = new MockTrainer()
+    const first = vi.fn(() => {
+      throw new Error("deliberate throw")
+    })
+    const second = vi.fn()
+    trainer.subscribeTelemetry(first)
+    trainer.subscribeTelemetry(second)
+
+    await trainer.connect()
+    vi.advanceTimersByTime(100)
+
+    expect(first).toHaveBeenCalled()
+    expect(second).toHaveBeenCalled()
+  })
 })

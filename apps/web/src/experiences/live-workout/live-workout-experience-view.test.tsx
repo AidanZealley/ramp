@@ -154,4 +154,52 @@ describe("LiveWorkoutExperienceView", () => {
       expect(screen.getByText("Now riding")).toBeTruthy()
     })
   })
+
+  it("unmounting before loadWorkout resolves does not warn and calls clearWorkout", async () => {
+    let resolveDispatch: ((value: { ok: true }) => void) | undefined
+    const pendingDispatch = vi.fn(
+      () =>
+        new Promise<{ ok: true }>((resolve) => {
+          resolveDispatch = resolve
+        })
+    )
+
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+
+    const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+
+    const { unmount } = render(
+      <LiveWorkoutExperienceView
+        session={createSession({ dispatchImpl: pendingDispatch })}
+      />
+    )
+
+    fireEvent.click(screen.getByText("Ramp Builder"))
+    fireEvent.click(screen.getByText("Start workout"))
+
+    // Unmount before the dispatch resolves
+    unmount()
+
+    // Resolve the dispatch after unmount
+    resolveDispatch?.({ ok: true })
+
+    // Give React a chance to process
+    await new Promise((r) => setTimeout(r, 0))
+
+    // No React warnings about setting state on unmounted component
+    expect(consoleWarn).not.toHaveBeenCalled()
+    // The only console.error should be from our defensive plumbing, not React warnings
+    const reactWarnings = consoleError.mock.calls.filter(
+      (args) =>
+        typeof args[0] === "string" &&
+        args[0].includes("Cannot update a component")
+    )
+    expect(reactWarnings).toHaveLength(0)
+
+    consoleWarn.mockRestore()
+    consoleError.mockRestore()
+  })
 })

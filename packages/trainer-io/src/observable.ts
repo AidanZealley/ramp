@@ -9,7 +9,13 @@ export class Subject<T> {
   }
 
   emit(value: T): void {
-    for (const listener of this.listeners) listener(value)
+    for (const listener of this.listeners) {
+      try {
+        listener(value)
+      } catch (err) {
+        console.error("Subject listener threw", err)
+      }
+    }
   }
 
   clear(): void {

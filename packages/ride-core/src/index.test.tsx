@@ -281,7 +281,7 @@ describe("ride-core", () => {
     expect(secondSend).not.toHaveBeenCalled()
   })
 
-  it("retries a pending command after a send failure", async () => {
+  it("retries a pending command after a send failure with backoff", async () => {
     const trainer = new TestTrainer()
     const sendCommand = vi.spyOn(trainer, "sendCommand")
     sendCommand.mockRejectedValueOnce(new Error("temporary failure"))
@@ -299,8 +299,9 @@ describe("ride-core", () => {
     })
     expect(session.getState().lastError).toBe("temporary failure")
 
+    // Backoff is ~100ms for first retry (+ jitter), so wait enough for backoff
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(50)
+      await vi.advanceTimersByTimeAsync(200)
     })
 
     expect(sendCommand).toHaveBeenCalledTimes(2)
@@ -385,5 +386,98 @@ describe("ride-core", () => {
 
     expect(Capability.TargetPower).toBe("write.targetPower")
     expect(command.type).toBe("setTargetPower")
+  })
+
+  it("rejects with timeout code when connect takes too long", async () => {
+    const session = createRideSession({ connectTimeoutMs: 500 })
+    const trainer = new DeferredConnectTrainer()
+
+    const connectPromise = session.connectTrainer(trainer)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(600)
+    })
+    await connectPromise
+
+    expect(session.getState()).toMatchObject({
+      trainerConnected: false,
+      lastError: "Trainer connect timed out",
+      lastTrainerError: { code: "timeout", message: "Trainer connect timed out" },
+      telemetry: {
+        trainerStatus: "error",
+      },
+    })
+  })
+
+  it("clears error state after a successful command send", async () => {
+    const trainer = new TestTrainer()
+    const sendCommand = vi.spyOn(trainer, "sendCommand")
+    sendCommand.mockRejectedValueOnce(new Error("transient failure"))
+    const session = createRideSession()
+    await session.connectTrainer(trainer)
+
+    await session.controls.dispatch(
+      { type: "setTargetPower", watts: 200 },
+      "user",
+      { priority: "immediate" }
+    )
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+    expect(session.getState().lastError).toBe("transient failure")
+
+    // Second dispatch succeeds
+    await session.controls.dispatch(
+      { type: "setTargetPower", watts: 210 },
+      "user",
+      { priority: "immediate" }
+    )
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+
+    expect(session.getState().lastError).toBeNull()
+    expect(session.getState().telemetry.trainerStatus).toBe("ready")
+  })
+
+  it("cleans up superseded trainer on concurrent connect", async () => {
+    const session = createRideSession()
+    const firstTrainer = new DeferredConnectTrainer()
+    const secondTrainer = new TestTrainer()
+    const firstDisconnect = vi.spyOn(firstTrainer, "disconnect")
+
+    const connect1 = session.connectTrainer(firstTrainer)
+    const connect2 = session.connectTrainer(secondTrainer)
+
+    await connect2
+    firstTrainer.finishConnect()
+    await connect1
+
+    // First trainer should have been disconnected
+    expect(firstDisconnect).toHaveBeenCalled()
+    // Second trainer should be connected
+    expect(session.getState().trainerConnected).toBe(true)
+  })
+
+  it("dispose stops timers and disconnects trainer", async () => {
+    const session = createRideSession()
+    const trainer = new TestTrainer()
+    const disconnect = vi.spyOn(trainer, "disconnect")
+    await session.connectTrainer(trainer)
+
+    await session.dispose()
+
+    expect(disconnect).toHaveBeenCalled()
+    expect(session.getState().trainerConnected).toBe(false)
+  })
+
+  it("throws when connecting to disposed session", async () => {
+    const session = createRideSession()
+    await session.dispose()
+
+    await expect(
+      session.connectTrainer(new TestTrainer())
+    ).rejects.toThrow("Session disposed")
   })
 })

@@ -1,5 +1,31 @@
 import { Capability } from "@ramp/ride-contracts"
 import { commandCapability } from "./policy"
+
+// Simple Subject implementation for error events
+class Subject<T> {
+  private readonly listeners = new Set<(value: T) => void>()
+
+  subscribe(listener: (value: T) => void): () => void {
+    this.listeners.add(listener)
+    return () => {
+      this.listeners.delete(listener)
+    }
+  }
+
+  emit(value: T): void {
+    for (const listener of this.listeners) {
+      try {
+        listener(value)
+      } catch (err) {
+        console.error("Arbiter error listener threw", err)
+      }
+    }
+  }
+
+  clear(): void {
+    this.listeners.clear()
+  }
+}
 import type { ArbitrationPolicy } from "./policy"
 import type {
   DispatchOptions,
@@ -15,12 +41,30 @@ type Pending = {
   source: TrainerCommandSource
   requestedAt: number
   priority: NonNullable<DispatchOptions["priority"]>
+  attempts: number
+  nextAttemptAt: number
+}
+
+export type ArbiterError = {
+  key: CommandKey
+  command: TrainerCommand
+  reason: string
+}
+
+const MAX_ATTEMPTS = 6
+const MAX_BACKOFF_MS = 2000
+
+function backoffFor(attempts: number): number {
+  const base = Math.min(MAX_BACKOFF_MS, 100 * Math.pow(2, attempts - 1))
+  const jitter = Math.random() * 50
+  return base + jitter
 }
 
 export class CommandArbiter {
   private readonly pending = new Map<CommandKey, Pending>()
   private readonly lastSentAt = new Map<CommandKey, number>()
   private inFlight: { key: CommandKey; pending: Pending } | null = null
+  readonly errors = new Subject<ArbiterError>()
 
   constructor(
     private readonly policy: ArbitrationPolicy,
@@ -40,11 +84,14 @@ export class CommandArbiter {
     ) {
       return
     }
+    const now = this.now()
     this.pending.set(key, {
       command,
       source,
-      requestedAt: this.now(),
+      requestedAt: now,
       priority: options.priority ?? "normal",
+      attempts: 0,
+      nextAttemptAt: now,
     })
   }
 
@@ -56,11 +103,13 @@ export class CommandArbiter {
     }
   }
 
-  async flush(trainer: RideTrainerAdapter | null): Promise<void> {
-    if (!trainer || this.inFlight) return
+  async flush(
+    trainer: RideTrainerAdapter | null
+  ): Promise<{ sent: true; key: CommandKey } | { sent: false }> {
+    if (!trainer || this.inFlight) return { sent: false }
     const now = this.now()
     const nextEntry = this.nextSendableEntry(now)
-    if (!nextEntry) return
+    if (!nextEntry) return { sent: false }
 
     const [key, pending] = nextEntry
     this.inFlight = { key, pending }
@@ -70,6 +119,28 @@ export class CommandArbiter {
         this.pending.delete(key)
       }
       this.lastSentAt.set(key, now)
+      return { sent: true, key }
+    } catch (error: unknown) {
+      // Handle retry with backoff
+      const currentPending = this.pending.get(key)
+      if (currentPending === pending) {
+        const newAttempts = pending.attempts + 1
+        if (newAttempts >= MAX_ATTEMPTS) {
+          // Max retries reached, drop and emit error
+          this.pending.delete(key)
+          const reason =
+            error instanceof Error ? error.message : "command-rejected:max-retries"
+          this.errors.emit({ key, command: pending.command, reason })
+        } else {
+          // Schedule retry with backoff
+          this.pending.set(key, {
+            ...pending,
+            attempts: newAttempts,
+            nextAttemptAt: this.now() + backoffFor(newAttempts),
+          })
+        }
+      }
+      throw error
     } finally {
       this.inFlight = null
     }
@@ -98,6 +169,9 @@ export class CommandArbiter {
   }
 
   private isSendable(key: CommandKey, pending: Pending, now: number): boolean {
+    // Must wait for backoff delay
+    if (now < pending.nextAttemptAt) return false
+
     const coalesceMs = isCapabilityKey(key)
       ? (this.policy.coalesceMs[key] ?? 0)
       : 0

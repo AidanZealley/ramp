@@ -46,6 +46,7 @@ export type TrainerErrorCode =
   | "command-rejected"
   | "stale-telemetry"
   | "validation"
+  | "timeout"
   | "unknown"
 
 export type TrainerError = {
@@ -53,6 +54,10 @@ export type TrainerError = {
   message: string
   cause?: unknown
 }
+
+export const RIDE_CONTRACT_VERSION = "1.0.0" as const
+
+const VALID_MODES = ["erg", "resistance", "simulation", "free"] as const
 
 export const TRAINER_COMMAND_LIMITS = {
   targetPowerWatts: { min: 0, max: 2500 },
@@ -99,18 +104,36 @@ export function validateTrainerCommand(
       )
     }
     case "setMode":
+      if (!VALID_MODES.includes(command.mode)) {
+        return { ok: false, reason: "setMode.mode:invalid-value" }
+      }
+      return { ok: true }
     case "requestCalibration":
     case "disconnect":
       return { ok: true }
+    default: {
+      const _exhaustive: never = command
+      return { ok: false, reason: `unknown-command-type:${(_exhaustive as TrainerCommand).type}` }
+    }
   }
 }
 
-export function clampTargetPowerWatts(watts: number): number {
-  return clampInteger(
-    watts,
-    TRAINER_COMMAND_LIMITS.targetPowerWatts.min,
-    TRAINER_COMMAND_LIMITS.targetPowerWatts.max
-  )
+export type ClampResult =
+  | { ok: true; value: number }
+  | { ok: false; reason: string }
+
+export function clampTargetPowerWatts(watts: number): ClampResult {
+  if (!Number.isFinite(watts)) {
+    return { ok: false, reason: "must-be-finite" }
+  }
+  return {
+    ok: true,
+    value: clampInteger(
+      watts,
+      TRAINER_COMMAND_LIMITS.targetPowerWatts.min,
+      TRAINER_COMMAND_LIMITS.targetPowerWatts.max
+    ),
+  }
 }
 
 function validateIntegerRange(

@@ -41,6 +41,13 @@ export type DispatchOptions = {
   priority?: "normal" | "immediate"
 }
 
+export type RideFrameData = {
+  telemetry: RideTrainerTelemetry | null
+  elapsedSeconds: number
+  distanceMeters: number
+  deltaMs: number
+}
+
 export type RideTrainerTelemetry = TrainerTelemetry
 export type RideTrainerError = TrainerError
 export type RideTrainerConnectionState = TrainerConnectionState
@@ -61,11 +68,14 @@ export interface RideTrainerAdapter {
 
 export interface RideSessionController {
   getState: () => RideSessionState
+  getLatestTelemetry: () => RideTrainerTelemetry | null
   subscribe: (listener: () => void) => () => void
+  subscribeFrame: (listener: (frame: RideFrameData) => void) => () => void
   connectTrainer: (trainer: RideTrainerAdapter) => Promise<void>
   disconnectTrainer: () => Promise<void>
   pause: () => void
   resume: () => void
+  dispose: () => Promise<void>
   controls: TrainerControlAPI
 }
 
