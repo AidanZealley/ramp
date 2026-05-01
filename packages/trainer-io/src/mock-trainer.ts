@@ -1,10 +1,11 @@
 import {
   Capability,
-  validateTrainerCommand,
-  type TrainerCapabilities,
-  type TrainerCommand,
+  
+  
+  validateTrainerCommand
 } from "@ramp/ride-contracts"
 import { Subject } from "./observable"
+import type {TrainerCapabilities, TrainerCommand} from "@ramp/ride-contracts";
 import type {
   TrainerConnectionState,
   TrainerError,

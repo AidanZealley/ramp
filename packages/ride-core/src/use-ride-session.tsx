@@ -126,11 +126,11 @@ export function useRideHeartbeat(
       countRef.current = entry.count
 
       return () => {
-        entry!.listeners.delete(onStoreChange)
-        if (entry!.listeners.size === 0 && entry!.timer) {
-          clearInterval(entry!.timer)
-          entry!.timer = null
-          sessionMap!.delete(hz)
+        entry.listeners.delete(onStoreChange)
+        if (entry.listeners.size === 0 && entry.timer) {
+          clearInterval(entry.timer)
+          entry.timer = null
+          sessionMap.delete(hz)
         }
       }
     },

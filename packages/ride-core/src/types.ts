@@ -1,9 +1,9 @@
 import type React from "react"
 import type {
   Capability,
-  TrainerConnectionState,
   TrainerCapabilities,
   TrainerCommand,
+  TrainerConnectionState,
   TrainerError,
   TrainerSourceKind,
   TrainerTelemetry,

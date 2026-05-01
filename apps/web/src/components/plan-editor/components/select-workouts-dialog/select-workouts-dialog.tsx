@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import { toast } from "sonner"
 import { Trash2 } from "lucide-react"
-import { api } from "#convex/_generated/api"
 import { DAYS_PER_WEEK, WEEKDAYS, WEEKDAY_SHORT } from "../../constants"
 import { DialogWeekdaySlot } from "./components/dialog-weekday-slot"
 import { DialogWorkoutFilters } from "./components/dialog-workout-filters"
@@ -11,6 +10,7 @@ import { matchesWorkoutFilters, sortWorkouts } from "./utils"
 import type { DurationFilter, SortOption } from "./types"
 import type { PlanEditorWeek } from "../../types"
 import type { Id } from "#convex/_generated/dataModel"
+import { api } from "#convex/_generated/api"
 import {
   Dialog,
   DialogContent,

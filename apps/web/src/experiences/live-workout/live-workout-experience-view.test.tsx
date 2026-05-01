@@ -1,12 +1,12 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
-import { describe, expect, it, vi, beforeEach } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { Capability } from "@ramp/ride-core"
 import { LiveWorkoutExperienceView } from "./live-workout-experience-view"
 
 const useQuery = vi.fn()
 
 vi.mock("convex/react", () => ({
-  useQuery: (...args: unknown[]) => useQuery(...args),
+  useQuery: (...args: Array<unknown>) => useQuery(...args),
 }))
 
 function createSession(options?: {

@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest"
 import {
+  
   generateWorldChunk,
-  sampleRouteAtDistance,
-  type WorldState,
+  sampleRouteAtDistance
 } from "./index"
+import type {WorldState} from "./index";
 
 const world: WorldState = {
   theme: "countryside",

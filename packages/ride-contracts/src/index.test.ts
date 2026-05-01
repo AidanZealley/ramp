@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest"
 import {
   Capability,
-  clampTargetPowerWatts,
-  type TrainerCommand,
   TRAINER_COMMAND_LIMITS,
-  validateTrainerCommand,
+  
+  clampTargetPowerWatts,
+  validateTrainerCommand
 } from "./index"
+import type {TrainerCommand} from "./index";
 
 describe("ride-contracts", () => {
   it("exports the canonical capability values", () => {

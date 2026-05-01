@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import { Settings } from "lucide-react"
-import { api } from "#convex/_generated/api"
 import type { PowerDisplayMode } from "@/lib/workout-utils"
+import { api } from "#convex/_generated/api"
 import {
   Dialog,
   DialogContent,

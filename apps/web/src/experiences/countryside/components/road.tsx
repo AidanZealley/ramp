@@ -8,8 +8,8 @@ import {
   Vector2,
   Vector3,
 } from "three"
-import type { RouteSample } from "../procgen/types"
 import { ROAD_HALF_WIDTH_METERS } from "../world-config"
+import type { RouteSample } from "../procgen/types"
 
 type RideRoadProps = {
   routeSamples: Array<RouteSample>
@@ -72,8 +72,8 @@ export function RideRoad({ routeSamples }: RideRoadProps) {
 }
 
 function createRoadGeometry(routeSamples: Array<RouteSample>): BufferGeometry {
-  const positions: number[] = []
-  const indices: number[] = []
+  const positions: Array<number> = []
+  const indices: Array<number> = []
 
   routeSamples.forEach((sample) => {
     const left = offsetSample(sample, -ROAD_HALF_WIDTH_METERS)

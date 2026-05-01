@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { useConvex, useMutation, useQuery } from "convex/react"
 import { useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
-import { useWorkoutPageController } from "@/hooks/workout/use-workout-page-controller"
 import type { WorkoutPageController } from "@/hooks/workout/use-workout-page-controller"
 import type { ConvexError } from "convex/values"
 import type { Id } from "#convex/_generated/dataModel"
 import type { Interval } from "@/lib/workout-utils"
+import { useWorkoutPageController } from "@/hooks/workout/use-workout-page-controller"
 import { downloadTextFile, workoutToMrc } from "@/lib/exporters"
 
 vi.mock("convex/react", () => ({

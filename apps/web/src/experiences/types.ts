@@ -4,7 +4,7 @@ export type RideExperienceDefinition = {
   id: string
   displayName: string
   description: string
-  tags: string[]
+  tags: Array<string>
   accent: {
     from: string
     to: string

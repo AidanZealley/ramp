@@ -1,7 +1,7 @@
 import { useMemo } from "react"
 import { generateWorldChunk } from "../procgen/generate"
-import { RideChunk } from "./chunk"
 import { RIDE_WORLD } from "../world-config"
+import { RideChunk } from "./chunk"
 
 type RideWorldProps = {
   distanceMeters: number

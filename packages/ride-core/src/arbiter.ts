@@ -1,5 +1,12 @@
 import { Capability } from "@ramp/ride-contracts"
 import { commandCapability } from "./policy"
+import type { ArbitrationPolicy } from "./policy"
+import type {
+  DispatchOptions,
+  RideTrainerAdapter,
+  TrainerCommand,
+  TrainerCommandSource,
+} from "./types"
 
 // Simple Subject implementation for error events
 class Subject<T> {
@@ -26,13 +33,6 @@ class Subject<T> {
     this.listeners.clear()
   }
 }
-import type { ArbitrationPolicy } from "./policy"
-import type {
-  DispatchOptions,
-  RideTrainerAdapter,
-  TrainerCommand,
-  TrainerCommandSource,
-} from "./types"
 
 type CommandKey = Capability | "mode" | "disconnect"
 

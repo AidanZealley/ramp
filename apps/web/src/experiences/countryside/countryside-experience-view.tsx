@@ -1,8 +1,9 @@
 import { useEffect } from "react"
-import { useRideSession, type RideSessionController } from "@ramp/ride-core"
+import {  useRideSession } from "@ramp/ride-core"
 import { sampleRouteAtDistance } from "./procgen/generate"
 import { RideScene } from "./components/ride-scene"
 import { RIDE_WORLD } from "./world-config"
+import type {RideSessionController} from "@ramp/ride-core";
 
 export function CountrysideExperienceView({
   session,

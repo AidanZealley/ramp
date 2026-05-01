@@ -18,7 +18,7 @@ export function generateWorldChunk(input: GenerateWorldChunkInput): WorldChunk {
   const startDistanceMeters = input.index * chunkLength
   const endDistanceMeters = startDistanceMeters + chunkLength
   const sampleCount = Math.ceil(chunkLength / SAMPLE_SPACING_METERS)
-  const routeSamples: RouteSample[] = []
+  const routeSamples: Array<RouteSample> = []
 
   for (let sampleIndex = 0; sampleIndex <= sampleCount; sampleIndex += 1) {
     const distance = startDistanceMeters + sampleIndex * SAMPLE_SPACING_METERS
@@ -66,9 +66,9 @@ export function sampleRouteAtDistance(
 
 function createTerrainPatches(
   input: GenerateWorldChunkInput,
-  samples: RouteSample[]
-): TerrainPatch[] {
-  const patches: TerrainPatch[] = []
+  samples: Array<RouteSample>
+): Array<TerrainPatch> {
+  const patches: Array<TerrainPatch> = []
   const colors = ["#7fb069", "#9fca6b", "#6fa15e", "#c0b66a"]
 
   for (let index = 0; index < samples.length - 1; index += 1) {
@@ -118,9 +118,9 @@ function createProps(
   input: GenerateWorldChunkInput,
   startDistanceMeters: number,
   endDistanceMeters: number
-): WorldProp[] {
+): Array<WorldProp> {
   const random = mulberry32(hashString(`${input.seed}-props-${input.index}`))
-  const props: WorldProp[] = []
+  const props: Array<WorldProp> = []
   const kinds: Array<WorldPropKind> = [
     "tree",
     "tree",

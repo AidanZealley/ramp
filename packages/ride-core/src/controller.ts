@@ -1,11 +1,13 @@
 import {
-  validateTrainerCommand,
-  type TrainerError,
-  type TrainerTelemetry,
+  
+  
+  validateTrainerCommand
 } from "@ramp/ride-contracts"
 import { CommandArbiter } from "./arbiter"
+import {  defaultPolicy, enforce } from "./policy"
+import type {ArbitrationPolicy} from "./policy";
+import type {TrainerError, TrainerTelemetry} from "@ramp/ride-contracts";
 import type { TrainerControlAPI } from "./controls"
-import { defaultPolicy, enforce, type ArbitrationPolicy } from "./policy"
 import type {
   DispatchResult,
   RideFrameData,
@@ -424,7 +426,7 @@ export function createRideSession(
                 reject({
                   code: "timeout",
                   message: "Trainer connect timed out",
-                } as TrainerError),
+                }),
               connectTimeoutMs
             )
           ),

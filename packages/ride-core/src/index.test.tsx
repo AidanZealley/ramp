@@ -4,10 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { createRideSession } from "./controller"
 import { useRideSession } from "./use-ride-session"
 import {
-  Capability,
-  type RideTrainerAdapter,
-  type TrainerCommand,
+  Capability
+  
+  
 } from "./index"
+import type {RideTrainerAdapter, TrainerCommand} from "./index";
 import type {
   RideTrainerConnectionState,
   RideTrainerError,

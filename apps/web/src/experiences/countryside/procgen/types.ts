@@ -36,9 +36,9 @@ export type WorldChunk = {
   index: number
   startDistanceMeters: number
   endDistanceMeters: number
-  routeSamples: RouteSample[]
-  terrainPatches: TerrainPatch[]
-  props: WorldProp[]
+  routeSamples: Array<RouteSample>
+  terrainPatches: Array<TerrainPatch>
+  props: Array<WorldProp>
 }
 
 export type WorldState = {

@@ -1,9 +1,9 @@
 import { useFrame, useThree } from "@react-three/fiber"
 import { useLayoutEffect, useMemo } from "react"
 import { Vector3 } from "three"
-import type { Camera } from "three"
 import { sampleRouteAtDistance } from "../procgen/generate"
 import { RIDE_WORLD } from "../world-config"
+import type { Camera } from "three"
 
 type RideCameraProps = {
   distanceMeters: number

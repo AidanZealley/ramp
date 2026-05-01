@@ -1,11 +1,11 @@
 import { Play, RefreshCw } from "lucide-react"
+import { TrainerStatusBadge } from "./components/trainer-status-badge"
+import { WorkoutDetail } from "./components/workout-detail"
 import type { RideTelemetry } from "@ramp/ride-core"
 import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { TrainerStatusBadge } from "./components/trainer-status-badge"
-import { WorkoutDetail } from "./components/workout-detail"
 
 type TrainerStatus = RideTelemetry["trainerStatus"]
 

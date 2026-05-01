@@ -1,7 +1,8 @@
 import {
-  Capability,
-  type Capability as CapabilityName,
+  Capability
+  
 } from "@ramp/ride-contracts"
+import type {Capability as CapabilityName} from "@ramp/ride-contracts";
 import type {
   DispatchResult,
   TrainerCapabilities,

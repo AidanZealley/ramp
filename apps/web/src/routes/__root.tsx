@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-router"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
+import { TriangleRight } from "lucide-react"
 import appCss from "../styles.css?url"
 import type { QueryClient } from "@tanstack/react-query"
 import { SettingsDialog } from "@/components/settings-dialog"
@@ -15,7 +16,6 @@ import { ModeToggle } from "@/components/mode-toggle"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { getThemeServerFn } from "@/lib/theme"
-import { TriangleRight } from "lucide-react"
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
