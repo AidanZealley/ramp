@@ -98,7 +98,7 @@ function TelemetryField({
   unit?: string
 }) {
   const display =
-    value === null || value === undefined
+    value === null
       ? "--"
       : unit
         ? `${typeof value === "number" ? Math.round(value) : value} ${unit}`

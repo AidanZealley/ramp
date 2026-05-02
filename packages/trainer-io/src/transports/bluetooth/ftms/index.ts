@@ -1,12 +1,9 @@
-import { Capability, Subject, commandCapability, validateTrainerCommand } from "@ramp/ride-contracts"
-import type {
-  TrainerCapabilities,
-  TrainerCommand,
-  TrainerConnectionState,
-  TrainerError,
-  TrainerSource,
-  TrainerTelemetryMessage,
-} from "../../../types"
+import {
+  Capability,
+  Subject,
+  commandCapability,
+  validateTrainerCommand,
+} from "@ramp/ride-contracts"
 import { GattService } from "../web-bluetooth/gatt-service"
 import { mapWebBluetoothError } from "../web-bluetooth/request-device"
 import {
@@ -21,7 +18,6 @@ import {
   createInitialBleTrainerDeviceInfo,
   readBleTrainerDeviceInfo,
 } from "./device-info"
-import type { BleTrainerDeviceInfo } from "./device-info"
 import { FtmsControlPointClient } from "./control-point"
 import {
   decodeFitnessMachineFeature,
@@ -32,6 +28,15 @@ import {
   decodeSupportedPowerRange,
   decodeSupportedResistanceLevelRange,
 } from "./supported-ranges"
+import type { BleTrainerDeviceInfo } from "./device-info"
+import type {
+  TrainerCapabilities,
+  TrainerCommand,
+  TrainerConnectionState,
+  TrainerError,
+  TrainerSource,
+  TrainerTelemetryMessage,
+} from "../../../types"
 
 export type FtmsBleTrainerOptions = {
   device: BluetoothDevice
@@ -63,12 +68,12 @@ export class FtmsBleTrainer implements TrainerSource {
   private readonly telemetrySubject = new Subject<TrainerTelemetryMessage>()
   private readonly stateSubject = new Subject<TrainerConnectionState>()
   private readonly errorSubject = new Subject<TrainerError>()
-  private _capabilities: TrainerCapabilities = new Set()
+  private _capabilities = new Set<Capability>()
   state: TrainerConnectionState = { kind: "disconnected" }
   deviceInfo: BleTrainerDeviceInfo
 
   get capabilities(): TrainerCapabilities {
-    return this._capabilities
+    return new Set(this._capabilities)
   }
 
   private readonly now: () => number
@@ -86,8 +91,8 @@ export class FtmsBleTrainer implements TrainerSource {
     this.requestTimeoutMs = options.requestTimeoutMs ?? 3000
     this.connectionFactory =
       options.connectionFactory ?? createFtmsConnectionFromDevice
-    this.deviceInfo = createInitialBleTrainerDeviceInfo(options.device)
     this.device = options.device
+    this.deviceInfo = createInitialBleTrainerDeviceInfo(options.device)
   }
 
   private readonly device: BluetoothDevice
@@ -135,15 +140,21 @@ export class FtmsBleTrainer implements TrainerSource {
       }
 
       this.connection = connection
-      this._capabilities = connection.capabilities
+      this._capabilities = new Set(connection.capabilities)
       console.info("[trainer-io][ftms] connect complete", {
         capabilities: Array.from(connection.capabilities),
         deviceInfo: this.deviceInfo,
       })
       this.setState({ kind: "connected" })
     } catch (error: unknown) {
+      if (generation !== this.connectGeneration) {
+        this.resetConnectionScopedState()
+        return
+      }
+
       const trainerError = mapWebBluetoothError(error, "transport")
       console.error("[trainer-io][ftms] connect failed", trainerError)
+      this.resetConnectionScopedState()
       this.errorSubject.emit(trainerError)
       this.setState({ kind: "error", error: trainerError })
       throw trainerError
@@ -161,6 +172,7 @@ export class FtmsBleTrainer implements TrainerSource {
       // release that would add up to 3s of needless latency.
       await connection?.disconnect()
     } finally {
+      this.resetConnectionScopedState()
       this.setState({ kind: "disconnected" })
     }
   }
@@ -191,8 +203,8 @@ export class FtmsBleTrainer implements TrainerSource {
       return
     }
     if (command.type === "setMode") {
-      this.mode = command.mode
-      if (command.mode === "free" && this.connection) {
+      const nextMode = command.mode
+      if (nextMode === "free" && this.connection) {
         try {
           await this.connection.release()
         } catch (error: unknown) {
@@ -202,6 +214,7 @@ export class FtmsBleTrainer implements TrainerSource {
           throw trainerError
         }
       }
+      this.mode = nextMode
       return
     }
     if (command.type === "requestCalibration") {
@@ -263,8 +276,15 @@ export class FtmsBleTrainer implements TrainerSource {
     this.stateSubject.emit(state)
   }
 
+  private resetConnectionScopedState(): void {
+    this._capabilities = new Set()
+    this.mode = "free"
+    this.deviceInfo = createInitialBleTrainerDeviceInfo(this.device)
+  }
+
   private handleUnexpectedDisconnect(): void {
     this.connection = null
+    this.resetConnectionScopedState()
     const error: TrainerError = {
       code: "transport",
       message: "Trainer disconnected unexpectedly.",
@@ -286,7 +306,9 @@ async function createFtmsConnectionFromDevice(
     throw mapWebBluetoothError({ name: "NotSupportedError" }, "unsupported")
   }
 
+  let isIntentionalDisconnect = false
   const disconnectedListener = () => {
+    if (isIntentionalDisconnect) return
     input.onDisconnected()
   }
   device.addEventListener("gattserverdisconnected", disconnectedListener)
@@ -367,11 +389,15 @@ async function createFtmsConnectionFromDevice(
         await releaseTrainerControl(controlPoint, capabilities)
       },
       async disconnect() {
+        isIntentionalDisconnect = true
         unsubscribeTelemetry()
         try {
           await releaseTrainerControl(controlPoint, capabilities)
         } catch (error: unknown) {
-          console.warn("[trainer-io][ftms] reset during disconnect failed", error)
+          console.warn(
+            "[trainer-io][ftms] reset during disconnect failed",
+            error
+          )
         }
         await Promise.allSettled([
           indoorBikeData.stopNotifications(),
@@ -412,19 +438,22 @@ async function readOptionalCharacteristic(
 }
 
 function mergeReadCapabilities(
-  previous: TrainerCapabilities,
+  previous: ReadonlySet<Capability>,
   telemetry: TrainerTelemetryMessage
-): TrainerCapabilities {
-  const additions: Capability[] = []
+): Set<Capability> {
+  const additions: Array<Capability> = []
   if (telemetry.powerWatts !== null && !previous.has(Capability.ReadPower))
     additions.push(Capability.ReadPower)
   if (telemetry.cadenceRpm !== null && !previous.has(Capability.ReadCadence))
     additions.push(Capability.ReadCadence)
   if (telemetry.speedMps !== null && !previous.has(Capability.ReadSpeed))
     additions.push(Capability.ReadSpeed)
-  if (telemetry.heartRateBpm !== null && !previous.has(Capability.ReadHeartRate))
+  if (
+    telemetry.heartRateBpm !== null &&
+    !previous.has(Capability.ReadHeartRate)
+  )
     additions.push(Capability.ReadHeartRate)
-  if (additions.length === 0) return previous
+  if (additions.length === 0) return new Set(previous)
   const next = new Set(previous)
   for (const cap of additions) next.add(cap)
   return next
@@ -435,7 +464,7 @@ function errorMatchesCode(error: unknown, code: TrainerError["code"]): boolean {
     typeof error === "object" &&
     error !== null &&
     "code" in error &&
-    (error as { code: unknown }).code === code
+    (error).code === code
   )
 }
 

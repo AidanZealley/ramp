@@ -9,6 +9,7 @@ export default [
       "apps/web/.output/**",
       "apps/web/dist/**",
       "convex/_generated/**",
+      "eslint.config.js",
     ],
   },
   ...tanstackConfig,

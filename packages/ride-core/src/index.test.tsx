@@ -3,18 +3,14 @@ import { act, renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { createRideSession } from "./controller"
 import { useRideR3FFrame, useRideSession } from "./use-ride-session"
-import {
-  Capability
-
-
-} from "./index"
-import type {RideTrainerAdapter, TrainerCommand} from "./index";
+import { createRAFShim } from "./test-utils/raf-shim"
+import { Capability } from "./index"
+import type { RideTrainerAdapter, TrainerCommand } from "./index"
 import type {
   RideTrainerConnectionState,
   RideTrainerError,
   RideTrainerTelemetry,
 } from "./types"
-import { createRAFShim } from "./test-utils/raf-shim"
 
 class TestTrainer implements RideTrainerAdapter {
   readonly capabilities: RideTrainerAdapter["capabilities"]
@@ -48,9 +44,10 @@ class TestTrainer implements RideTrainerAdapter {
     return Promise.resolve()
   }
 
-  async sendCommand(command: TrainerCommand): Promise<void> {
+  sendCommand(command: TrainerCommand): Promise<void> {
     if (command.type === "setTargetPower") this.targetWatts = command.watts
-    if (command.type === "disconnect") await this.disconnect()
+    if (command.type === "disconnect") return this.disconnect()
+    return Promise.resolve()
   }
 
   subscribeTelemetry(listener: (t: RideTrainerTelemetry) => void): () => void {
@@ -98,24 +95,30 @@ class TestTrainer implements RideTrainerAdapter {
 
 class DeferredConnectTrainer extends TestTrainer {
   private resolveConnect: (() => void) | null = null
+  private rejectConnect: ((error: unknown) => void) | null = null
 
-  override async connect(): Promise<void> {
-    await new Promise<void>((resolve) => {
+  override connect(): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
       this.resolveConnect = resolve
+      this.rejectConnect = reject
     })
   }
 
   finishConnect(): void {
     this.resolveConnect?.()
   }
+
+  failConnect(error: unknown): void {
+    this.rejectConnect?.(error)
+  }
 }
 
 class FailingConnectTrainer extends TestTrainer {
-  override async connect(): Promise<void> {
-    throw {
+  override connect(): Promise<void> {
+    return Promise.reject({
       code: "transport",
       message: "connect failed",
-    } satisfies RideTrainerError
+    } satisfies RideTrainerError)
   }
 }
 
@@ -134,7 +137,9 @@ describe("ride-core", () => {
   })
 
   // Helper so every session in tests gets the injected rAF shim
-  const createTestSession = (opts: Parameters<typeof createRideSession>[0] = {}) =>
+  const createTestSession = (
+    opts: Parameters<typeof createRideSession>[0] = {}
+  ) =>
     createRideSession({
       requestAnimationFrame: rafShim.requestAnimationFrame,
       cancelAnimationFrame: rafShim.cancelAnimationFrame,
@@ -222,6 +227,42 @@ describe("ride-core", () => {
 
     expect(session.getState().trainerConnected).toBe(false)
     expect(session.getState().telemetry.trainerStatus).toBe("disconnected")
+  })
+
+  it("keeps a disconnected state when a superseded connect later fails", async () => {
+    const trainer = new DeferredConnectTrainer()
+    const session = createTestSession()
+    const connect = session.connectTrainer(trainer)
+
+    await session.disconnectTrainer()
+    trainer.failConnect({
+      code: "transport",
+      message: "stale connect failed",
+    } satisfies RideTrainerError)
+    await connect
+
+    expect(session.getState()).toMatchObject({
+      trainerConnected: false,
+      lastError: null,
+      lastTrainerError: null,
+      telemetry: {
+        trainerStatus: "disconnected",
+      },
+    })
+  })
+
+  it("returns an isolated capabilities view from the control API", async () => {
+    const session = createTestSession()
+    await session.connectTrainer(
+      new TestTrainer(() => Date.now(), new Set([Capability.TargetPower]))
+    )
+
+    const capabilities = session.controls.getCapabilities()
+    ;(capabilities as Set<Capability>).clear()
+
+    expect(session.controls.getCapabilities().has(Capability.TargetPower)).toBe(
+      true
+    )
   })
 
   it("stops distance and elapsed progression after telemetry goes stale", async () => {
@@ -416,7 +457,10 @@ describe("ride-core", () => {
     expect(session.getState()).toMatchObject({
       trainerConnected: false,
       lastError: "Trainer connect timed out",
-      lastTrainerError: { code: "timeout", message: "Trainer connect timed out" },
+      lastTrainerError: {
+        code: "timeout",
+        message: "Trainer connect timed out",
+      },
       telemetry: {
         trainerStatus: "error",
       },
@@ -490,9 +534,9 @@ describe("ride-core", () => {
     const session = createTestSession()
     await session.dispose()
 
-    await expect(
-      session.connectTrainer(new TestTrainer())
-    ).rejects.toThrow("Session disposed")
+    await expect(session.connectTrainer(new TestTrainer())).rejects.toThrow(
+      "Session disposed"
+    )
   })
 
   // ---------------------------------------------------------------------------
@@ -532,7 +576,7 @@ describe("ride-core", () => {
       const session = createTestSession({ telemetryIntervalMs: 100 })
       await session.connectTrainer(new TestTrainer())
 
-      const frames: number[] = []
+      const frames: Array<number> = []
       session.subscribeFrame((f) => frames.push(f.elapsedSeconds))
 
       await act(async () => {

@@ -11,6 +11,8 @@ import type {
 } from "@ramp/ride-contracts"
 import type { TrainerControlAPI } from "./controls"
 
+export type TrainerCapabilitiesView = ReadonlySet<Capability>
+
 export type RideTelemetry = {
   elapsedSeconds: number
   distanceMeters: number

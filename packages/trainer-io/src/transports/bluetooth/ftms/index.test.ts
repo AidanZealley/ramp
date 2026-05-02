@@ -1,6 +1,8 @@
 import { Capability } from "@ramp/ride-contracts"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { FtmsBleTrainer } from "./index"
+import type { TrainerTelemetryMessage } from "../../../types"
+import type { BleTrainerDeviceInfo } from "./device-info"
 
 function createDevice(): BluetoothDevice {
   return {
@@ -18,12 +20,13 @@ describe("FtmsBleTrainer", () => {
     const states: Array<string> = []
     const trainer = new FtmsBleTrainer({
       device: createDevice(),
-      connectionFactory: async () => ({
-        capabilities: new Set([Capability.TargetPower]),
-        release: async () => undefined,
-        disconnect: async () => undefined,
-        sendCommand: async () => undefined,
-      }),
+      connectionFactory: () =>
+        Promise.resolve({
+          capabilities: new Set([Capability.TargetPower]),
+          release: () => Promise.resolve(undefined),
+          disconnect: () => Promise.resolve(undefined),
+          sendCommand: () => Promise.resolve(undefined),
+        }),
     })
 
     trainer.subscribeState((state) => states.push(state.kind))
@@ -37,9 +40,7 @@ describe("FtmsBleTrainer", () => {
     const errors: Array<string> = []
     const trainer = new FtmsBleTrainer({
       device: createDevice(),
-      connectionFactory: async () => {
-        throw new Error("boom")
-      },
+      connectionFactory: () => Promise.reject(new Error("boom")),
     })
 
     trainer.subscribeError((error) => errors.push(error.code))
@@ -49,15 +50,38 @@ describe("FtmsBleTrainer", () => {
     expect(errors).toEqual(["transport"])
   })
 
+  it("treats disconnect during connect as supersession, not an error", async () => {
+    let rejectConnect!: (error: unknown) => void
+    const errors: Array<string> = []
+    const trainer = new FtmsBleTrainer({
+      device: createDevice(),
+      connectionFactory: () =>
+        new Promise((_, reject) => {
+          rejectConnect = reject
+        }),
+    })
+
+    trainer.subscribeError((error) => errors.push(error.code))
+
+    const connect = trainer.connect()
+    await trainer.disconnect()
+    rejectConnect(new Error("stale failure"))
+    await connect
+
+    expect(trainer.state.kind).toBe("disconnected")
+    expect(errors).toEqual([])
+  })
+
   it("rejects trainer commands when capabilities are absent", async () => {
     const trainer = new FtmsBleTrainer({
       device: createDevice(),
-      connectionFactory: async () => ({
-        capabilities: new Set(),
-        release: async () => undefined,
-        disconnect: async () => undefined,
-        sendCommand: async () => undefined,
-      }),
+      connectionFactory: () =>
+        Promise.resolve({
+          capabilities: new Set(),
+          release: () => Promise.resolve(undefined),
+          disconnect: () => Promise.resolve(undefined),
+          sendCommand: () => Promise.resolve(undefined),
+        }),
     })
 
     await trainer.connect()
@@ -69,14 +93,15 @@ describe("FtmsBleTrainer", () => {
   it("maps control response timeouts through sendCommand", async () => {
     const trainer = new FtmsBleTrainer({
       device: createDevice(),
-      connectionFactory: async () => ({
-        capabilities: new Set([Capability.TargetPower]),
-        release: async () => undefined,
-        disconnect: async () => undefined,
-        sendCommand: async () => {
-          throw { code: "timeout", message: "late" }
-        },
-      }),
+      connectionFactory: () =>
+        Promise.resolve({
+          capabilities: new Set([Capability.TargetPower]),
+          release: () => Promise.resolve(undefined),
+          disconnect: () => Promise.resolve(undefined),
+          sendCommand: () => {
+            throw { code: "timeout", message: "late" }
+          },
+        }),
     })
 
     await trainer.connect()
@@ -87,15 +112,16 @@ describe("FtmsBleTrainer", () => {
   })
 
   it("releases to resistance zero on free mode when supported", async () => {
-    const release = vi.fn(async () => undefined)
+    const release = vi.fn(() => Promise.resolve(undefined))
     const trainer = new FtmsBleTrainer({
       device: createDevice(),
-      connectionFactory: async () => ({
-        capabilities: new Set([Capability.TargetPower, Capability.Resistance]),
-        release,
-        disconnect: async () => undefined,
-        sendCommand: async () => undefined,
-      }),
+      connectionFactory: () =>
+        Promise.resolve({
+          capabilities: new Set([Capability.TargetPower, Capability.Resistance]),
+          release,
+          disconnect: () => Promise.resolve(undefined),
+          sendCommand: () => Promise.resolve(undefined),
+        }),
     })
 
     await trainer.connect()
@@ -104,19 +130,46 @@ describe("FtmsBleTrainer", () => {
     expect(release).toHaveBeenCalledTimes(1)
   })
 
+  it("keeps the previous mode when setMode free fails", async () => {
+    const sendCommand = vi.fn(() => Promise.resolve(undefined))
+    const trainer = new FtmsBleTrainer({
+      device: createDevice(),
+      connectionFactory: () =>
+        Promise.resolve({
+          capabilities: new Set([Capability.TargetPower, Capability.Resistance]),
+          release: vi.fn(() => Promise.reject(new Error("release failed"))),
+          disconnect: () => Promise.resolve(undefined),
+          sendCommand,
+        }),
+    })
+
+    await trainer.connect()
+    await trainer.sendCommand({ type: "setMode", mode: "erg" })
+    await expect(
+      trainer.sendCommand({ type: "setMode", mode: "free" })
+    ).rejects.toMatchObject({ code: "transport" })
+
+    await trainer.sendCommand({ type: "setTargetPower", watts: 200 })
+    expect(sendCommand).toHaveBeenCalledWith({
+      type: "setTargetPower",
+      watts: 200,
+    })
+  })
+
   // C1: mode routing
   it("rejects setTargetPower in simulation mode", async () => {
     const trainer = new FtmsBleTrainer({
       device: createDevice(),
-      connectionFactory: async () => ({
-        capabilities: new Set([
-          Capability.TargetPower,
-          Capability.SimulationGrade,
-        ]),
-        release: async () => undefined,
-        disconnect: async () => undefined,
-        sendCommand: async () => undefined,
-      }),
+      connectionFactory: () =>
+        Promise.resolve({
+          capabilities: new Set([
+            Capability.TargetPower,
+            Capability.SimulationGrade,
+          ]),
+          release: () => Promise.resolve(undefined),
+          disconnect: () => Promise.resolve(undefined),
+          sendCommand: () => Promise.resolve(undefined),
+        }),
     })
 
     await trainer.connect()
@@ -129,15 +182,16 @@ describe("FtmsBleTrainer", () => {
   it("rejects setSimulationGrade in erg mode", async () => {
     const trainer = new FtmsBleTrainer({
       device: createDevice(),
-      connectionFactory: async () => ({
-        capabilities: new Set([
-          Capability.TargetPower,
-          Capability.SimulationGrade,
-        ]),
-        release: async () => undefined,
-        disconnect: async () => undefined,
-        sendCommand: async () => undefined,
-      }),
+      connectionFactory: () =>
+        Promise.resolve({
+          capabilities: new Set([
+            Capability.TargetPower,
+            Capability.SimulationGrade,
+          ]),
+          release: () => Promise.resolve(undefined),
+          disconnect: () => Promise.resolve(undefined),
+          sendCommand: () => Promise.resolve(undefined),
+        }),
     })
 
     await trainer.connect()
@@ -153,16 +207,17 @@ describe("FtmsBleTrainer", () => {
   it("rejects all power/resistance/simulation commands in free mode", async () => {
     const trainer = new FtmsBleTrainer({
       device: createDevice(),
-      connectionFactory: async () => ({
-        capabilities: new Set([
-          Capability.TargetPower,
-          Capability.Resistance,
-          Capability.SimulationGrade,
-        ]),
-        release: async () => undefined,
-        disconnect: async () => undefined,
-        sendCommand: async () => undefined,
-      }),
+      connectionFactory: () =>
+        Promise.resolve({
+          capabilities: new Set([
+            Capability.TargetPower,
+            Capability.Resistance,
+            Capability.SimulationGrade,
+          ]),
+          release: () => Promise.resolve(undefined),
+          disconnect: () => Promise.resolve(undefined),
+          sendCommand: () => Promise.resolve(undefined),
+        }),
     })
 
     await trainer.connect()
@@ -179,15 +234,16 @@ describe("FtmsBleTrainer", () => {
   })
 
   it("allows setTargetPower in erg mode", async () => {
-    const sendCommand = vi.fn(async () => undefined)
+    const sendCommand = vi.fn(() => Promise.resolve(undefined))
     const trainer = new FtmsBleTrainer({
       device: createDevice(),
-      connectionFactory: async () => ({
-        capabilities: new Set([Capability.TargetPower]),
-        release: async () => undefined,
-        disconnect: async () => undefined,
-        sendCommand,
-      }),
+      connectionFactory: () =>
+        Promise.resolve({
+          capabilities: new Set([Capability.TargetPower]),
+          release: () => Promise.resolve(undefined),
+          disconnect: () => Promise.resolve(undefined),
+          sendCommand,
+        }),
     })
 
     await trainer.connect()
@@ -202,16 +258,17 @@ describe("FtmsBleTrainer", () => {
 
   // C2: disconnect calls release exactly once (via connection.disconnect)
   it("disconnect does not call release() separately", async () => {
-    const release = vi.fn(async () => undefined)
-    const disconnect = vi.fn(async () => undefined)
+    const release = vi.fn(() => Promise.resolve(undefined))
+    const disconnect = vi.fn(() => Promise.resolve(undefined))
     const trainer = new FtmsBleTrainer({
       device: createDevice(),
-      connectionFactory: async () => ({
-        capabilities: new Set([Capability.TargetPower]),
-        release,
-        disconnect,
-        sendCommand: async () => undefined,
-      }),
+      connectionFactory: () =>
+        Promise.resolve({
+          capabilities: new Set([Capability.TargetPower]),
+          release,
+          disconnect,
+          sendCommand: () => Promise.resolve(undefined),
+        }),
     })
 
     await trainer.connect()
@@ -223,19 +280,20 @@ describe("FtmsBleTrainer", () => {
     expect(release).not.toHaveBeenCalled()
   })
 
-  // C3: capabilities set stability
-  it("mergeReadCapabilities returns same Set when nothing changed", async () => {
-    let emitTelemetry: ((t: import("../../../types").TrainerTelemetryMessage) => void) | null = null
+  it("returns an isolated capabilities view", async () => {
+    let emitTelemetry:
+      | ((t: TrainerTelemetryMessage) => void)
+      | null = null
     const trainer = new FtmsBleTrainer({
       device: createDevice(),
-      connectionFactory: async ({ onTelemetry }) => {
+      connectionFactory: ({ onTelemetry }) => {
         emitTelemetry = onTelemetry
-        return {
+        return Promise.resolve({
           capabilities: new Set<Capability>(),
-          release: async () => undefined,
-          disconnect: async () => undefined,
-          sendCommand: async () => undefined,
-        }
+          release: () => Promise.resolve(undefined),
+          disconnect: () => Promise.resolve(undefined),
+          sendCommand: () => Promise.resolve(undefined),
+        })
       },
     })
 
@@ -250,20 +308,11 @@ describe("FtmsBleTrainer", () => {
       timestampMs: 1000,
       source: "ftms-ble",
     })
-    const capsAfterFirst = trainer.capabilities
+    const caps = trainer.capabilities
+    ;(caps as Set<Capability>).add(Capability.TargetPower)
 
-    // Second tick with same fields — should return same Set reference
-    emitTelemetry!({
-      powerWatts: 210,
-      cadenceRpm: 91,
-      speedMps: 8.1,
-      heartRateBpm: null,
-      timestampMs: 1100,
-      source: "ftms-ble",
-    })
-
-    expect(trainer.capabilities).toBe(capsAfterFirst)
-    expect(capsAfterFirst.size).toBe(3) // power, cadence, speed
+    expect(trainer.capabilities.has(Capability.TargetPower)).toBe(false)
+    expect(caps.size).toBe(4)
   })
 
   // H1: unexpected disconnect emits error state only
@@ -272,14 +321,14 @@ describe("FtmsBleTrainer", () => {
     const states: Array<string> = []
     const trainer = new FtmsBleTrainer({
       device: createDevice(),
-      connectionFactory: async ({ onDisconnected }) => {
+      connectionFactory: ({ onDisconnected }) => {
         triggerDisconnect = onDisconnected
-        return {
+        return Promise.resolve({
           capabilities: new Set([Capability.TargetPower]),
-          release: async () => undefined,
-          disconnect: async () => undefined,
-          sendCommand: async () => undefined,
-        }
+          release: () => Promise.resolve(undefined),
+          disconnect: () => Promise.resolve(undefined),
+          sendCommand: () => Promise.resolve(undefined),
+        })
       },
     })
 
@@ -293,16 +342,73 @@ describe("FtmsBleTrainer", () => {
     expect(states).toEqual(["error"])
   })
 
+  it("resets connection-scoped state on disconnect", async () => {
+    let emitTelemetry!: (
+      t: TrainerTelemetryMessage
+    ) => void
+    let setDeviceInfo!: (
+      deviceInfo: BleTrainerDeviceInfo
+    ) => void
+    const trainer = new FtmsBleTrainer({
+      device: createDevice(),
+      connectionFactory: ({ onTelemetry, onDeviceInfo }) => {
+        emitTelemetry = onTelemetry
+        setDeviceInfo = onDeviceInfo
+        return Promise.resolve({
+          capabilities: new Set([Capability.TargetPower]),
+          release: () => Promise.resolve(undefined),
+          disconnect: () => Promise.resolve(undefined),
+          sendCommand: () => Promise.resolve(undefined),
+        })
+      },
+    })
+
+    await trainer.connect()
+    await trainer.sendCommand({ type: "setMode", mode: "erg" })
+    emitTelemetry({
+      powerWatts: 220,
+      cadenceRpm: 90,
+      speedMps: 8,
+      heartRateBpm: 150,
+      timestampMs: 1000,
+      source: "ftms-ble",
+    })
+    setDeviceInfo({
+      id: "trainer-1",
+      name: "KICKR CORE",
+      manufacturer: "Wahoo",
+      modelNumber: "CORE",
+      firmwareRevision: "1.0.0",
+      isKickr: true,
+    })
+
+    await trainer.disconnect()
+
+    expect(Array.from(trainer.capabilities)).toEqual([])
+    expect(trainer.deviceInfo).toMatchObject({
+      id: "trainer-1",
+      name: "KICKR CORE",
+      manufacturer: null,
+      modelNumber: null,
+      firmwareRevision: null,
+      isKickr: true,
+    })
+    await expect(
+      trainer.sendCommand({ type: "setTargetPower", watts: 200 })
+    ).rejects.toMatchObject({ code: "command-rejected" })
+  })
+
   // H4: double connect returns same promise
   it("second connect() returns same promise as first", async () => {
     const trainer = new FtmsBleTrainer({
       device: createDevice(),
-      connectionFactory: async () => ({
-        capabilities: new Set([Capability.TargetPower]),
-        release: async () => undefined,
-        disconnect: async () => undefined,
-        sendCommand: async () => undefined,
-      }),
+      connectionFactory: () =>
+        Promise.resolve({
+          capabilities: new Set([Capability.TargetPower]),
+          release: () => Promise.resolve(undefined),
+          disconnect: () => Promise.resolve(undefined),
+          sendCommand: () => Promise.resolve(undefined),
+        }),
     })
 
     const first = trainer.connect()

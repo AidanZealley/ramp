@@ -25,7 +25,7 @@ declare global {
       }
 
   interface Bluetooth {
-    requestDevice(options: RequestDeviceOptions): Promise<BluetoothDevice>
+    requestDevice: (options: RequestDeviceOptions) => Promise<BluetoothDevice>
   }
 
   interface Navigator {
@@ -40,26 +40,26 @@ declare global {
 
   interface BluetoothRemoteGATTServer {
     readonly connected: boolean
-    connect(): Promise<BluetoothRemoteGATTServer>
-    disconnect(): void
-    getPrimaryService(
+    connect: () => Promise<BluetoothRemoteGATTServer>
+    disconnect: () => void
+    getPrimaryService: (
       service: BluetoothServiceUUID
-    ): Promise<BluetoothRemoteGATTService>
+    ) => Promise<BluetoothRemoteGATTService>
   }
 
   interface BluetoothRemoteGATTService {
-    getCharacteristic(
+    getCharacteristic: (
       characteristic: BluetoothCharacteristicUUID
-    ): Promise<BluetoothRemoteGATTCharacteristic>
+    ) => Promise<BluetoothRemoteGATTCharacteristic>
   }
 
   interface BluetoothRemoteGATTCharacteristic extends EventTarget {
     readonly uuid: string
     readonly value?: DataView | null
-    readValue(): Promise<DataView>
-    writeValue(value: BufferSource): Promise<void>
-    writeValueWithResponse?(value: BufferSource): Promise<void>
-    startNotifications(): Promise<BluetoothRemoteGATTCharacteristic>
-    stopNotifications?(): Promise<BluetoothRemoteGATTCharacteristic>
+    readValue: () => Promise<DataView>
+    writeValue: (value: BufferSource) => Promise<void>
+    writeValueWithResponse?: (value: BufferSource) => Promise<void>
+    startNotifications: () => Promise<BluetoothRemoteGATTCharacteristic>
+    stopNotifications?: () => Promise<BluetoothRemoteGATTCharacteristic>
   }
 }

@@ -1,7 +1,4 @@
-import {
-  Subject,
-  validateTrainerCommand,
-} from "@ramp/ride-contracts"
+import { Subject, validateTrainerCommand } from "@ramp/ride-contracts"
 import { CommandArbiter } from "./arbiter"
 import { defaultPolicy, enforce } from "./policy"
 import type { ArbitrationPolicy } from "./policy"
@@ -15,7 +12,7 @@ import type {
   RideTelemetry,
   RideTrainerAdapter,
   RideTrainerTelemetry,
-  TrainerCapabilities,
+  TrainerCapabilitiesView,
 } from "./types"
 
 export type CreateRideSessionOptions = {
@@ -32,7 +29,7 @@ export type CreateRideSessionOptions = {
   cancelAnimationFrame?: (handle: number) => void
 }
 
-const emptyCapabilities: TrainerCapabilities = new Set()
+const emptyCapabilities: TrainerCapabilitiesView = new Set()
 
 type LatestTelemetry = TrainerTelemetry | null
 
@@ -341,7 +338,7 @@ export function createRideSession(
       return { ok: true }
     },
     getCapabilities() {
-      return trainer?.capabilities ?? emptyCapabilities
+      return trainer ? new Set(trainer.capabilities) : emptyCapabilities
     },
   }
 

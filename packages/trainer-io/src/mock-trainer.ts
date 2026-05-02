@@ -24,7 +24,8 @@ export type MockTrainerOptions = {
 
 export class MockTrainer implements TrainerSource {
   readonly kind = "mock"
-  readonly capabilities: TrainerCapabilities
+  private readonly capabilitiesView: TrainerCapabilities
+  private readonly mutableCapabilities: Set<Capability>
   private readonly telemetrySubject = new Subject<TrainerTelemetryMessage>()
   private readonly stateSubject = new Subject<TrainerConnectionState>()
   private readonly errorSubject = new Subject<TrainerError>()
@@ -54,8 +55,14 @@ export class MockTrainer implements TrainerSource {
     this.now = options.now ?? (() => Date.now())
     this.basePowerToSpeed = options.basePowerToSpeed ?? 0.035
     this.manualPowerWatts = options.initial?.powerWatts ?? 180
-    this.capabilities =
-      options.capabilities ?? new Set(Object.values(Capability))
+    this.mutableCapabilities = new Set(
+      options.capabilities ?? Object.values(Capability)
+    )
+    this.capabilitiesView = new Set(this.mutableCapabilities)
+  }
+
+  get capabilities(): TrainerCapabilities {
+    return new Set(this.capabilitiesView)
   }
 
   connect(): Promise<void> {
@@ -112,7 +119,7 @@ export class MockTrainer implements TrainerSource {
     }
 
     const capability = commandCapability(command)
-    if (capability && !this.capabilities.has(capability)) {
+    if (capability && !this.mutableCapabilities.has(capability)) {
       const error: TrainerError = {
         code: "command-rejected",
         message: `Unsupported command: ${command.type}`,

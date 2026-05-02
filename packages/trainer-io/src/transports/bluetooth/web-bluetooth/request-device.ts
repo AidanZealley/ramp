@@ -1,5 +1,5 @@
-import type { TrainerError } from "../../../types"
 import { createControllableTrainerRequestOptions } from "./uuids"
+import type { TrainerError } from "../../../types"
 
 export type BleTrainerRequestOptions = {
   requestDevice?: (options: RequestDeviceOptions) => Promise<BluetoothDevice>
@@ -110,7 +110,7 @@ function getErrorName(error: unknown): string | null {
     typeof error === "object" &&
     error !== null &&
     "name" in error &&
-    typeof (error as { name: unknown }).name === "string"
+    typeof (error).name === "string"
   ) {
     return (error as { name: string }).name
   }

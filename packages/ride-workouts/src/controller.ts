@@ -1,10 +1,6 @@
-import {
-  Capability
-  
-  
-} from "@ramp/ride-core"
+import { Capability } from "@ramp/ride-core"
 import { getWorkoutSegmentAtElapsed } from "./segments"
-import type {DispatchResult, RideSessionController} from "@ramp/ride-core";
+import type { DispatchResult, RideSessionController } from "@ramp/ride-core"
 import type { WorkoutDefinition } from "./types"
 
 export type WorkoutSessionState = {
@@ -70,6 +66,7 @@ export function createWorkoutController({
   let totalDurationSeconds = 0
   let state: WorkoutSessionState = { ...initialState }
   let disposed = false
+  let asyncStateGeneration = 0
 
   const notify = () => {
     for (const listener of listeners) {
@@ -96,16 +93,22 @@ export function createWorkoutController({
     previous.controlStatus === next.controlStatus &&
     previous.lastError === next.lastError
 
-  const setWorkoutState = (next: WorkoutSessionState) => {
-    if (statesAreEqual(state, next)) {
-      state = next
+  const setWorkoutState = (
+    next:
+      | WorkoutSessionState
+      | ((previous: WorkoutSessionState) => WorkoutSessionState)
+  ) => {
+    const resolved = typeof next === "function" ? next(state) : next
+    if (statesAreEqual(state, resolved)) {
+      state = resolved
       return
     }
-    state = next
+    state = resolved
     notify()
   }
 
   const failState = (reason: string) => {
+    asyncStateGeneration += 1
     setWorkoutState({
       ...initialState,
       totalDurationSeconds,
@@ -117,25 +120,28 @@ export function createWorkoutController({
   const dispatchFreeMode = async () => {
     if (freeModeSent) return
     freeModeSent = true
+    const generation = asyncStateGeneration
     try {
       const result = await session.controls.dispatch(
         { type: "setMode", mode: "free" },
         "workout"
       )
+      if (generation !== asyncStateGeneration || disposed) return
       if (!result.ok) {
-        setWorkoutState({
-          ...state,
+        setWorkoutState((previous) => ({
+          ...previous,
           lastError: result.reason,
-        })
+        }))
       }
     } catch (err) {
       freeModeSent = false
+      if (generation !== asyncStateGeneration || disposed) return
       const message = err instanceof Error ? err.message : String(err)
-      setWorkoutState({
-        ...state,
+      setWorkoutState((previous) => ({
+        ...previous,
         controlStatus: "error",
         lastError: message,
-      })
+      }))
     }
   }
 
@@ -190,6 +196,7 @@ export function createWorkoutController({
       const isFirstDispatch = lastDispatchSecond === -Infinity
       lastDispatchSecond = dispatchSecond
       lastDispatchSegmentIndex = segment.index
+      const generation = asyncStateGeneration
       void session.controls
         .dispatch(
           { type: "setTargetPower", watts: segment.targetWatts },
@@ -200,27 +207,29 @@ export function createWorkoutController({
           }
         )
         .then((result) => {
+          if (generation !== asyncStateGeneration || disposed) return
           if (result.ok) {
-            setWorkoutState({
-              ...state,
+            setWorkoutState((previous) => ({
+              ...previous,
               controlStatus: "active",
               lastError: null,
-            })
+            }))
             return
           }
-          setWorkoutState({
-            ...state,
+          setWorkoutState((previous) => ({
+            ...previous,
             controlStatus: "error",
             lastError: result.reason,
-          })
+          }))
         })
         .catch((err: unknown) => {
+          if (generation !== asyncStateGeneration || disposed) return
           const message = err instanceof Error ? err.message : String(err)
-          setWorkoutState({
-            ...state,
+          setWorkoutState((previous) => ({
+            ...previous,
             controlStatus: "error",
             lastError: message,
-          })
+          }))
         })
     }
   }
@@ -247,6 +256,7 @@ export function createWorkoutController({
         return { ok: false, reason: "invalid-workout:no-active-segment" }
       }
 
+      asyncStateGeneration += 1
       setWorkoutState({
         ...initialState,
         totalDurationSeconds,
@@ -305,6 +315,7 @@ export function createWorkoutController({
     },
     clearWorkout() {
       if (disposed || !activeWorkout) return
+      asyncStateGeneration += 1
       activeWorkout = null
       totalDurationSeconds = 0
       lastDispatchSecond = -Infinity
@@ -325,6 +336,7 @@ export function createWorkoutController({
     dispose() {
       if (disposed) return
       disposed = true
+      asyncStateGeneration += 1
       if (activeWorkout) {
         void dispatchFreeMode().catch(() => undefined)
       }

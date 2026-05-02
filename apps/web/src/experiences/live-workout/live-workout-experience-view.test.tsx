@@ -16,9 +16,7 @@ function createSession(options?: {
 }) {
   const dispatch =
     options?.dispatchImpl ??
-    vi.fn(async () => {
-      return { ok: true } as const
-    })
+    vi.fn(() => Promise.resolve({ ok: true } as const))
 
   const state = {
     telemetry: {

@@ -63,5 +63,7 @@ export const experienceCatalog: Record<string, RideExperienceDefinition> =
   )
 
 export function getRideExperienceDefinition(experienceId: string) {
-  return experienceCatalog[experienceId] ?? null
+  return (
+    rideExperiences.find((experience) => experience.id === experienceId) ?? null
+  )
 }

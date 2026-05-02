@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
+  FtmsControlPointClient,
   decodeControlPointResponse,
   encodeReset,
   encodeSetResistance,
   encodeSetSimulationGrade,
   encodeSetTargetPower,
-  FtmsControlPointClient,
 } from "./control-point"
 
 describe("FTMS control point encoding", () => {
@@ -55,9 +55,9 @@ describe("FtmsControlPointClient", () => {
     const client = new FtmsControlPointClient(
       {
         uuid: "control",
-        startNotifications: vi.fn(async () => undefined),
-        stopNotifications: vi.fn(async () => undefined),
-        writeValue: vi.fn(async () => undefined),
+        startNotifications: vi.fn(() => Promise.resolve(undefined)),
+        stopNotifications: vi.fn(() => Promise.resolve(undefined)),
+        writeValue: vi.fn(() => Promise.resolve(undefined)),
         subscribe(listener: (value: DataView) => void) {
           void listener
           return () => {
@@ -73,5 +73,62 @@ describe("FtmsControlPointClient", () => {
     await vi.advanceTimersByTimeAsync(1000)
 
     await expect(outcome).resolves.toMatchObject({ code: "timeout" })
+  })
+
+  it("resolves when the response arrives immediately after write initiation", async () => {
+    let listener: ((value: DataView) => void) | null = null
+    const client = new FtmsControlPointClient(
+      {
+        uuid: "control",
+        startNotifications: vi.fn(() => Promise.resolve(undefined)),
+        stopNotifications: vi.fn(() => Promise.resolve(undefined)),
+        writeValue: vi.fn(() => {
+          listener?.(new DataView(Uint8Array.of(0x80, 0x00, 0x01).buffer))
+          return Promise.resolve(undefined)
+        }),
+        subscribe(next: (value: DataView) => void) {
+          listener = next
+          return () => {
+            listener = null
+          }
+        },
+      } as never,
+      1000
+    )
+
+    await client.start()
+
+    await expect(client.requestControl()).resolves.toBeUndefined()
+  })
+
+  it("clears pending state when the write fails so the next command can proceed", async () => {
+    let listener: ((value: DataView) => void) | null = null
+    const writeValue = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("write failed"))
+      .mockImplementationOnce(() => {
+        listener?.(new DataView(Uint8Array.of(0x80, 0x00, 0x01).buffer))
+        return Promise.resolve(undefined)
+      })
+    const client = new FtmsControlPointClient(
+      {
+        uuid: "control",
+        startNotifications: vi.fn(() => Promise.resolve(undefined)),
+        stopNotifications: vi.fn(() => Promise.resolve(undefined)),
+        writeValue,
+        subscribe(next: (value: DataView) => void) {
+          listener = next
+          return () => {
+            listener = null
+          }
+        },
+      } as never,
+      1000
+    )
+
+    await client.start()
+
+    await expect(client.requestControl()).rejects.toThrow("write failed")
+    await expect(client.requestControl()).resolves.toBeUndefined()
   })
 })

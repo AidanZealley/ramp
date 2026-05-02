@@ -16,9 +16,7 @@ function createSessionHarness(options?: {
   let trainerConnected = options?.trainerConnected ?? true
   const dispatch =
     options?.dispatchImpl ??
-    vi.fn(async () => {
-      return { ok: true } as const
-    })
+    vi.fn(() => Promise.resolve({ ok: true } as const))
 
   const session = {
     getState: () => ({
@@ -266,10 +264,12 @@ describe("ride-workouts", () => {
 
   it("dispose tolerates rejected free-mode dispatch", async () => {
     const harness = createSessionHarness({
-      dispatchImpl: vi.fn(async (command) =>
-        command.type === "setMode" && command.mode === "free"
-          ? { ok: false, reason: "transport" }
-          : { ok: true }
+      dispatchImpl: vi.fn((command) =>
+        Promise.resolve(
+          command.type === "setMode" && command.mode === "free"
+            ? { ok: false, reason: "transport" }
+            : { ok: true }
+        )
       ),
     })
     const controller = createWorkoutController({ session: harness.session })
@@ -286,17 +286,99 @@ describe("ride-workouts", () => {
     expect(() => controller.dispose()).not.toThrow()
   })
 
+  it("ignores stale target dispatch completion after clearWorkout", async () => {
+    let resolveDispatch!: (value: { ok: true }) => void
+    const dispatch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({ ok: true })
+      .mockImplementationOnce(
+        () =>
+          new Promise<{ ok: true }>((resolve) => {
+            resolveDispatch = resolve
+          })
+      )
+      .mockResolvedValueOnce({ ok: true })
+    const harness = createSessionHarness({ dispatchImpl: dispatch })
+    const controller = createWorkoutController({ session: harness.session })
+
+    await controller.loadWorkout(
+      {
+        id: "w1",
+        title: "Workout",
+        powerMode: "percentage",
+        intervals: [
+          { startPower: 100, endPower: 100, durationSeconds: 1 },
+          { startPower: 150, endPower: 150, durationSeconds: 10 },
+        ],
+      },
+      200
+    )
+
+    harness.setElapsedSeconds(1)
+    harness.tick()
+    controller.clearWorkout()
+    resolveDispatch({ ok: true })
+    await Promise.resolve()
+
+    expect(controller.getState()).toEqual({
+      activeWorkoutId: null,
+      activeSegmentLabel: null,
+      activeSegmentIndex: null,
+      targetWatts: null,
+      isActive: false,
+      elapsedSeconds: 0,
+      totalDurationSeconds: 0,
+      isComplete: false,
+      controlStatus: "idle",
+      lastError: null,
+    })
+  })
+
+  it("preserves complete state if free-mode dispatch fails after completion", async () => {
+    const dispatch = vi.fn((command) =>
+      Promise.resolve(
+        command.type === "setMode" && command.mode === "free"
+          ? { ok: false, reason: "transport" }
+          : { ok: true }
+      )
+    )
+    const harness = createSessionHarness({ dispatchImpl: dispatch })
+    const controller = createWorkoutController({ session: harness.session })
+
+    await controller.loadWorkout(
+      {
+        id: "w1",
+        title: "Workout",
+        powerMode: "percentage",
+        intervals: [{ startPower: 100, endPower: 100, durationSeconds: 1 }],
+      },
+      200
+    )
+
+    harness.setElapsedSeconds(2)
+    harness.tick()
+    await vi.waitFor(() => {
+      expect(controller.getState().isComplete).toBe(true)
+    })
+
+    expect(controller.getState()).toMatchObject({
+      isComplete: true,
+      controlStatus: "complete",
+      lastError: "transport",
+    })
+  })
+
   it("sets controlStatus to error when dispatch rejects then clears on success", async () => {
     let callCount = 0
-    const dispatch = vi.fn(async () => {
+    const dispatch = vi.fn(() => {
       callCount++
       // First two calls are setMode and setTargetPower during loadWorkout
-      if (callCount <= 2) return { ok: true } as const
+      if (callCount <= 2) return Promise.resolve({ ok: true } as const)
       // Third call rejects
-      if (callCount === 3)
-        return Promise.reject(new Error("transient failure"))
+      if (callCount === 3) return Promise.reject(new Error("transient failure"))
       // Fourth call succeeds
-      return { ok: true } as const
+      return Promise.resolve({ ok: true } as const)
     })
     const harness = createSessionHarness({ dispatchImpl: dispatch })
     const controller = createWorkoutController({
@@ -370,5 +452,58 @@ describe("ride-workouts", () => {
       "workout",
       { priority: "immediate" }
     )
+  })
+
+  it("ignores stale dispatch failure after a newer workout starts", async () => {
+    let rejectFirstUpdate!: (error: unknown) => void
+    const dispatch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({ ok: true })
+      .mockImplementationOnce(
+        () =>
+          new Promise<never>((_, reject) => {
+            rejectFirstUpdate = reject
+          })
+      )
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({ ok: true })
+    const harness = createSessionHarness({ dispatchImpl: dispatch })
+    const controller = createWorkoutController({ session: harness.session })
+
+    await controller.loadWorkout(
+      {
+        id: "w1",
+        title: "Workout 1",
+        powerMode: "percentage",
+        intervals: [
+          { startPower: 100, endPower: 100, durationSeconds: 1 },
+          { startPower: 150, endPower: 150, durationSeconds: 10 },
+        ],
+      },
+      200
+    )
+
+    harness.setElapsedSeconds(1)
+    harness.tick()
+
+    await controller.loadWorkout(
+      {
+        id: "w2",
+        title: "Workout 2",
+        powerMode: "percentage",
+        intervals: [{ startPower: 120, endPower: 120, durationSeconds: 10 }],
+      },
+      200
+    )
+
+    rejectFirstUpdate(new Error("stale failure"))
+    await Promise.resolve()
+
+    expect(controller.getState()).toMatchObject({
+      activeWorkoutId: "w2",
+      controlStatus: "active",
+      lastError: null,
+    })
   })
 })

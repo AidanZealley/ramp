@@ -153,9 +153,7 @@ export class FtmsControlPointClient {
   }
 
   private async execute(opcode: number, payload: Uint8Array): Promise<void> {
-    await this.characteristic.writeValue(payload as unknown as BufferSource)
-
-    await new Promise<void>((resolve, reject) => {
+    const completion = new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
         if (this.pending?.opcode !== opcode) return
         this.pending = null
@@ -167,6 +165,19 @@ export class FtmsControlPointClient {
 
       this.pending = { opcode, resolve, reject, timeout }
     })
+
+    try {
+      await this.characteristic.writeValue(payload as unknown as BufferSource)
+    } catch (error: unknown) {
+      if (this.pending?.opcode === opcode) {
+        const pending = this.pending
+        this.pending = null
+        clearTimeout(pending.timeout)
+      }
+      throw error
+    }
+
+    await completion
   }
 
   private handleResponse(value: DataView): void {

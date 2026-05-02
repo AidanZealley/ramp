@@ -40,9 +40,8 @@ describe("Web Bluetooth request helpers", () => {
 
     await expect(
       requestBleDevice({
-        requestDevice: async () => {
-          throw new DOMException("cancelled", "NotFoundError")
-        },
+        requestDevice: () =>
+          Promise.reject(new DOMException("cancelled", "NotFoundError")),
       })
     ).rejects.toMatchObject({ code: "permission" })
   })
