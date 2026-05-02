@@ -1,11 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, Settings } from "lucide-react"
-import { useRideSession } from "@ramp/ride-core"
 import { RideHud } from "./ride-hud"
-import { RideSimulatorControls } from "./ride-simulator-controls"
-import type { RideSessionController } from "@ramp/ride-core"
-import type { MockTrainer, TrainerSource } from "@ramp/trainer-io"
 import type { RideTrainerController } from "@/ride/use-ride-trainer"
 import { Button } from "@/components/ui/button"
 import {
@@ -24,29 +20,18 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 type RideOverlayProps = {
-  session: RideSessionController
-  trainer: TrainerSource
   trainerController: RideTrainerController
 }
 
 const HIDE_DELAY_MS = 2000
-const OVERLAY_TABS = {
-  hud: "hud",
-  controls: "controls",
-} as const
 
 export function RideOverlay({
-  session,
-  trainer,
   trainerController,
 }: RideOverlayProps) {
   const navigate = useNavigate()
-  const state = useRideSession(session)
-  const hasSimulatorControls = isMockTrainerWithManualOverrides(trainer)
-  const usingMockTrainer = trainer.kind === "mock"
+  const usingMockTrainer = trainerController.trainer.kind === "mock"
 
   const [shown, setShown] = useState(true)
   const [isOverlayOpen, setIsOverlayOpen] = useState(false)
@@ -201,48 +186,11 @@ export function RideOverlay({
               side="bottom"
               sideOffset={10}
             >
-              <Tabs defaultValue={OVERLAY_TABS.hud} className="gap-2">
-                <TabsList>
-                  <TabsTrigger value={OVERLAY_TABS.hud}>HUD</TabsTrigger>
-                  {hasSimulatorControls && (
-                    <TabsTrigger value={OVERLAY_TABS.controls}>
-                      Controls
-                    </TabsTrigger>
-                  )}
-                </TabsList>
-                <TabsContent value={OVERLAY_TABS.hud}>
-                  <RideHud />
-                </TabsContent>
-                {hasSimulatorControls && (
-                  <TabsContent value={OVERLAY_TABS.controls}>
-                    <RideSimulatorControls
-                      cadenceRpm={state.telemetry.cadenceRpm ?? 90}
-                      onCadenceChange={(cadenceRpm) => {
-                        trainer.setManualOverrides({ cadenceRpm })
-                      }}
-                      onPauseToggle={() => {
-                        if (state.paused) session.resume()
-                        else session.pause()
-                      }}
-                      onPowerChange={(powerWatts) => {
-                        trainer.setManualOverrides({ powerWatts })
-                      }}
-                      paused={state.paused}
-                      powerWatts={state.telemetry.powerWatts ?? 180}
-                    />
-                  </TabsContent>
-                )}
-              </Tabs>
+              <RideHud />
             </PopoverContent>
           </Popover>
         </div>
       </div>
     </div>
   )
-}
-
-function isMockTrainerWithManualOverrides(
-  trainer: TrainerSource
-): trainer is MockTrainer {
-  return trainer.kind === "mock" && "setManualOverrides" in trainer
 }

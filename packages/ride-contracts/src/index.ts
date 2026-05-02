@@ -55,6 +55,65 @@ export type TrainerError = {
   cause?: unknown
 }
 
+// ---------------------------------------------------------------------------
+// Subject — canonical reactive primitive shared across all packages
+// ---------------------------------------------------------------------------
+
+export class Subject<T> {
+  private readonly listeners = new Set<(value: T) => void>()
+
+  subscribe(listener: (value: T) => void): () => void {
+    this.listeners.add(listener)
+    return () => {
+      this.listeners.delete(listener)
+    }
+  }
+
+  emit(value: T): void {
+    for (const listener of this.listeners) {
+      try {
+        listener(value)
+      } catch (err) {
+        console.error("Subject listener threw", err)
+      }
+    }
+  }
+
+  clear(): void {
+    this.listeners.clear()
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shared trainer adapter interface — used by both trainer-io and ride-core
+// ---------------------------------------------------------------------------
+
+export interface TrainerSource {
+  readonly kind: TrainerSourceKind
+  readonly capabilities: TrainerCapabilities
+  state: TrainerConnectionState
+  connect: () => Promise<void>
+  disconnect: () => Promise<void>
+  sendCommand: (command: TrainerCommand) => Promise<void>
+  subscribeTelemetry: (
+    listener: (t: TrainerTelemetry) => void
+  ) => () => void
+  subscribeState: (listener: (s: TrainerConnectionState) => void) => () => void
+  subscribeError: (listener: (e: TrainerError) => void) => () => void
+}
+
+// ---------------------------------------------------------------------------
+// commandCapability — maps a command to the capability it requires
+// ---------------------------------------------------------------------------
+
+export function commandCapability(command: TrainerCommand): Capability | null {
+  if (command.type === "setTargetPower") return Capability.TargetPower
+  if (command.type === "setResistance") return Capability.Resistance
+  if (command.type === "setSimulationGrade") return Capability.SimulationGrade
+  if (command.type === "requestCalibration") return Capability.Calibration
+  return null
+}
+
 export const RIDE_CONTRACT_VERSION = "1.0.0" as const
 
 const VALID_MODES = ["erg", "resistance", "simulation", "free"] as const

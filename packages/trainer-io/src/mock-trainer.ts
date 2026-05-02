@@ -1,12 +1,12 @@
 import {
   Capability,
-  
-  
-  validateTrainerCommand
+  Subject,
+  commandCapability,
+  validateTrainerCommand,
 } from "@ramp/ride-contracts"
-import { Subject } from "./observable"
-import type {TrainerCapabilities, TrainerCommand} from "@ramp/ride-contracts";
 import type {
+  TrainerCapabilities,
+  TrainerCommand,
   TrainerConnectionState,
   TrainerError,
   TrainerSource,
@@ -33,8 +33,8 @@ export class MockTrainer implements TrainerSource {
   private readonly now: () => number
   private readonly basePowerToSpeed: number
   private timer: ReturnType<typeof setInterval> | null = null
+  private connectPromise: Promise<void> | null = null
   private manualPowerWatts: number
-  private manualCadenceRpm: number
   private ergTargetWatts: number | null = null
   private gradePercent = 0
   private connectGeneration = 0
@@ -54,13 +54,20 @@ export class MockTrainer implements TrainerSource {
     this.now = options.now ?? (() => Date.now())
     this.basePowerToSpeed = options.basePowerToSpeed ?? 0.035
     this.manualPowerWatts = options.initial?.powerWatts ?? 180
-    this.manualCadenceRpm = options.initial?.cadenceRpm ?? 90
     this.capabilities =
       options.capabilities ?? new Set(Object.values(Capability))
   }
 
-  async connect(): Promise<void> {
-    if (this.timer || this.state.kind === "connecting") return
+  connect(): Promise<void> {
+    if (this.connectPromise) return this.connectPromise
+    this.connectPromise = this.doConnect().finally(() => {
+      this.connectPromise = null
+    })
+    return this.connectPromise
+  }
+
+  private async doConnect(): Promise<void> {
+    if (this.timer) return
     const generation = ++this.connectGeneration
     this.setState({ kind: "connecting" })
     if (this.connectDelayMs > 0) {
@@ -85,6 +92,15 @@ export class MockTrainer implements TrainerSource {
   }
 
   async sendCommand(command: TrainerCommand): Promise<void> {
+    if (this.state.kind !== "connected") {
+      const error: TrainerError = {
+        code: "transport",
+        message: "Trainer is not connected.",
+      }
+      this.errorSubject.emit(error)
+      throw error
+    }
+
     const validation = validateTrainerCommand(command)
     if (!validation.ok) {
       const error: TrainerError = {
@@ -129,32 +145,20 @@ export class MockTrainer implements TrainerSource {
     return this.errorSubject.subscribe(listener)
   }
 
-  setManualOverrides(input: {
-    powerWatts?: number
-    cadenceRpm?: number
-  }): void {
-    if (input.powerWatts !== undefined && !Number.isFinite(input.powerWatts)) {
-      throw new Error("powerWatts must be a finite number")
-    }
-    if (input.cadenceRpm !== undefined && !Number.isFinite(input.cadenceRpm)) {
-      throw new Error("cadenceRpm must be a finite number")
-    }
-    this.manualPowerWatts = input.powerWatts ?? this.manualPowerWatts
-    this.manualCadenceRpm = input.cadenceRpm ?? this.manualCadenceRpm
-    this.emitTelemetry()
-  }
-
   private emitTelemetry(): void {
     const powerWatts = this.ergTargetWatts ?? this.manualPowerWatts
+    // Derive cadence from power using a simple linear model so telemetry
+    // responds naturally to power target changes without a mock-only API.
+    const cadenceRpm = deriveCadenceFromPower(powerWatts)
     const speedMps = computeSpeedMps({
       powerWatts,
-      cadenceRpm: this.manualCadenceRpm,
+      cadenceRpm,
       basePowerToSpeed: this.basePowerToSpeed,
       gradePercent: this.gradePercent,
     })
     this.telemetrySubject.emit({
       powerWatts,
-      cadenceRpm: this.manualCadenceRpm,
+      cadenceRpm,
       speedMps,
       heartRateBpm: null,
       timestampMs: this.now(),
@@ -166,14 +170,6 @@ export class MockTrainer implements TrainerSource {
     this.state = state
     this.stateSubject.emit(state)
   }
-}
-
-function commandCapability(command: TrainerCommand): Capability | null {
-  if (command.type === "setTargetPower") return Capability.TargetPower
-  if (command.type === "setResistance") return Capability.Resistance
-  if (command.type === "setSimulationGrade") return Capability.SimulationGrade
-  if (command.type === "requestCalibration") return Capability.Calibration
-  return null
 }
 
 function computeSpeedMps(input: {
@@ -188,6 +184,15 @@ function computeSpeedMps(input: {
     (input.cadenceRpm - 85) * 0.015
   const gradePenalty = Math.max(0.35, 1 - input.gradePercent * 0.055)
   return clamp(base * gradePenalty, 2.5, 16)
+}
+
+/**
+ * Derive a realistic cadence from power output.
+ * Simple linear model: base cadence of 75 rpm, +-0.08 rpm per watt above/below 100W.
+ * Clamped to [40, 120] rpm.
+ */
+function deriveCadenceFromPower(powerWatts: number): number {
+  return clamp(75 + (powerWatts - 100) * 0.08, 40, 120)
 }
 
 function clamp(value: number, min: number, max: number): number {

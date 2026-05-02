@@ -1,12 +1,11 @@
 import {
-  
-  
-  validateTrainerCommand
+  Subject,
+  validateTrainerCommand,
 } from "@ramp/ride-contracts"
 import { CommandArbiter } from "./arbiter"
-import {  defaultPolicy, enforce } from "./policy"
-import type {ArbitrationPolicy} from "./policy";
-import type {TrainerError, TrainerTelemetry} from "@ramp/ride-contracts";
+import { defaultPolicy, enforce } from "./policy"
+import type { ArbitrationPolicy } from "./policy"
+import type { TrainerError, TrainerTelemetry } from "@ramp/ride-contracts"
 import type { TrainerControlAPI } from "./controls"
 import type {
   DispatchResult,
@@ -18,32 +17,6 @@ import type {
   RideTrainerTelemetry,
   TrainerCapabilities,
 } from "./types"
-
-// Simple Subject implementation for frame events
-class FrameSubject {
-  private readonly listeners = new Set<(frame: RideFrameData) => void>()
-
-  subscribe(listener: (frame: RideFrameData) => void): () => void {
-    this.listeners.add(listener)
-    return () => {
-      this.listeners.delete(listener)
-    }
-  }
-
-  emit(frame: RideFrameData): void {
-    for (const listener of this.listeners) {
-      try {
-        listener(frame)
-      } catch (err) {
-        console.error("Frame listener threw", err)
-      }
-    }
-  }
-
-  clear(): void {
-    this.listeners.clear()
-  }
-}
 
 export type CreateRideSessionOptions = {
   now?: () => number
@@ -95,7 +68,7 @@ export function createRideSession(
     ((id: number) => globalThis.cancelAnimationFrame(id))
   const listeners = new Set<() => void>()
   const arbiter = new CommandArbiter(policy, now)
-  const frameSubject = new FrameSubject()
+  const frameSubject = new Subject<RideFrameData>()
   let trainer: RideTrainerAdapter | null = null
   let rafHandle: number | null = null
   let rafLastTickMs = 0
@@ -444,11 +417,14 @@ export function createRideSession(
         }),
       ]
 
+      let timeoutHandle: ReturnType<typeof setTimeout>
+      let connectFailed = false
+      let connectError: unknown
       try {
         await Promise.race([
           nextTrainer.connect(),
-          new Promise<never>((_, reject) =>
-            setTimeout(
+          new Promise<never>((_, reject) => {
+            timeoutHandle = setTimeout(
               () =>
                 reject({
                   code: "timeout",
@@ -456,16 +432,23 @@ export function createRideSession(
                 }),
               connectTimeoutMs
             )
-          ),
+          }),
         ])
       } catch (error: unknown) {
+        connectFailed = true
+        connectError = error
+      } finally {
+        clearTimeout(timeoutHandle!)
+      }
+
+      if (connectFailed) {
         if (generation !== connectionGeneration || trainer !== nextTrainer) {
           // Superseded by a newer connection attempt, clean up the stale adapter
           void nextTrainer.disconnect().catch(() => undefined)
           return
         }
 
-        const trainerError = toTrainerError(error)
+        const trainerError = toTrainerError(connectError)
         clearSubscriptions()
         resetLatestTelemetry()
         stopTimers()

@@ -5,6 +5,7 @@ import type {
   TrainerCommand,
   TrainerConnectionState,
   TrainerError,
+  TrainerSource,
   TrainerSourceKind,
   TrainerTelemetry,
 } from "@ramp/ride-contracts"
@@ -52,19 +53,21 @@ export type RideTrainerTelemetry = TrainerTelemetry
 export type RideTrainerError = TrainerError
 export type RideTrainerConnectionState = TrainerConnectionState
 
-export interface RideTrainerAdapter {
-  readonly capabilities: TrainerCapabilities
-  connect: () => Promise<void>
-  disconnect: () => Promise<void>
-  sendCommand: (command: TrainerCommand) => Promise<void>
-  subscribeTelemetry: (
-    listener: (t: RideTrainerTelemetry) => void
-  ) => () => void
-  subscribeState: (
-    listener: (s: RideTrainerConnectionState) => void
-  ) => () => void
-  subscribeError: (listener: (e: RideTrainerError) => void) => () => void
-}
+/**
+ * Subset of {@link TrainerSource} consumed by ride-core's session controller.
+ * Any TrainerSource satisfies this interface, but ride-core doesn't require
+ * the full `kind` / `state` fields — only the connect/command/subscribe surface.
+ */
+export type RideTrainerAdapter = Pick<
+  TrainerSource,
+  | "capabilities"
+  | "connect"
+  | "disconnect"
+  | "sendCommand"
+  | "subscribeTelemetry"
+  | "subscribeState"
+  | "subscribeError"
+>
 
 export interface RideSessionController {
   getState: () => RideSessionState

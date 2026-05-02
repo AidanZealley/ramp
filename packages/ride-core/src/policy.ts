@@ -1,14 +1,16 @@
 import {
-  Capability
-  
+  Capability,
+  commandCapability,
 } from "@ramp/ride-contracts"
-import type {Capability as CapabilityName} from "@ramp/ride-contracts";
+import type { Capability as CapabilityName } from "@ramp/ride-contracts"
 import type {
   DispatchResult,
   TrainerCapabilities,
   TrainerCommand,
   TrainerCommandSource,
 } from "./types"
+
+export { commandCapability }
 
 export type ArbitrationPolicy = {
   precedence: Record<TrainerCommandSource, number>
@@ -24,16 +26,6 @@ export const defaultPolicy: ArbitrationPolicy = {
     [Capability.Resistance]: 100,
   },
   alwaysAllow: ["disconnect", "requestCalibration"],
-}
-
-export function commandCapability(
-  command: TrainerCommand
-): CapabilityName | null {
-  if (command.type === "setTargetPower") return Capability.TargetPower
-  if (command.type === "setResistance") return Capability.Resistance
-  if (command.type === "setSimulationGrade") return Capability.SimulationGrade
-  if (command.type === "requestCalibration") return Capability.Calibration
-  return null
 }
 
 export function enforce(

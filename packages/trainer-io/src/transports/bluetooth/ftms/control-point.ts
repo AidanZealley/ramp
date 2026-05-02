@@ -20,10 +20,13 @@ export function encodeReset(): Uint8Array {
 }
 
 export function encodeSetTargetPower(watts: number): Uint8Array {
+  // Defensive clamp: this is hardware protocol encoding — ensure the value fits
+  // in a uint16 even if upstream validation is relaxed in the future.
+  const clamped = Math.max(0, Math.min(0xffff, Math.round(watts)))
   const bytes = new Uint8Array(3)
   const view = new DataView(bytes.buffer)
   view.setUint8(0, SET_TARGET_POWER_OPCODE)
-  view.setUint16(1, watts, true)
+  view.setUint16(1, clamped, true)
   return bytes
 }
 

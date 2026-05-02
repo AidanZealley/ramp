@@ -37,6 +37,24 @@ export const rideExperiences: Array<RideExperienceDefinition> = [
     loadPlugin: async () =>
       (await import("./live-workout")).liveWorkoutExperience,
   },
+  {
+    id: "diagnostics",
+    displayName: "Diagnostics",
+    description:
+      "Raw trainer telemetry display and manual command controls for testing.",
+    tags: ["debug", "testing"],
+    accent: {
+      from: "#e2e2e2",
+      to: "#6b7280",
+      ink: "#111827",
+    },
+    preview: {
+      eyebrow: "Developer tools",
+      spotlight: "Raw data + manual control",
+    },
+    loadPlugin: async () =>
+      (await import("./diagnostics")).diagnosticsExperience,
+  },
 ]
 
 export const experienceCatalog: Record<string, RideExperienceDefinition> =

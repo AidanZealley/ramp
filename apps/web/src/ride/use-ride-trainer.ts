@@ -29,6 +29,9 @@ export function useRideTrainer(): RideTrainerController {
       setSelectingBleTrainer(true)
       try {
         const nextTrainer = await requestBleTrainer()
+        // Disconnect the old trainer before switching to avoid orphaned BLE
+        // subscriptions during the gap before session cleanup runs.
+        await trainer.disconnect()
         setTrainer(nextTrainer)
         return true
       } catch {

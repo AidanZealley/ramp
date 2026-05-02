@@ -37,8 +37,6 @@ export function RideSessionPage({
           <ExperienceView session={session} />
         </Suspense>
         <RideOverlay
-          session={session}
-          trainer={trainer}
           trainerController={trainerController}
         />
       </section>

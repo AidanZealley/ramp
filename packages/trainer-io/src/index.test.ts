@@ -81,16 +81,15 @@ describe("MockTrainer", () => {
     )
   })
 
-  it("applies manual override telemetry for simulator controls", async () => {
-    const trainer = new MockTrainer()
+  it("derives cadence from power in telemetry", async () => {
+    const trainer = new MockTrainer({ initial: { powerWatts: 200 } })
     const listener = vi.fn()
     trainer.subscribeTelemetry(listener)
     await trainer.connect()
 
-    trainer.setManualOverrides({ powerWatts: 205, cadenceRpm: 88 })
-
+    // deriveCadenceFromPower(200) = clamp(75 + (200 - 100) * 0.08, 40, 120) = 83
     expect(listener).toHaveBeenLastCalledWith(
-      expect.objectContaining({ powerWatts: 205, cadenceRpm: 88 })
+      expect.objectContaining({ powerWatts: 200, cadenceRpm: 83 })
     )
   })
 
@@ -98,6 +97,7 @@ describe("MockTrainer", () => {
     const trainer = new MockTrainer({
       capabilities: new Set([Capability.ReadPower]),
     })
+    await trainer.connect()
 
     await expect(
       trainer.sendCommand({ type: "setTargetPower", watts: 200 })
@@ -106,10 +106,32 @@ describe("MockTrainer", () => {
 
   it("rejects invalid commands before applying trainer state", async () => {
     const trainer = new MockTrainer()
+    await trainer.connect()
 
     await expect(
       trainer.sendCommand({ type: "setTargetPower", watts: -1 })
     ).rejects.toMatchObject({ code: "validation" })
+  })
+
+  it("sendCommand throws transport error when disconnected", async () => {
+    const trainer = new MockTrainer()
+
+    await expect(
+      trainer.sendCommand({ type: "setTargetPower", watts: 200 })
+    ).rejects.toMatchObject({ code: "transport" })
+  })
+
+  it("second connect() returns same promise as first", async () => {
+    const trainer = new MockTrainer({ connectDelayMs: 500 })
+
+    const first = trainer.connect()
+    const second = trainer.connect()
+
+    expect(second).toBe(first)
+
+    vi.advanceTimersByTime(500)
+    await first
+    expect(trainer.state.kind).toBe("connected")
   })
 
   it("throwing listener does not prevent later listeners from receiving the value", async () => {

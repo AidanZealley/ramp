@@ -1,5 +1,4 @@
-import { Capability, validateTrainerCommand } from "@ramp/ride-contracts"
-import { Subject } from "../../../observable"
+import { Capability, Subject, commandCapability, validateTrainerCommand } from "@ramp/ride-contracts"
 import type {
   TrainerCapabilities,
   TrainerCommand,
@@ -61,12 +60,16 @@ type FtmsConnection = {
 
 export class FtmsBleTrainer implements TrainerSource {
   readonly kind = "ftms-ble"
-  readonly telemetrySubject = new Subject<TrainerTelemetryMessage>()
-  readonly stateSubject = new Subject<TrainerConnectionState>()
-  readonly errorSubject = new Subject<TrainerError>()
-  capabilities: TrainerCapabilities = new Set()
+  private readonly telemetrySubject = new Subject<TrainerTelemetryMessage>()
+  private readonly stateSubject = new Subject<TrainerConnectionState>()
+  private readonly errorSubject = new Subject<TrainerError>()
+  private _capabilities: TrainerCapabilities = new Set()
   state: TrainerConnectionState = { kind: "disconnected" }
   deviceInfo: BleTrainerDeviceInfo
+
+  get capabilities(): TrainerCapabilities {
+    return this._capabilities
+  }
 
   private readonly now: () => number
   private readonly requestTimeoutMs: number
@@ -74,6 +77,7 @@ export class FtmsBleTrainer implements TrainerSource {
     input: FtmsConnectionFactoryInput
   ) => Promise<FtmsConnection>
   private connection: FtmsConnection | null = null
+  private connectPromise: Promise<void> | null = null
   private connectGeneration = 0
   private mode: "erg" | "resistance" | "simulation" | "free" = "free"
 
@@ -88,8 +92,16 @@ export class FtmsBleTrainer implements TrainerSource {
 
   private readonly device: BluetoothDevice
 
-  async connect(): Promise<void> {
-    if (this.connection || this.state.kind === "connecting") return
+  connect(): Promise<void> {
+    if (this.connectPromise) return this.connectPromise
+    this.connectPromise = this.doConnect().finally(() => {
+      this.connectPromise = null
+    })
+    return this.connectPromise
+  }
+
+  private async doConnect(): Promise<void> {
+    if (this.connection) return
     const generation = ++this.connectGeneration
     console.info("[trainer-io][ftms] connect start", {
       deviceName: this.device.name ?? null,
@@ -104,8 +116,8 @@ export class FtmsBleTrainer implements TrainerSource {
         requestTimeoutMs: this.requestTimeoutMs,
         onTelemetry: (telemetry) => {
           this.telemetrySubject.emit(telemetry)
-          this.capabilities = mergeReadCapabilities(
-            this.capabilities,
+          this._capabilities = mergeReadCapabilities(
+            this._capabilities,
             telemetry
           )
         },
@@ -123,7 +135,7 @@ export class FtmsBleTrainer implements TrainerSource {
       }
 
       this.connection = connection
-      this.capabilities = connection.capabilities
+      this._capabilities = connection.capabilities
       console.info("[trainer-io][ftms] connect complete", {
         capabilities: Array.from(connection.capabilities),
         deviceInfo: this.deviceInfo,
@@ -144,9 +156,9 @@ export class FtmsBleTrainer implements TrainerSource {
     const connection = this.connection
     this.connection = null
     try {
-      await connection?.release().catch((error: unknown) => {
-        console.warn("[trainer-io][ftms] release before disconnect failed", error)
-      })
+      // connection.disconnect() already calls releaseTrainerControl internally,
+      // so we do not call release() separately to avoid a redundant second
+      // release that would add up to 3s of needless latency.
       await connection?.disconnect()
     } finally {
       this.setState({ kind: "disconnected" })
@@ -259,8 +271,9 @@ export class FtmsBleTrainer implements TrainerSource {
     }
     console.error("[trainer-io][ftms] unexpected disconnect", error)
     this.errorSubject.emit(error)
+    // Emit only the error state; do not immediately transition to disconnected.
+    // The consumer (ride-core) decides whether to reconnect or give up.
     this.setState({ kind: "error", error })
-    this.setState({ kind: "disconnected" })
   }
 }
 
@@ -398,23 +411,22 @@ async function readOptionalCharacteristic(
   }
 }
 
-function commandCapability(command: TrainerCommand): Capability | null {
-  if (command.type === "setTargetPower") return Capability.TargetPower
-  if (command.type === "setResistance") return Capability.Resistance
-  if (command.type === "setSimulationGrade") return Capability.SimulationGrade
-  if (command.type === "requestCalibration") return Capability.Calibration
-  return null
-}
-
 function mergeReadCapabilities(
   previous: TrainerCapabilities,
   telemetry: TrainerTelemetryMessage
 ): TrainerCapabilities {
+  const additions: Capability[] = []
+  if (telemetry.powerWatts !== null && !previous.has(Capability.ReadPower))
+    additions.push(Capability.ReadPower)
+  if (telemetry.cadenceRpm !== null && !previous.has(Capability.ReadCadence))
+    additions.push(Capability.ReadCadence)
+  if (telemetry.speedMps !== null && !previous.has(Capability.ReadSpeed))
+    additions.push(Capability.ReadSpeed)
+  if (telemetry.heartRateBpm !== null && !previous.has(Capability.ReadHeartRate))
+    additions.push(Capability.ReadHeartRate)
+  if (additions.length === 0) return previous
   const next = new Set(previous)
-  if (telemetry.powerWatts !== null) next.add(Capability.ReadPower)
-  if (telemetry.cadenceRpm !== null) next.add(Capability.ReadCadence)
-  if (telemetry.speedMps !== null) next.add(Capability.ReadSpeed)
-  if (telemetry.heartRateBpm !== null) next.add(Capability.ReadHeartRate)
+  for (const cap of additions) next.add(cap)
   return next
 }
 
@@ -429,13 +441,13 @@ function errorMatchesCode(error: unknown, code: TrainerError["code"]): boolean {
 
 function isCommandRoutable(
   command: TrainerCommand,
-  _mode: "erg" | "resistance" | "simulation" | "free"
+  mode: "erg" | "resistance" | "simulation" | "free"
 ): boolean {
-  return (
-    command.type === "setTargetPower" ||
-    command.type === "setResistance" ||
-    command.type === "setSimulationGrade"
-  )
+  if (mode === "free") return false
+  if (command.type === "setTargetPower") return mode === "erg"
+  if (command.type === "setResistance") return mode === "resistance"
+  if (command.type === "setSimulationGrade") return mode === "simulation"
+  return false
 }
 
 async function releaseTrainerControl(
