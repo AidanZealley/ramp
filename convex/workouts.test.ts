@@ -65,6 +65,14 @@ describe("workouts helpers", () => {
     ])
   })
 
+  it("accepts 10-second intervals for storage without rewriting them", () => {
+    expect(
+      normalizeIntervalsForStorage([
+        { startPower: 100, endPower: 100, durationSeconds: 10 },
+      ])
+    ).toEqual([{ startPower: 100, endPower: 100, durationSeconds: 10 }])
+  })
+
   it("rejects invalid workout intervals", () => {
     expect(() =>
       normalizeIntervalsForStorage([

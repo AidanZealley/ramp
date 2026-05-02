@@ -49,6 +49,24 @@ describe("workoutToMrc", () => {
     expect(dataRows).toEqual(["0.00\t50", "1.00\t100", "1.00\t75", "2.00\t75"])
   })
 
+  it("exports 10-second intervals with minute decimals and integer cue seconds", () => {
+    const mrc = workoutToMrc({
+      title: "Short efforts",
+      intervals: [
+        { startPower: 50, endPower: 50, durationSeconds: 10, comment: "Go" },
+        { startPower: 120, endPower: 120, durationSeconds: 20 },
+      ],
+    })
+
+    expect(extractDataRows(mrc)).toEqual([
+      "0.00\t50",
+      "0.17\t50",
+      "0.17\t120",
+      "0.50\t120",
+    ])
+    expect(extractTextRows(mrc)).toEqual(["0\tGo\t10"])
+  })
+
   it("matches the structural shape of examples/workout.mrc", () => {
     // Reconstruct the seeded "Easy start 45min" workout as intervals
     // (start power, end power, duration in seconds).

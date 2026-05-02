@@ -11,6 +11,7 @@ import {
   DEFAULT_PIXELS_PER_SECOND,
   MAX_PIXELS_PER_SECOND,
   MAX_ZOOM,
+  MIN_DURATION,
   MIN_ZOOM,
   ZOOM_STEP,
 } from "@/lib/timeline/types"
@@ -83,7 +84,7 @@ export function useTimelineZoom({
   // Compute the fit-to-width base scale
   const fitPixelsPerSecond = useMemo(() => {
     if (containerWidth <= 0) return DEFAULT_PIXELS_PER_SECOND
-    const safeDuration = Math.max(totalDurationSec, 30)
+    const safeDuration = Math.max(totalDurationSec, MIN_DURATION)
     const usableWidth = Math.max(containerWidth - edgeGutterPx * 2, 1)
     return Math.min(usableWidth / safeDuration, MAX_PIXELS_PER_SECOND)
   }, [containerWidth, totalDurationSec, edgeGutterPx])

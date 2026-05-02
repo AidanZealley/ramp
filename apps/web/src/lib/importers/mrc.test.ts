@@ -60,6 +60,30 @@ describe("parseMrc", () => {
     })
   })
 
+  it("round-trips 10-second intervals acceptably through .mrc", () => {
+    const intervals: Array<Interval> = [
+      { startPower: 50, endPower: 50, durationSeconds: 10 },
+      { startPower: 80, endPower: 90, durationSeconds: 20, comment: "Lift" },
+      { startPower: 95, endPower: 95, durationSeconds: 10 },
+    ]
+
+    const result = parseMrc(
+      workoutToMrc({
+        title: "Ten second steps",
+        intervals,
+      })
+    )
+
+    expect(result.kind).toBe("ok")
+    if (result.kind !== "ok") return
+
+    expect(result.workout).toEqual({
+      title: "Ten second steps",
+      powerMode: "percentage",
+      intervals,
+    })
+  })
+
   it("imports course text comments onto matching interval start times", () => {
     const mrc = [
       "[COURSE HEADER]",

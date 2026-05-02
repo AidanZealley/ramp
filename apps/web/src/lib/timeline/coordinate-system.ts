@@ -87,7 +87,7 @@ export function computeTimeTicks(
     pixelsPerSecond > 0 ? MIN_LABEL_GAP_PX / pixelsPerSecond : 60
 
   // Candidate step sizes in ascending order (seconds)
-  const NICE_STEPS = [30, 60, 120, 180, 300, 600, 900, 1200, 1800, 3600]
+  const NICE_STEPS = [10, 20, 30, 60, 120, 180, 300, 600, 900, 1200, 1800, 3600]
   const step =
     NICE_STEPS.find((s) => s >= minStepSec) ?? NICE_STEPS[NICE_STEPS.length - 1]
 

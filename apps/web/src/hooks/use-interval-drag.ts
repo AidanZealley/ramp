@@ -120,22 +120,15 @@ export function useIntervalDrag({
             const durationDelta = dx / pixelsPerSecond
             const prevDuration = original[index - 1].durationSeconds
             const currDuration = original[index].durationSeconds
+            const totalDuration = prevDuration + currDuration
 
             // Snap the new current duration the same way the right edge does
-            const newCurrDuration = Math.max(
+            const newCurrDuration = clamp(
+              snap(currDuration - durationDelta, DURATION_SNAP),
               MIN_DURATION,
-              snap(currDuration - durationDelta, DURATION_SNAP)
+              totalDuration - MIN_DURATION
             )
-
-            // How much the current interval actually changed (may differ from
-            // raw delta due to snapping / clamping)
-            const actualDelta = currDuration - newCurrDuration
-
-            // Previous interval absorbs the same change in the opposite direction
-            const newPrevDuration = Math.max(
-              MIN_DURATION,
-              prevDuration + actualDelta
-            )
+            const newPrevDuration = totalDuration - newCurrDuration
 
             newIntervals[index].durationSeconds = newCurrDuration
             newIntervals[index - 1].durationSeconds = newPrevDuration
@@ -176,13 +169,7 @@ export function useIntervalDrag({
 
       setActiveDrag({ type, index })
     },
-    [
-      intervals,
-      pixelsPerSecond,
-      powerSnap,
-      onPreviewChange,
-      onCommit,
-    ]
+    [intervals, pixelsPerSecond, powerSnap, onPreviewChange, onCommit]
   )
 
   return { activeDrag, startDrag }

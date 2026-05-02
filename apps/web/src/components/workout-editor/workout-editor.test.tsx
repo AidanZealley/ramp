@@ -14,6 +14,7 @@ import {
   useWorkoutEditorSelectedIds,
   useWorkoutEditorStableIds,
 } from "./store"
+import { DURATION_SNAP, MIN_DURATION } from "@/lib/timeline/types"
 import type { Interval } from "@/lib/workout-utils"
 
 const baseIntervals: Array<Interval> = [
@@ -155,8 +156,21 @@ function HarnessContent() {
         insert-relative
       </button>
       <button onClick={() => actions.nudgeSelectedPower(5)}>nudge-power</button>
-      <button onClick={() => actions.nudgeSelectedDuration(5)}>
+      <button onClick={() => actions.nudgeSelectedDuration(DURATION_SNAP)}>
         nudge-duration
+      </button>
+      <button onClick={() => actions.nudgeSelectedDuration(-DURATION_SNAP)}>
+        nudge-duration-down
+      </button>
+      <button
+        onClick={() =>
+          actions.commitIntervals([
+            { startPower: 100, endPower: 100, durationSeconds: 10 },
+            { startPower: 150, endPower: 150, durationSeconds: 20 },
+          ])
+        }
+      >
+        commit-10s
       </button>
       <button
         onClick={() => actions.setSelectedComment("  Hold\tsteady\nnow  ")}
@@ -527,7 +541,7 @@ describe("workout editor store", () => {
       expect(readJson<Array<Interval>>("intervals")[1]).toMatchObject({
         startPower: before.startPower + 5,
         endPower: before.endPower + 5,
-        durationSeconds: before.durationSeconds + 5,
+        durationSeconds: before.durationSeconds + DURATION_SNAP,
       })
     })
 
@@ -536,6 +550,45 @@ describe("workout editor store", () => {
 
     await waitFor(() => {
       expect(readJson<Array<Interval>>("intervals")[1]).toEqual(before)
+    })
+  })
+
+  it("clamps duration nudges at the 10-second minimum", async () => {
+    render(
+      <StoreHarness
+        initialIntervals={[
+          { startPower: 100, endPower: 100, durationSeconds: 20 },
+          { startPower: 150, endPower: 150, durationSeconds: 40 },
+        ]}
+      />
+    )
+
+    fireEvent.click(screen.getByText("plain-0"))
+    fireEvent.click(screen.getByText("nudge-duration-down"))
+
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("intervals")[0].durationSeconds).toBe(10)
+    })
+
+    fireEvent.click(screen.getByText("nudge-duration-down"))
+
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("intervals")[0].durationSeconds).toBe(
+        MIN_DURATION
+      )
+    })
+  })
+
+  it("preserves 10-second interval values through commitIntervals", async () => {
+    render(<StoreHarness />)
+
+    fireEvent.click(screen.getByText("commit-10s"))
+
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("intervals")).toEqual([
+        { startPower: 100, endPower: 100, durationSeconds: 10 },
+        { startPower: 150, endPower: 150, durationSeconds: 20 },
+      ])
     })
   })
 
@@ -855,6 +908,48 @@ describe("WorkoutEditor keyboard shortcuts", () => {
 
     await waitFor(() => {
       expect(readJson<Array<Interval>>("editor-intervals")).toHaveLength(3)
+    })
+  })
+
+  it("uses 10-second keyboard duration nudges and clamps at the new minimum", async () => {
+    const { container } = render(
+      <EditorActionHarness
+        initialIntervals={[
+          { startPower: 100, endPower: 100, durationSeconds: 20 },
+          { startPower: 150, endPower: 150, durationSeconds: 30 },
+        ]}
+      />
+    )
+    const target = container.querySelector('[data-editor-interval-index="0"]')
+
+    fireEvent.click(target!)
+    fireEvent.keyDown(document, { key: "ArrowRight" })
+
+    await waitFor(() => {
+      expect(
+        readJson<Array<Interval>>("editor-intervals")[0].durationSeconds
+      ).toBe(30)
+    })
+
+    fireEvent.keyDown(document, { key: "ArrowLeft" })
+    await waitFor(() => {
+      expect(
+        readJson<Array<Interval>>("editor-intervals")[0].durationSeconds
+      ).toBe(20)
+    })
+
+    fireEvent.keyDown(document, { key: "ArrowLeft" })
+    await waitFor(() => {
+      expect(
+        readJson<Array<Interval>>("editor-intervals")[0].durationSeconds
+      ).toBe(10)
+    })
+
+    fireEvent.keyDown(document, { key: "ArrowLeft" })
+    await waitFor(() => {
+      expect(
+        readJson<Array<Interval>>("editor-intervals")[0].durationSeconds
+      ).toBe(MIN_DURATION)
     })
   })
 })

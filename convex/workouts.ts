@@ -1,13 +1,8 @@
 import { ConvexError, v } from "convex/values"
 import { internal } from "./_generated/api"
-import {
-  
-  internalMutation,
-  mutation,
-  query
-} from "./_generated/server"
+import { internalMutation, mutation, query } from "./_generated/server"
 import { computeWorkoutSummary } from "./workoutSummary"
-import type {MutationCtx} from "./_generated/server";
+import type { MutationCtx } from "./_generated/server"
 import type { Doc } from "./_generated/dataModel"
 
 const intervalValidator = v.object({
@@ -115,13 +110,13 @@ export function normalizeIntervalsForStorage(
       MAX_WORKOUT_POWER_PERCENT,
       `intervals[${index}].endPower`
     )
-    const durationSeconds = Math.round(interval.durationSeconds)
     assertFiniteIntegerInRange(
-      durationSeconds,
+      interval.durationSeconds,
       0,
       MAX_WORKOUT_DURATION_SECONDS,
       `intervals[${index}].durationSeconds`
     )
+    const durationSeconds = interval.durationSeconds
 
     const comment =
       interval.comment === undefined

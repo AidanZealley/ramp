@@ -25,8 +25,8 @@ export const ZOOM_STEP = 0.25
 export const MIN_POWER = 0
 
 // Duration constraints
-export const MIN_DURATION = 30 // seconds
-export const DURATION_SNAP = 30 // seconds
+export const MIN_DURATION = 10 // seconds
+export const DURATION_SNAP = 10 // seconds
 
 // Handle sizes (in pixels)
 export const HANDLE_SIZE = 10 // diameter of visible corner handles
