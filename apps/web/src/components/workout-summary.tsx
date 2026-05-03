@@ -1,11 +1,12 @@
-import { Clock3, Flame } from "lucide-react"
+import { Clock3, Flame, Zap } from "lucide-react"
 
-import type {WorkoutStats} from "@/lib/workout-utils";
-import {  formatDuration } from "@/lib/workout-utils"
+import type { WorkoutStats } from "@/lib/workout-utils"
+import { formatDuration, percentageToWatts } from "@/lib/workout-utils"
 import { WorkoutZoneChart } from "@/components/workout-zone-chart"
 
 interface WorkoutSummaryProps {
   stats: WorkoutStats
+  ftp?: number
 }
 
 function formatZoneDuration(seconds: number): string {
@@ -26,8 +27,10 @@ function formatZoneDuration(seconds: number): string {
   return `${minutes}m`
 }
 
-export function WorkoutSummary({ stats }: WorkoutSummaryProps) {
+export function WorkoutSummary({ stats, ftp }: WorkoutSummaryProps) {
   const roundedStressScore = Math.round(stats.stressScore)
+  const averageWatts =
+    ftp === undefined ? null : percentageToWatts(stats.averagePower, ftp)
 
   return (
     <div className="rounded-[1.5rem] border border-border/70 bg-card/50 px-5 py-4">
@@ -50,6 +53,15 @@ export function WorkoutSummary({ stats }: WorkoutSummaryProps) {
               </span>
               <span>{roundedStressScore}</span>
             </div>
+            {averageWatts !== null && (
+              <div className="flex items-center gap-2.5">
+                <Zap className="size-4 text-foreground/70" />
+                <span className="font-medium text-foreground">
+                  Average watts:
+                </span>
+                <span>{`${averageWatts}W`}</span>
+              </div>
+            )}
           </div>
         </div>
 
