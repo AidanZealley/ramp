@@ -10,6 +10,7 @@ import {
   useWorkoutEditorDisplayMode,
   useWorkoutEditorDragPreview,
   useWorkoutEditorFtp,
+  useWorkoutEditorSelectedIds,
   useWorkoutEditorStableIds,
 } from "../store"
 import { useReorderDnd } from "../hooks/use-reorder-dnd"
@@ -37,12 +38,14 @@ export function EditorCanvas({
   startDrag,
 }: EditorCanvasProps) {
   const stableIds = useWorkoutEditorStableIds()
+  const selectedIds = useWorkoutEditorSelectedIds()
   const displayIntervals = useWorkoutEditorDisplayIntervals()
   const ftp = useWorkoutEditorFtp()
   const displayMode = useWorkoutEditorDisplayMode()
   const dragPreview = useWorkoutEditorDragPreview()
   const activeReorderId = useWorkoutEditorActiveReorderId()
   const actions = useWorkoutEditorActions()
+  const selectedIdSet = new Set(selectedIds)
   const { sensors, handleDragStart, handleDragEnd } = useReorderDnd({
     stableIds,
     actions,
@@ -110,14 +113,27 @@ export function EditorCanvas({
           displayIntervals.length >= 2 &&
           displayIntervals
             .slice(1)
-            .map((_, index) => (
-              <InsertZone
-                key={`insert-${index + 1}`}
-                x={scale.getIntervalX(index + 1)}
-                index={index + 1}
-                height={EDITOR_HEIGHT}
-              />
-            ))}
+            .map((_, index) => {
+              const boundaryIndex = index + 1
+              const leftId = stableIds[boundaryIndex - 1]
+              const rightId = stableIds[boundaryIndex]
+              const isBoundaryActive =
+                (leftId !== undefined && selectedIdSet.has(leftId)) ||
+                (rightId !== undefined && selectedIdSet.has(rightId))
+
+              if (!isBoundaryActive) {
+                return null
+              }
+
+              return (
+                <InsertZone
+                  key={`insert-${boundaryIndex}`}
+                  x={scale.getIntervalX(boundaryIndex)}
+                  index={boundaryIndex}
+                  height={EDITOR_HEIGHT}
+                />
+              )
+            })}
 
         {activeDrag && dragPreview && (
           <DragTooltip

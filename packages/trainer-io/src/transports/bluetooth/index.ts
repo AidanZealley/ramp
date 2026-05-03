@@ -1,5 +1,3 @@
-import "./web-bluetooth/globals"
-
 export * from "./request-ble-trainer"
 export * from "./web-bluetooth/request-device"
 export * from "./ftms"

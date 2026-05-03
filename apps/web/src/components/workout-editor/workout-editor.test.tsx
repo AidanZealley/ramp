@@ -264,6 +264,10 @@ function EditorActionHarness({
   )
 }
 
+function getInlineInsertButtons() {
+  return screen.queryAllByTitle("Insert interval")
+}
+
 describe("workout editor store", () => {
   beforeEach(() => {
     setNavigatorPlatform("MacIntel")
@@ -735,6 +739,82 @@ describe("workout editor store", () => {
       )
       expect(screen.getByTestId("has-incoming").textContent).toBe("no")
       expect(screen.getByTestId("is-dirty").textContent).toBe("no")
+    })
+  })
+})
+
+describe("WorkoutEditor inline insert zones", () => {
+  it("renders no inline insert buttons when nothing is selected", () => {
+    render(<EditorActionHarness />)
+
+    expect(getInlineInsertButtons()).toHaveLength(0)
+  })
+
+  it("renders both adjacent inline insert buttons for a selected middle interval", () => {
+    const { container } = render(<EditorActionHarness />)
+    const target = container.querySelector('[data-editor-interval-index="1"]')
+
+    fireEvent.click(target!)
+
+    expect(getInlineInsertButtons()).toHaveLength(2)
+  })
+
+  it("renders only the trailing inline insert button for a selected first interval", () => {
+    const { container } = render(<EditorActionHarness />)
+    const target = container.querySelector('[data-editor-interval-index="0"]')
+
+    fireEvent.click(target!)
+
+    expect(getInlineInsertButtons()).toHaveLength(1)
+  })
+
+  it("renders only the leading inline insert button for a selected last interval", () => {
+    const { container } = render(<EditorActionHarness />)
+    const target = container.querySelector('[data-editor-interval-index="2"]')
+
+    fireEvent.click(target!)
+
+    expect(getInlineInsertButtons()).toHaveLength(1)
+  })
+
+  it("renders the boundaries adjacent to a contiguous multi-selection", () => {
+    const { container } = render(<EditorActionHarness />)
+    const first = container.querySelector('[data-editor-interval-index="0"]')
+    const second = container.querySelector('[data-editor-interval-index="1"]')
+
+    fireEvent.click(first!)
+    fireEvent.click(second!, { metaKey: true })
+
+    expect(getInlineInsertButtons()).toHaveLength(2)
+  })
+
+  it("clears inline insert buttons when selection is cleared", async () => {
+    const { container } = render(<EditorActionHarness />)
+    const target = container.querySelector('[data-editor-interval-index="1"]')
+
+    fireEvent.click(target!)
+    expect(getInlineInsertButtons()).toHaveLength(2)
+
+    fireEvent.click(screen.getByLabelText("notes-input"))
+
+    await waitFor(() => {
+      expect(getInlineInsertButtons()).toHaveLength(0)
+    })
+  })
+
+  it("keeps inline insert actions targeting the same boundary index", async () => {
+    const { container } = render(<EditorActionHarness />)
+    const target = container.querySelector('[data-editor-interval-index="0"]')
+
+    fireEvent.click(target!)
+    fireEvent.click(screen.getByTitle("Insert interval"))
+
+    await waitFor(() => {
+      expect(
+        readJson<Array<Interval>>("editor-intervals").map(
+          (interval) => interval.startPower
+        )
+      ).toEqual([100, 100, 150, 200])
     })
   })
 })
