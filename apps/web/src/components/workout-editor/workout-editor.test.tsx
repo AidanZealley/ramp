@@ -12,6 +12,7 @@ import {
   useWorkoutEditorHasIncomingServerChanges,
   useWorkoutEditorIsDirty,
   useWorkoutEditorSelectedIds,
+  useWorkoutEditorSelectedSection,
   useWorkoutEditorStableIds,
 } from "./store"
 import { DURATION_SNAP, MIN_DURATION } from "@/lib/timeline/types"
@@ -43,6 +44,7 @@ function HarnessContent() {
   const selectedIds = useWorkoutEditorSelectedIds()
   const clipboardIds = useWorkoutEditorClipboardIds()
   const stableIds = useWorkoutEditorStableIds()
+  const selectedSection = useWorkoutEditorSelectedSection()
   const canUndo = useWorkoutEditorCanUndo()
   const canRedo = useWorkoutEditorCanRedo()
   const isDirty = useWorkoutEditorIsDirty()
@@ -52,6 +54,7 @@ function HarnessContent() {
   return (
     <div>
       <div data-testid="selected">{JSON.stringify(selectedIds)}</div>
+      <div data-testid="selected-section">{JSON.stringify(selectedSection)}</div>
       <div data-testid="clipboard">{JSON.stringify(clipboardIds)}</div>
       <div data-testid="stable">{JSON.stringify(stableIds)}</div>
       <div data-testid="intervals">{JSON.stringify(intervals)}</div>
@@ -143,6 +146,7 @@ function HarnessContent() {
         shift-2
       </button>
       <button onClick={actions.toggleMultiSelect}>toggle-multi</button>
+      <button onClick={actions.clearSelectedSection}>clear-section</button>
       <button onClick={actions.copySelection}>copy</button>
       <button onClick={() => actions.pasteClipboard()}>paste</button>
       <button onClick={() => actions.pasteClipboard(1)}>paste-1</button>
@@ -156,6 +160,9 @@ function HarnessContent() {
         insert-relative
       </button>
       <button onClick={() => actions.nudgeSelectedPower(5)}>nudge-power</button>
+      <button onClick={() => actions.nudgeSelectedSectionPower(5)}>
+        nudge-section-power
+      </button>
       <button onClick={() => actions.nudgeSelectedDuration(DURATION_SNAP)}>
         nudge-duration
       </button>
@@ -185,6 +192,19 @@ function HarnessContent() {
       <button onClick={actions.resetToBaseline}>reset-to-baseline</button>
       <button onClick={actions.adoptPendingServerSnapshot}>
         adopt-pending
+      </button>
+      <button
+        onClick={() => actions.selectSection(stableIds[1], "power-start")}
+      >
+        select-section-start-1
+      </button>
+      <button
+        onClick={() => actions.selectSection(stableIds[1], "power-uniform")}
+      >
+        select-section-uniform-1
+      </button>
+      <button onClick={() => actions.selectSection(stableIds[1], "power-end")}>
+        select-section-end-1
       </button>
       <button onClick={actions.reorderIntervals.bind(null, 0, 2, stableIds[0])}>
         reorder-0-2
@@ -244,7 +264,17 @@ function EditorActionHarness({
 }) {
   function EditorStateMirror() {
     const intervals = useWorkoutEditorCurrentIntervals()
-    return <div data-testid="editor-intervals">{JSON.stringify(intervals)}</div>
+    const selectedIds = useWorkoutEditorSelectedIds()
+    const selectedSection = useWorkoutEditorSelectedSection()
+    return (
+      <>
+        <div data-testid="editor-intervals">{JSON.stringify(intervals)}</div>
+        <div data-testid="editor-selected">{JSON.stringify(selectedIds)}</div>
+        <div data-testid="editor-selected-section">
+          {JSON.stringify(selectedSection)}
+        </div>
+      </>
+    )
   }
 
   return (
@@ -266,6 +296,20 @@ function EditorActionHarness({
 
 function getInlineInsertButtons() {
   return screen.queryAllByTitle("Insert interval")
+}
+
+function getIntervalBody(container: HTMLElement, index: number) {
+  return container.querySelector(`[data-editor-interval-body-index="${index}"]`)
+}
+
+function getSectionTarget(
+  container: HTMLElement,
+  index: number,
+  target: "power-start" | "power-uniform" | "power-end"
+) {
+  return container.querySelector(
+    `[data-editor-interval-index="${index}"][data-editor-section-target="${target}"]`
+  )
 }
 
 describe("workout editor store", () => {
@@ -604,6 +648,40 @@ describe("workout editor store", () => {
     fireEvent.click(screen.getByText("toggle-multi"))
 
     expect(screen.getByTestId("can-undo").textContent).toBe("no")
+  })
+
+  it("clears the selected subsection when selection changes away from its interval", () => {
+    render(<StoreHarness />)
+
+    fireEvent.click(screen.getByText("select-section-start-1"))
+    expect(readJson("selected-section")).toMatchObject({
+      target: "power-start",
+    })
+
+    fireEvent.click(screen.getByText("plain-0"))
+    expect(readJson("selected-section")).toBeNull()
+  })
+
+  it("clears the selected subsection when selection becomes multi-select", () => {
+    render(<StoreHarness />)
+
+    fireEvent.click(screen.getByText("select-section-start-1"))
+    fireEvent.click(screen.getByText("meta-0"))
+
+    expect(readJson("selected")).toHaveLength(2)
+    expect(readJson("selected-section")).toBeNull()
+  })
+
+  it("clears subsection state when the selected interval is deleted", async () => {
+    render(<StoreHarness />)
+
+    fireEvent.click(screen.getByText("select-section-start-1"))
+    fireEvent.click(screen.getByText("delete-selection"))
+
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("intervals")).toHaveLength(2)
+      expect(readJson("selected-section")).toBeNull()
+    })
   })
 
   it("applies and clears comments on all selected intervals", async () => {
@@ -988,6 +1066,209 @@ describe("WorkoutEditor keyboard shortcuts", () => {
 
     await waitFor(() => {
       expect(readJson<Array<Interval>>("editor-intervals")).toHaveLength(3)
+    })
+  })
+
+  it("clicking the interval body keeps the interval selected and clears subsection selection", async () => {
+    const { container } = render(<EditorActionHarness />)
+    const body = getIntervalBody(container, 1)
+
+    fireEvent.click(body!)
+    fireEvent.click(getSectionTarget(container, 1, "power-start")!)
+
+    await waitFor(() => {
+      expect(readJson("editor-selected-section")).toMatchObject({
+        target: "power-start",
+      })
+    })
+
+    fireEvent.click(body!)
+
+    await waitFor(() => {
+      expect(readJson("editor-selected")).toHaveLength(1)
+      expect(readJson("editor-selected-section")).toBeNull()
+    })
+  })
+
+  it("clicking ramp subsection targets selects start, uniform, and end sections", async () => {
+    const { container } = render(
+      <EditorActionHarness
+        initialIntervals={[
+          { startPower: 100, endPower: 160, durationSeconds: 60 },
+          { startPower: 120, endPower: 180, durationSeconds: 120 },
+        ]}
+      />
+    )
+
+    fireEvent.click(getIntervalBody(container, 1)!)
+    fireEvent.click(getSectionTarget(container, 1, "power-start")!)
+    await waitFor(() => {
+      expect(readJson("editor-selected-section")).toMatchObject({
+        target: "power-start",
+      })
+    })
+
+    fireEvent.click(getSectionTarget(container, 1, "power-uniform")!)
+    await waitFor(() => {
+      expect(readJson("editor-selected-section")).toMatchObject({
+        target: "power-uniform",
+      })
+    })
+
+    fireEvent.click(getSectionTarget(container, 1, "power-end")!)
+    await waitFor(() => {
+      expect(readJson("editor-selected-section")).toMatchObject({
+        target: "power-end",
+      })
+    })
+  })
+
+  it("uses subsection keyboard nudges for start, uniform, and end targets", async () => {
+    const { container } = render(
+      <EditorActionHarness
+        initialIntervals={[
+          { startPower: 100, endPower: 150, durationSeconds: 60 },
+          { startPower: 120, endPower: 180, durationSeconds: 120 },
+        ]}
+      />
+    )
+
+    fireEvent.click(getIntervalBody(container, 1)!)
+    fireEvent.click(getSectionTarget(container, 1, "power-start")!)
+    fireEvent.keyDown(document, { key: "ArrowUp" })
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("editor-intervals")[1]).toMatchObject({
+        startPower: 121,
+        endPower: 180,
+      })
+    })
+
+    fireEvent.click(getSectionTarget(container, 1, "power-end")!)
+    fireEvent.keyDown(document, { key: "ArrowDown" })
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("editor-intervals")[1]).toMatchObject({
+        startPower: 121,
+        endPower: 179,
+      })
+    })
+
+    fireEvent.click(getSectionTarget(container, 1, "power-uniform")!)
+    fireEvent.keyDown(document, { key: "ArrowUp" })
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("editor-intervals")[1]).toMatchObject({
+        startPower: 122,
+        endPower: 180,
+      })
+    })
+  })
+
+  it("keeps whole-interval power nudges for multi-select", async () => {
+    const { container } = render(
+      <EditorActionHarness
+        initialIntervals={[
+          { startPower: 100, endPower: 140, durationSeconds: 60 },
+          { startPower: 120, endPower: 180, durationSeconds: 120 },
+        ]}
+      />
+    )
+
+    fireEvent.click(getIntervalBody(container, 0)!)
+    fireEvent.click(getIntervalBody(container, 1)!, { metaKey: true })
+    fireEvent.keyDown(document, { key: "ArrowUp" })
+
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("editor-intervals")).toEqual([
+        { startPower: 101, endPower: 141, durationSeconds: 60 },
+        { startPower: 121, endPower: 181, durationSeconds: 120 },
+      ])
+      expect(readJson("editor-selected-section")).toBeNull()
+    })
+  })
+
+  it("keeps duration nudges active while a subsection is selected", async () => {
+    const { container } = render(
+      <EditorActionHarness
+        initialIntervals={[
+          { startPower: 100, endPower: 150, durationSeconds: 60 },
+          { startPower: 120, endPower: 180, durationSeconds: 120 },
+        ]}
+      />
+    )
+
+    fireEvent.click(getIntervalBody(container, 1)!)
+    fireEvent.click(getSectionTarget(container, 1, "power-start")!)
+    fireEvent.keyDown(document, { key: "ArrowRight" })
+
+    await waitFor(() => {
+      expect(
+        readJson<Array<Interval>>("editor-intervals")[1].durationSeconds
+      ).toBe(130)
+    })
+  })
+
+  it("clears subsection selection on the first Escape and interval selection on the second", async () => {
+    const { container } = render(<EditorActionHarness />)
+
+    fireEvent.click(getIntervalBody(container, 1)!)
+    fireEvent.click(getSectionTarget(container, 1, "power-start")!)
+
+    await waitFor(() => {
+      expect(readJson("editor-selected-section")).toMatchObject({
+        target: "power-start",
+      })
+    })
+
+    fireEvent.keyDown(document, { key: "Escape" })
+    await waitFor(() => {
+      expect(readJson("editor-selected-section")).toBeNull()
+      expect(readJson("editor-selected")).toHaveLength(1)
+    })
+
+    fireEvent.keyDown(document, { key: "Escape" })
+    await waitFor(() => {
+      expect(readJson("editor-selected")).toEqual([])
+    })
+  })
+
+  it("does not restore subsection ui state across undo and redo", async () => {
+    const { container } = render(
+      <EditorActionHarness
+        initialIntervals={[
+          { startPower: 100, endPower: 150, durationSeconds: 60 },
+          { startPower: 120, endPower: 180, durationSeconds: 120 },
+        ]}
+      />
+    )
+
+    fireEvent.click(getIntervalBody(container, 1)!)
+    fireEvent.click(getSectionTarget(container, 1, "power-start")!)
+    fireEvent.keyDown(document, { key: "ArrowUp" })
+
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("editor-intervals")[1].startPower).toBe(
+        121
+      )
+    })
+
+    fireEvent.keyDown(document, { key: "Escape" })
+    await waitFor(() => {
+      expect(readJson("editor-selected-section")).toBeNull()
+    })
+
+    fireEvent.keyDown(document, { key: "z", metaKey: true })
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("editor-intervals")[1].startPower).toBe(
+        120
+      )
+      expect(readJson("editor-selected-section")).toBeNull()
+    })
+
+    fireEvent.keyDown(document, { key: "z", metaKey: true, shiftKey: true })
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("editor-intervals")[1].startPower).toBe(
+        121
+      )
+      expect(readJson("editor-selected-section")).toBeNull()
     })
   })
 

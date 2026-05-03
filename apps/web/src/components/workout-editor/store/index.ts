@@ -4,6 +4,7 @@ import { WorkoutEditorStoreContext } from "./context"
 import { buildClipboardPreviewData, isDirtyState } from "./utils"
 import type {
   ClipboardPreviewData,
+  WorkoutEditorSelectedSectionTarget,
   WorkoutEditorActions,
   WorkoutEditorStoreState,
 } from "./types"
@@ -52,6 +53,27 @@ export const useWorkoutEditorSelectedIds = () =>
 
 export const useWorkoutEditorSelectedCount = () =>
   useWorkoutEditorStore((state) => state.selectedIds.length)
+
+export const useWorkoutEditorSelectedSection = () =>
+  useWorkoutEditorStore((state) => state.selectedSection)
+
+export const useWorkoutEditorSelectedSectionTarget = () =>
+  useWorkoutEditorStore((state) => state.selectedSection?.target ?? null)
+
+export const useWorkoutEditorHasSelectedSection = (stableId: string) =>
+  useWorkoutEditorStore(
+    (state) => state.selectedSection?.intervalId === stableId
+  )
+
+export const useWorkoutEditorIsSelectedSectionTarget = (
+  stableId: string,
+  target: WorkoutEditorSelectedSectionTarget
+) =>
+  useWorkoutEditorStore(
+    (state) =>
+      state.selectedSection?.intervalId === stableId &&
+      state.selectedSection.target === target
+  )
 
 export const useWorkoutEditorClipboardIds = () =>
   useWorkoutEditorStore((state) => state.clipboardIds)
@@ -148,6 +170,8 @@ export { WorkoutEditorStoreProvider } from "./WorkoutStoreProvider"
 export type {
   ClipboardPreviewData,
   WorkoutEditorActions,
+  WorkoutEditorSelectedSection,
+  WorkoutEditorSelectedSectionTarget,
   WorkoutEditorServerSnapshot,
   WorkoutEditorStoreProps,
   WorkoutEditorStoreState,

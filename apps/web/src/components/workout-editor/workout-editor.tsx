@@ -13,6 +13,7 @@ import {
   useWorkoutEditorIntervals,
   useWorkoutEditorSelectedCount,
   useWorkoutEditorSelectedIds,
+  useWorkoutEditorSelectedSection,
   useWorkoutEditorStableIds,
 } from "./store"
 import { useClearSelectionOnOutsideClick } from "./hooks/use-clear-selection-on-outside-click"
@@ -30,6 +31,7 @@ export function WorkoutEditor() {
   const ftp = useWorkoutEditorFtp()
   const selectedIds = useWorkoutEditorSelectedIds()
   const selectedCount = useWorkoutEditorSelectedCount()
+  const selectedSection = useWorkoutEditorSelectedSection()
   const stableIds = useWorkoutEditorStableIds()
   const hasClipboard = useWorkoutEditorHasClipboard()
   const activeReorderId = useWorkoutEditorActiveReorderId()
@@ -59,6 +61,7 @@ export function WorkoutEditor() {
     actions,
     isDragging,
     selectedCount,
+    hasSelectedSection: selectedSection !== null,
     stableIdsLength: stableIds.length,
     hasClipboard,
   })

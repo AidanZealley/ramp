@@ -2,6 +2,7 @@ import { createHistory } from "./history"
 import type {
   ClipboardPreviewData,
   WorkoutEditorHistoryEntry,
+  WorkoutEditorSelectedSection,
   WorkoutEditorServerSnapshot,
   WorkoutEditorStoreProps,
   WorkoutEditorStoreState,
@@ -108,15 +109,37 @@ export function cleanupState(
     state.dragPreview && state.dragPreview.length === nextIntervals.length
       ? state.dragPreview
       : null
+  const selectedSection = reconcileSelectedSection(
+    state.selectedSection,
+    selectedIds,
+    liveIdSet
+  )
 
   return {
     selectedIds,
     clipboardIds,
     anchorId,
+    selectedSection,
     activeReorderId,
     hoveredIndex,
     dragPreview,
   }
+}
+
+export function reconcileSelectedSection(
+  selectedSection: WorkoutEditorSelectedSection | null,
+  selectedIds: Array<string>,
+  liveIds: ReadonlySet<string>
+) {
+  if (!selectedSection || selectedIds.length !== 1) {
+    return null
+  }
+
+  if (!liveIds.has(selectedSection.intervalId)) {
+    return null
+  }
+
+  return selectedIds[0] === selectedSection.intervalId ? selectedSection : null
 }
 
 export function createHistoryEntry(
@@ -167,6 +190,7 @@ export function createSessionState(
     hoveredIndex: null,
     selectedIds: [],
     anchorId: null,
+    selectedSection: null,
     multiSelectMode: false,
     clipboardIds: [],
     activeReorderId: null,

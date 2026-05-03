@@ -11,6 +11,7 @@ import {
   getDisplayIntervals,
   isDirtyState,
   newWorkoutEditorId,
+  reconcileSelectedSection,
   reconcileStableIds,
 } from "./utils"
 import type { Interval } from "@/lib/workout-utils"
@@ -76,10 +77,35 @@ function applyPresent(
     stableIds: present.stableIds,
     selectedIds: nextSelectedIds,
     anchorId: nextAnchorId,
+    selectedSection: cleaned.selectedSection,
     clipboardIds: cleaned.clipboardIds,
     dragPreview: null,
     hoveredIndex: null,
     activeReorderId: null,
+  }
+}
+
+function resolveSelectedSection(
+  state: WorkoutEditorStoreState,
+  selectedIds: Array<string>,
+  stableIds = state.stableIds
+) {
+  return reconcileSelectedSection(
+    state.selectedSection,
+    selectedIds,
+    new Set(stableIds)
+  )
+}
+
+function buildSelectionState(
+  state: WorkoutEditorStoreState,
+  selectedIds: Array<string>,
+  anchorId: string | null
+) {
+  return {
+    selectedIds,
+    anchorId,
+    selectedSection: resolveSelectedSection(state, selectedIds),
   }
 }
 
@@ -181,6 +207,7 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
               stableIds,
               selectedIds: [],
               anchorId: null,
+              selectedSection: null,
               dragPreview: null,
               hoveredIndex: null,
               activeReorderId: null,
@@ -213,20 +240,41 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
         toggleMultiSelect: () => {
           set((state) => ({ multiSelectMode: !state.multiSelectMode }))
         },
+        clearSelectedSection: () => {
+          set((state) =>
+            state.selectedSection === null ? state : { selectedSection: null }
+          )
+        },
+        selectSection: (intervalId, target) => {
+          set((state) => {
+            if (!state.stableIds.includes(intervalId)) {
+              return state
+            }
+
+            return {
+              selectedIds: [intervalId],
+              anchorId: intervalId,
+              selectedSection: { intervalId, target },
+            }
+          })
+        },
         clearSelection: () => {
           set({
             selectedIds: [],
             anchorId: null,
+            selectedSection: null,
           })
         },
         selectAll: () => {
-          set((state) => ({ selectedIds: [...state.stableIds] }))
+          set((state) =>
+            buildSelectionState(state, [...state.stableIds], state.anchorId)
+          )
         },
         selectOne: (id) => {
-          set({ selectedIds: [id], anchorId: id })
+          set((state) => buildSelectionState(state, [id], id))
         },
         focusSelect: (id) => {
-          set({ selectedIds: [id], anchorId: id })
+          set((state) => buildSelectionState(state, [id], id))
         },
         selectWithModifiers: (id, mods) => {
           set((state) => {
@@ -240,33 +288,34 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
               const b = state.stableIds.indexOf(id)
               if (a !== -1 && b !== -1) {
                 const [from, to] = a < b ? [a, b] : [b, a]
-                return {
-                  selectedIds: state.stableIds.slice(from, to + 1),
-                  anchorId:
-                    state.anchorId === null ||
+                return buildSelectionState(
+                  state,
+                  state.stableIds.slice(from, to + 1),
+                  state.anchorId === null ||
                     state.stableIds.indexOf(state.anchorId) === -1
-                      ? effectiveAnchor
-                      : state.anchorId,
-                }
+                    ? effectiveAnchor
+                    : state.anchorId
+                )
               }
             }
 
             if (mods.meta || state.multiSelectMode) {
-              return {
-                selectedIds: state.selectedIds.includes(id)
+              return buildSelectionState(
+                state,
+                state.selectedIds.includes(id)
                   ? state.selectedIds.filter((x) => x !== id)
                   : [...state.selectedIds, id],
-                anchorId: id,
-              }
+                id
+              )
             }
 
-            return {
-              selectedIds:
-                state.selectedIds.length === 1 && state.selectedIds[0] === id
-                  ? []
-                  : [id],
-              anchorId: id,
-            }
+            return buildSelectionState(
+              state,
+              state.selectedIds.length === 1 && state.selectedIds[0] === id
+                ? []
+                : [id],
+              id
+            )
           })
         },
         copySelection: () => {
@@ -479,6 +528,39 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
               ),
               endPower: clamp(interval.endPower + delta, MIN_POWER, maxPower),
             }
+          }
+
+          commitHistoryEntry(
+            createHistoryEntry(
+              updated,
+              state.stableIds,
+              state.selectedIds,
+              state.anchorId
+            )
+          )
+        },
+        nudgeSelectedSectionPower: (delta) => {
+          const state = get()
+          const selectedSection = resolveSelectedSection(state, state.selectedIds)
+          if (!selectedSection) return
+
+          const index = state.stableIds.indexOf(selectedSection.intervalId)
+          if (index === -1) return
+
+          const maxPower = computeMaxPower(state.intervals)
+          const updated = [...state.intervals]
+          const interval = updated[index]
+
+          updated[index] = {
+            ...interval,
+            startPower:
+              selectedSection.target === "power-end"
+                ? interval.startPower
+                : clamp(interval.startPower + delta, MIN_POWER, maxPower),
+            endPower:
+              selectedSection.target === "power-start"
+                ? interval.endPower
+                : clamp(interval.endPower + delta, MIN_POWER, maxPower),
           }
 
           commitHistoryEntry(

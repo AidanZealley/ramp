@@ -2,6 +2,16 @@ import type { Interval, PowerDisplayMode } from "@/lib/workout-utils"
 import type { SelectModifiers } from "../components/interval-block"
 import type { HistoryState } from "./history"
 
+export type WorkoutEditorSelectedSectionTarget =
+  | "power-start"
+  | "power-uniform"
+  | "power-end"
+
+export interface WorkoutEditorSelectedSection {
+  intervalId: string
+  target: WorkoutEditorSelectedSectionTarget
+}
+
 export interface WorkoutEditorServerSnapshot {
   intervals: Array<Interval>
   resetKey: string
@@ -47,6 +57,11 @@ export interface WorkoutEditorActions {
   setHoveredIndex: (index: number | null) => void
   setActiveReorderId: (id: string | null) => void
   toggleMultiSelect: () => void
+  clearSelectedSection: () => void
+  selectSection: (
+    intervalId: string,
+    target: WorkoutEditorSelectedSectionTarget
+  ) => void
   clearSelection: () => void
   selectAll: () => void
   selectOne: (id: string) => void
@@ -66,6 +81,7 @@ export interface WorkoutEditorActions {
     newIndex: number,
     activeId: string
   ) => void
+  nudgeSelectedSectionPower: (delta: number) => void
   nudgeSelectedPower: (delta: number) => void
   nudgeSelectedDuration: (delta: number) => void
   undo: () => void
@@ -84,6 +100,7 @@ export interface WorkoutEditorStoreState {
   hoveredIndex: number | null
   selectedIds: Array<string>
   anchorId: string | null
+  selectedSection: WorkoutEditorSelectedSection | null
   multiSelectMode: boolean
   clipboardIds: Array<string>
   activeReorderId: string | null

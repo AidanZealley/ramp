@@ -8,6 +8,7 @@ interface UseEditorKeypressesProps {
   actions: WorkoutEditorActions
   isDragging: boolean
   selectedCount: number
+  hasSelectedSection: boolean
   stableIdsLength: number
   hasClipboard: boolean
 }
@@ -16,6 +17,7 @@ export function useEditorKeypresses({
   actions,
   isDragging,
   selectedCount,
+  hasSelectedSection,
   stableIdsLength,
   hasClipboard,
 }: UseEditorKeypressesProps) {
@@ -52,9 +54,13 @@ export function useEditorKeypresses({
       (event: KeyboardEvent) => {
         if (selectedCount === 0) return
         event.preventDefault()
+        if (hasSelectedSection) {
+          actions.clearSelectedSection()
+          return
+        }
         actions.clearSelection()
       },
-      [actions, selectedCount]
+      [actions, hasSelectedSection, selectedCount]
     )
   )
 
@@ -64,9 +70,13 @@ export function useEditorKeypresses({
       (event: KeyboardEvent) => {
         if (isDragging || selectedCount === 0) return
         event.preventDefault()
+        if (hasSelectedSection) {
+          actions.nudgeSelectedSectionPower(powerSnap)
+          return
+        }
         actions.nudgeSelectedPower(powerSnap)
       },
-      [actions, isDragging, powerSnap, selectedCount]
+      [actions, hasSelectedSection, isDragging, powerSnap, selectedCount]
     )
   )
 
@@ -76,9 +86,13 @@ export function useEditorKeypresses({
       (event: KeyboardEvent) => {
         if (isDragging || selectedCount === 0) return
         event.preventDefault()
+        if (hasSelectedSection) {
+          actions.nudgeSelectedSectionPower(-powerSnap)
+          return
+        }
         actions.nudgeSelectedPower(-powerSnap)
       },
-      [actions, isDragging, powerSnap, selectedCount]
+      [actions, hasSelectedSection, isDragging, powerSnap, selectedCount]
     )
   )
 

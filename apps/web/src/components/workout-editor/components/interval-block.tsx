@@ -4,11 +4,14 @@ import {
   useWorkoutEditorActions,
   useWorkoutEditorDisplayMode,
   useWorkoutEditorFtp,
+  useWorkoutEditorHasSelectedSection,
   useWorkoutEditorInterval,
   useWorkoutEditorIsHovered,
   useWorkoutEditorIsSelected,
+  useWorkoutEditorSelectedCount,
+  useWorkoutEditorSelectedSectionTarget,
 } from "../store"
-import { IntervalHandles } from "./interval-handles"
+import { IntervalSelectionTargets } from "./interval-block/interval-selection-targets"
 import type { Interval } from "@/lib/workout-utils"
 import type { TimelineScale } from "@/hooks/use-timeline-scale"
 import type { DragType } from "@/lib/timeline/types"
@@ -48,6 +51,9 @@ export function IntervalBlock({
   const displayMode = useWorkoutEditorDisplayMode()
   const isHovered = useWorkoutEditorIsHovered(index)
   const isSelected = useWorkoutEditorIsSelected(stableId)
+  const selectedCount = useWorkoutEditorSelectedCount()
+  const hasSelectedSection = useWorkoutEditorHasSelectedSection(stableId)
+  const selectedSectionTarget = useWorkoutEditorSelectedSectionTarget()
   const actions = useWorkoutEditorActions()
   const {
     attributes,
@@ -84,6 +90,9 @@ export function IntervalBlock({
   const isRamp = interval.startPower !== interval.endPower
   const showSecondary = ftp > 0 && w > 65
   const comment = interval.comment?.trim()
+  const showSubsectionTargets = isSelected && selectedCount === 1
+  const activeSectionTarget =
+    showSubsectionTargets && hasSelectedSection ? selectedSectionTarget : null
 
   const style: React.CSSProperties = {
     position: "absolute",
@@ -121,10 +130,16 @@ export function IntervalBlock({
         {...listeners}
         onClick={(event) => {
           event.stopPropagation()
-          actions.selectWithModifiers(stableId, {
-            shift: event.shiftKey,
-            meta: event.metaKey || event.ctrlKey,
-          })
+          if (event.shiftKey || event.metaKey || event.ctrlKey) {
+            actions.selectWithModifiers(stableId, {
+              shift: event.shiftKey,
+              meta: event.metaKey || event.ctrlKey,
+            })
+            return
+          }
+
+          actions.clearSelectedSection()
+          actions.selectOne(stableId)
         }}
         onPointerEnter={() => {
           if (!isDragging) {
@@ -137,6 +152,7 @@ export function IntervalBlock({
           }
         }}
         data-editor-interval-index={index}
+        data-editor-interval-body-index={index}
       />
 
       {isActive && (
@@ -206,7 +222,7 @@ export function IntervalBlock({
         </div>
       )}
 
-      <IntervalHandles
+      <IntervalSelectionTargets
         width={displayW}
         startYPx={startYPx}
         endYPx={endYPx}
@@ -215,8 +231,13 @@ export function IntervalBlock({
         index={index}
         isSelected={isSelected}
         isDragging={isDragging}
+        showSubsectionTargets={showSubsectionTargets}
+        activeTarget={activeSectionTarget}
         onStartDrag={onStartDrag}
         onHover={actions.setHoveredIndex}
+        onSelectTarget={(target) => {
+          actions.selectSection(stableId, target)
+        }}
       />
     </div>
   )
