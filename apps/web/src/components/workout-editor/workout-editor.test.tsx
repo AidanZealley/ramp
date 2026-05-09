@@ -169,6 +169,8 @@ function HarnessContent() {
       <button onClick={() => actions.nudgeSelectedDuration(-DURATION_SNAP)}>
         nudge-duration-down
       </button>
+      <button onClick={() => actions.extendSelection(-1)}>extend-left</button>
+      <button onClick={() => actions.extendSelection(1)}>extend-right</button>
       <button
         onClick={() =>
           actions.commitIntervals([
@@ -266,10 +268,12 @@ function EditorActionHarness({
     const intervals = useWorkoutEditorCurrentIntervals()
     const selectedIds = useWorkoutEditorSelectedIds()
     const selectedSection = useWorkoutEditorSelectedSection()
+    const stableIds = useWorkoutEditorStableIds()
     return (
       <>
         <div data-testid="editor-intervals">{JSON.stringify(intervals)}</div>
         <div data-testid="editor-selected">{JSON.stringify(selectedIds)}</div>
+        <div data-testid="editor-stable">{JSON.stringify(stableIds)}</div>
         <div data-testid="editor-selected-section">
           {JSON.stringify(selectedSection)}
         </div>
@@ -337,6 +341,27 @@ describe("workout editor store", () => {
 
     fireEvent.click(screen.getByText("shift-1"))
     expect(readJson<Array<string>>("selected")).toEqual(fullRange.slice(0, 2))
+  })
+
+  it("extends and shrinks contiguous selections from the keyboard anchor", () => {
+    render(<StoreHarness />)
+
+    const stableIds = readJson<Array<string>>("stable")
+    fireEvent.click(screen.getByText("plain-1"))
+    fireEvent.click(screen.getByText("extend-right"))
+    expect(readJson<Array<string>>("selected")).toEqual([
+      stableIds[1],
+      stableIds[2],
+    ])
+
+    fireEvent.click(screen.getByText("extend-left"))
+    expect(readJson<Array<string>>("selected")).toEqual([stableIds[1]])
+
+    fireEvent.click(screen.getByText("extend-left"))
+    expect(readJson<Array<string>>("selected")).toEqual([
+      stableIds[0],
+      stableIds[1],
+    ])
   })
 
   it("toggles membership with meta selection", () => {
@@ -1398,6 +1423,45 @@ describe("WorkoutEditor keyboard shortcuts", () => {
       expect(
         readJson<Array<Interval>>("editor-intervals")[0].durationSeconds
       ).toBe(MIN_DURATION)
+    })
+  })
+
+  it("extends interval selection with Shift+Left and Shift+Right instead of nudging duration", async () => {
+    const { container } = render(
+      <EditorActionHarness
+        initialIntervals={[
+          { startPower: 100, endPower: 100, durationSeconds: 20 },
+          { startPower: 150, endPower: 150, durationSeconds: 30 },
+          { startPower: 200, endPower: 200, durationSeconds: 40 },
+        ]}
+      />
+    )
+
+    fireEvent.click(getIntervalBody(container, 1)!)
+    const stableIds = readJson<Array<string>>("editor-stable")
+
+    fireEvent.keyDown(document, { key: "ArrowRight", shiftKey: true })
+    await waitFor(() => {
+      expect(readJson<Array<string>>("editor-selected")).toEqual([
+        stableIds[1],
+        stableIds[2],
+      ])
+      expect(
+        readJson<Array<Interval>>("editor-intervals")[1].durationSeconds
+      ).toBe(30)
+    })
+
+    fireEvent.keyDown(document, { key: "ArrowLeft", shiftKey: true })
+    await waitFor(() => {
+      expect(readJson<Array<string>>("editor-selected")).toEqual([stableIds[1]])
+    })
+
+    fireEvent.keyDown(document, { key: "ArrowLeft", shiftKey: true })
+    await waitFor(() => {
+      expect(readJson<Array<string>>("editor-selected")).toEqual([
+        stableIds[0],
+        stableIds[1],
+      ])
     })
   })
 })

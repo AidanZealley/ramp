@@ -327,6 +327,55 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
         focusSelect: (id) => {
           set((state) => buildSelectionState(state, [id], id))
         },
+        extendSelection: (direction) => {
+          set((state) => {
+            if (state.selectedIds.length === 0) return state
+
+            const selectedIndices = state.selectedIds
+              .map((id) => state.stableIds.indexOf(id))
+              .filter((index) => index !== -1)
+              .sort((a, b) => a - b)
+            if (selectedIndices.length === 0) return state
+
+            const fallbackAnchorIndex =
+              selectedIndices[
+                direction === 1 ? 0 : selectedIndices.length - 1
+              ]
+            const anchorIndex =
+              state.anchorId !== null
+                ? state.stableIds.indexOf(state.anchorId)
+                : -1
+            const effectiveAnchorIndex =
+              anchorIndex !== -1 ? anchorIndex : fallbackAnchorIndex
+
+            const minSelectedIndex = selectedIndices[0]
+            const maxSelectedIndex = selectedIndices[selectedIndices.length - 1]
+            const focusIndex =
+              effectiveAnchorIndex === minSelectedIndex
+                ? maxSelectedIndex
+                : effectiveAnchorIndex === maxSelectedIndex
+                  ? minSelectedIndex
+                  : direction === 1
+                    ? maxSelectedIndex
+                    : minSelectedIndex
+            const nextFocusIndex = clamp(
+              focusIndex + direction,
+              0,
+              state.stableIds.length - 1
+            )
+
+            const [from, to] =
+              effectiveAnchorIndex < nextFocusIndex
+                ? [effectiveAnchorIndex, nextFocusIndex]
+                : [nextFocusIndex, effectiveAnchorIndex]
+
+            return buildSelectionState(
+              state,
+              state.stableIds.slice(from, to + 1),
+              state.stableIds[effectiveAnchorIndex] ?? null
+            )
+          })
+        },
         selectWithModifiers: (id, mods) => {
           set((state) => {
             if (mods.shift) {

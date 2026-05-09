@@ -132,6 +132,10 @@ export function useEditorKeypresses({
       (event: KeyboardEvent) => {
         if (isDragging || selectedCount === 0) return
         event.preventDefault()
+        if (event.shiftKey) {
+          actions.extendSelection(1)
+          return
+        }
         actions.nudgeSelectedDuration(DURATION_SNAP)
       },
       [actions, isDragging, selectedCount]
@@ -144,6 +148,10 @@ export function useEditorKeypresses({
       (event: KeyboardEvent) => {
         if (isDragging || selectedCount === 0) return
         event.preventDefault()
+        if (event.shiftKey) {
+          actions.extendSelection(-1)
+          return
+        }
         actions.nudgeSelectedDuration(-DURATION_SNAP)
       },
       [actions, isDragging, selectedCount]

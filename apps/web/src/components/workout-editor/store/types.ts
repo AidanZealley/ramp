@@ -68,6 +68,7 @@ export interface WorkoutEditorActions {
   selectAll: () => void
   selectOne: (id: string) => void
   focusSelect: (id: string) => void
+  extendSelection: (direction: 1 | -1) => void
   selectWithModifiers: (id: string, mods: SelectModifiers) => void
   copySelection: () => void
   cutSelection: () => void
