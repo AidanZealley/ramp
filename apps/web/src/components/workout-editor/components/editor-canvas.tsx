@@ -10,13 +10,11 @@ import {
   useWorkoutEditorDisplayMode,
   useWorkoutEditorDragPreview,
   useWorkoutEditorFtp,
-  useWorkoutEditorSelectedIds,
   useWorkoutEditorStableIds,
 } from "../store"
 import { useReorderDnd } from "../hooks/use-reorder-dnd"
 import { EditorGrid } from "./editor-grid"
 import { IntervalBlock, IntervalBlockOverlay } from "./interval-block"
-import { InsertZone } from "./insert-zone"
 import { DragTooltip } from "./drag-tooltip"
 import type { TimelineScale } from "@/hooks/use-timeline-scale"
 import type { DragType } from "@/lib/timeline/types"
@@ -38,14 +36,12 @@ export function EditorCanvas({
   startDrag,
 }: EditorCanvasProps) {
   const stableIds = useWorkoutEditorStableIds()
-  const selectedIds = useWorkoutEditorSelectedIds()
   const displayIntervals = useWorkoutEditorDisplayIntervals()
   const ftp = useWorkoutEditorFtp()
   const displayMode = useWorkoutEditorDisplayMode()
   const dragPreview = useWorkoutEditorDragPreview()
   const activeReorderId = useWorkoutEditorActiveReorderId()
   const actions = useWorkoutEditorActions()
-  const selectedIdSet = new Set(selectedIds)
   const { sensors, handleDragStart, handleDragEnd } = useReorderDnd({
     stableIds,
     actions,
@@ -108,32 +104,6 @@ export function EditorCanvas({
             ) : null}
           </DragOverlay>
         </DndContext>
-
-        {!isDragging &&
-          displayIntervals.length >= 2 &&
-          displayIntervals
-            .slice(1)
-            .map((_, index) => {
-              const boundaryIndex = index + 1
-              const leftId = stableIds[boundaryIndex - 1]
-              const rightId = stableIds[boundaryIndex]
-              const isBoundaryActive =
-                (leftId !== undefined && selectedIdSet.has(leftId)) ||
-                (rightId !== undefined && selectedIdSet.has(rightId))
-
-              if (!isBoundaryActive) {
-                return null
-              }
-
-              return (
-                <InsertZone
-                  key={`insert-${boundaryIndex}`}
-                  x={scale.getIntervalX(boundaryIndex)}
-                  index={boundaryIndex}
-                  height={EDITOR_HEIGHT}
-                />
-              )
-            })}
 
         {activeDrag && dragPreview && (
           <DragTooltip
