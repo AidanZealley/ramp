@@ -1,20 +1,41 @@
 import { useCallback } from "react"
 import {
-  
-  
   PointerSensor,
   useSensor,
-  useSensors
+  useSensors,
 } from "@dnd-kit/core"
-import type {DragEndEvent, DragStartEvent} from "@dnd-kit/core";
+import type {
+  DragCancelEvent,
+  DragEndEvent,
+  DragOverEvent,
+  DragStartEvent,
+} from "@dnd-kit/core"
 import type { WorkoutEditorActions } from "../store"
 
 interface UseReorderDndProps {
+  selectedIds: Array<string>
   stableIds: Array<string>
   actions: WorkoutEditorActions
 }
 
-export function useReorderDnd({ stableIds, actions }: UseReorderDndProps) {
+function getReorderGroup(
+  activeId: string,
+  selectedIds: Array<string>,
+  stableIds: Array<string>
+) {
+  if (!selectedIds.includes(activeId)) {
+    return stableIds.includes(activeId) ? [activeId] : []
+  }
+
+  const selectedIdSet = new Set(selectedIds)
+  return stableIds.filter((id) => selectedIdSet.has(id))
+}
+
+export function useReorderDnd({
+  selectedIds,
+  stableIds,
+  actions,
+}: UseReorderDndProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -26,6 +47,37 @@ export function useReorderDnd({ stableIds, actions }: UseReorderDndProps) {
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
       actions.setActiveReorderId(event.active.id as string)
+      actions.setActiveReorderOverId(null)
+    },
+    [actions]
+  )
+
+  const handleDragOver = useCallback(
+    (event: DragOverEvent) => {
+      const { active, over } = event
+      const activeId = active.id as string
+      const overId = over?.id as string | undefined
+
+      if (overId && activeId !== overId) {
+        const groupIds = getReorderGroup(activeId, selectedIds, stableIds)
+        if (!groupIds.includes(overId)) {
+          actions.setActiveReorderOverId(overId)
+          return
+        }
+
+        actions.setActiveReorderOverId(null)
+        return
+      }
+
+      actions.setActiveReorderOverId(null)
+    },
+    [actions, selectedIds, stableIds]
+  )
+
+  const handleDragCancel = useCallback(
+    (_event: DragCancelEvent) => {
+      actions.setActiveReorderId(null)
+      actions.setActiveReorderOverId(null)
     },
     [actions]
   )
@@ -35,15 +87,20 @@ export function useReorderDnd({ stableIds, actions }: UseReorderDndProps) {
       const { active, over } = event
       if (!over || active.id === over.id) {
         actions.setActiveReorderId(null)
+        actions.setActiveReorderOverId(null)
         return
       }
 
-      const oldIndex = stableIds.indexOf(active.id as string)
-      const newIndex = stableIds.indexOf(over.id as string)
-      actions.reorderIntervals(oldIndex, newIndex, active.id as string)
+      actions.reorderIntervalsByIds(active.id as string, over.id as string)
     },
-    [actions, stableIds]
+    [actions]
   )
 
-  return { sensors, handleDragStart, handleDragEnd }
+  return {
+    sensors,
+    handleDragStart,
+    handleDragOver,
+    handleDragCancel,
+    handleDragEnd,
+  }
 }

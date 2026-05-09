@@ -2,6 +2,7 @@ import { useSortable } from "@dnd-kit/sortable"
 import { MessageSquareText } from "lucide-react"
 import {
   useWorkoutEditorActions,
+  useWorkoutEditorActiveReorderId,
   useWorkoutEditorDisplayMode,
   useWorkoutEditorFtp,
   useWorkoutEditorHasSelectedSection,
@@ -52,6 +53,10 @@ export function IntervalBlock({
   const isHovered = useWorkoutEditorIsHovered(index)
   const isSelected = useWorkoutEditorIsSelected(stableId)
   const selectedCount = useWorkoutEditorSelectedCount()
+  const activeReorderId = useWorkoutEditorActiveReorderId()
+  const isActiveReorderSelected = useWorkoutEditorIsSelected(
+    activeReorderId ?? ""
+  )
   const hasSelectedSection = useWorkoutEditorHasSelectedSection(stableId)
   const selectedSectionTarget = useWorkoutEditorSelectedSectionTarget()
   const actions = useWorkoutEditorActions()
@@ -94,6 +99,11 @@ export function IntervalBlock({
   const showSubsectionTargets = isSelected && selectedCount === 1
   const activeSectionTarget =
     showSubsectionTargets && hasSelectedSection ? selectedSectionTarget : null
+  const isSelectedGroupReorder =
+    activeReorderId !== null &&
+    selectedCount > 1 &&
+    isSelected &&
+    isActiveReorderSelected
 
   const style: React.CSSProperties = {
     position: "absolute",
@@ -101,9 +111,12 @@ export function IntervalBlock({
     top: 0,
     width: displayW,
     height: EDITOR_HEIGHT,
-    transform: transform ? `translate3d(${transform.x}px, 0, 0)` : undefined,
+    transform:
+      transform && !isSelectedGroupReorder
+        ? `translate3d(${transform.x}px, 0, 0)`
+        : undefined,
     transition: transition ?? undefined,
-    opacity: isSortDragging ? 0.4 : 1,
+    opacity: isSelectedGroupReorder ? 0.28 : isSortDragging ? 0.4 : 1,
     zIndex: isSortDragging ? 10 : undefined,
   }
 

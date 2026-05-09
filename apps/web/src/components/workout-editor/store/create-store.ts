@@ -89,6 +89,7 @@ function applyPresent(
     dragPreview: null,
     hoveredIndex: null,
     activeReorderId: null,
+    activeReorderOverId: null,
   }
 }
 
@@ -131,6 +132,64 @@ function moveBlock<T>(
   const next = [...items]
   const block = next.splice(startIndex, blockLength)
   next.splice(insertIndex, 0, ...block)
+  return next
+}
+
+function getReorderGroup(
+  state: WorkoutEditorStoreState,
+  activeId: string
+): Array<string> {
+  if (!state.selectedIds.includes(activeId)) {
+    return state.stableIds.includes(activeId) ? [activeId] : []
+  }
+
+  const selectedIdSet = new Set(state.selectedIds)
+  return state.stableIds.filter((id) => selectedIdSet.has(id))
+}
+
+function moveIdsAsPackedGroup<T>(
+  items: Array<T>,
+  ids: Array<string>,
+  stableIds: Array<string>,
+  overId: string
+): Array<T> {
+  const groupIdSet = new Set(ids)
+  const groupIndices = stableIds
+    .map((id, index) => (groupIdSet.has(id) ? index : -1))
+    .filter((index) => index !== -1)
+  const overOriginalIndex = stableIds.indexOf(overId)
+
+  if (
+    ids.length === 0 ||
+    groupIndices.length === 0 ||
+    overOriginalIndex === -1 ||
+    groupIdSet.has(overId)
+  ) {
+    return items
+  }
+
+  const remainingStableIds: Array<string> = []
+  const remainingItems: Array<T> = []
+  const groupItems: Array<T> = []
+
+  for (let index = 0; index < stableIds.length; index += 1) {
+    if (groupIdSet.has(stableIds[index])) {
+      groupItems.push(items[index])
+      continue
+    }
+
+    remainingStableIds.push(stableIds[index])
+    remainingItems.push(items[index])
+  }
+
+  const isMovingRight = groupIndices[0] < overOriginalIndex
+  const overRemainingIndex = remainingStableIds.indexOf(overId)
+  const insertIndex = isMovingRight
+    ? overRemainingIndex + 1
+    : overRemainingIndex
+
+  const next = [...remainingItems]
+  next.splice(insertIndex, 0, ...groupItems)
   return next
 }
 
@@ -236,6 +295,7 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
               dragPreview: null,
               hoveredIndex: null,
               activeReorderId: null,
+              activeReorderOverId: null,
               history: resetHistory(present),
             }
           })
@@ -261,6 +321,9 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
         },
         setActiveReorderId: (id) => {
           set({ activeReorderId: id })
+        },
+        setActiveReorderOverId: (id) => {
+          set({ activeReorderOverId: id })
         },
         toggleMultiSelect: () => {
           set((state) => ({ multiSelectMode: !state.multiSelectMode }))
@@ -642,6 +705,46 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
               activeId
             )
           )
+        },
+        reorderIntervalsByIds: (activeId, overId) => {
+          const state = get()
+          const groupIds = getReorderGroup(state, activeId)
+          const groupIdSet = new Set(groupIds)
+
+          if (
+            activeId === overId ||
+            groupIds.length === 0 ||
+            groupIdSet.has(overId)
+          ) {
+            set({ activeReorderId: null, activeReorderOverId: null })
+            return
+          }
+
+          const nextStableIds = moveIdsAsPackedGroup(
+            state.stableIds,
+            groupIds,
+            state.stableIds,
+            overId
+          )
+          const nextIntervals = moveIdsAsPackedGroup(
+            state.intervals,
+            groupIds,
+            state.stableIds,
+            overId
+          )
+          const nextAnchorId = groupIdSet.has(state.anchorId ?? "")
+            ? state.anchorId
+            : activeId
+
+          commitHistoryEntry(
+            createHistoryEntry(
+              nextIntervals,
+              nextStableIds,
+              groupIds,
+              nextAnchorId
+            )
+          )
+          set({ activeReorderId: null, activeReorderOverId: null })
         },
         moveSelection: (direction) => {
           const state = get()

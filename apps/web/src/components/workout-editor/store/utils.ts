@@ -101,6 +101,10 @@ export function cleanupState(
     state.activeReorderId && liveIdSet.has(state.activeReorderId)
       ? state.activeReorderId
       : null
+  const activeReorderOverId =
+    state.activeReorderOverId && liveIdSet.has(state.activeReorderOverId)
+      ? state.activeReorderOverId
+      : null
   const hoveredIndex =
     state.hoveredIndex !== null && state.hoveredIndex < nextIntervals.length
       ? state.hoveredIndex
@@ -121,6 +125,7 @@ export function cleanupState(
     anchorId,
     selectedSection,
     activeReorderId,
+    activeReorderOverId,
     hoveredIndex,
     dragPreview,
   }
@@ -194,6 +199,7 @@ export function createSessionState(
     multiSelectMode: false,
     clipboardIds: [],
     activeReorderId: null,
+    activeReorderOverId: null,
     stableIds: nextStableIds,
     historyLimit: DEFAULT_HISTORY_LIMIT,
     history: createHistory(present, DEFAULT_HISTORY_LIMIT),

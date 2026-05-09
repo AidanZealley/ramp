@@ -6,16 +6,20 @@ import {
 import {
   useWorkoutEditorActions,
   useWorkoutEditorActiveReorderId,
+  useWorkoutEditorActiveReorderOverId,
   useWorkoutEditorDisplayIntervals,
   useWorkoutEditorDisplayMode,
   useWorkoutEditorDragPreview,
   useWorkoutEditorFtp,
+  useWorkoutEditorSelectedIds,
   useWorkoutEditorStableIds,
 } from "../store"
 import { useReorderDnd } from "../hooks/use-reorder-dnd"
 import { EditorGrid } from "./editor-grid"
-import { IntervalBlock, IntervalBlockOverlay } from "./interval-block"
+import { IntervalBlock } from "./interval-block"
 import { DragTooltip } from "./drag-tooltip"
+import { ReorderDragOverlay } from "./reorder-drag-overlay"
+import { ReorderInsertionIndicator } from "./reorder-insertion-indicator"
 import type { TimelineScale } from "@/hooks/use-timeline-scale"
 import type { DragType } from "@/lib/timeline/types"
 import { AXIS_HEIGHT, EDITOR_HEIGHT } from "@/lib/timeline/types"
@@ -41,20 +45,22 @@ export function EditorCanvas({
   const displayMode = useWorkoutEditorDisplayMode()
   const dragPreview = useWorkoutEditorDragPreview()
   const activeReorderId = useWorkoutEditorActiveReorderId()
+  const activeReorderOverId = useWorkoutEditorActiveReorderOverId()
+  const selectedIds = useWorkoutEditorSelectedIds()
   const actions = useWorkoutEditorActions()
-  const { sensors, handleDragStart, handleDragEnd } = useReorderDnd({
+  const {
+    sensors,
+    handleDragStart,
+    handleDragOver,
+    handleDragCancel,
+    handleDragEnd,
+  } = useReorderDnd({
+    selectedIds,
     stableIds,
     actions,
   })
 
   const isDragging = activeDrag !== null || activeReorderId !== null
-  const activeReorderIndex =
-    activeReorderId !== null ? stableIds.indexOf(activeReorderId) : null
-  const activeReorderInterval =
-    activeReorderIndex !== null && activeReorderIndex !== -1
-      ? displayIntervals[activeReorderIndex]
-      : null
-
   return (
     <div
       ref={scrollContainerRef}
@@ -76,6 +82,8 @@ export function EditorCanvas({
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragCancel={handleDragCancel}
           onDragEnd={handleDragEnd}
         >
           <SortableContext
@@ -95,10 +103,25 @@ export function EditorCanvas({
             ))}
           </SortableContext>
 
+          {activeReorderId &&
+            activeReorderOverId &&
+            activeReorderId !== activeReorderOverId && (
+              <ReorderInsertionIndicator
+                activeId={activeReorderId}
+                overId={activeReorderOverId}
+                stableIds={stableIds}
+                intervals={displayIntervals}
+                scale={scale}
+              />
+            )}
+
           <DragOverlay dropAnimation={null}>
-            {activeReorderInterval ? (
-              <IntervalBlockOverlay
-                interval={activeReorderInterval}
+            {activeReorderId ? (
+              <ReorderDragOverlay
+                activeId={activeReorderId}
+                intervals={displayIntervals}
+                stableIds={stableIds}
+                selectedIds={selectedIds}
                 scale={scale}
               />
             ) : null}

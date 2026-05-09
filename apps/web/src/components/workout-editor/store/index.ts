@@ -4,8 +4,8 @@ import { WorkoutEditorStoreContext } from "./context"
 import { buildClipboardPreviewData, isDirtyState } from "./utils"
 import type {
   ClipboardPreviewData,
-  WorkoutEditorSelectedSectionTarget,
   WorkoutEditorActions,
+  WorkoutEditorSelectedSectionTarget,
   WorkoutEditorStoreState,
 } from "./types"
 import type { Interval } from "@/lib/workout-utils"
@@ -89,6 +89,9 @@ export const useWorkoutEditorMultiSelectMode = () =>
 
 export const useWorkoutEditorActiveReorderId = () =>
   useWorkoutEditorStore((state) => state.activeReorderId)
+
+export const useWorkoutEditorActiveReorderOverId = () =>
+  useWorkoutEditorStore((state) => state.activeReorderOverId)
 
 export const useWorkoutEditorActions = (): WorkoutEditorActions =>
   useWorkoutEditorStore((state) => state.actions)

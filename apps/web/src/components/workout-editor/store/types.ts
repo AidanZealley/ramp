@@ -56,6 +56,7 @@ export interface WorkoutEditorActions {
   setDragPreview: (preview: Array<Interval> | null) => void
   setHoveredIndex: (index: number | null) => void
   setActiveReorderId: (id: string | null) => void
+  setActiveReorderOverId: (id: string | null) => void
   toggleMultiSelect: () => void
   clearSelectedSection: () => void
   enterSelectedSectionMode: () => void
@@ -84,6 +85,7 @@ export interface WorkoutEditorActions {
     newIndex: number,
     activeId: string
   ) => void
+  reorderIntervalsByIds: (activeId: string, overId: string) => void
   moveSelection: (direction: 1 | -1) => void
   nudgeSelectedSectionPower: (delta: number) => void
   nudgeSelectedPower: (delta: number) => void
@@ -108,6 +110,7 @@ export interface WorkoutEditorStoreState {
   multiSelectMode: boolean
   clipboardIds: Array<string>
   activeReorderId: string | null
+  activeReorderOverId: string | null
   stableIds: Array<string>
   history: HistoryState<WorkoutEditorHistoryEntry>
   historyLimit: number

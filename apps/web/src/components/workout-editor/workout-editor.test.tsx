@@ -1,10 +1,12 @@
-import { StrictMode, type HTMLAttributes, type ReactNode } from "react"
+import { StrictMode } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { WorkoutEditor } from "./workout-editor"
 import {
   WorkoutEditorStoreProvider,
   useWorkoutEditorActions,
+  useWorkoutEditorActiveReorderId,
+  useWorkoutEditorActiveReorderOverId,
   useWorkoutEditorCanRedo,
   useWorkoutEditorCanUndo,
   useWorkoutEditorClipboardIds,
@@ -15,6 +17,7 @@ import {
   useWorkoutEditorSelectedSection,
   useWorkoutEditorStableIds,
 } from "./store"
+import type { HTMLAttributes, ReactNode } from "react"
 import type { Interval } from "@/lib/workout-utils"
 import { DURATION_SNAP, MIN_DURATION } from "@/lib/timeline/types"
 
@@ -44,6 +47,13 @@ const baseIntervals: Array<Interval> = [
   { startPower: 200, endPower: 200, durationSeconds: 180 },
 ]
 
+const fourIntervals: Array<Interval> = [
+  { startPower: 100, endPower: 100, durationSeconds: 20 },
+  { startPower: 150, endPower: 150, durationSeconds: 30 },
+  { startPower: 200, endPower: 200, durationSeconds: 40 },
+  { startPower: 250, endPower: 250, durationSeconds: 50 },
+]
+
 function readJson<T>(testId: string): T {
   return JSON.parse(screen.getByTestId(testId).textContent) as T
 }
@@ -65,6 +75,8 @@ function HarnessContent() {
   const clipboardIds = useWorkoutEditorClipboardIds()
   const stableIds = useWorkoutEditorStableIds()
   const selectedSection = useWorkoutEditorSelectedSection()
+  const activeReorderId = useWorkoutEditorActiveReorderId()
+  const activeReorderOverId = useWorkoutEditorActiveReorderOverId()
   const canUndo = useWorkoutEditorCanUndo()
   const canRedo = useWorkoutEditorCanRedo()
   const isDirty = useWorkoutEditorIsDirty()
@@ -80,6 +92,10 @@ function HarnessContent() {
       <div data-testid="clipboard">{JSON.stringify(clipboardIds)}</div>
       <div data-testid="stable">{JSON.stringify(stableIds)}</div>
       <div data-testid="intervals">{JSON.stringify(intervals)}</div>
+      <div data-testid="active-reorder">{JSON.stringify(activeReorderId)}</div>
+      <div data-testid="active-reorder-over">
+        {JSON.stringify(activeReorderOverId)}
+      </div>
       <div data-testid="can-undo">{canUndo ? "yes" : "no"}</div>
       <div data-testid="can-redo">{canRedo ? "yes" : "no"}</div>
       <div data-testid="is-dirty">{isDirty ? "yes" : "no"}</div>
@@ -233,6 +249,65 @@ function HarnessContent() {
       <button onClick={actions.reorderIntervals.bind(null, 0, 2, stableIds[0])}>
         reorder-0-2
       </button>
+      <button
+        onClick={() => actions.reorderIntervalsByIds(stableIds[0], stableIds[2])}
+      >
+        reorder-id-0-over-2
+      </button>
+      {stableIds.length > 3 && (
+        <>
+          <button
+            onClick={() =>
+              actions.selectWithModifiers(stableIds[3], {
+                shift: false,
+                meta: false,
+              })
+            }
+          >
+            plain-3
+          </button>
+          <button
+            onClick={() =>
+              actions.selectWithModifiers(stableIds[3], {
+                shift: false,
+                meta: true,
+              })
+            }
+          >
+            meta-3
+          </button>
+          <button
+            onClick={() =>
+              actions.reorderIntervalsByIds(stableIds[1], stableIds[3])
+            }
+          >
+            reorder-id-1-over-3
+          </button>
+          <button
+            onClick={() =>
+              actions.reorderIntervalsByIds(stableIds[0], stableIds[3])
+            }
+          >
+            reorder-id-0-over-3
+          </button>
+          <button
+            onClick={() =>
+              actions.reorderIntervalsByIds(stableIds[3], stableIds[1])
+            }
+          >
+            reorder-id-3-over-1
+          </button>
+          <button
+            onClick={() => {
+              actions.setActiveReorderId(stableIds[0])
+              actions.setActiveReorderOverId(stableIds[2])
+              actions.reorderIntervalsByIds(stableIds[0], stableIds[2])
+            }}
+          >
+            reorder-id-0-over-2-active
+          </button>
+        </>
+      )}
     </div>
   )
 }
@@ -572,7 +647,7 @@ describe("workout editor store", () => {
 
     const stableIds = readJson<Array<string>>("stable")
     fireEvent.click(screen.getByText("plain-0"))
-    fireEvent.click(screen.getByText("reorder-0-2"))
+    fireEvent.click(screen.getByText("reorder-id-0-over-2"))
 
     await waitFor(() => {
       expect(
@@ -591,6 +666,132 @@ describe("workout editor store", () => {
         )
       ).toEqual([100, 150, 200])
       expect(readJson<Array<string>>("selected")).toEqual([stableIds[0]])
+    })
+  })
+
+  it("moves a contiguous selected drag as a packed group", async () => {
+    render(<StoreHarness initialIntervals={fourIntervals} />)
+
+    const stableIds = readJson<Array<string>>("stable")
+    fireEvent.click(screen.getByText("plain-1"))
+    fireEvent.click(screen.getByText("meta-2"))
+    fireEvent.click(screen.getByText("reorder-id-1-over-3"))
+
+    await waitFor(() => {
+      expect(
+        readJson<Array<Interval>>("intervals").map(
+          (interval) => interval.durationSeconds
+        )
+      ).toEqual([20, 50, 30, 40])
+    })
+    expect(readJson<Array<string>>("selected")).toEqual([
+      stableIds[1],
+      stableIds[2],
+    ])
+  })
+
+  it("compacts a non-contiguous selected drag at the drop location", async () => {
+    render(<StoreHarness initialIntervals={fourIntervals} />)
+
+    const stableIds = readJson<Array<string>>("stable")
+    fireEvent.click(screen.getByText("plain-0"))
+    fireEvent.click(screen.getByText("meta-2"))
+    fireEvent.click(screen.getByText("reorder-id-0-over-3"))
+
+    await waitFor(() => {
+      expect(
+        readJson<Array<Interval>>("intervals").map(
+          (interval) => interval.durationSeconds
+        )
+      ).toEqual([30, 50, 20, 40])
+    })
+    expect(readJson<Array<string>>("selected")).toEqual([
+      stableIds[0],
+      stableIds[2],
+    ])
+  })
+
+  it("moves only an unselected dragged interval over an existing selection", async () => {
+    render(<StoreHarness initialIntervals={fourIntervals} />)
+
+    const stableIds = readJson<Array<string>>("stable")
+    fireEvent.click(screen.getByText("plain-0"))
+    fireEvent.click(screen.getByText("meta-2"))
+    fireEvent.click(screen.getByText("reorder-id-3-over-1"))
+
+    await waitFor(() => {
+      expect(
+        readJson<Array<Interval>>("intervals").map(
+          (interval) => interval.durationSeconds
+        )
+      ).toEqual([20, 50, 30, 40])
+    })
+    expect(readJson<Array<string>>("selected")).toEqual([stableIds[3]])
+  })
+
+  it("does not reorder when dropping onto an id inside the dragged group", async () => {
+    render(<StoreHarness initialIntervals={fourIntervals} />)
+
+    const stableIds = readJson<Array<string>>("stable")
+    fireEvent.click(screen.getByText("plain-0"))
+    fireEvent.click(screen.getByText("meta-2"))
+    fireEvent.click(screen.getByText("reorder-id-0-over-2-active"))
+
+    await waitFor(() => {
+      expect(
+        readJson<Array<Interval>>("intervals").map(
+          (interval) => interval.durationSeconds
+        )
+      ).toEqual([20, 30, 40, 50])
+    })
+    expect(readJson<Array<string>>("selected")).toEqual([
+      stableIds[0],
+      stableIds[2],
+    ])
+    expect(readJson<string | null>("active-reorder")).toBeNull()
+    expect(readJson<string | null>("active-reorder-over")).toBeNull()
+  })
+
+  it("undoes and redoes packed group reorders exactly", async () => {
+    render(<StoreHarness initialIntervals={fourIntervals} />)
+
+    const stableIds = readJson<Array<string>>("stable")
+    fireEvent.click(screen.getByText("plain-0"))
+    fireEvent.click(screen.getByText("meta-2"))
+    fireEvent.click(screen.getByText("reorder-id-0-over-3"))
+
+    await waitFor(() => {
+      expect(readJson<Array<string>>("stable")).toEqual([
+        stableIds[1],
+        stableIds[3],
+        stableIds[0],
+        stableIds[2],
+      ])
+    })
+
+    fireEvent.click(screen.getByText("undo"))
+    await waitFor(() => {
+      expect(readJson<Array<string>>("stable")).toEqual(stableIds)
+      expect(
+        readJson<Array<Interval>>("intervals").map(
+          (interval) => interval.durationSeconds
+        )
+      ).toEqual([20, 30, 40, 50])
+    })
+
+    fireEvent.click(screen.getByText("redo"))
+    await waitFor(() => {
+      expect(readJson<Array<string>>("stable")).toEqual([
+        stableIds[1],
+        stableIds[3],
+        stableIds[0],
+        stableIds[2],
+      ])
+      expect(
+        readJson<Array<Interval>>("intervals").map(
+          (interval) => interval.durationSeconds
+        )
+      ).toEqual([30, 50, 20, 40])
     })
   })
 
