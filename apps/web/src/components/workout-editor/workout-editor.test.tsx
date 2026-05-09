@@ -1,6 +1,6 @@
-import { StrictMode } from "react"
+import { StrictMode, type HTMLAttributes, type ReactNode } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { WorkoutEditor } from "./workout-editor"
 import {
   WorkoutEditorStoreProvider,
@@ -17,6 +17,26 @@ import {
 } from "./store"
 import type { Interval } from "@/lib/workout-utils"
 import { DURATION_SNAP, MIN_DURATION } from "@/lib/timeline/types"
+
+vi.mock("motion/react", () => ({
+  AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
+  motion: {
+    div: ({
+      children,
+      initial,
+      animate,
+      exit,
+      transition,
+      ...props
+    }: HTMLAttributes<HTMLDivElement> & {
+      children: ReactNode
+      initial?: unknown
+      animate?: unknown
+      exit?: unknown
+      transition?: unknown
+    }) => <div {...props}>{children}</div>,
+  },
+}))
 
 const baseIntervals: Array<Interval> = [
   { startPower: 100, endPower: 100, durationSeconds: 60 },
@@ -54,7 +74,9 @@ function HarnessContent() {
   return (
     <div>
       <div data-testid="selected">{JSON.stringify(selectedIds)}</div>
-      <div data-testid="selected-section">{JSON.stringify(selectedSection)}</div>
+      <div data-testid="selected-section">
+        {JSON.stringify(selectedSection)}
+      </div>
       <div data-testid="clipboard">{JSON.stringify(clipboardIds)}</div>
       <div data-testid="stable">{JSON.stringify(stableIds)}</div>
       <div data-testid="intervals">{JSON.stringify(intervals)}</div>
@@ -1584,5 +1606,99 @@ describe("WorkoutEditor keyboard shortcuts", () => {
         stableIds[2],
       ])
     })
+  })
+})
+
+describe("WorkoutEditor edit feedback bubble", () => {
+  beforeEach(() => {
+    setNavigatorPlatform("MacIntel")
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.runOnlyPendingTimers()
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  it("shows a single selected interval duration keyboard nudge", async () => {
+    const { container } = render(<EditorActionHarness />)
+
+    fireEvent.click(getIntervalBody(container, 0)!)
+    fireEvent.keyDown(document, { key: "ArrowRight" })
+
+    const bubble = screen.getByText("1:10 · 250W (100%)")
+    expect(bubble.getAttribute("role")).toBe("status")
+    expect(bubble.textContent).toBe("1:10 · 250W (100%)")
+  })
+
+  it("updates and resets the timeout during repeated edits", async () => {
+    const { container } = render(<EditorActionHarness />)
+
+    fireEvent.click(getIntervalBody(container, 0)!)
+    fireEvent.keyDown(document, { key: "ArrowRight" })
+    expect(screen.getByText("1:10 · 250W (100%)").textContent).toBe(
+      "1:10 · 250W (100%)"
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(1500)
+    })
+    fireEvent.keyDown(document, { key: "ArrowRight" })
+    expect(screen.getByText("1:20 · 250W (100%)").textContent).toBe(
+      "1:20 · 250W (100%)"
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(1999)
+    })
+    expect(screen.getByText("1:20 · 250W (100%)").textContent).toBe(
+      "1:20 · 250W (100%)"
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(1)
+    })
+    expect(screen.queryByText("1:20 · 250W (100%)")).toBeNull()
+  })
+
+  it("shows preferred and secondary units for single selected power nudges", async () => {
+    const { container } = render(<EditorActionHarness />)
+
+    fireEvent.click(getIntervalBody(container, 0)!)
+    fireEvent.keyDown(document, { key: "ArrowUp" })
+
+    expect(screen.getByText("1:00 · 253W (101%)").textContent).toBe(
+      "1:00 · 253W (101%)"
+    )
+  })
+
+  it("shows ramp-aware values for subsection power nudges", async () => {
+    const { container } = render(
+      <EditorActionHarness
+        initialIntervals={[
+          { startPower: 100, endPower: 150, durationSeconds: 60 },
+          { startPower: 120, endPower: 180, durationSeconds: 120 },
+        ]}
+      />
+    )
+
+    fireEvent.click(getIntervalBody(container, 1)!)
+    fireEvent.click(getSectionTarget(container, 1, "power-start")!)
+    fireEvent.keyDown(document, { key: "ArrowUp" })
+
+    expect(screen.getByText("2:00 · 303W–450W (121%–180%)").textContent).toBe(
+      "2:00 · 303W–450W (121%–180%)"
+    )
+  })
+
+  it("does not show feedback for multi-selection edits", () => {
+    const { container } = render(<EditorActionHarness />)
+
+    fireEvent.click(getIntervalBody(container, 0)!)
+    fireEvent.click(getIntervalBody(container, 1)!, { metaKey: true })
+    fireEvent.keyDown(document, { key: "ArrowUp" })
+
+    expect(screen.queryByText(/ · /)).toBeNull()
   })
 })

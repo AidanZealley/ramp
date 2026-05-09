@@ -15,6 +15,7 @@ function createPointerEvent(clientX: number, clientY = 0) {
 describe("useIntervalDrag", () => {
   it("snaps right-edge duration drags in 10-second increments", () => {
     const onPreviewChange = vi.fn()
+    const onEditPreview = vi.fn()
     const onCommit = vi.fn()
     const intervals: Array<Interval> = [
       { startPower: 100, endPower: 100, durationSeconds: 30 },
@@ -25,6 +26,7 @@ describe("useIntervalDrag", () => {
         intervals,
         pixelsPerSecond: 2,
         onPreviewChange,
+        onEditPreview,
         onCommit,
       })
     )
@@ -40,6 +42,11 @@ describe("useIntervalDrag", () => {
     expect(onPreviewChange).toHaveBeenLastCalledWith([
       { startPower: 100, endPower: 100, durationSeconds: 40 },
     ])
+    expect(onEditPreview).toHaveBeenLastCalledWith({
+      type: "duration",
+      index: 0,
+      intervals: [{ startPower: 100, endPower: 100, durationSeconds: 40 }],
+    })
 
     act(() => {
       window.dispatchEvent(new PointerEvent("pointerup"))

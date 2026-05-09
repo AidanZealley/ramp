@@ -13,6 +13,11 @@ interface UseIntervalDragConfig {
   intervals: Array<Interval>
   pixelsPerSecond: number
   onPreviewChange: (preview: Array<Interval> | null) => void
+  onEditPreview?: (payload: {
+    type: DragType
+    index: number
+    intervals: Array<Interval>
+  }) => void
   onCommit: (intervals: Array<Interval>) => void
 }
 
@@ -32,6 +37,7 @@ export function useIntervalDrag({
   intervals,
   pixelsPerSecond,
   onPreviewChange,
+  onEditPreview,
   onCommit,
 }: UseIntervalDragConfig) {
   const [activeDrag, setActiveDrag] = useState<DragState | null>(null)
@@ -137,6 +143,7 @@ export function useIntervalDrag({
         }
 
         latestPreview = newIntervals
+        onEditPreview?.({ type, index, intervals: newIntervals })
         onPreviewChange(newIntervals)
       }
 
@@ -169,7 +176,14 @@ export function useIntervalDrag({
 
       setActiveDrag({ type, index })
     },
-    [intervals, pixelsPerSecond, powerSnap, onPreviewChange, onCommit]
+    [
+      intervals,
+      pixelsPerSecond,
+      powerSnap,
+      onPreviewChange,
+      onEditPreview,
+      onCommit,
+    ]
   )
 
   return { activeDrag, startDrag }

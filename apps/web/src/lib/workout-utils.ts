@@ -56,6 +56,39 @@ export function formatPower(
     : `${Math.round(power)}%`
 }
 
+function formatPowerRange(
+  startPower: number,
+  endPower: number,
+  displayMode: PowerDisplayMode,
+  ftp: number
+): string {
+  if (startPower === endPower) {
+    return formatPower(startPower, displayMode, ftp)
+  }
+
+  return `${formatPower(startPower, displayMode, ftp)}–${formatPower(
+    endPower,
+    displayMode,
+    ftp
+  )}`
+}
+
+export function formatPowerWithSecondary(
+  power: Pick<Interval, "startPower" | "endPower">,
+  displayMode: PowerDisplayMode,
+  ftp: number
+): string {
+  const secondaryMode: PowerDisplayMode =
+    displayMode === "absolute" ? "percentage" : "absolute"
+
+  return `${formatPowerRange(
+    power.startPower,
+    power.endPower,
+    displayMode,
+    ftp
+  )} (${formatPowerRange(power.startPower, power.endPower, secondaryMode, ftp)})`
+}
+
 export function percentageToWatts(power: number, ftp: number): number {
   return Math.round((power * ftp) / 100)
 }
