@@ -116,6 +116,24 @@ function buildSelectionState(
   }
 }
 
+function isContiguous(indices: Array<number>) {
+  return indices.every(
+    (index, position) => position === 0 || index === indices[position - 1] + 1
+  )
+}
+
+function moveBlock<T>(
+  items: Array<T>,
+  startIndex: number,
+  blockLength: number,
+  insertIndex: number
+) {
+  const next = [...items]
+  const block = next.splice(startIndex, blockLength)
+  next.splice(insertIndex, 0, ...block)
+  return next
+}
+
 function initializeSessionState(
   state: WorkoutEditorStoreState,
   snapshot: WorkoutEditorServerSnapshot,
@@ -622,6 +640,45 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
               arrayMove([...state.stableIds], oldIndex, newIndex),
               [activeId],
               activeId
+            )
+          )
+        },
+        moveSelection: (direction) => {
+          const state = get()
+          if (state.selectedIds.length === 0) return
+
+          const selectedIdSet = new Set(state.selectedIds)
+          const selectedIndices = state.stableIds
+            .map((id, index) => (selectedIdSet.has(id) ? index : -1))
+            .filter((index) => index !== -1)
+
+          if (
+            selectedIndices.length === 0 ||
+            !isContiguous(selectedIndices)
+          ) {
+            return
+          }
+
+          const firstIndex = selectedIndices[0]
+          const blockLength = selectedIndices.length
+          const lastIndex = firstIndex + blockLength - 1
+
+          if (
+            (direction === -1 && firstIndex === 0) ||
+            (direction === 1 && lastIndex === state.stableIds.length - 1)
+          ) {
+            return
+          }
+
+          const insertIndex =
+            direction === -1 ? firstIndex - 1 : firstIndex + 1
+
+          commitHistoryEntry(
+            createHistoryEntry(
+              moveBlock(state.intervals, firstIndex, blockLength, insertIndex),
+              moveBlock(state.stableIds, firstIndex, blockLength, insertIndex),
+              state.selectedIds,
+              state.anchorId
             )
           )
         },

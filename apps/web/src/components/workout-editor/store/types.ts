@@ -84,6 +84,7 @@ export interface WorkoutEditorActions {
     newIndex: number,
     activeId: string
   ) => void
+  moveSelection: (direction: 1 | -1) => void
   nudgeSelectedSectionPower: (delta: number) => void
   nudgeSelectedPower: (delta: number) => void
   nudgeSelectedDuration: (delta: number) => void

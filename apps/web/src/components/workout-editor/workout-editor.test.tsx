@@ -1464,4 +1464,125 @@ describe("WorkoutEditor keyboard shortcuts", () => {
       ])
     })
   })
+
+  it("moves a single selected interval with Alt+Left and Alt+Right instead of nudging duration", async () => {
+    const { container } = render(
+      <EditorActionHarness
+        initialIntervals={[
+          { startPower: 100, endPower: 100, durationSeconds: 20 },
+          { startPower: 150, endPower: 150, durationSeconds: 30 },
+          { startPower: 200, endPower: 200, durationSeconds: 40 },
+        ]}
+      />
+    )
+
+    fireEvent.click(getIntervalBody(container, 1)!)
+    const stableIds = readJson<Array<string>>("editor-stable")
+
+    fireEvent.keyDown(document, { key: "ArrowLeft", altKey: true })
+    await waitFor(() => {
+      expect(
+        readJson<Array<Interval>>("editor-intervals").map(
+          (interval) => interval.durationSeconds
+        )
+      ).toEqual([30, 20, 40])
+      expect(readJson<Array<string>>("editor-stable")).toEqual([
+        stableIds[1],
+        stableIds[0],
+        stableIds[2],
+      ])
+      expect(readJson<Array<string>>("editor-selected")).toEqual([stableIds[1]])
+    })
+
+    fireEvent.keyDown(document, { key: "ArrowRight", altKey: true })
+    await waitFor(() => {
+      expect(
+        readJson<Array<Interval>>("editor-intervals").map(
+          (interval) => interval.durationSeconds
+        )
+      ).toEqual([20, 30, 40])
+      expect(readJson<Array<string>>("editor-stable")).toEqual(stableIds)
+      expect(readJson<Array<string>>("editor-selected")).toEqual([stableIds[1]])
+    })
+  })
+
+  it("moves a contiguous multi-selection as a block with Alt+Left and Alt+Right", async () => {
+    const { container } = render(
+      <EditorActionHarness
+        initialIntervals={[
+          { startPower: 100, endPower: 100, durationSeconds: 20 },
+          { startPower: 150, endPower: 150, durationSeconds: 30 },
+          { startPower: 200, endPower: 200, durationSeconds: 40 },
+          { startPower: 250, endPower: 250, durationSeconds: 50 },
+        ]}
+      />
+    )
+
+    fireEvent.click(getIntervalBody(container, 1)!)
+    fireEvent.click(getIntervalBody(container, 2)!, { shiftKey: true })
+    const stableIds = readJson<Array<string>>("editor-stable")
+
+    fireEvent.keyDown(document, { key: "ArrowLeft", altKey: true })
+    await waitFor(() => {
+      expect(
+        readJson<Array<Interval>>("editor-intervals").map(
+          (interval) => interval.durationSeconds
+        )
+      ).toEqual([30, 40, 20, 50])
+      expect(readJson<Array<string>>("editor-stable")).toEqual([
+        stableIds[1],
+        stableIds[2],
+        stableIds[0],
+        stableIds[3],
+      ])
+      expect(readJson<Array<string>>("editor-selected")).toEqual([
+        stableIds[1],
+        stableIds[2],
+      ])
+    })
+
+    fireEvent.keyDown(document, { key: "ArrowRight", altKey: true })
+    await waitFor(() => {
+      expect(
+        readJson<Array<Interval>>("editor-intervals").map(
+          (interval) => interval.durationSeconds
+        )
+      ).toEqual([20, 30, 40, 50])
+      expect(readJson<Array<string>>("editor-stable")).toEqual(stableIds)
+      expect(readJson<Array<string>>("editor-selected")).toEqual([
+        stableIds[1],
+        stableIds[2],
+      ])
+    })
+  })
+
+  it("does not move a non-contiguous multi-selection with Alt+Left or Alt+Right", async () => {
+    const { container } = render(
+      <EditorActionHarness
+        initialIntervals={[
+          { startPower: 100, endPower: 100, durationSeconds: 20 },
+          { startPower: 150, endPower: 150, durationSeconds: 30 },
+          { startPower: 200, endPower: 200, durationSeconds: 40 },
+        ]}
+      />
+    )
+
+    fireEvent.click(getIntervalBody(container, 0)!)
+    fireEvent.click(getIntervalBody(container, 2)!, { metaKey: true })
+    const stableIds = readJson<Array<string>>("editor-stable")
+
+    fireEvent.keyDown(document, { key: "ArrowRight", altKey: true })
+    await waitFor(() => {
+      expect(
+        readJson<Array<Interval>>("editor-intervals").map(
+          (interval) => interval.durationSeconds
+        )
+      ).toEqual([20, 30, 40])
+      expect(readJson<Array<string>>("editor-stable")).toEqual(stableIds)
+      expect(readJson<Array<string>>("editor-selected")).toEqual([
+        stableIds[0],
+        stableIds[2],
+      ])
+    })
+  })
 })

@@ -132,6 +132,12 @@ export function useEditorKeypresses({
       (event: KeyboardEvent) => {
         if (isDragging || selectedCount === 0) return
         event.preventDefault()
+        if (event.altKey) {
+          if (!event.shiftKey && !event.metaKey && !event.ctrlKey) {
+            actions.moveSelection(1)
+          }
+          return
+        }
         if (event.shiftKey) {
           actions.extendSelection(1)
           return
@@ -148,6 +154,12 @@ export function useEditorKeypresses({
       (event: KeyboardEvent) => {
         if (isDragging || selectedCount === 0) return
         event.preventDefault()
+        if (event.altKey) {
+          if (!event.shiftKey && !event.metaKey && !event.ctrlKey) {
+            actions.moveSelection(-1)
+          }
+          return
+        }
         if (event.shiftKey) {
           actions.extendSelection(-1)
           return
