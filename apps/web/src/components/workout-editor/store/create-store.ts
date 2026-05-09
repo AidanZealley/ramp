@@ -438,6 +438,12 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
 
           const state = get()
           const toDelete = new Set(ids)
+          const deletedIndices = state.stableIds
+            .map((id, index) => (toDelete.has(id) ? index : -1))
+            .filter((index) => index !== -1)
+
+          if (deletedIndices.length === 0) return
+
           const keepMask = state.stableIds.map((id) => !toDelete.has(id))
           const stableIds = state.stableIds.filter(
             (_, index) => keepMask[index]
@@ -445,8 +451,19 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
           const intervals = state.intervals.filter(
             (_, index) => keepMask[index]
           )
+          const nextSelectedId =
+            stableIds.length > 0
+              ? stableIds[Math.min(deletedIndices[0], stableIds.length - 1)]
+              : null
 
-          commitHistoryEntry(createHistoryEntry(intervals, stableIds, [], null))
+          commitHistoryEntry(
+            createHistoryEntry(
+              intervals,
+              stableIds,
+              nextSelectedId ? [nextSelectedId] : [],
+              nextSelectedId
+            )
+          )
         },
         setSelectedComment: (comment) => {
           const state = get()

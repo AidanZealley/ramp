@@ -474,6 +474,44 @@ describe("workout editor store", () => {
     })
   })
 
+  it("selects the next interval after deleting a middle interval", async () => {
+    render(<StoreHarness />)
+
+    const stableIds = readJson<Array<string>>("stable")
+    fireEvent.click(screen.getByText("plain-1"))
+    fireEvent.click(screen.getByText("delete-selection"))
+
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("intervals")).toHaveLength(2)
+      expect(readJson<Array<string>>("selected")).toEqual([stableIds[2]])
+    })
+  })
+
+  it("selects the previous interval after deleting the last interval", async () => {
+    render(<StoreHarness />)
+
+    const stableIds = readJson<Array<string>>("stable")
+    fireEvent.click(screen.getByText("plain-2"))
+    fireEvent.click(screen.getByText("delete-selection"))
+
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("intervals")).toHaveLength(2)
+      expect(readJson<Array<string>>("selected")).toEqual([stableIds[1]])
+    })
+  })
+
+  it("does not select anything after deleting the only interval", async () => {
+    render(<StoreHarness initialIntervals={baseIntervals.slice(0, 1)} />)
+
+    fireEvent.click(screen.getByText("plain-0"))
+    fireEvent.click(screen.getByText("delete-selection"))
+
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("intervals")).toHaveLength(0)
+      expect(readJson<Array<string>>("selected")).toEqual([])
+    })
+  })
+
   it("reorders intervals and undo restores order and selected interval", async () => {
     render(<StoreHarness />)
 
