@@ -77,3 +77,47 @@ export function getZoneMutedColor(power: number): string {
 export function getZoneInfoByZone(zone: Zone): ZoneInfo {
   return { zone, ...ZONE_MAP[zone] }
 }
+
+const ZONE_TRANSITION_POWERS = [60, 76, 90, 105, 119] as const
+const DESCENDING_ZONE_TRANSITION_POWERS = [118, 104, 89, 75, 59] as const
+
+export function getZoneGradient(startPower: number, endPower: number): string {
+  if (startPower === endPower) {
+    return getZoneColor(startPower)
+  }
+
+  const direction = startPower < endPower ? 1 : -1
+  const transitionPowers =
+    direction === 1 ? ZONE_TRANSITION_POWERS : DESCENDING_ZONE_TRANSITION_POWERS
+  const stops = [
+    {
+      color: getZoneColor(startPower),
+      position: 0,
+    },
+  ]
+
+  for (const power of transitionPowers) {
+    const crossesTransition =
+      direction === 1
+        ? startPower < power && power < endPower
+        : endPower < power && power < startPower
+
+    if (!crossesTransition) {
+      continue
+    }
+
+    stops.push({
+      color: getZoneColor(power),
+      position: ((power - startPower) / (endPower - startPower)) * 100,
+    })
+  }
+
+  stops.push({
+    color: getZoneColor(endPower),
+    position: 100,
+  })
+
+  return `linear-gradient(to right, ${stops
+    .map(({ color, position }) => `${color} ${position.toFixed(2)}%`)
+    .join(", ")})`
+}

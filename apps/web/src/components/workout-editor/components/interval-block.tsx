@@ -20,7 +20,7 @@ import {
   formatPower,
   percentageToWatts,
 } from "@/lib/workout-utils"
-import { getZoneColor, getZoneInfo } from "@/lib/zones"
+import { getZoneColor, getZoneGradient, getZoneInfo } from "@/lib/zones"
 import { EDITOR_HEIGHT } from "@/lib/timeline/types"
 import { cn } from "@/lib/utils"
 
@@ -74,6 +74,7 @@ export function IntervalBlock({
 
   const startColor = getZoneColor(interval.startPower)
   const endColor = getZoneColor(interval.endPower)
+  const zoneGradient = getZoneGradient(interval.startPower, interval.endPower)
   const startZone = getZoneInfo(interval.startPower).zone
   const endZone = getZoneInfo(interval.endPower).zone
   const zoneLabel =
@@ -123,7 +124,7 @@ export function IntervalBlock({
         className="absolute inset-0"
         style={{
           clipPath: `polygon(0% ${startPowerPct}%, 100% ${endPowerPct}%, 100% 100%, 0% 100%)`,
-          background: `linear-gradient(to right, ${startColor}, ${endColor})`,
+          background: zoneGradient,
           opacity: 0.8,
           cursor: isDragging ? "grabbing" : "grab",
         }}
@@ -256,8 +257,7 @@ export function IntervalBlockOverlay({
   const startPowerPct = (startYPx / EDITOR_HEIGHT) * 100
   const endPowerPct = (endYPx / EDITOR_HEIGHT) * 100
 
-  const startColor = getZoneColor(interval.startPower)
-  const endColor = getZoneColor(interval.endPower)
+  const zoneGradient = getZoneGradient(interval.startPower, interval.endPower)
 
   return (
     <div
@@ -272,7 +272,7 @@ export function IntervalBlockOverlay({
         className="absolute inset-0"
         style={{
           clipPath: `polygon(0% ${startPowerPct}%, 100% ${endPowerPct}%, 100% 100%, 0% 100%)`,
-          background: `linear-gradient(to right, ${startColor}, ${endColor})`,
+          background: zoneGradient,
           opacity: 0.8,
         }}
       />
