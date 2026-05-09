@@ -474,7 +474,7 @@ describe("workout editor store", () => {
     })
   })
 
-  it("selects the next interval after deleting a middle interval", async () => {
+  it("selects the previous interval after deleting a middle interval", async () => {
     render(<StoreHarness />)
 
     const stableIds = readJson<Array<string>>("stable")
@@ -483,7 +483,19 @@ describe("workout editor store", () => {
 
     await waitFor(() => {
       expect(readJson<Array<Interval>>("intervals")).toHaveLength(2)
-      expect(readJson<Array<string>>("selected")).toEqual([stableIds[2]])
+      expect(readJson<Array<string>>("selected")).toEqual([stableIds[0]])
+    })
+  })
+
+  it("does not select anything after deleting the first interval", async () => {
+    render(<StoreHarness />)
+
+    fireEvent.click(screen.getByText("plain-0"))
+    fireEvent.click(screen.getByText("delete-selection"))
+
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("intervals")).toHaveLength(2)
+      expect(readJson<Array<string>>("selected")).toEqual([])
     })
   })
 

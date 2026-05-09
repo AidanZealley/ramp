@@ -452,9 +452,7 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
             (_, index) => keepMask[index]
           )
           const nextSelectedId =
-            stableIds.length > 0
-              ? stableIds[Math.min(deletedIndices[0], stableIds.length - 1)]
-              : null
+            deletedIndices[0] > 0 ? stableIds[deletedIndices[0] - 1] : null
 
           commitHistoryEntry(
             createHistoryEntry(
