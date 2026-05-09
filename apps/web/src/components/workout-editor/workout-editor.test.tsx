@@ -587,8 +587,8 @@ describe("workout editor store", () => {
       expect(intervals).toHaveLength(4)
       expect(intervals[2]).toEqual({
         startPower: 150,
-        endPower: 200,
-        durationSeconds: 300,
+        endPower: 150,
+        durationSeconds: 120,
       })
     })
   })

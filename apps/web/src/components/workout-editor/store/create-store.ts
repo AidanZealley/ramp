@@ -515,19 +515,19 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
           const defaultPower = 75
           const hasPrev = index > 0
           const hasNext = index < displayIntervals.length
+          const matchedPower = hasPrev
+            ? displayIntervals[index - 1].endPower
+            : hasNext
+              ? displayIntervals[index].startPower
+              : defaultPower
+          const matchedDurationSeconds = hasPrev
+            ? displayIntervals[index - 1].durationSeconds
+            : 300
 
           const newInterval: Interval = {
-            startPower: hasPrev
-              ? displayIntervals[index - 1].endPower
-              : hasNext
-                ? displayIntervals[index].startPower
-                : defaultPower,
-            endPower: hasNext
-              ? displayIntervals[index].startPower
-              : hasPrev
-                ? displayIntervals[index - 1].endPower
-                : defaultPower,
-            durationSeconds: 300,
+            startPower: matchedPower,
+            endPower: matchedPower,
+            durationSeconds: matchedDurationSeconds,
           }
 
           const freshId = newWorkoutEditorId()
