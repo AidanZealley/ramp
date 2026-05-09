@@ -6,8 +6,11 @@ import {
 } from "../store"
 import { WorkoutMini } from "@/components/workout-mini"
 
-const MINIMAP_PX_PER_SEC = 0.2
 const MINIMAP_MIN_WIDTH = 120
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
+}
 
 interface EditorMinimapProps {
   scrollContainerRef: React.RefObject<HTMLDivElement | null>
@@ -28,7 +31,6 @@ export function EditorMinimap({
   const dragRef = useRef<{
     dragging: boolean
     grabOffset: number
-    k: number
     rectLeft: number
   } | null>(null)
 
@@ -100,12 +102,7 @@ export function EditorMinimap({
     [intervals]
   )
 
-  const contentWidth = Math.max(
-    totalDuration * MINIMAP_PX_PER_SEC,
-    MINIMAP_MIN_WIDTH
-  )
-
-  const overflow = Math.max(0, contentWidth - containerWidth)
+  const minimapWidth = Math.max(containerWidth, MINIMAP_MIN_WIDTH)
   const workoutScrollWidth = Math.max(0, scrollWidth - edgeGutterPx * 2)
   const viewportWorkoutLeft = Math.max(0, scrollLeft - edgeGutterPx)
   const hiddenLeftGutter = Math.max(0, edgeGutterPx - scrollLeft)
@@ -120,47 +117,65 @@ export function EditorMinimap({
       clientWidth - hiddenLeftGutter - hiddenRightGutter
     )
   )
-  const maxViewportWorkoutLeft = Math.max(
-    0,
-    workoutScrollWidth - visibleWorkoutWidth
-  )
-  const scrollRatio =
-    maxViewportWorkoutLeft > 0
-      ? viewportWorkoutLeft / maxViewportWorkoutLeft
-      : 0
-  const contentOffset = scrollRatio * overflow
-
   const viewportWidthPx =
     workoutScrollWidth > 0
-      ? (visibleWorkoutWidth / workoutScrollWidth) * contentWidth
-      : contentWidth
-  const viewportContentLeft =
+      ? (visibleWorkoutWidth / workoutScrollWidth) * minimapWidth
+      : minimapWidth
+  const viewportScreenLeft =
     workoutScrollWidth > 0
-      ? (viewportWorkoutLeft / workoutScrollWidth) * contentWidth
+      ? (viewportWorkoutLeft / workoutScrollWidth) * minimapWidth
       : 0
-  const viewportScreenLeft = viewportContentLeft - contentOffset
 
-  const dragK = useMemo(() => {
-    const safeWorkoutScrollWidth = workoutScrollWidth || 1
-    const safeMaxViewportWorkoutLeft = maxViewportWorkoutLeft || 1
-    const k =
-      contentWidth / safeWorkoutScrollWidth -
-      overflow / safeMaxViewportWorkoutLeft
-    return Math.max(k, 0.001)
-  }, [workoutScrollWidth, maxViewportWorkoutLeft, contentWidth, overflow])
+  const clampedViewportLeft = clamp(viewportScreenLeft, 0, minimapWidth)
+  const clampedViewportWidth = clamp(
+    viewportWidthPx,
+    0,
+    minimapWidth - clampedViewportLeft
+  )
+
+  const setScrollFromViewportLeft = useCallback(
+    (desiredViewportLeft: number) => {
+      if (!scrollContainerRef.current) return
+
+      if (workoutScrollWidth <= visibleWorkoutWidth) {
+        scrollContainerRef.current.scrollLeft = edgeGutterPx
+        return
+      }
+
+      const maxViewportLeft = Math.max(
+        0,
+        minimapWidth - clampedViewportWidth
+      )
+      const clampedDesiredLeft = clamp(
+        desiredViewportLeft,
+        0,
+        maxViewportLeft
+      )
+      const workoutLeft =
+        minimapWidth > 0
+          ? (clampedDesiredLeft / minimapWidth) * workoutScrollWidth
+          : 0
+      scrollContainerRef.current.scrollLeft = edgeGutterPx + workoutLeft
+    },
+    [
+      clampedViewportWidth,
+      edgeGutterPx,
+      minimapWidth,
+      scrollContainerRef,
+      visibleWorkoutWidth,
+      workoutScrollWidth,
+    ]
+  )
 
   const handlePointerMove = useCallback(
     (event: React.PointerEvent) => {
       if (!dragRef.current?.dragging) return
-      const { grabOffset, k, rectLeft } = dragRef.current
+      const { grabOffset, rectLeft } = dragRef.current
       const cursorX = event.clientX - rectLeft
       const desiredViewportLeft = cursorX - grabOffset
-      if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollLeft =
-          edgeGutterPx + desiredViewportLeft / k
-      }
+      setScrollFromViewportLeft(desiredViewportLeft)
     },
-    [edgeGutterPx, scrollContainerRef]
+    [setScrollFromViewportLeft]
   )
 
   const handlePointerUp = useCallback((event: React.PointerEvent) => {
@@ -177,12 +192,11 @@ export function EditorMinimap({
       const cursorX = event.clientX - rect.left
       dragRef.current = {
         dragging: true,
-        grabOffset: cursorX - viewportScreenLeft,
-        k: dragK,
+        grabOffset: cursorX - clampedViewportLeft,
         rectLeft: rect.left,
       }
     },
-    [dragK, viewportScreenLeft]
+    [clampedViewportLeft]
   )
 
   const handleBackgroundPointerDown = useCallback(
@@ -191,34 +205,33 @@ export function EditorMinimap({
       if (!rect || !scrollContainerRef.current) return
 
       const cursorX = event.clientX - rect.left
-      const desiredViewportLeft = cursorX - viewportWidthPx / 2
-      scrollContainerRef.current.scrollLeft =
-        edgeGutterPx + desiredViewportLeft / dragK
+      const desiredViewportLeft = cursorX - clampedViewportWidth / 2
+      setScrollFromViewportLeft(desiredViewportLeft)
 
       event.currentTarget.setPointerCapture(event.pointerId)
       dragRef.current = {
         dragging: true,
-        grabOffset: viewportWidthPx / 2,
-        k: dragK,
+        grabOffset: clampedViewportWidth / 2,
         rectLeft: rect.left,
       }
     },
-    [dragK, edgeGutterPx, scrollContainerRef, viewportWidthPx]
+    [clampedViewportWidth, scrollContainerRef, setScrollFromViewportLeft]
   )
 
   return (
     <div
       ref={minimapRef}
+      data-testid="editor-minimap"
       className="relative h-6 w-full cursor-pointer overflow-hidden"
       onPointerDown={handleBackgroundPointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
     >
       <div
+        data-testid="editor-minimap-content"
         className="pointer-events-none absolute inset-y-0 left-0 h-full"
         style={{
-          width: contentWidth,
-          transform: `translateX(${-contentOffset}px)`,
+          width: minimapWidth,
         }}
       >
         <WorkoutMini
@@ -229,6 +242,7 @@ export function EditorMinimap({
 
         {hasSelection && totalDuration > 0 && (
           <svg
+            data-testid="editor-minimap-selection-mask"
             viewBox="0 0 200 100"
             preserveAspectRatio="none"
             className="pointer-events-none absolute inset-0 h-full w-full"
@@ -261,10 +275,11 @@ export function EditorMinimap({
       </div>
 
       <div
+        data-testid="editor-minimap-viewport"
         className="absolute inset-y-0 cursor-grab rounded-sm border border-foreground/25 bg-foreground/10 active:cursor-grabbing"
         style={{
-          left: viewportScreenLeft,
-          width: viewportWidthPx,
+          left: clampedViewportLeft,
+          width: clampedViewportWidth,
         }}
         onPointerDown={handleViewportPointerDown}
         onPointerMove={handlePointerMove}
