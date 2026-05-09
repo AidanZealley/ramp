@@ -58,6 +58,8 @@ export interface WorkoutEditorActions {
   setActiveReorderId: (id: string | null) => void
   toggleMultiSelect: () => void
   clearSelectedSection: () => void
+  enterSelectedSectionMode: () => void
+  cycleSelectedSection: (direction: 1 | -1) => void
   selectSection: (
     intervalId: string,
     target: WorkoutEditorSelectedSectionTarget

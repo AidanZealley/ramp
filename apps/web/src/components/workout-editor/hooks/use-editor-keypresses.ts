@@ -65,6 +65,36 @@ export function useEditorKeypresses({
   )
 
   useKeypress(
+    " ",
+    useCallback(
+      (event: KeyboardEvent) => {
+        if (isDragging || selectedCount !== 1) return
+        if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+          return
+        }
+
+        event.preventDefault()
+        actions.enterSelectedSectionMode()
+      },
+      [actions, isDragging, selectedCount]
+    )
+  )
+
+  useKeypress(
+    "Tab",
+    useCallback(
+      (event: KeyboardEvent) => {
+        if (isDragging || selectedCount !== 1 || !hasSelectedSection) return
+        if (event.metaKey || event.ctrlKey || event.altKey) return
+
+        event.preventDefault()
+        actions.cycleSelectedSection(event.shiftKey ? -1 : 1)
+      },
+      [actions, hasSelectedSection, isDragging, selectedCount]
+    )
+  )
+
+  useKeypress(
     "ArrowUp",
     useCallback(
       (event: KeyboardEvent) => {

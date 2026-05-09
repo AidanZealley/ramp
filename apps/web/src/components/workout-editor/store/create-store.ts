@@ -17,6 +17,7 @@ import {
 import type { Interval } from "@/lib/workout-utils"
 import type {
   WorkoutEditorHistoryEntry,
+  WorkoutEditorSelectedSectionTarget,
   WorkoutEditorServerSnapshot,
   WorkoutEditorStoreProps,
   WorkoutEditorStoreState,
@@ -27,6 +28,12 @@ import {
   normalizeIntervalComment,
 } from "@/lib/workout-utils"
 import { MIN_DURATION, MIN_POWER } from "@/lib/timeline/types"
+
+const SECTION_TARGET_ORDER = [
+  "power-start",
+  "power-uniform",
+  "power-end",
+] satisfies Array<WorkoutEditorSelectedSectionTarget>
 
 function areHistoryEntriesEqual(
   a: WorkoutEditorHistoryEntry,
@@ -244,6 +251,50 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
           set((state) =>
             state.selectedSection === null ? state : { selectedSection: null }
           )
+        },
+        enterSelectedSectionMode: () => {
+          set((state) => {
+            if (state.selectedIds.length !== 1) return state
+
+            const intervalId = state.selectedIds[0]
+            if (!state.stableIds.includes(intervalId)) return state
+            if (resolveSelectedSection(state, state.selectedIds)) return state
+
+            return {
+              selectedSection: {
+                intervalId,
+                target: "power-start",
+              },
+            }
+          })
+        },
+        cycleSelectedSection: (direction) => {
+          set((state) => {
+            if (state.selectedIds.length !== 1) return state
+
+            const intervalId = state.selectedIds[0]
+            if (!state.stableIds.includes(intervalId)) return state
+
+            const selectedSection = resolveSelectedSection(
+              state,
+              state.selectedIds
+            )
+            const currentIndex = selectedSection
+              ? SECTION_TARGET_ORDER.indexOf(selectedSection.target)
+              : direction === 1
+                ? -1
+                : SECTION_TARGET_ORDER.length
+            const nextIndex =
+              (currentIndex + direction + SECTION_TARGET_ORDER.length) %
+              SECTION_TARGET_ORDER.length
+
+            return {
+              selectedSection: {
+                intervalId,
+                target: SECTION_TARGET_ORDER[nextIndex],
+              },
+            }
+          })
         },
         selectSection: (intervalId, target) => {
           set((state) => {

@@ -1069,6 +1069,91 @@ describe("WorkoutEditor keyboard shortcuts", () => {
     })
   })
 
+  it("enters subsection selection mode from a single selected interval with Space", async () => {
+    const { container } = render(<EditorActionHarness />)
+
+    fireEvent.click(getIntervalBody(container, 1)!)
+    fireEvent.keyDown(document, { key: " " })
+
+    await waitFor(() => {
+      expect(readJson("editor-selected")).toHaveLength(1)
+      expect(readJson("editor-selected-section")).toMatchObject({
+        target: "power-start",
+      })
+    })
+  })
+
+  it("does not enter subsection selection mode with Space when nothing is selected", () => {
+    render(<EditorActionHarness />)
+
+    fireEvent.keyDown(document, { key: " " })
+
+    expect(readJson("editor-selected-section")).toBeNull()
+  })
+
+  it("does not enter subsection selection mode with Space for multi-selection", () => {
+    const { container } = render(<EditorActionHarness />)
+
+    fireEvent.click(getIntervalBody(container, 0)!)
+    fireEvent.click(getIntervalBody(container, 1)!, { metaKey: true })
+    fireEvent.keyDown(document, { key: " " })
+
+    expect(readJson("editor-selected")).toHaveLength(2)
+    expect(readJson("editor-selected-section")).toBeNull()
+  })
+
+  it("does not enter subsection selection mode with Tab", () => {
+    const { container } = render(<EditorActionHarness />)
+
+    fireEvent.click(getIntervalBody(container, 1)!)
+    fireEvent.keyDown(document, { key: "Tab" })
+
+    expect(readJson("editor-selected")).toHaveLength(1)
+    expect(readJson("editor-selected-section")).toBeNull()
+  })
+
+  it("cycles subsection targets forward with Tab", async () => {
+    const { container } = render(<EditorActionHarness />)
+
+    fireEvent.click(getIntervalBody(container, 1)!)
+    fireEvent.keyDown(document, { key: " " })
+    fireEvent.keyDown(document, { key: "Tab" })
+
+    await waitFor(() => {
+      expect(readJson("editor-selected-section")).toMatchObject({
+        target: "power-uniform",
+      })
+    })
+
+    fireEvent.keyDown(document, { key: "Tab" })
+    await waitFor(() => {
+      expect(readJson("editor-selected-section")).toMatchObject({
+        target: "power-end",
+      })
+    })
+
+    fireEvent.keyDown(document, { key: "Tab" })
+    await waitFor(() => {
+      expect(readJson("editor-selected-section")).toMatchObject({
+        target: "power-start",
+      })
+    })
+  })
+
+  it("cycles subsection targets backward with Shift+Tab", async () => {
+    const { container } = render(<EditorActionHarness />)
+
+    fireEvent.click(getIntervalBody(container, 1)!)
+    fireEvent.keyDown(document, { key: " " })
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true })
+
+    await waitFor(() => {
+      expect(readJson("editor-selected-section")).toMatchObject({
+        target: "power-end",
+      })
+    })
+  })
+
   it("clicking the interval body keeps the interval selected and clears subsection selection", async () => {
     const { container } = render(<EditorActionHarness />)
     const body = getIntervalBody(container, 1)
@@ -1158,6 +1243,38 @@ describe("WorkoutEditor keyboard shortcuts", () => {
       expect(readJson<Array<Interval>>("editor-intervals")[1]).toMatchObject({
         startPower: 122,
         endPower: 180,
+      })
+    })
+  })
+
+  it("uses keyboard-selected subsection targets for power nudges", async () => {
+    const { container } = render(
+      <EditorActionHarness
+        initialIntervals={[
+          { startPower: 100, endPower: 150, durationSeconds: 60 },
+          { startPower: 120, endPower: 180, durationSeconds: 120 },
+        ]}
+      />
+    )
+
+    fireEvent.click(getIntervalBody(container, 1)!)
+    fireEvent.keyDown(document, { key: " " })
+    fireEvent.keyDown(document, { key: "ArrowUp" })
+
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("editor-intervals")[1]).toMatchObject({
+        startPower: 121,
+        endPower: 180,
+      })
+    })
+
+    fireEvent.keyDown(document, { key: "Tab" })
+    fireEvent.keyDown(document, { key: "ArrowUp" })
+
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("editor-intervals")[1]).toMatchObject({
+        startPower: 122,
+        endPower: 181,
       })
     })
   })
