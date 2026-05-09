@@ -67,6 +67,26 @@ export function WorkoutMini({
           />
         )
       })}
+      {intervals.slice(1).map((_, i) => {
+        const x =
+          intervals
+            .slice(0, i + 1)
+            .reduce((sum, interval) => sum + interval.durationSeconds, 0) /
+          totalDuration
+
+        return (
+          <line
+            key={`gap-${i}`}
+            x1={x * viewBoxWidth}
+            x2={x * viewBoxWidth}
+            y1={0}
+            y2={viewBoxHeight}
+            stroke="var(--background)"
+            strokeWidth={1}
+            vectorEffect="non-scaling-stroke"
+          />
+        )
+      })}
     </svg>
   )
 }
