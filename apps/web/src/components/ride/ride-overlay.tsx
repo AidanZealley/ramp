@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, Settings } from "lucide-react"
 import { RideHud } from "./ride-hud"
+import { RideSimulatorControls } from "./ride-simulator-controls"
+import { RideTrainerSimulatorPanel } from "./ride-trainer-simulator-panel"
+import type { SimulatedRiderState } from "@ramp/trainer-io"
 import type { RideTrainerController } from "@/ride/use-ride-trainer"
 import { Button } from "@/components/ui/button"
 import {
@@ -27,19 +30,36 @@ type RideOverlayProps = {
 
 const HIDE_DELAY_MS = 2000
 
-export function RideOverlay({
-  trainerController,
-}: RideOverlayProps) {
+export function RideOverlay({ trainerController }: RideOverlayProps) {
   const navigate = useNavigate()
-  const usingMockTrainer = trainerController.trainer.kind === "mock"
+  const simulatedRider = trainerController.simulatedRider
+  const simulatedTrainer = trainerController.simulatedTrainer
 
   const [shown, setShown] = useState(true)
   const [isOverlayOpen, setIsOverlayOpen] = useState(false)
   const [isExitDialogOpen, setIsExitDialogOpen] = useState(false)
+  const [riderState, setRiderState] = useState<SimulatedRiderState | null>(
+    simulatedRider?.state ?? null
+  )
   const contentRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const hasOpenSurface = isOverlayOpen || isExitDialogOpen
+  const sourceLabel =
+    trainerController.source === "simulated"
+      ? "Simulator"
+      : trainerController.source === "ble"
+        ? "Bluetooth trainer"
+        : "No trainer"
+
+  useEffect(() => {
+    if (!simulatedRider) {
+      setRiderState(null)
+      return
+    }
+    setRiderState(simulatedRider.state)
+    return simulatedRider.subscribeState(setRiderState)
+  }, [simulatedRider])
 
   const scheduleHide = () => {
     clearTimeout(timerRef.current)
@@ -131,6 +151,9 @@ export function RideOverlay({
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+            <span className="rounded-full border border-border/70 bg-background/80 px-3 py-1.5 text-xs font-semibold">
+              {sourceLabel}
+            </span>
             <Button
               type="button"
               variant="secondary"
@@ -152,14 +175,25 @@ export function RideOverlay({
                 Web Bluetooth requires a Chromium-class browser.
               </span>
             )}
-            {!usingMockTrainer && (
+            {trainerController.devSimulationEnabled &&
+              trainerController.source !== "simulated" && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={trainerController.useSimulatedTrainer}
+                >
+                  Use simulator
+                </Button>
+              )}
+            {trainerController.source !== "none" && (
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
-                onClick={trainerController.useMockTrainer}
+                onClick={trainerController.disconnectTrainer}
               >
-                Use mock trainer
+                Disconnect
               </Button>
             )}
           </div>
@@ -187,6 +221,39 @@ export function RideOverlay({
               sideOffset={10}
             >
               <RideHud />
+              {trainerController.devSimulationEnabled &&
+              trainerController.source === "simulated" &&
+              simulatedRider &&
+              simulatedTrainer &&
+              riderState ? (
+                <>
+                  <RideSimulatorControls
+                    powerWatts={riderState.powerWatts}
+                    cadenceRpm={riderState.cadenceRpm}
+                    paused={riderState.paused}
+                    powerMode={riderState.powerMode}
+                    onPowerChange={(watts) =>
+                      simulatedRider.dispatch({
+                        type: "setManualPower",
+                        watts,
+                      })
+                    }
+                    onCadenceChange={(rpm) =>
+                      simulatedRider.dispatch({ type: "setCadence", rpm })
+                    }
+                    onPauseToggle={() =>
+                      simulatedRider.dispatch({
+                        type: "setPaused",
+                        paused: !riderState.paused,
+                      })
+                    }
+                    onPowerModeChange={(mode) =>
+                      simulatedRider.dispatch({ type: "setPowerMode", mode })
+                    }
+                  />
+                  <RideTrainerSimulatorPanel trainer={simulatedTrainer} />
+                </>
+              ) : null}
             </PopoverContent>
           </Popover>
         </div>

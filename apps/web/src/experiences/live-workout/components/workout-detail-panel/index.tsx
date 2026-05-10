@@ -1,7 +1,7 @@
 import { Play, RefreshCw } from "lucide-react"
 import { TrainerStatusBadge } from "./components/trainer-status-badge"
 import { WorkoutDetail } from "./components/workout-detail"
-import type { RideTelemetry } from "@ramp/ride-core"
+import type { RideTelemetry, TrainerSourceKind } from "@ramp/ride-core"
 import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -18,6 +18,7 @@ type WorkoutDetailPanelProps = {
   trainerConnected: boolean
   trainerStatus: TrainerStatus
   trainerSupportsTargetPower: boolean
+  trainerSource: TrainerSourceKind | null
   workout: ClientWorkoutDoc | null
   workoutHasDuration: boolean
 }
@@ -31,6 +32,7 @@ export function WorkoutDetailPanel({
   trainerConnected,
   trainerStatus,
   trainerSupportsTargetPower,
+  trainerSource,
   workout,
   workoutHasDuration,
 }: WorkoutDetailPanelProps) {
@@ -81,14 +83,16 @@ export function WorkoutDetailPanel({
         </Button>
         <p className="text-center text-[0.7rem] text-muted-foreground">
           {!trainerConnected
-            ? "Waiting for the trainer to connect."
+            ? "Connect a trainer or use the simulator to start."
             : !trainerSupportsTargetPower
               ? "Connected trainer does not support ERG target power."
               : !workout
                 ? "Pick a workout to begin."
                 : !workoutHasDuration
                   ? "Workout needs at least one timed interval."
-                  : `ERG mode at FTP ${ftp} W`}
+                  : trainerSource === "simulated"
+                    ? "Simulator ready for ERG workout."
+                    : `ERG mode at FTP ${ftp} W`}
         </p>
         {startError ? (
           <div className="flex flex-col items-center gap-2">

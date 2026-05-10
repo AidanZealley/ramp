@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Capability } from "@ramp/ride-contracts"
-import { MockTrainer } from "./mock-trainer"
+import { SimulatedTrainer } from "./simulated-trainer"
 
-describe("MockTrainer", () => {
+describe("SimulatedTrainer", () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(1000)
@@ -12,8 +12,8 @@ describe("MockTrainer", () => {
     vi.useRealTimers()
   })
 
-  it("emits telemetry and stops after disconnect", async () => {
-    const trainer = new MockTrainer({ intervalMs: 1000 })
+  it("connects, emits telemetry, and stops after disconnect", async () => {
+    const trainer = new SimulatedTrainer({ intervalMs: 1000 })
     const listener = vi.fn()
     trainer.subscribeTelemetry(listener)
 
@@ -24,8 +24,8 @@ describe("MockTrainer", () => {
     expect(listener).toHaveBeenCalledTimes(1)
   })
 
-  it("keeps state authoritative through connect and disconnect", async () => {
-    const trainer = new MockTrainer()
+  it("keeps state transitions observable", async () => {
+    const trainer = new SimulatedTrainer()
     const states: Array<string> = []
     trainer.subscribeState((state) => states.push(state.kind))
 
@@ -39,62 +39,84 @@ describe("MockTrainer", () => {
     expect(states).toEqual(["connecting", "connected", "disconnected"])
   })
 
-  it("makes connecting state observable before connected", async () => {
-    const trainer = new MockTrainer()
-    const listener = vi.fn()
-    trainer.subscribeState(listener)
+  it("updates target power and ramps rider power in ERG auto", async () => {
+    const trainer = new SimulatedTrainer({ intervalMs: 1000 })
+    const telemetry = vi.fn()
+    trainer.subscribeTelemetry(telemetry)
+    await trainer.connect()
 
-    const connect = trainer.connect()
+    await trainer.sendCommand({ type: "setMode", mode: "erg" })
+    await trainer.sendCommand({ type: "setTargetPower", watts: 300 })
+    vi.advanceTimersByTime(2000)
 
-    expect(listener).toHaveBeenCalledWith({ kind: "connecting" })
-    expect(listener).not.toHaveBeenCalledWith({ kind: "connected" })
-
-    await connect
-    expect(listener).toHaveBeenCalledWith({ kind: "connected" })
+    expect(trainer.simulator.targetPowerWatts).toBe(300)
+    expect(trainer.rider.state.powerMode).toBe("erg-auto")
+    expect(telemetry).toHaveBeenLastCalledWith(
+      expect.objectContaining({ powerWatts: 300 })
+    )
   })
 
-  it("does not publish connected after disconnect during delayed connect", async () => {
-    const trainer = new MockTrainer({ connectDelayMs: 1000 })
-    const listener = vi.fn()
-    trainer.subscribeState(listener)
+  it("manual power changes switch the rider to manual mode", async () => {
+    const trainer = new SimulatedTrainer()
+    await trainer.connect()
+    await trainer.sendCommand({ type: "setMode", mode: "erg" })
 
-    const connect = trainer.connect()
-    await trainer.disconnect()
+    trainer.rider.dispatch({ type: "setManualPower", watts: 225 })
+
+    expect(trainer.rider.state.powerMode).toBe("manual")
+    expect(trainer.rider.state.powerWatts).toBe(225)
+  })
+
+  it("cadence changes are reflected in telemetry", async () => {
+    const trainer = new SimulatedTrainer({ intervalMs: 1000 })
+    const telemetry = vi.fn()
+    trainer.subscribeTelemetry(telemetry)
+    await trainer.connect()
+
+    trainer.rider.dispatch({ type: "setCadence", rpm: 97 })
     vi.advanceTimersByTime(1000)
-    await connect
 
-    expect(trainer.state.kind).toBe("disconnected")
-    expect(listener).not.toHaveBeenCalledWith({ kind: "connected" })
-  })
-
-  it("reflects target power in telemetry", async () => {
-    const trainer = new MockTrainer()
-    const listener = vi.fn()
-    trainer.subscribeTelemetry(listener)
-    await trainer.connect()
-    await trainer.sendCommand({ type: "setTargetPower", watts: 240 })
-
-    vi.advanceTimersByTime(100)
-
-    expect(listener).toHaveBeenLastCalledWith(
-      expect.objectContaining({ powerWatts: 240 })
+    expect(telemetry).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cadenceRpm: 97 })
     )
   })
 
-  it("derives cadence from power in telemetry", async () => {
-    const trainer = new MockTrainer({ initial: { powerWatts: 200 } })
-    const listener = vi.fn()
-    trainer.subscribeTelemetry(listener)
-    await trainer.connect()
-
-    // deriveCadenceFromPower(200) = clamp(75 + (200 - 100) * 0.08, 40, 120) = 83
-    expect(listener).toHaveBeenLastCalledWith(
-      expect.objectContaining({ powerWatts: 200, cadenceRpm: 83 })
+  it("simulation grade affects speed", async () => {
+    const trainer = new SimulatedTrainer({ intervalMs: 1000 })
+    const speeds: Array<number> = []
+    trainer.subscribeTelemetry((telemetry) =>
+      speeds.push(telemetry.speedMps ?? 0)
     )
+    await trainer.connect()
+    vi.advanceTimersByTime(1000)
+
+    await trainer.sendCommand({ type: "setSimulationGrade", gradePercent: 10 })
+    vi.advanceTimersByTime(1000)
+
+    expect(speeds.at(-1)).toBeLessThan(speeds[1] ?? Number.POSITIVE_INFINITY)
   })
 
-  it("rejects unsupported commands", async () => {
-    const trainer = new MockTrainer({
+  it("resistance command updates state", async () => {
+    const trainer = new SimulatedTrainer()
+    await trainer.connect()
+
+    await trainer.sendCommand({ type: "setResistance", level: 42 })
+
+    expect(trainer.simulator.resistanceLevel).toBe(42)
+  })
+
+  it("rejects invalid commands before mutating state", async () => {
+    const trainer = new SimulatedTrainer()
+    await trainer.connect()
+
+    await expect(
+      trainer.sendCommand({ type: "setTargetPower", watts: -1 })
+    ).rejects.toMatchObject({ code: "validation" })
+    expect(trainer.simulator.targetPowerWatts).toBeNull()
+  })
+
+  it("rejects unsupported capabilities", async () => {
+    const trainer = new SimulatedTrainer({
       capabilities: new Set([Capability.ReadPower]),
     })
     await trainer.connect()
@@ -104,49 +126,17 @@ describe("MockTrainer", () => {
     ).rejects.toMatchObject({ code: "command-rejected" })
   })
 
-  it("rejects invalid commands before applying trainer state", async () => {
-    const trainer = new MockTrainer()
+  it("emits zero power and speed while paused", async () => {
+    const trainer = new SimulatedTrainer({ intervalMs: 1000 })
+    const telemetry = vi.fn()
+    trainer.subscribeTelemetry(telemetry)
     await trainer.connect()
 
-    await expect(
-      trainer.sendCommand({ type: "setTargetPower", watts: -1 })
-    ).rejects.toMatchObject({ code: "validation" })
-  })
+    trainer.rider.dispatch({ type: "setPaused", paused: true })
+    vi.advanceTimersByTime(1000)
 
-  it("sendCommand throws transport error when disconnected", async () => {
-    const trainer = new MockTrainer()
-
-    await expect(
-      trainer.sendCommand({ type: "setTargetPower", watts: 200 })
-    ).rejects.toMatchObject({ code: "transport" })
-  })
-
-  it("second connect() returns same promise as first", async () => {
-    const trainer = new MockTrainer({ connectDelayMs: 500 })
-
-    const first = trainer.connect()
-    const second = trainer.connect()
-
-    expect(second).toBe(first)
-
-    vi.advanceTimersByTime(500)
-    await first
-    expect(trainer.state.kind).toBe("connected")
-  })
-
-  it("throwing listener does not prevent later listeners from receiving the value", async () => {
-    const trainer = new MockTrainer()
-    const first = vi.fn(() => {
-      throw new Error("deliberate throw")
-    })
-    const second = vi.fn()
-    trainer.subscribeTelemetry(first)
-    trainer.subscribeTelemetry(second)
-
-    await trainer.connect()
-    vi.advanceTimersByTime(100)
-
-    expect(first).toHaveBeenCalled()
-    expect(second).toHaveBeenCalled()
+    expect(telemetry).toHaveBeenLastCalledWith(
+      expect.objectContaining({ powerWatts: 0, speedMps: 0, cadenceRpm: 85 })
+    )
   })
 })

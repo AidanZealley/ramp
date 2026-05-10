@@ -13,10 +13,10 @@ function createSession(options?: {
   trainerConnected?: boolean
   capabilities?: ReadonlySet<Capability>
   dispatchImpl?: ReturnType<typeof vi.fn>
+  telemetrySource?: "simulated" | "ftms-ble" | "wahoo-kickr-ble" | "ant" | null
 }) {
   const dispatch =
-    options?.dispatchImpl ??
-    vi.fn(() => Promise.resolve({ ok: true } as const))
+    options?.dispatchImpl ?? vi.fn(() => Promise.resolve({ ok: true } as const))
 
   const state = {
     telemetry: {
@@ -31,7 +31,7 @@ function createSession(options?: {
       telemetryStatus: "fresh" as const,
       lastTelemetryAtMs: 0,
       telemetryAgeMs: 0,
-      telemetrySource: "mock" as const,
+      telemetrySource: options?.telemetrySource ?? "ftms-ble",
     },
     trainerConnected: options?.trainerConnected !== false,
     paused: false,
@@ -86,8 +86,27 @@ describe("LiveWorkoutExperienceView", () => {
 
     fireEvent.click(screen.getByText("Ramp Builder"))
 
-    expect(screen.getByText("Waiting for the trainer to connect.")).toBeTruthy()
+    expect(
+      screen.getByText("Connect a trainer or use the simulator to start.")
+    ).toBeTruthy()
     expect(screen.getByText("Start workout")).toHaveProperty("disabled", true)
+  })
+
+  it("shows simulator ready copy when the simulated trainer can start", () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+
+    render(
+      <LiveWorkoutExperienceView
+        session={createSession({ telemetrySource: "simulated" })}
+      />
+    )
+
+    fireEvent.click(screen.getByText("Ramp Builder"))
+
+    expect(screen.getByText("Simulator ready for ERG workout.")).toBeTruthy()
+    expect(screen.getByText("Start workout")).toHaveProperty("disabled", false)
   })
 
   it("disables start when target power is unsupported", () => {

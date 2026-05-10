@@ -1,15 +1,19 @@
 import { Pause, Play } from "lucide-react"
 import { RangeControl } from "./components/range-control"
 import { SectionHeader } from "./components/section-header"
+import type { RiderPowerMode } from "@ramp/trainer-io"
 import { Button } from "@/components/ui/button"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
 type RideSimulatorControlsProps = {
   powerWatts: number
   cadenceRpm: number
   paused: boolean
+  powerMode: RiderPowerMode
   onPowerChange: (powerWatts: number) => void
   onCadenceChange: (cadenceRpm: number) => void
   onPauseToggle: () => void
+  onPowerModeChange: (mode: RiderPowerMode) => void
 }
 
 export function RideSimulatorControls({
@@ -18,7 +22,9 @@ export function RideSimulatorControls({
   onPauseToggle,
   onPowerChange,
   paused,
+  powerMode,
   powerWatts,
+  onPowerModeChange,
 }: RideSimulatorControlsProps) {
   return (
     <div className="grid gap-3 p-2">
@@ -48,14 +54,38 @@ export function RideSimulatorControls({
 
       <div className="grid gap-3 border-t border-border/60 pt-3">
         <SectionHeader
-          description="Adjust simulator output directly."
+          description={
+            powerMode === "erg-auto"
+              ? "ERG auto follows the trainer target; moving power switches to manual."
+              : "Adjust simulator output directly."
+          }
           eyebrow="Live tuning"
           title="Manual inputs"
         />
         <div className="space-y-4">
+          <ToggleGroup
+            aria-label="Power mode"
+            className="w-full"
+            size="sm"
+            variant="outline"
+            value={[powerMode]}
+            onValueChange={(value) => {
+              const next = value[0]
+              if (next === "manual" || next === "erg-auto") {
+                onPowerModeChange(next)
+              }
+            }}
+          >
+            <ToggleGroupItem className="flex-1" value="erg-auto">
+              Auto ERG
+            </ToggleGroupItem>
+            <ToggleGroupItem className="flex-1" value="manual">
+              Manual
+            </ToggleGroupItem>
+          </ToggleGroup>
           <RangeControl
             label="Power"
-            max={600}
+            max={700}
             min={0}
             onChange={onPowerChange}
             step={5}
@@ -64,8 +94,8 @@ export function RideSimulatorControls({
           />
           <RangeControl
             label="Cadence"
-            max={120}
-            min={50}
+            max={130}
+            min={40}
             onChange={onCadenceChange}
             step={1}
             unit="rpm"

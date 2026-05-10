@@ -1,24 +1,40 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
-  MockTrainer,
+  SimulatedTrainer,
   isWebBluetoothAvailable,
   requestBleTrainer,
 } from "@ramp/trainer-io"
-import type { TrainerSource } from "@ramp/trainer-io"
+import type { SimulatedRider, TrainerSource } from "@ramp/trainer-io"
+import { rideDevSimulationEnabled } from "./dev-simulation-config"
+
+export type RideTrainerSource = "none" | "simulated" | "ble"
 
 export type RideTrainerController = {
-  trainer: TrainerSource
+  trainer: TrainerSource | null
+  source: RideTrainerSource
+  devSimulationEnabled: boolean
   bleAvailable: boolean
   selectingBleTrainer: boolean
+  simulatedTrainer: SimulatedTrainer | null
+  simulatedRider: SimulatedRider | null
   connectBleTrainer: () => Promise<boolean>
-  useMockTrainer: () => Promise<void>
+  useSimulatedTrainer: () => Promise<void>
+  disconnectTrainer: () => Promise<void>
 }
 
 export function useRideTrainer(): RideTrainerController {
-  const mockTrainer = useMemo(() => new MockTrainer(), [])
-  const [trainer, setTrainer] = useState<TrainerSource>(mockTrainer)
+  const simulatedTrainer = useMemo(
+    () => (rideDevSimulationEnabled ? new SimulatedTrainer() : null),
+    []
+  )
+  const [trainer, setTrainer] = useState<TrainerSource | null>(
+    rideDevSimulationEnabled ? simulatedTrainer : null
+  )
+  const [source, setSource] = useState<RideTrainerSource>(
+    rideDevSimulationEnabled ? "simulated" : "none"
+  )
   const [selectingBleTrainer, setSelectingBleTrainer] = useState(false)
-  const trainerRef = useRef<TrainerSource>(mockTrainer)
+  const trainerRef = useRef<TrainerSource | null>(trainer)
   const selectingBleTrainerRef = useRef(false)
   const bleAvailable = isWebBluetoothAvailable()
 
@@ -29,6 +45,10 @@ export function useRideTrainer(): RideTrainerController {
   return {
     trainer,
     bleAvailable,
+    devSimulationEnabled: rideDevSimulationEnabled,
+    simulatedTrainer,
+    simulatedRider: simulatedTrainer?.rider ?? null,
+    source,
     selectingBleTrainer,
     async connectBleTrainer() {
       if (!bleAvailable || selectingBleTrainerRef.current) return false
@@ -36,10 +56,9 @@ export function useRideTrainer(): RideTrainerController {
       setSelectingBleTrainer(true)
       try {
         const nextTrainer = await requestBleTrainer()
-        // Disconnect the old trainer before switching to avoid orphaned BLE
-        // subscriptions during the gap before session cleanup runs.
-        await trainerRef.current.disconnect()
+        await trainerRef.current?.disconnect()
         setTrainer(nextTrainer)
+        setSource("ble")
         return true
       } catch {
         return false
@@ -48,9 +67,16 @@ export function useRideTrainer(): RideTrainerController {
         setSelectingBleTrainer(false)
       }
     },
-    async useMockTrainer() {
-      await trainerRef.current.disconnect()
-      setTrainer(mockTrainer)
+    async useSimulatedTrainer() {
+      if (!simulatedTrainer) return
+      await trainerRef.current?.disconnect()
+      setTrainer(simulatedTrainer)
+      setSource("simulated")
+    },
+    async disconnectTrainer() {
+      await trainerRef.current?.disconnect()
+      setTrainer(null)
+      setSource("none")
     },
   }
 }

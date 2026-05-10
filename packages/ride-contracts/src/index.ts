@@ -21,7 +21,11 @@ export type TrainerCommand =
   | { type: "requestCalibration" }
   | { type: "disconnect" }
 
-export type TrainerSourceKind = "mock" | "wahoo-kickr-ble" | "ftms-ble" | "ant"
+export type TrainerSourceKind =
+  | "simulated"
+  | "wahoo-kickr-ble"
+  | "ftms-ble"
+  | "ant"
 
 export type TrainerTelemetry = {
   powerWatts: number | null
@@ -95,9 +99,7 @@ export interface TrainerSource {
   connect: () => Promise<void>
   disconnect: () => Promise<void>
   sendCommand: (command: TrainerCommand) => Promise<void>
-  subscribeTelemetry: (
-    listener: (t: TrainerTelemetry) => void
-  ) => () => void
+  subscribeTelemetry: (listener: (t: TrainerTelemetry) => void) => () => void
   subscribeState: (listener: (s: TrainerConnectionState) => void) => () => void
   subscribeError: (listener: (e: TrainerError) => void) => () => void
 }
@@ -172,7 +174,10 @@ export function validateTrainerCommand(
       return { ok: true }
     default: {
       const _exhaustive: never = command
-      return { ok: false, reason: `unknown-command-type:${(_exhaustive as TrainerCommand).type}` }
+      return {
+        ok: false,
+        reason: `unknown-command-type:${(_exhaustive as TrainerCommand).type}`,
+      }
     }
   }
 }

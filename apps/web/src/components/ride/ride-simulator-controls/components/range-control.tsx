@@ -9,6 +9,7 @@ type RangeControlProps = {
   step: number
   unit: string
   value: number
+  disabled?: boolean
 }
 
 export function RangeControl({
@@ -19,6 +20,7 @@ export function RangeControl({
   step,
   unit,
   value,
+  disabled,
 }: RangeControlProps) {
   return (
     <div className="grid gap-2">
@@ -41,6 +43,7 @@ export function RangeControl({
         min={min}
         step={step}
         value={[value]}
+        disabled={disabled}
         onValueChange={(nextValue) => {
           const values = Array.isArray(nextValue) ? nextValue : [nextValue]
           onChange(values[0] ?? value)

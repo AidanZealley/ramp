@@ -12,7 +12,7 @@ export function RideHud() {
   const secondaryFields = [
     ["Time", formatDuration(telemetry.elapsedSeconds)],
     ["Distance", `${(telemetry.distanceMeters / 1000).toFixed(2)} km`],
-    ["Source", "Simulator"],
+    ["Source", telemetry.telemetrySource ?? "None"],
   ]
 
   return (

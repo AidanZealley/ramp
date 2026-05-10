@@ -88,7 +88,7 @@ class TestTrainer implements RideTrainerAdapter {
       speedMps: 8,
       heartRateBpm: null,
       timestampMs: this.now(),
-      source: "mock",
+      source: "simulated",
     }
   }
 }

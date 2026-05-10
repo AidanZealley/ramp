@@ -7,23 +7,19 @@ import {
   useSyncExternalStore,
 } from "react"
 import { useQuery } from "convex/react"
-import {
-  Capability,
-  useRideSelector,
-} from "@ramp/ride-core"
+import { Capability, useRideSelector } from "@ramp/ride-core"
 import { createWorkoutController } from "@ramp/ride-workouts"
 import { LiveWorkoutDashboard } from "./components/live-workout-dashboard"
 import { WorkoutDetailPanel } from "./components/workout-detail-panel"
 import { WorkoutPickerPanel } from "./components/workout-picker-panel"
-import type {RideSessionController} from "@ramp/ride-core";
+import type { RideSessionController } from "@ramp/ride-core"
 import type { Id } from "#convex/_generated/dataModel"
-import type {ClientWorkoutDoc} from "@/ride/convex-workout-mapper";
+import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
 import { api } from "#convex/_generated/api"
 import { DEFAULT_FTP } from "@/lib/workout-utils"
 import {
-  
   InvalidWorkoutDefinitionError,
-  toWorkoutDefinition
+  toWorkoutDefinition,
 } from "@/ride/convex-workout-mapper"
 
 type WorkoutDoc = ClientWorkoutDoc
@@ -75,6 +71,10 @@ export function LiveWorkoutExperienceView({
   const trainerStatus = useRideSelector(
     session,
     (s) => s.telemetry.trainerStatus
+  )
+  const trainerSource = useRideSelector(
+    session,
+    (s) => s.telemetry.telemetrySource
   )
   const lastTrainerError = useRideSelector(session, (s) => s.lastTrainerError)
   const workoutController = useMemo(
@@ -216,6 +216,7 @@ export function LiveWorkoutExperienceView({
             trainerConnected={trainerConnected}
             trainerStatus={trainerStatus}
             trainerSupportsTargetPower={supportsTargetPower}
+            trainerSource={trainerSource}
             workout={selectedWorkout}
             workoutHasDuration={selectedWorkoutHasDuration}
           />
