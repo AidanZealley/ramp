@@ -36,6 +36,7 @@ interface IntervalBlockProps {
   scale: TimelineScale
   isDragTarget: boolean
   isDragging: boolean
+  suppressReorderPreview: boolean
   onStartDrag: (e: React.PointerEvent, type: DragType, index: number) => void
 }
 
@@ -45,6 +46,7 @@ export function IntervalBlock({
   scale,
   isDragTarget,
   isDragging,
+  suppressReorderPreview,
   onStartDrag,
 }: IntervalBlockProps) {
   const interval = useWorkoutEditorInterval(index)
@@ -112,10 +114,10 @@ export function IntervalBlock({
     width: displayW,
     height: EDITOR_HEIGHT,
     transform:
-      transform && !isSelectedGroupReorder
+      transform && !isSelectedGroupReorder && !suppressReorderPreview
         ? `translate3d(${transform.x}px, 0, 0)`
         : undefined,
-    transition: transition ?? undefined,
+    transition: suppressReorderPreview ? undefined : (transition ?? undefined),
     opacity: isSelectedGroupReorder ? 0.28 : isSortDragging ? 0.4 : 1,
     zIndex: isSortDragging ? 10 : undefined,
   }

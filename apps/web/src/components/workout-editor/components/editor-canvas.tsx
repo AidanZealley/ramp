@@ -48,6 +48,10 @@ export function EditorCanvas({
   const activeReorderOverId = useWorkoutEditorActiveReorderOverId()
   const selectedIds = useWorkoutEditorSelectedIds()
   const actions = useWorkoutEditorActions()
+  const isGroupReorder =
+    activeReorderId !== null &&
+    selectedIds.length > 1 &&
+    selectedIds.includes(activeReorderId)
   const {
     sensors,
     handleDragStart,
@@ -98,6 +102,7 @@ export function EditorCanvas({
                 scale={scale}
                 isDragTarget={activeDrag?.index === index}
                 isDragging={isDragging}
+                suppressReorderPreview={isGroupReorder}
                 onStartDrag={startDrag}
               />
             ))}
