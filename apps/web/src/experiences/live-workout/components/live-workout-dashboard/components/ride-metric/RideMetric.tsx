@@ -3,18 +3,22 @@ import { cn } from "@/lib/utils"
 type RideMetricProps = {
   label: string
   value: string
+  valueSuffix?: string
   tone?: "default" | "danger" | "muted"
   className?: string
   valueClassName?: string
+  valueSuffixClassName?: string
   testId?: string
 }
 
 export const RideMetric = ({
   label,
   value,
+  valueSuffix,
   tone = "default",
   className,
   valueClassName,
+  valueSuffixClassName,
   testId,
 }: RideMetricProps) => (
   <div className={cn("min-w-0", className)}>
@@ -31,6 +35,16 @@ export const RideMetric = ({
       )}
     >
       {value}
+      {valueSuffix && (
+        <span
+          className={cn(
+            "ml-1 align-baseline text-base font-semibold text-muted-foreground md:text-lg xl:text-xl",
+            valueSuffixClassName
+          )}
+        >
+          /{valueSuffix}
+        </span>
+      )}
     </div>
   </div>
 )

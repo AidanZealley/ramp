@@ -21,6 +21,7 @@ export interface WorkoutSessionController {
     workout: WorkoutDefinition,
     ftpWatts: number
   ) => Promise<DispatchResult>
+  seekToElapsedSeconds: (elapsedSeconds: number) => Promise<DispatchResult>
   clearWorkout: () => void
   getState: () => WorkoutSessionState
   subscribe: (listener: () => void) => () => void
@@ -50,6 +51,10 @@ function getTotalDurationSeconds(workout: WorkoutDefinition): number {
     (sum, interval) => sum + Math.max(0, interval.durationSeconds),
     0
   )
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value))
 }
 
 export function createWorkoutController({
@@ -236,6 +241,45 @@ export function createWorkoutController({
 
   const unsubscribe = session.subscribe(update)
 
+  const dispatchImmediateTarget = async (
+    targetWatts: number,
+    generation: number
+  ): Promise<DispatchResult> => {
+    try {
+      const result = await session.controls.dispatch(
+        { type: "setTargetPower", watts: targetWatts },
+        "workout",
+        { priority: "immediate" }
+      )
+      if (generation !== asyncStateGeneration || disposed) return result
+      if (result.ok) {
+        setWorkoutState((previous) => ({
+          ...previous,
+          controlStatus: "active",
+          lastError: null,
+        }))
+        return result
+      }
+      setWorkoutState((previous) => ({
+        ...previous,
+        controlStatus: "error",
+        lastError: result.reason,
+      }))
+      return result
+    } catch (err) {
+      if (generation !== asyncStateGeneration || disposed) {
+        return { ok: false, reason: "stale-dispatch" }
+      }
+      const message = err instanceof Error ? err.message : String(err)
+      setWorkoutState((previous) => ({
+        ...previous,
+        controlStatus: "error",
+        lastError: message,
+      }))
+      return { ok: false, reason: message }
+    }
+  }
+
   return {
     async loadWorkout(workout, nextFtpWatts) {
       if (disposed) return { ok: false, reason: "disposed" }
@@ -312,6 +356,53 @@ export function createWorkoutController({
         lastError: null,
       })
       return { ok: true }
+    },
+    async seekToElapsedSeconds(elapsedSeconds) {
+      if (disposed) return { ok: false, reason: "disposed" }
+      if (!activeWorkout) return { ok: false, reason: "no-active-workout" }
+
+      const sessionState = session.getState()
+      const nextElapsed = clamp(
+        Number.isFinite(elapsedSeconds) ? elapsedSeconds : 0,
+        0,
+        totalDurationSeconds
+      )
+      const segment = getWorkoutSegmentAtElapsed(
+        activeWorkout.intervals,
+        nextElapsed,
+        ftpWatts,
+        activeWorkout.powerMode
+      )
+      if (!segment) return { ok: false, reason: "invalid-workout:no-segment" }
+
+      asyncStateGeneration += 1
+      const generation = asyncStateGeneration
+      freeModeSent = false
+      workoutStartedAtSessionSeconds =
+        sessionState.telemetry.elapsedSeconds - nextElapsed
+      lastDispatchSecond = Math.floor(nextElapsed / dispatchIntervalSeconds)
+      lastDispatchSegmentIndex = segment.index
+      setWorkoutState({
+        activeWorkoutId: activeWorkout.id,
+        activeSegmentLabel: segment.label,
+        activeSegmentIndex: segment.index,
+        targetWatts: segment.targetWatts,
+        isActive: true,
+        elapsedSeconds: nextElapsed,
+        totalDurationSeconds,
+        isComplete: false,
+        controlStatus: state.controlStatus === "error" ? "error" : "active",
+        lastError: state.lastError,
+      })
+
+      if (
+        sessionState.telemetry.telemetryStatus !== "fresh" ||
+        !sessionState.trainerConnected
+      ) {
+        return { ok: true }
+      }
+
+      return dispatchImmediateTarget(segment.targetWatts, generation)
     },
     clearWorkout() {
       if (disposed || !activeWorkout) return

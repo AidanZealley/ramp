@@ -83,7 +83,7 @@ export function RideCockpit({
       exit={{ opacity: 0, y: "100%" }}
       transition={{ duration: 0.2, ease: "easeOut" }}
     >
-      <div className="mx-auto grid w-full max-w-7xl gap-3 rounded-4xl bg-background/50 p-6 backdrop-blur-xl">
+      <div className="mx-auto grid w-full max-w-7xl gap-3 rounded-4xl border bg-background/50 p-6 backdrop-blur-xl">
         <div className="grid grid-cols-3 gap-x-4 gap-y-3 sm:grid-cols-6">
           <CockpitMetric
             label="Power"

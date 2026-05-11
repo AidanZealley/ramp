@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react"
-import { Pause, Play, Square } from "lucide-react"
 import { useRideHeartbeat, useRideSelector } from "@ramp/ride-core"
 import { DisconnectedOverlay } from "./components/disconnected-overlay"
 import { IntervalComment } from "./components/interval-comment"
@@ -12,25 +11,12 @@ import {
   getIntervalBounds,
   getIntervalProgressPercent,
   getIntervalRemainingSeconds,
-  getOverallProgressPercent,
   getTotalDurationSeconds,
   getWorkoutRemainingSeconds,
 } from "./utils"
 import type { RideSessionController } from "@ramp/ride-core"
 import type { WorkoutSessionState } from "@ramp/ride-workouts"
 import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { Button } from "@/components/ui/button"
 import { formatDuration } from "@/lib/workout-utils"
 
 type LiveWorkoutDashboardProps = {
@@ -38,6 +24,7 @@ type LiveWorkoutDashboardProps = {
   onReconnect?: () => void
   onPause?: () => void
   onResume?: () => void
+  onSeek: (elapsedSeconds: number) => void | Promise<void>
   session: RideSessionController
   workout: ClientWorkoutDoc
   workoutState: WorkoutSessionState
@@ -62,6 +49,7 @@ export function LiveWorkoutDashboard({
   onReconnect,
   onPause,
   onResume,
+  onSeek,
   session,
   workout,
   workoutState,
@@ -121,10 +109,6 @@ export function LiveWorkoutDashboard({
     intervalBounds,
     elapsedSeconds
   )
-  const overallProgressPercent = getOverallProgressPercent(
-    totalDurationSeconds,
-    elapsedSeconds
-  )
   const completedIntervalCount = getCompletedIntervalCount(
     workout.intervals,
     elapsedSeconds,
@@ -161,48 +145,6 @@ export function LiveWorkoutDashboard({
             {workout.title}
           </h2>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button
-            type="button"
-            variant={paused ? "default" : "secondary"}
-            onClick={paused ? onResume : onPause}
-            size="sm"
-            disabled={workoutState.isComplete}
-            aria-label={paused ? "Start workout" : "Pause workout"}
-          >
-            {paused ? (
-              <Play data-icon="inline-start" />
-            ) : (
-              <Pause data-icon="inline-start" />
-            )}
-            {paused ? "Start" : "Pause"}
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger
-              render={
-                <Button type="button" variant="destructive" size="sm" />
-              }
-            >
-              <Square data-icon="inline-start" />
-              End workout
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>End workout?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Your current workout session will end and you&apos;ll return
-                  to workout selection.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel type="button">Stay here</AlertDialogCancel>
-                <AlertDialogAction type="button" onClick={onEnd}>
-                  End workout
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
       </div>
 
       <div className="grid flex-1 content-center gap-7 md:grid-cols-3 md:gap-8 xl:gap-10">
@@ -224,8 +166,11 @@ export function LiveWorkoutDashboard({
           />
           <RideMetric
             label={
-              workoutState.activeSegmentLabel ??
-              (workoutState.isComplete ? "Workout complete" : "Current interval")
+              workoutState.activeSegmentIndex === null
+                ? workoutState.isComplete
+                  ? "Workout complete"
+                  : "Current interval"
+                : `Segment ${workoutState.activeSegmentIndex + 1}`
             }
             value={formatDuration(Math.ceil(intervalRemainingSeconds))}
             tone={intervalWarning ? "danger" : "default"}
@@ -267,6 +212,7 @@ export function LiveWorkoutDashboard({
         <RideMetric
           label="Workout remaining"
           value={formatDuration(Math.ceil(workoutRemainingSeconds))}
+          valueSuffix={formatDuration(totalDurationSeconds)}
           testId="workout-remaining-timer"
         />
         <IntervalComment comment={currentComment} />
@@ -274,8 +220,16 @@ export function LiveWorkoutDashboard({
 
       <WorkoutProgressOverview
         intervals={workout.intervals}
-        overallProgressPercent={overallProgressPercent}
+        elapsedSeconds={elapsedSeconds}
+        totalDurationSeconds={totalDurationSeconds}
+        activeSegmentIndex={workoutState.activeSegmentIndex}
         completedIntervalCount={completedIntervalCount}
+        paused={paused}
+        isComplete={workoutState.isComplete}
+        onPause={onPause}
+        onResume={onResume}
+        onStop={onEnd}
+        onSeek={onSeek}
       />
     </div>
   )

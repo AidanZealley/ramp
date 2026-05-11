@@ -1,21 +1,25 @@
 import type { Interval } from "@/lib/workout-utils"
 import { getZoneColor } from "@/lib/zones"
 
-interface WorkoutMiniProps {
+export interface WorkoutMiniProps {
   intervals: Array<Interval>
   className?: string
   compact?: boolean
   "aria-label"?: string
   showDividers?: boolean
+  highlightedIntervalIndex?: number | null
+  reducedIntervalIndexes?: ReadonlyArray<number>
 }
 
-export function WorkoutMini({
+export const WorkoutMini = ({
   intervals,
   className = "",
   compact = false,
   "aria-label": ariaLabel,
   showDividers = true,
-}: WorkoutMiniProps) {
+  highlightedIntervalIndex = null,
+  reducedIntervalIndexes = [],
+}: WorkoutMiniProps) => {
   if (intervals.length === 0) {
     return (
       <div
@@ -37,8 +41,18 @@ export function WorkoutMini({
 
   const viewBoxHeight = 100
   const viewBoxWidth = 200
+  const reducedIndexes = new Set(reducedIntervalIndexes)
 
   let currentX = 0
+
+  const getIntervalOpacity = (index: number) => {
+    if (highlightedIntervalIndex === index) return 1
+    if (reducedIndexes.has(index)) return 0.35
+    if (highlightedIntervalIndex !== null && highlightedIntervalIndex !== undefined) {
+      return 0.9
+    }
+    return 1
+  }
 
   return (
     <svg
@@ -66,9 +80,10 @@ export function WorkoutMini({
         return (
           <polygon
             key={i}
+            data-testid={`workout-mini-segment-${i}`}
             points={`${x},${y1} ${x + w},${y2} ${x + w},${viewBoxHeight} ${x},${viewBoxHeight}`}
             fill={color}
-            fillOpacity={0.75}
+            fillOpacity={getIntervalOpacity(i)}
           />
         )
       })}

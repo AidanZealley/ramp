@@ -454,6 +454,129 @@ describe("ride-workouts", () => {
     )
   })
 
+  it("seeks by updating elapsed state and dispatching one immediate target", async () => {
+    const harness = createSessionHarness()
+    const controller = createWorkoutController({ session: harness.session })
+    await controller.loadWorkout(
+      {
+        id: "w1",
+        title: "Workout",
+        powerMode: "percentage",
+        intervals: [
+          { startPower: 100, endPower: 100, durationSeconds: 30 },
+          { startPower: 150, endPower: 150, durationSeconds: 30 },
+        ],
+      },
+      200
+    )
+
+    harness.dispatch.mockClear()
+    harness.setElapsedSeconds(100)
+    await expect(controller.seekToElapsedSeconds(35)).resolves.toEqual({
+      ok: true,
+    })
+
+    expect(controller.getState()).toMatchObject({
+      elapsedSeconds: 35,
+      activeSegmentIndex: 1,
+      targetWatts: 300,
+      isComplete: false,
+    })
+    expect(harness.dispatch).toHaveBeenCalledTimes(1)
+    expect(harness.dispatch).toHaveBeenCalledWith(
+      { type: "setTargetPower", watts: 300 },
+      "workout",
+      { priority: "immediate" }
+    )
+  })
+
+  it("clamps seeks to the workout duration", async () => {
+    const harness = createSessionHarness()
+    const controller = createWorkoutController({ session: harness.session })
+    await controller.loadWorkout(
+      {
+        id: "w1",
+        title: "Workout",
+        powerMode: "percentage",
+        intervals: [{ startPower: 100, endPower: 100, durationSeconds: 30 }],
+      },
+      200
+    )
+
+    harness.dispatch.mockClear()
+    await controller.seekToElapsedSeconds(100)
+
+    expect(controller.getState()).toMatchObject({
+      elapsedSeconds: 30,
+      activeSegmentIndex: 0,
+      isComplete: false,
+    })
+  })
+
+  it("does not dispatch seek targets while telemetry is stale", async () => {
+    const harness = createSessionHarness({ telemetryStatus: "stale" })
+    const controller = createWorkoutController({ session: harness.session })
+    await controller.loadWorkout(
+      {
+        id: "w1",
+        title: "Workout",
+        powerMode: "percentage",
+        intervals: [{ startPower: 100, endPower: 100, durationSeconds: 30 }],
+      },
+      200
+    )
+
+    harness.dispatch.mockClear()
+    await expect(controller.seekToElapsedSeconds(10)).resolves.toEqual({
+      ok: true,
+    })
+
+    expect(harness.dispatch).not.toHaveBeenCalled()
+  })
+
+  it("does not dispatch seek targets while the trainer is disconnected", async () => {
+    const harness = createSessionHarness({ trainerConnected: false })
+    const controller = createWorkoutController({ session: harness.session })
+    await controller.loadWorkout(
+      {
+        id: "w1",
+        title: "Workout",
+        powerMode: "percentage",
+        intervals: [{ startPower: 100, endPower: 100, durationSeconds: 30 }],
+      },
+      200
+    )
+
+    harness.dispatch.mockClear()
+    await controller.seekToElapsedSeconds(10)
+
+    expect(harness.dispatch).not.toHaveBeenCalled()
+  })
+
+  it("interpolates ramp targets when seeking", async () => {
+    const harness = createSessionHarness()
+    const controller = createWorkoutController({ session: harness.session })
+    await controller.loadWorkout(
+      {
+        id: "w1",
+        title: "Workout",
+        powerMode: "percentage",
+        intervals: [{ startPower: 50, endPower: 100, durationSeconds: 60 }],
+      },
+      200
+    )
+
+    harness.dispatch.mockClear()
+    await controller.seekToElapsedSeconds(30)
+
+    expect(controller.getState().targetWatts).toBe(150)
+    expect(harness.dispatch).toHaveBeenCalledWith(
+      { type: "setTargetPower", watts: 150 },
+      "workout",
+      { priority: "immediate" }
+    )
+  })
+
   it("ignores stale dispatch failure after a newer workout starts", async () => {
     let rejectFirstUpdate!: (error: unknown) => void
     const dispatch = vi

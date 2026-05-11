@@ -1,18 +1,132 @@
-import { WorkoutMini } from "@/components/workout-mini"
+import { useMemo, useRef, useState } from "react"
+import {
+  Pause,
+  Play,
+  SkipBack,
+  SkipForward,
+  Square,
+} from "lucide-react"
+import type { PointerEvent } from "react"
 import type { Interval } from "@/lib/workout-utils"
+import { WorkoutMini } from "@/components/workout-mini"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Button } from "@/components/ui/button"
 
 type WorkoutProgressOverviewProps = {
   intervals: Array<Interval>
-  overallProgressPercent: number
+  elapsedSeconds: number
+  totalDurationSeconds: number
+  activeSegmentIndex: number | null
   completedIntervalCount: number
+  paused: boolean
+  isComplete: boolean
+  onPause?: () => void
+  onResume?: () => void
+  onStop: () => void
+  onSeek: (elapsedSeconds: number) => void | Promise<void>
 }
 
 export const WorkoutProgressOverview = ({
   intervals,
-  overallProgressPercent,
+  elapsedSeconds,
+  totalDurationSeconds,
+  activeSegmentIndex,
   completedIntervalCount,
+  paused,
+  isComplete,
+  onPause,
+  onResume,
+  onStop,
+  onSeek,
 }: WorkoutProgressOverviewProps) => {
-  const progress = Math.max(0, Math.min(100, overallProgressPercent))
+  const timelineRef = useRef<HTMLDivElement | null>(null)
+  const [previewElapsedSeconds, setPreviewElapsedSeconds] = useState<
+    number | null
+  >(null)
+  const displayElapsedSeconds = previewElapsedSeconds ?? elapsedSeconds
+  const clampedElapsedSeconds = clamp(
+    displayElapsedSeconds,
+    0,
+    totalDurationSeconds
+  )
+  const progress =
+    totalDurationSeconds > 0
+      ? (clampedElapsedSeconds / totalDurationSeconds) * 100
+      : 0
+  const intervalStarts = useMemo(() => {
+    const starts: Array<number> = []
+    let cursor = 0
+    for (const interval of intervals) {
+      starts.push(cursor)
+      cursor += Math.max(0, interval.durationSeconds)
+    }
+    return starts
+  }, [intervals])
+  const displayIntervalIndex =
+    previewElapsedSeconds === null
+      ? activeSegmentIndex
+      : getIntervalIndexAtElapsed(intervals, clampedElapsedSeconds)
+  const displayCompletedIntervalCount =
+    previewElapsedSeconds === null
+      ? completedIntervalCount
+      : getCompletedIntervalCount(intervals, clampedElapsedSeconds)
+  const reducedIntervalIndexes = useMemo(
+    () =>
+      Array.from(
+        { length: displayCompletedIntervalCount },
+        (_, index) => index
+      ),
+    [displayCompletedIntervalCount]
+  )
+
+  const getElapsedFromPointer = (clientX: number) => {
+    const rect = timelineRef.current?.getBoundingClientRect()
+    if (!rect || rect.width <= 0 || totalDurationSeconds <= 0) return 0
+    const ratio = clamp((clientX - rect.left) / rect.width, 0, 1)
+    return ratio * totalDurationSeconds
+  }
+
+  const commitSeek = (nextElapsedSeconds: number) => {
+    void onSeek(clamp(nextElapsedSeconds, 0, totalDurationSeconds))
+  }
+
+  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (!timelineRef.current?.hasPointerCapture(event.pointerId)) return
+    setPreviewElapsedSeconds(getElapsedFromPointer(event.clientX))
+  }
+
+  const handlePointerEnd = (event: PointerEvent<HTMLDivElement>) => {
+    if (!timelineRef.current?.hasPointerCapture(event.pointerId)) return
+    const nextElapsedSeconds = getElapsedFromPointer(event.clientX)
+    timelineRef.current.releasePointerCapture(event.pointerId)
+    setPreviewElapsedSeconds(null)
+    commitSeek(nextElapsedSeconds)
+  }
+
+  const handleSkipBack = () => {
+    const currentIndex = activeSegmentIndex ?? 0
+    const currentStart = intervalStarts[currentIndex] ?? 0
+    const previousStart = intervalStarts[Math.max(0, currentIndex - 1)] ?? 0
+    const nextElapsedSeconds =
+      clampedElapsedSeconds - currentStart <= 3 ? previousStart : currentStart
+    commitSeek(nextElapsedSeconds)
+  }
+
+  const handleSkipForward = () => {
+    const currentIndex = activeSegmentIndex ?? 0
+    const nextStart = intervalStarts[currentIndex + 1] ?? totalDurationSeconds
+    commitSeek(nextStart)
+  }
 
   return (
     <section className="min-w-0" aria-label="Workout overview">
@@ -22,11 +136,24 @@ export const WorkoutProgressOverview = ({
           {completedIntervalCount}/{intervals.length} intervals completed
         </span>
       </div>
-      <div className="relative h-28 overflow-hidden md:h-36 xl:h-44">
+      <div
+        ref={timelineRef}
+        className="group/timeline relative h-28 cursor-col-resize touch-none overflow-hidden md:h-36 xl:h-44"
+        data-testid="workout-progress-timeline"
+        onPointerDown={(event) => {
+          timelineRef.current?.setPointerCapture(event.pointerId)
+          setPreviewElapsedSeconds(getElapsedFromPointer(event.clientX))
+        }}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerEnd}
+        onPointerCancel={handlePointerEnd}
+      >
         <WorkoutMini
           intervals={intervals}
           className="h-full"
           aria-label="Workout interval shape"
+          highlightedIntervalIndex={displayIntervalIndex}
+          reducedIntervalIndexes={reducedIntervalIndexes}
         />
         <div
           aria-hidden="true"
@@ -36,10 +163,126 @@ export const WorkoutProgressOverview = ({
         <div
           aria-hidden="true"
           data-testid="workout-progress-line"
-          className="absolute inset-y-0 w-px bg-primary md:w-0.5"
+          className="absolute inset-y-0 z-20 w-px bg-primary transition-colors group-hover/timeline:bg-white md:w-0.5"
           style={{ left: `${progress}%` }}
         />
+        {paused && !isComplete && (
+          <div
+            className="absolute inset-y-0 right-0 z-10 grid place-items-center bg-background/75 px-4 text-center backdrop-blur-[1px]"
+            style={{ left: `${progress}%` }}
+          >
+            <div className="text-sm font-semibold text-foreground md:text-base">
+              Workout paused
+            </div>
+          </div>
+        )}
+        {isComplete && (
+          <div className="absolute inset-0 grid place-items-center bg-background/70 text-sm font-semibold">
+            Complete
+          </div>
+        )}
+      </div>
+      <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <div aria-hidden="true" />
+        <div className="flex items-center justify-center gap-2 justify-self-center">
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            onClick={handleSkipBack}
+            disabled={isComplete || intervals.length === 0}
+            aria-label="Skip to previous interval"
+          >
+            <SkipBack />
+          </Button>
+          <Button
+            type="button"
+            variant={paused ? "default" : "secondary"}
+            onClick={paused ? onResume : onPause}
+            size="icon-lg"
+            className="size-12 shadow-sm [&_svg:not([class*='size-'])]:size-5"
+            disabled={isComplete}
+            aria-label={paused ? "Start workout" : "Pause workout"}
+          >
+            {paused ? <Play /> : <Pause />}
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon-lg"
+                  className="size-12 shadow-sm [&_svg:not([class*='size-'])]:size-5"
+                  aria-label="End workout"
+                />
+              }
+            >
+              <Square />
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>End workout?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Your current workout session will end and you&apos;ll return
+                  to workout selection.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel type="button">Stay here</AlertDialogCancel>
+                <AlertDialogAction type="button" onClick={onStop}>
+                  End workout
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            onClick={handleSkipForward}
+            disabled={isComplete || intervals.length === 0}
+            aria-label="Skip to next interval"
+          >
+            <SkipForward />
+          </Button>
+        </div>
+        <div aria-hidden="true" />
       </div>
     </section>
   )
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value))
+}
+
+function getIntervalIndexAtElapsed(
+  intervals: ReadonlyArray<Interval>,
+  elapsedSeconds: number
+): number | null {
+  let cursor = 0
+  for (let index = 0; index < intervals.length; index += 1) {
+    const duration = Math.max(0, intervals[index].durationSeconds)
+    const endSeconds = cursor + duration
+    const isLast = index === intervals.length - 1
+    if (elapsedSeconds < endSeconds || (isLast && elapsedSeconds === endSeconds)) {
+      return index
+    }
+    cursor = endSeconds
+  }
+  return null
+}
+
+function getCompletedIntervalCount(
+  intervals: ReadonlyArray<Interval>,
+  elapsedSeconds: number
+): number {
+  let cursor = 0
+  let completed = 0
+  for (const interval of intervals) {
+    cursor += Math.max(0, interval.durationSeconds)
+    if (elapsedSeconds >= cursor) completed += 1
+  }
+  return completed
 }

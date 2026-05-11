@@ -252,13 +252,13 @@ describe("LiveWorkoutExperienceView", () => {
       expect(screen.getByText("Now riding")).toBeTruthy()
     })
 
-    fireEvent.click(screen.getByText("End workout"))
+    fireEvent.click(screen.getByLabelText("End workout"))
 
     expect(screen.getByText("End workout?")).toBeTruthy()
     expect(screen.getByText("Stay here")).toBeTruthy()
-    expect(screen.getAllByText("End workout")).toHaveLength(2)
+    expect(screen.getAllByText("End workout")).toHaveLength(1)
 
-    fireEvent.click(screen.getAllByText("End workout")[1])
+    fireEvent.click(screen.getByText("End workout"))
 
     await waitFor(() => {
       expect(screen.queryByText("Now riding")).toBeNull()
@@ -335,6 +335,7 @@ describe("LiveWorkoutExperienceView", () => {
     await waitFor(() => {
       expect(screen.getAllByText("Settle in").length).toBeGreaterThan(0)
     })
+    expect(screen.getByText("Segment 1")).toBeTruthy()
   })
 
   it("calculates completed intervals and final interval warning timing", () => {

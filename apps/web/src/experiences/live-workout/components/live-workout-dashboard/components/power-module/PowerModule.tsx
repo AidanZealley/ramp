@@ -38,11 +38,11 @@ export const PowerModule = ({
           <div
             data-testid="rider-power"
             className={cn(
-              "font-heading mt-2 truncate text-6xl leading-none font-semibold tabular-nums md:text-7xl xl:text-8xl",
+              "mt-2 truncate font-heading text-6xl leading-none font-semibold tabular-nums md:text-7xl xl:text-8xl",
               riderUnavailable && "text-muted-foreground"
             )}
           >
-            {powerWatts !== null ? `${Math.round(powerWatts)} W` : "-- W"}
+            {powerWatts !== null ? `${Math.round(powerWatts)}W` : "--W"}
           </div>
         </div>
         <div className="min-w-0">
@@ -52,11 +52,11 @@ export const PowerModule = ({
           <div
             data-testid="target-power"
             className={cn(
-              "font-heading mt-1 truncate text-4xl leading-none font-semibold tabular-nums md:text-5xl xl:text-6xl",
+              "mt-1 truncate font-heading text-4xl leading-none font-semibold tabular-nums md:text-5xl xl:text-6xl",
               targetWatts === null && "text-muted-foreground"
             )}
           >
-            {targetWatts !== null ? `${targetWatts} W` : "--"}
+            {targetWatts !== null ? `${targetWatts}W` : "--"}
           </div>
         </div>
       </div>

@@ -182,6 +182,13 @@ export function LiveWorkoutExperienceView({
     setStartError(null)
   }, [workoutController])
 
+  const handleSeek = useCallback(
+    async (elapsedSeconds: number) => {
+      await workoutController.seekToElapsedSeconds(elapsedSeconds)
+    },
+    [workoutController]
+  )
+
   return (
     <div className="absolute inset-0 flex flex-col overflow-y-auto px-4 pt-16 pb-6 sm:px-8 sm:pt-20">
       {activeWorkout ? (
@@ -189,6 +196,7 @@ export function LiveWorkoutExperienceView({
           onEnd={handleEnd}
           onPause={session.pause}
           onResume={session.resume}
+          onSeek={handleSeek}
           session={session}
           workout={activeWorkout}
           workoutState={workoutState}

@@ -7,8 +7,7 @@ import type { RideTrainerConnectionChoice } from "@/ride/use-ride-trainer"
 import type React from "react"
 import type { RideConnectionGateProps } from "./types"
 
-const WEB_BLUETOOTH_MESSAGE =
-  "Web Bluetooth requires a Chromium-class browser."
+const WEB_BLUETOOTH_MESSAGE = "Web Bluetooth requires a Chromium-class browser."
 
 export const RideConnectionGate = ({
   experience,
@@ -71,7 +70,8 @@ export const RideConnectionGate = ({
           <div className="text-sm font-medium">Trainer source</div>
           <ToggleGroup
             aria-label="Trainer source"
-            className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2"
+            variant="outline"
+            className="grid w-full grid-cols-1 sm:grid-cols-2"
             size="lg"
             value={selectedSource ? [selectedSource] : []}
             onValueChange={handleSourceChange}
@@ -118,7 +118,10 @@ export const RideConnectionGate = ({
           >
             {primaryText}
           </Button>
-          <a className={cn(buttonVariants({ variant: "outline" }))} href="/ride">
+          <a
+            className={cn(buttonVariants({ variant: "outline" }))}
+            href="/ride"
+          >
             Back to rides
           </a>
         </div>
@@ -145,7 +148,7 @@ function SourceOption({
   return (
     <ToggleGroupItem
       aria-label={label}
-      className="h-auto min-h-24 items-start justify-start rounded-lg border border-border px-4 py-3 text-left data-[state=on]:border-primary data-[state=on]:bg-primary/10"
+      className="h-auto min-h-24 items-start justify-start rounded-lg px-4 py-3 text-left data-[state=on]:bg-primary/10"
       disabled={disabled}
       value={value}
     >
