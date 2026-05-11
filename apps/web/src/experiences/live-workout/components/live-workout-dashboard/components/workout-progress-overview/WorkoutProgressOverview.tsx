@@ -1,11 +1,5 @@
 import { useMemo, useRef, useState } from "react"
-import {
-  Pause,
-  Play,
-  SkipBack,
-  SkipForward,
-  Square,
-} from "lucide-react"
+import { Pause, Play, SkipBack, SkipForward, Square } from "lucide-react"
 import type { PointerEvent } from "react"
 import type { Interval } from "@/lib/workout-utils"
 import { WorkoutMini } from "@/components/workout-mini"
@@ -21,6 +15,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 
 type WorkoutProgressOverviewProps = {
   intervals: Array<Interval>
@@ -167,18 +162,18 @@ export const WorkoutProgressOverview = ({
           style={{ left: `${progress}%` }}
         />
         {paused && !isComplete && (
-          <div
-            className="absolute inset-y-0 right-0 z-10 grid place-items-center bg-background/75 px-4 text-center backdrop-blur-[1px]"
-            style={{ left: `${progress}%` }}
-          >
-            <div className="text-sm font-semibold text-foreground md:text-base">
-              Workout paused
+          <div className="absolute inset-0 right-0 z-10 grid place-items-center bg-background/50">
+            <div className="flex flex-col items-center gap-1 rounded-2xl border bg-background/50 p-3">
+              <Pause className="size-5 text-muted-foreground" />
+              <span className="text-sm">
+                {elapsedSeconds > 0 ? "Workout paused" : "Workout not started"}
+              </span>
             </div>
           </div>
         )}
         {isComplete && (
-          <div className="absolute inset-0 grid place-items-center bg-background/70 text-sm font-semibold">
-            Complete
+          <div className="absolute inset-0 grid place-items-center bg-background/75">
+            <Badge variant="outline">Complete</Badge>
           </div>
         )}
       </div>
@@ -197,7 +192,7 @@ export const WorkoutProgressOverview = ({
           </Button>
           <Button
             type="button"
-            variant={paused ? "default" : "secondary"}
+            variant="default"
             onClick={paused ? onResume : onPause}
             size="icon-lg"
             className="size-12 shadow-sm [&_svg:not([class*='size-'])]:size-5"
@@ -266,7 +261,10 @@ function getIntervalIndexAtElapsed(
     const duration = Math.max(0, intervals[index].durationSeconds)
     const endSeconds = cursor + duration
     const isLast = index === intervals.length - 1
-    if (elapsedSeconds < endSeconds || (isLast && elapsedSeconds === endSeconds)) {
+    if (
+      elapsedSeconds < endSeconds ||
+      (isLast && elapsedSeconds === endSeconds)
+    ) {
       return index
     }
     cursor = endSeconds
