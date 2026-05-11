@@ -41,7 +41,7 @@ export const RideConnectionGate = ({
   return (
     <section
       aria-label={`${experience.displayName} connection`}
-      className="flex min-h-svh items-center bg-background px-4 py-8 text-foreground sm:px-6"
+      className="flex min-h-svh items-center px-4 py-8 text-foreground sm:px-6"
     >
       <div className="mx-auto grid w-full max-w-3xl gap-7">
         <a

@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { Capability } from "@ramp/ride-core"
+import type React from "react"
 import { LiveWorkoutExperienceView } from "./live-workout-experience-view"
 import {
   getCompletedIntervalCount,
@@ -9,9 +10,42 @@ import {
 } from "./components/live-workout-dashboard/utils"
 
 const useQuery = vi.fn()
+const confettiRender = vi.hoisted(() => vi.fn())
+
+vi.mock("react-confetti", () => ({
+  default: (props: Record<string, unknown>) => {
+    confettiRender(props)
+    return <div data-testid="completion-confetti" />
+  },
+}))
 
 vi.mock("convex/react", () => ({
   useQuery: (...args: Array<unknown>) => useQuery(...args),
+}))
+
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({
+    children,
+    params,
+    to,
+    ...props
+  }: {
+    children: React.ReactNode
+    params?: Record<string, string>
+    to: string
+  }) => {
+    const href = params
+      ? Object.entries(params).reduce(
+          (path, [key, value]) => path.replace(`$${key}`, value),
+          to
+        )
+      : to
+    return (
+      <a href={href} {...props}>
+        {children}
+      </a>
+    )
+  },
 }))
 
 function createSession(options?: {
@@ -21,6 +55,8 @@ function createSession(options?: {
   pauseImpl?: ReturnType<typeof vi.fn>
   resumeImpl?: ReturnType<typeof vi.fn>
   telemetrySource?: "simulated" | "ftms-ble" | "wahoo-kickr-ble" | "ant" | null
+  elapsedSeconds?: number
+  distanceMeters?: number
   powerWatts?: number | null
   cadenceRpm?: number | null
   heartRateBpm?: number | null
@@ -31,8 +67,8 @@ function createSession(options?: {
 
   const state = {
     telemetry: {
-      elapsedSeconds: 0,
-      distanceMeters: 0,
+      elapsedSeconds: options?.elapsedSeconds ?? 0,
+      distanceMeters: options?.distanceMeters ?? 0,
       speedMps: 8,
       powerWatts: options?.powerWatts ?? 180,
       cadenceRpm: options?.cadenceRpm ?? 90,
@@ -74,6 +110,15 @@ function createSession(options?: {
       getCapabilities: () =>
         options?.capabilities ?? new Set(Object.values(Capability)),
     },
+    setTelemetry: (
+      telemetry: Partial<{
+        elapsedSeconds: number
+        distanceMeters: number
+      }>
+    ) => {
+      Object.assign(state.telemetry, telemetry)
+      listeners.forEach((listener) => listener())
+    },
   } as never
 }
 
@@ -88,6 +133,7 @@ const workoutDoc = {
 describe("LiveWorkoutExperienceView", () => {
   beforeEach(() => {
     useQuery.mockReset()
+    confettiRender.mockClear()
   })
 
   it("renders loading state until workouts and settings resolve", () => {
@@ -197,8 +243,8 @@ describe("LiveWorkoutExperienceView", () => {
       expect(screen.getByText("Now riding")).toBeTruthy()
     })
     expect(screen.getByText("Ramp Builder")).toBeTruthy()
-    expect(screen.getByTestId("target-power").textContent).toContain("200 W")
-    expect(screen.getByTestId("rider-power").textContent).toContain("180 W")
+    expect(screen.getByTestId("target-power").textContent).toContain("200W")
+    expect(screen.getByTestId("rider-power").textContent).toContain("180W")
     expect(screen.getByTestId("current-interval-timer").textContent).toContain(
       "1:00"
     )
@@ -210,6 +256,122 @@ describe("LiveWorkoutExperienceView", () => {
     expect(screen.getByText("0/1 intervals completed")).toBeTruthy()
     expect(screen.getByLabelText("Workout interval shape")).toBeTruthy()
     expect(screen.getByTestId("workout-progress-line")).toBeTruthy()
+  })
+
+  it("opens the completion dialog once with the frozen workout summary", async () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+    const session = createSession() as unknown as {
+      setTelemetry: (telemetry: {
+        elapsedSeconds: number
+        distanceMeters: number
+      }) => void
+    }
+
+    render(<LiveWorkoutExperienceView session={session as never} />)
+
+    fireEvent.click(screen.getByText("Ramp Builder"))
+    fireEvent.click(screen.getByText("Start workout"))
+
+    await waitFor(() => {
+      expect(screen.getByText("Now riding")).toBeTruthy()
+    })
+
+    act(() => {
+      session.setTelemetry({ elapsedSeconds: 61, distanceMeters: 1234 })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText("Workout complete!")).toBeTruthy()
+    })
+    expect(screen.getByText(/Ramp Builder is complete/)).toBeTruthy()
+    expect(screen.getByText("1:00")).toBeTruthy()
+    expect(screen.getByText("1.23 km")).toBeTruthy()
+    expect(screen.getByTestId("completion-confetti")).toBeTruthy()
+    expect(confettiRender).toHaveBeenCalled()
+
+    act(() => {
+      session.setTelemetry({ elapsedSeconds: 62, distanceMeters: 1300 })
+    })
+
+    expect(screen.getAllByText("Workout complete!")).toHaveLength(1)
+    expect(screen.getByText("1.23 km")).toBeTruthy()
+  })
+
+  it("links completion dialog actions to edit workout and ride routes", async () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+    const session = createSession() as unknown as {
+      setTelemetry: (telemetry: {
+        elapsedSeconds: number
+        distanceMeters: number
+      }) => void
+    }
+
+    render(<LiveWorkoutExperienceView session={session as never} />)
+
+    fireEvent.click(screen.getByText("Ramp Builder"))
+    fireEvent.click(screen.getByText("Start workout"))
+
+    await waitFor(() => {
+      expect(screen.getByText("Now riding")).toBeTruthy()
+    })
+
+    act(() => {
+      session.setTelemetry({ elapsedSeconds: 61, distanceMeters: 842 })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText("Workout complete!")).toBeTruthy()
+    })
+    expect(screen.getByText("842 m")).toBeTruthy()
+
+    expect(
+      screen.getByRole("link", { name: "Edit workout" }).getAttribute("href")
+    ).toBe("/workout/w1")
+    expect(
+      screen.getByRole("link", { name: "Back to ride" }).getAttribute("href")
+    ).toBe("/ride")
+  })
+
+  it("closing the completion dialog keeps the completed workout visible", async () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+    const session = createSession() as unknown as {
+      setTelemetry: (telemetry: {
+        elapsedSeconds: number
+        distanceMeters: number
+      }) => void
+    }
+
+    render(<LiveWorkoutExperienceView session={session as never} />)
+
+    fireEvent.click(screen.getByText("Ramp Builder"))
+    fireEvent.click(screen.getByText("Start workout"))
+
+    await waitFor(() => {
+      expect(screen.getByText("Now riding")).toBeTruthy()
+    })
+
+    act(() => {
+      session.setTelemetry({ elapsedSeconds: 61, distanceMeters: 842 })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText("Workout complete!")).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByText("Close"))
+
+    await waitFor(() => {
+      expect(screen.queryByText("Workout complete!")).toBeNull()
+    })
+    expect(screen.getAllByText("Complete").length).toBeGreaterThan(0)
+    expect(screen.getByText("Ramp Builder")).toBeTruthy()
+    expect(screen.queryByText("Selected workout")).toBeNull()
   })
 
   it("pauses by default after loading a workout and exposes start/pause control", async () => {
@@ -303,7 +465,7 @@ describe("LiveWorkoutExperienceView", () => {
     fireEvent.click(screen.getByText("Start workout"))
 
     await waitFor(() => {
-      expect(screen.getByTestId("rider-power").textContent).toContain("180 W")
+      expect(screen.getByTestId("rider-power").textContent).toContain("180W")
     })
     expect(screen.getByText("Simulator")).toBeTruthy()
   })

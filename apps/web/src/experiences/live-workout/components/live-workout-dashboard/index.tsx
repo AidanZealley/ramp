@@ -1,10 +1,15 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
+import Confetti from "react-confetti"
 import { useRideHeartbeat, useRideSelector } from "@ramp/ride-core"
 import { DisconnectedOverlay } from "./components/disconnected-overlay"
 import { IntervalComment } from "./components/interval-comment"
 import { PowerModule } from "./components/power-module"
 import { RideMetric } from "./components/ride-metric"
 import { TelemetryStaleBadge } from "./components/telemetry-stale-badge"
+import {
+  WorkoutCompleteDialog,
+  type WorkoutCompletionSummary,
+} from "./components/workout-complete-dialog"
 import { WorkoutProgressOverview } from "./components/workout-progress-overview"
 import {
   getCompletedIntervalCount,
@@ -44,6 +49,25 @@ function getDisconnectErrorCopy(code: string | undefined): string | null {
   }
 }
 
+function useViewportSize() {
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
+
+  useEffect(() => {
+    const updateViewportSize = () => {
+      setViewportSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      })
+    }
+
+    updateViewportSize()
+    window.addEventListener("resize", updateViewportSize)
+    return () => window.removeEventListener("resize", updateViewportSize)
+  }, [])
+
+  return viewportSize
+}
+
 export function LiveWorkoutDashboard({
   onEnd,
   onReconnect,
@@ -65,9 +89,15 @@ export function LiveWorkoutDashboard({
     session,
     (s) => s.lastTrainerError?.code
   )
+  const viewportSize = useViewportSize()
   // Ensure at-minimum 1 Hz re-renders for time displays
   useRideHeartbeat(session, 1)
   const hasPausedForDisconnect = useRef(false)
+  const previousIsComplete = useRef(workoutState.isComplete)
+  const [completionSummary, setCompletionSummary] =
+    useState<WorkoutCompletionSummary | null>(null)
+  const [completionDialogOpen, setCompletionDialogOpen] = useState(false)
+  const [showConfetti, setShowConfetti] = useState(false)
 
   // Auto-pause when trainer disconnects
   useEffect(() => {
@@ -93,6 +123,10 @@ export function LiveWorkoutDashboard({
     0,
     Math.min(workoutState.elapsedSeconds, totalDurationSeconds)
   )
+  const completionDurationSeconds =
+    workoutState.isComplete && elapsedSeconds === 0
+      ? totalDurationSeconds
+      : elapsedSeconds
   const workoutRemainingSeconds = getWorkoutRemainingSeconds(
     totalDurationSeconds,
     elapsedSeconds
@@ -124,8 +158,50 @@ export function LiveWorkoutDashboard({
     intervalRemainingSeconds > 0 &&
     !workoutState.isComplete
 
+  useEffect(() => {
+    if (!previousIsComplete.current && workoutState.isComplete) {
+      setCompletionSummary({
+        durationSeconds: Math.round(completionDurationSeconds),
+        distanceMeters: telemetry.distanceMeters,
+      })
+      setCompletionDialogOpen(true)
+      setShowConfetti(true)
+    }
+    previousIsComplete.current = workoutState.isComplete
+  }, [
+    completionDurationSeconds,
+    telemetry.distanceMeters,
+    workoutState.isComplete,
+  ])
+
   return (
     <div className="relative flex min-h-full w-full flex-1 flex-col gap-5 px-0 py-2 sm:gap-6">
+      {showConfetti && (
+        <Confetti
+          width={viewportSize.width}
+          height={viewportSize.height}
+          recycle={false}
+          numberOfPieces={240}
+          gravity={0.25}
+          tweenDuration={5000}
+          onConfettiComplete={() => setShowConfetti(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            pointerEvents: "none",
+            zIndex: 60,
+          }}
+        />
+      )}
+      {completionSummary && (
+        <WorkoutCompleteDialog
+          open={completionDialogOpen}
+          workoutId={workout._id}
+          workoutTitle={workout.title}
+          summary={completionSummary}
+          onOpenChange={setCompletionDialogOpen}
+        />
+      )}
       {showDisconnectedOverlay && onReconnect && (
         <DisconnectedOverlay
           onReconnect={onReconnect}

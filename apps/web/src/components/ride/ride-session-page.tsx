@@ -91,8 +91,8 @@ function RideSessionExperience({
         aria-label={`${experience.displayName} ride`}
         className={
           isLiveWorkout
-            ? "relative h-svh min-h-[620px] overflow-hidden bg-background text-foreground"
-            : "relative h-svh min-h-[620px] overflow-hidden text-[#14201b]"
+            ? "relative h-svh min-h-[620px] overflow-hidden"
+            : "relative h-svh min-h-[620px] overflow-hidden"
         }
         data-cockpit-open={isCockpitOpen}
         style={
@@ -104,22 +104,6 @@ function RideSessionExperience({
         }
       >
         <h1 className="sr-only">{experience.displayName}</h1>
-        <div
-          className={
-            isLiveWorkout
-              ? "pointer-events-none absolute inset-0 bg-no-repeat"
-              : "pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.34),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.18),rgba(18,27,31,0.22))]"
-          }
-          style={
-            isLiveWorkout
-              ? {
-                  backgroundImage:
-                    "radial-gradient(ellipse 80% 100% at 50% 0%, color-mix(in oklch, var(--foreground) 5%, transparent) 0%, transparent 70%)",
-                  backgroundSize: "100% 700px",
-                }
-              : undefined
-          }
-        />
         <div
           className="absolute inset-x-0 top-0 flex justify-center overflow-visible transition-[height,padding] duration-300 ease-out"
           style={{
