@@ -24,24 +24,39 @@ describe("useRideTrainer", () => {
     isWebBluetoothAvailable.mockReturnValue(true)
   })
 
-  it("defaults to the simulated trainer when the dev flag is enabled", async () => {
+  it("defaults to simulator selection without selecting a trainer in dev mode", async () => {
     vi.stubEnv("VITE_RIDE_DEV_SIMULATION", "true")
     const { useRideTrainer } = await import("./use-ride-trainer")
     const { result } = renderHook(() => useRideTrainer())
 
-    expect(result.current.source).toBe("simulated")
-    expect(result.current.trainer).toBeInstanceOf(SimulatedTrainer)
+    expect(result.current.source).toBe("none")
+    expect(result.current.selectedSource).toBe("simulated")
+    expect(result.current.trainer).toBeNull()
     expect(result.current.simulatedRider).toBe(
       result.current.simulatedTrainer?.rider
     )
   })
 
-  it("defaults to no trainer when the dev flag is disabled", async () => {
+  it("connects the selected simulator in dev mode", async () => {
+    vi.stubEnv("VITE_RIDE_DEV_SIMULATION", "true")
+    const { useRideTrainer } = await import("./use-ride-trainer")
+    const { result } = renderHook(() => useRideTrainer())
+
+    await act(async () => {
+      await expect(result.current.connectSelectedTrainer()).resolves.toBe(true)
+    })
+
+    expect(result.current.source).toBe("simulated")
+    expect(result.current.trainer).toBeInstanceOf(SimulatedTrainer)
+  })
+
+  it("defaults to no trainer and BLE selection when the dev flag is disabled", async () => {
     vi.stubEnv("VITE_RIDE_DEV_SIMULATION", "false")
     const { useRideTrainer } = await import("./use-ride-trainer")
     const { result } = renderHook(() => useRideTrainer())
 
     expect(result.current.source).toBe("none")
+    expect(result.current.selectedSource).toBe("ble")
     expect(result.current.trainer).toBeNull()
   })
 
@@ -66,7 +81,10 @@ describe("useRideTrainer", () => {
     expect(requestBleTrainer).not.toHaveBeenCalled()
 
     await act(async () => {
-      await result.current.connectBleTrainer()
+      result.current.selectSource("ble")
+    })
+    await act(async () => {
+      await result.current.connectSelectedTrainer()
     })
 
     expect(requestBleTrainer).toHaveBeenCalledTimes(1)
@@ -86,15 +104,41 @@ describe("useRideTrainer", () => {
 
     expect(result.current.trainer).toBeNull()
     expect(result.current.source).toBe("none")
+    expect(result.current.connectionError).toBe(
+      "Web Bluetooth requires a Chromium-class browser."
+    )
     expect(requestBleTrainer).not.toHaveBeenCalled()
   })
 
-  it("keeps the simulator selected when the chooser is cancelled", async () => {
+  it("keeps no active source when BLE selection is cancelled before connection", async () => {
     vi.stubEnv("VITE_RIDE_DEV_SIMULATION", "true")
     const { useRideTrainer } = await import("./use-ride-trainer")
     requestBleTrainer.mockRejectedValue(new Error("cancelled"))
     const { result } = renderHook(() => useRideTrainer())
 
+    await act(async () => {
+      result.current.selectSource("ble")
+    })
+    await act(async () => {
+      await result.current.connectBleTrainer()
+    })
+
+    expect(result.current.trainer).toBeNull()
+    expect(result.current.source).toBe("none")
+    expect(result.current.connectionError).toBe(
+      "Bluetooth trainer selection was cancelled."
+    )
+  })
+
+  it("keeps a prior source when BLE selection is cancelled", async () => {
+    vi.stubEnv("VITE_RIDE_DEV_SIMULATION", "true")
+    const { useRideTrainer } = await import("./use-ride-trainer")
+    requestBleTrainer.mockRejectedValue(new Error("cancelled"))
+    const { result } = renderHook(() => useRideTrainer())
+
+    await act(async () => {
+      await result.current.useSimulatedTrainer()
+    })
     await act(async () => {
       await result.current.connectBleTrainer()
     })
@@ -136,6 +180,10 @@ describe("useRideTrainer", () => {
     vi.stubEnv("VITE_RIDE_DEV_SIMULATION", "true")
     const { useRideTrainer } = await import("./use-ride-trainer")
     const { result } = renderHook(() => useRideTrainer())
+
+    await act(async () => {
+      await result.current.useSimulatedTrainer()
+    })
 
     await act(async () => {
       await result.current.disconnectTrainer()

@@ -25,6 +25,7 @@ type RideOverlayProps = {
   isCockpitOpen?: boolean
   onCockpitHeightChange?: (height: number) => void
   onCockpitOpenChange?: (open: boolean) => void
+  onDisconnected?: () => void
   onHeaderHeightChange?: (height: number) => void
 }
 
@@ -35,6 +36,7 @@ export function RideOverlay({
   isCockpitOpen: controlledIsCockpitOpen,
   onCockpitHeightChange,
   onCockpitOpenChange,
+  onDisconnected,
   onHeaderHeightChange,
 }: RideOverlayProps) {
   const navigate = useNavigate()
@@ -217,7 +219,11 @@ export function RideOverlay({
                 type="button"
                 variant="secondary"
                 size="sm"
-                onClick={trainerController.disconnectTrainer}
+                onClick={() => {
+                  void trainerController.disconnectTrainer().then(() => {
+                    onDisconnected?.()
+                  })
+                }}
               >
                 Disconnect
               </Button>

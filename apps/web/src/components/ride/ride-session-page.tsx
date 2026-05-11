@@ -1,5 +1,6 @@
 import { Suspense, lazy, useMemo, useState } from "react"
 import { RideSessionContext } from "@ramp/ride-core"
+import { RideConnectionGate } from "./ride-connection-gate"
 import { RideOverlay } from "./ride-overlay"
 import type { RideExperienceDefinition } from "@/experiences/types"
 import { useElementSize } from "@/hooks/use-element-size"
@@ -13,7 +14,42 @@ export function RideSessionPage({
 }) {
   const trainerController = useRideTrainer()
   const { trainer } = trainerController
-  const { session } = useRideSessionBootstrap(trainer)
+  const [connectionConfirmed, setConnectionConfirmed] = useState(false)
+  const { session } = useRideSessionBootstrap(
+    connectionConfirmed ? trainer : null
+  )
+
+  if (!connectionConfirmed) {
+    return (
+      <RideConnectionGate
+        experience={experience}
+        trainerController={trainerController}
+        onConnected={() => setConnectionConfirmed(true)}
+      />
+    )
+  }
+
+  return (
+    <RideSessionExperience
+      experience={experience}
+      onDisconnected={() => setConnectionConfirmed(false)}
+      session={session}
+      trainerController={trainerController}
+    />
+  )
+}
+
+function RideSessionExperience({
+  experience,
+  onDisconnected,
+  session,
+  trainerController,
+}: {
+  experience: RideExperienceDefinition
+  onDisconnected: () => void
+  session: ReturnType<typeof useRideSessionBootstrap>["session"]
+  trainerController: ReturnType<typeof useRideTrainer>
+}) {
   const [isCockpitOpen, setIsCockpitOpen] = useState(false)
   const [cockpitHeight, setCockpitHeight] = useState(0)
   const [overlayHeaderHeight, setOverlayHeaderHeight] = useState(0)
@@ -87,6 +123,7 @@ export function RideSessionPage({
           isCockpitOpen={isCockpitOpen}
           onCockpitHeightChange={setCockpitHeight}
           onCockpitOpenChange={setIsCockpitOpen}
+          onDisconnected={onDisconnected}
           onHeaderHeightChange={setOverlayHeaderHeight}
           trainerController={trainerController}
         />

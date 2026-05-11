@@ -30,13 +30,18 @@ function createController(
   return {
     trainer: null,
     source: "none",
+    selectedSource: "simulated",
     devSimulationEnabled: true,
     bleAvailable: true,
     selectingBleTrainer: false,
+    connecting: false,
+    connectionError: null,
     simulatedTrainer,
     simulatedRider: simulatedTrainer.rider,
+    selectSource: vi.fn(),
+    connectSelectedTrainer: vi.fn(() => Promise.resolve(true)),
     connectBleTrainer: vi.fn(() => Promise.resolve(true)),
-    useSimulatedTrainer: vi.fn(() => Promise.resolve()),
+    useSimulatedTrainer: vi.fn(() => Promise.resolve(true)),
     disconnectTrainer: vi.fn(() => Promise.resolve()),
     ...patch,
   }
@@ -96,6 +101,27 @@ describe("RideOverlay", () => {
       <RideOverlay trainerController={createController({ source: "ble" })} />
     )
     expect(screen.getByText("Bluetooth trainer")).toBeTruthy()
+  })
+
+  it("calls onDisconnected after disconnecting from the overlay", async () => {
+    const onDisconnected = vi.fn()
+    const disconnectTrainer = vi.fn(() => Promise.resolve())
+    render(
+      <RideOverlay
+        onDisconnected={onDisconnected}
+        trainerController={createController({
+          source: "simulated",
+          disconnectTrainer,
+        })}
+      />
+    )
+
+    fireEvent.click(screen.getByText("Disconnect"))
+
+    await waitFor(() => {
+      expect(disconnectTrainer).toHaveBeenCalledTimes(1)
+      expect(onDisconnected).toHaveBeenCalledTimes(1)
+    })
   })
 
   it("wires rider controls to simulated rider commands", async () => {

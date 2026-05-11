@@ -24,6 +24,51 @@ describe("SimulatedTrainer", () => {
     expect(listener).toHaveBeenCalledTimes(1)
   })
 
+  it("starts a fresh connect after disconnect invalidates an in-flight connect", async () => {
+    const trainer = new SimulatedTrainer({
+      connectDelayMs: 10,
+      intervalMs: 1000,
+    })
+    const listener = vi.fn()
+    trainer.subscribeTelemetry(listener)
+
+    const first = trainer.connect()
+    await trainer.disconnect()
+    const second = trainer.connect()
+
+    await vi.advanceTimersByTimeAsync(10)
+    await first
+    await second
+
+    expect(trainer.state.kind).toBe("connected")
+    expect(trainer.simulator.connected).toBe(true)
+    expect(listener).toHaveBeenCalledTimes(1)
+
+    vi.advanceTimersByTime(1000)
+
+    expect(listener).toHaveBeenCalledTimes(2)
+  })
+
+  it("coalesces repeated connect calls during one valid attempt", async () => {
+    const trainer = new SimulatedTrainer({
+      connectDelayMs: 10,
+      intervalMs: 1000,
+    })
+    const states: Array<string> = []
+    trainer.subscribeState((state) => states.push(state.kind))
+
+    const first = trainer.connect()
+    const second = trainer.connect()
+
+    expect(second).toBe(first)
+
+    await vi.advanceTimersByTimeAsync(10)
+    await first
+
+    expect(trainer.state.kind).toBe("connected")
+    expect(states).toEqual(["connecting", "connected"])
+  })
+
   it("keeps state transitions observable", async () => {
     const trainer = new SimulatedTrainer()
     const states: Array<string> = []

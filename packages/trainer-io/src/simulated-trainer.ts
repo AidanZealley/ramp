@@ -37,6 +37,7 @@ export class SimulatedTrainer implements TrainerSource {
   private readonly now: () => number
   private timer: ReturnType<typeof setInterval> | null = null
   private connectPromise: Promise<void> | null = null
+  private connectPromiseGeneration: number | null = null
   private connectGeneration = 0
   private lastTickMs: number | null = null
   state: TrainerConnectionState = { kind: "disconnected" }
@@ -81,11 +82,25 @@ export class SimulatedTrainer implements TrainerSource {
   }
 
   connect(): Promise<void> {
-    if (this.connectPromise) return this.connectPromise
-    this.connectPromise = this.doConnect().finally(() => {
-      this.connectPromise = null
+    if (this.state.kind === "connected" && this.timer) {
+      return Promise.resolve()
+    }
+    if (
+      this.connectPromise &&
+      this.connectPromiseGeneration === this.connectGeneration
+    ) {
+      return this.connectPromise
+    }
+    const generation = ++this.connectGeneration
+    const connectPromise = this.doConnect(generation).finally(() => {
+      if (this.connectPromise === connectPromise) {
+        this.connectPromise = null
+        this.connectPromiseGeneration = null
+      }
     })
-    return this.connectPromise
+    this.connectPromise = connectPromise
+    this.connectPromiseGeneration = generation
+    return connectPromise
   }
 
   async disconnect(): Promise<void> {
@@ -178,9 +193,8 @@ export class SimulatedTrainer implements TrainerSource {
     return this.trainerStateSubject.subscribe(listener)
   }
 
-  private async doConnect(): Promise<void> {
+  private async doConnect(generation: number): Promise<void> {
     if (this.timer) return
-    const generation = ++this.connectGeneration
     this.setConnectionState({ kind: "connecting" })
     if (this.connectDelayMs > 0) {
       await new Promise<void>((resolve) =>
