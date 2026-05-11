@@ -5,12 +5,16 @@ interface WorkoutMiniProps {
   intervals: Array<Interval>
   className?: string
   compact?: boolean
+  "aria-label"?: string
+  showDividers?: boolean
 }
 
 export function WorkoutMini({
   intervals,
   className = "",
   compact = false,
+  "aria-label": ariaLabel,
+  showDividers = true,
 }: WorkoutMiniProps) {
   if (intervals.length === 0) {
     return (
@@ -38,6 +42,7 @@ export function WorkoutMini({
 
   return (
     <svg
+      aria-label={ariaLabel}
       viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
       preserveAspectRatio="none"
       className={`w-full ${className}`}
@@ -67,26 +72,27 @@ export function WorkoutMini({
           />
         )
       })}
-      {intervals.slice(1).map((_, i) => {
-        const x =
-          intervals
-            .slice(0, i + 1)
-            .reduce((sum, interval) => sum + interval.durationSeconds, 0) /
-          totalDuration
+      {showDividers &&
+        intervals.slice(1).map((_, i) => {
+          const x =
+            intervals
+              .slice(0, i + 1)
+              .reduce((sum, interval) => sum + interval.durationSeconds, 0) /
+            totalDuration
 
-        return (
-          <line
-            key={`gap-${i}`}
-            x1={x * viewBoxWidth}
-            x2={x * viewBoxWidth}
-            y1={0}
-            y2={viewBoxHeight}
-            stroke="var(--background)"
-            strokeWidth={1}
-            vectorEffect="non-scaling-stroke"
-          />
-        )
-      })}
+          return (
+            <line
+              key={`gap-${i}`}
+              x1={x * viewBoxWidth}
+              x2={x * viewBoxWidth}
+              y1={0}
+              y2={viewBoxHeight}
+            stroke="color-mix(in oklch, var(--background) 70%, transparent)"
+              strokeWidth={1}
+              vectorEffect="non-scaling-stroke"
+            />
+          )
+        })}
     </svg>
   )
 }

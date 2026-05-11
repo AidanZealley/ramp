@@ -2,6 +2,11 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { Capability } from "@ramp/ride-core"
 import { LiveWorkoutExperienceView } from "./live-workout-experience-view"
+import {
+  getCompletedIntervalCount,
+  getIntervalBounds,
+  getIntervalRemainingSeconds,
+} from "./components/live-workout-dashboard/utils"
 
 const useQuery = vi.fn()
 
@@ -13,19 +18,25 @@ function createSession(options?: {
   trainerConnected?: boolean
   capabilities?: ReadonlySet<Capability>
   dispatchImpl?: ReturnType<typeof vi.fn>
+  pauseImpl?: ReturnType<typeof vi.fn>
+  resumeImpl?: ReturnType<typeof vi.fn>
   telemetrySource?: "simulated" | "ftms-ble" | "wahoo-kickr-ble" | "ant" | null
+  powerWatts?: number | null
+  cadenceRpm?: number | null
+  heartRateBpm?: number | null
 }) {
   const dispatch =
     options?.dispatchImpl ?? vi.fn(() => Promise.resolve({ ok: true } as const))
+  const listeners = new Set<() => void>()
 
   const state = {
     telemetry: {
       elapsedSeconds: 0,
       distanceMeters: 0,
       speedMps: 8,
-      powerWatts: 180,
-      cadenceRpm: 90,
-      heartRateBpm: null,
+      powerWatts: options?.powerWatts ?? 180,
+      cadenceRpm: options?.cadenceRpm ?? 90,
+      heartRateBpm: options?.heartRateBpm ?? null,
       trainerStatus:
         options?.trainerConnected === false ? "disconnected" : "ready",
       telemetryStatus: "fresh" as const,
@@ -42,7 +53,22 @@ function createSession(options?: {
 
   return {
     getState: () => state,
-    subscribe: () => () => undefined,
+    subscribe: (listener: () => void) => {
+      listeners.add(listener)
+      return () => {
+        listeners.delete(listener)
+      }
+    },
+    pause: vi.fn(() => {
+      options?.pauseImpl?.()
+      state.paused = true
+      listeners.forEach((listener) => listener())
+    }),
+    resume: vi.fn(() => {
+      options?.resumeImpl?.()
+      state.paused = false
+      listeners.forEach((listener) => listener())
+    }),
     controls: {
       dispatch,
       getCapabilities: () =>
@@ -157,7 +183,7 @@ describe("LiveWorkoutExperienceView", () => {
     expect(screen.queryByText("Now riding")).toBeNull()
   })
 
-  it("enters the active dashboard after a successful start", async () => {
+  it("renders the active dashboard metrics after a successful start", async () => {
     useQuery.mockImplementation((_query) =>
       useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
     )
@@ -170,6 +196,159 @@ describe("LiveWorkoutExperienceView", () => {
     await waitFor(() => {
       expect(screen.getByText("Now riding")).toBeTruthy()
     })
+    expect(screen.getByText("Ramp Builder")).toBeTruthy()
+    expect(screen.getByTestId("target-power").textContent).toContain("200 W")
+    expect(screen.getByTestId("rider-power").textContent).toContain("180 W")
+    expect(screen.getByTestId("current-interval-timer").textContent).toContain(
+      "1:00"
+    )
+    expect(screen.getByTestId("workout-remaining-timer").textContent).toContain(
+      "1:00"
+    )
+    expect(screen.getByText("Not connected")).toBeTruthy()
+    expect(screen.getByText("90 rpm")).toBeTruthy()
+    expect(screen.getByText("0/1 intervals completed")).toBeTruthy()
+    expect(screen.getByLabelText("Workout interval shape")).toBeTruthy()
+    expect(screen.getByTestId("workout-progress-line")).toBeTruthy()
+  })
+
+  it("pauses by default after loading a workout and exposes start/pause control", async () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+    const pause = vi.fn()
+    const resume = vi.fn()
+
+    render(
+      <LiveWorkoutExperienceView
+        session={createSession({ pauseImpl: pause, resumeImpl: resume })}
+      />
+    )
+
+    fireEvent.click(screen.getByText("Ramp Builder"))
+    fireEvent.click(screen.getByText("Start workout"))
+
+    await waitFor(() => {
+      expect(pause).toHaveBeenCalledTimes(1)
+    })
+    expect(screen.getByLabelText("Start workout")).toBeTruthy()
+
+    fireEvent.click(screen.getByLabelText("Start workout"))
+
+    expect(resume).toHaveBeenCalledTimes(1)
+  })
+
+  it("gates ending the workout behind a confirmation dialog", async () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+
+    render(<LiveWorkoutExperienceView session={createSession()} />)
+
+    fireEvent.click(screen.getByText("Ramp Builder"))
+    fireEvent.click(screen.getByText("Start workout"))
+
+    await waitFor(() => {
+      expect(screen.getByText("Now riding")).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByText("End workout"))
+
+    expect(screen.getByText("End workout?")).toBeTruthy()
+    expect(screen.getByText("Stay here")).toBeTruthy()
+    expect(screen.getAllByText("End workout")).toHaveLength(2)
+
+    fireEvent.click(screen.getAllByText("End workout")[1])
+
+    await waitFor(() => {
+      expect(screen.queryByText("Now riding")).toBeNull()
+    })
+    expect(screen.getByText("Selected workout")).toBeTruthy()
+  })
+
+  it("shows available heart rate in the active dashboard", async () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+
+    render(
+      <LiveWorkoutExperienceView
+        session={createSession({ heartRateBpm: 145 })}
+      />
+    )
+
+    fireEvent.click(screen.getByText("Ramp Builder"))
+    fireEvent.click(screen.getByText("Start workout"))
+
+    await waitFor(() => {
+      expect(screen.getByText("145 bpm")).toBeTruthy()
+    })
+  })
+
+  it("uses simulated telemetry power as rider power", async () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+
+    render(
+      <LiveWorkoutExperienceView
+        session={createSession({
+          telemetrySource: "simulated",
+          powerWatts: 180,
+        })}
+      />
+    )
+
+    fireEvent.click(screen.getByText("Ramp Builder"))
+    fireEvent.click(screen.getByText("Start workout"))
+
+    await waitFor(() => {
+      expect(screen.getByTestId("rider-power").textContent).toContain("180 W")
+    })
+    expect(screen.getByText("Simulator")).toBeTruthy()
+  })
+
+  it("shows the current interval comment", async () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1
+        ? [
+            {
+              ...workoutDoc,
+              intervals: [
+                {
+                  startPower: 100,
+                  endPower: 100,
+                  durationSeconds: 60,
+                  comment: "Settle in",
+                },
+              ],
+            },
+          ]
+        : { ftp: 200 }
+    )
+
+    render(<LiveWorkoutExperienceView session={createSession()} />)
+
+    fireEvent.click(screen.getByText("Ramp Builder"))
+    fireEvent.click(screen.getByText("Start workout"))
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Settle in").length).toBeGreaterThan(0)
+    })
+  })
+
+  it("calculates completed intervals and final interval warning timing", () => {
+    const intervals = [
+      { startPower: 100, endPower: 100, durationSeconds: 60 },
+      { startPower: 120, endPower: 120, durationSeconds: 30 },
+    ]
+
+    expect(getCompletedIntervalCount(intervals, 0, false)).toBe(0)
+    expect(getCompletedIntervalCount(intervals, 60, false)).toBe(1)
+    expect(getCompletedIntervalCount(intervals, 1, true)).toBe(2)
+
+    const bounds = getIntervalBounds(intervals, 0)
+    expect(getIntervalRemainingSeconds(bounds, 55)).toBe(5)
   })
 
   it("unmounting before loadWorkout resolves does not warn and calls clearWorkout", async () => {

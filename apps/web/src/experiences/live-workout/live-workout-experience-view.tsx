@@ -149,6 +149,7 @@ export function LiveWorkoutExperienceView({
         setActiveWorkout(null)
         return
       }
+      session.pause()
       setStartError(null)
       setActiveWorkout(selectedWorkout)
     } catch (error: unknown) {
@@ -185,7 +186,6 @@ export function LiveWorkoutExperienceView({
     <div className="absolute inset-0 flex flex-col overflow-y-auto px-4 pt-16 pb-6 sm:px-8 sm:pt-20">
       {activeWorkout ? (
         <LiveWorkoutDashboard
-          ftp={ftp}
           onEnd={handleEnd}
           onPause={session.pause}
           onResume={session.resume}

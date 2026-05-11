@@ -82,20 +82,44 @@ function RideSessionExperience({
     isCockpitOpen && cockpitHeight > 0
       ? `calc(100svh - ${cockpitHeight}px)`
       : "100svh"
+  const isLiveWorkout = experience.id === "live-workout"
 
   return (
     <RideSessionContext.Provider value={session}>
       <section
         ref={sectionRef}
         aria-label={`${experience.displayName} ride`}
-        className="relative h-svh min-h-[620px] overflow-hidden text-[#14201b]"
+        className={
+          isLiveWorkout
+            ? "relative h-svh min-h-[620px] overflow-hidden bg-background text-foreground"
+            : "relative h-svh min-h-[620px] overflow-hidden text-[#14201b]"
+        }
         data-cockpit-open={isCockpitOpen}
-        style={{
-          background: `linear-gradient(180deg, ${experience.accent.from}, ${experience.accent.to})`,
-        }}
+        style={
+          isLiveWorkout
+            ? undefined
+            : {
+                background: `linear-gradient(180deg, ${experience.accent.from}, ${experience.accent.to})`,
+              }
+        }
       >
         <h1 className="sr-only">{experience.displayName}</h1>
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.34),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.18),rgba(18,27,31,0.22))]" />
+        <div
+          className={
+            isLiveWorkout
+              ? "pointer-events-none absolute inset-0 bg-no-repeat"
+              : "pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.34),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.18),rgba(18,27,31,0.22))]"
+          }
+          style={
+            isLiveWorkout
+              ? {
+                  backgroundImage:
+                    "radial-gradient(ellipse 80% 100% at 50% 0%, color-mix(in oklch, var(--foreground) 5%, transparent) 0%, transparent 70%)",
+                  backgroundSize: "100% 700px",
+                }
+              : undefined
+          }
+        />
         <div
           className="absolute inset-x-0 top-0 flex justify-center overflow-visible transition-[height,padding] duration-300 ease-out"
           style={{

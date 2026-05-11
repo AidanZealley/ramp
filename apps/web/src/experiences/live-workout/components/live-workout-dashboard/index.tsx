@@ -1,26 +1,39 @@
-import { useEffect, useMemo, useRef } from "react"
-import { Gauge, Square, Timer, Zap } from "lucide-react"
+import { useEffect, useRef } from "react"
+import { Pause, Play, Square } from "lucide-react"
 import { useRideHeartbeat, useRideSelector } from "@ramp/ride-core"
-import { Stat } from "./components/stat"
-import { UpcomingPreview } from "./components/upcoming-preview"
 import { DisconnectedOverlay } from "./components/disconnected-overlay"
+import { IntervalComment } from "./components/interval-comment"
+import { PowerModule } from "./components/power-module"
+import { RideMetric } from "./components/ride-metric"
 import { TelemetryStaleBadge } from "./components/telemetry-stale-badge"
-import type { WorkoutSessionState } from "@ramp/ride-workouts"
-import type { RideSessionController } from "@ramp/ride-core"
-import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
-import type { UpcomingPreviewItem } from "./components/upcoming-preview"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { WorkoutProgressOverview } from "./components/workout-progress-overview"
 import {
-  Progress,
-  ProgressIndicator,
-  ProgressTrack,
-} from "@/components/ui/progress"
-import { WorkoutMini } from "@/components/workout-mini"
-import { formatDuration, percentageToWatts } from "@/lib/workout-utils"
+  getCompletedIntervalCount,
+  getIntervalBounds,
+  getIntervalProgressPercent,
+  getIntervalRemainingSeconds,
+  getOverallProgressPercent,
+  getTotalDurationSeconds,
+  getWorkoutRemainingSeconds,
+} from "./utils"
+import type { RideSessionController } from "@ramp/ride-core"
+import type { WorkoutSessionState } from "@ramp/ride-workouts"
+import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Button } from "@/components/ui/button"
+import { formatDuration } from "@/lib/workout-utils"
 
 type LiveWorkoutDashboardProps = {
-  ftp: number
   onEnd: () => void
   onReconnect?: () => void
   onPause?: () => void
@@ -45,7 +58,6 @@ function getDisconnectErrorCopy(code: string | undefined): string | null {
 }
 
 export function LiveWorkoutDashboard({
-  ftp,
   onEnd,
   onReconnect,
   onPause,
@@ -59,6 +71,8 @@ export function LiveWorkoutDashboard({
     session,
     (s) => s.telemetry.telemetryStatus
   )
+  const telemetry = useRideSelector(session, (s) => s.telemetry)
+  const paused = useRideSelector(session, (s) => s.paused)
   const lastTrainerErrorCode = useRideSelector(
     session,
     (s) => s.lastTrainerError?.code
@@ -83,35 +97,51 @@ export function LiveWorkoutDashboard({
   const showStaleBadge =
     telemetryStatus === "stale" && trainerConnected && !workoutState.isComplete
 
-  const totalDurationSeconds =
-    workoutState.totalDurationSeconds ||
-    workout.intervals.reduce((sum, i) => sum + i.durationSeconds, 0)
-
+  const totalDurationSeconds = getTotalDurationSeconds(
+    workoutState.totalDurationSeconds,
+    workout.intervals
+  )
   const elapsedSeconds = Math.max(
     0,
     Math.min(workoutState.elapsedSeconds, totalDurationSeconds)
   )
-  const remainingSeconds = Math.max(0, totalDurationSeconds - elapsedSeconds)
-  const progress =
-    totalDurationSeconds > 0
-      ? Math.min(100, (elapsedSeconds / totalDurationSeconds) * 100)
-      : 0
-
-  const upcoming = useMemo<UpcomingPreviewItem | null>(() => {
-    const idx = workoutState.activeSegmentIndex
-    if (idx === null) return null
-    if (idx + 1 >= workout.intervals.length) return null
-    const next = workout.intervals[idx + 1]
-    const avgPower = (next.startPower + next.endPower) / 2
-    return {
-      label: next.comment?.trim() || `Segment ${idx + 2}`,
-      durationSeconds: next.durationSeconds,
-      targetWatts: percentageToWatts(avgPower, ftp),
-    }
-  }, [ftp, workout.intervals, workoutState.activeSegmentIndex])
+  const workoutRemainingSeconds = getWorkoutRemainingSeconds(
+    totalDurationSeconds,
+    elapsedSeconds
+  )
+  const intervalBounds = getIntervalBounds(
+    workout.intervals,
+    workoutState.activeSegmentIndex
+  )
+  const intervalRemainingSeconds = getIntervalRemainingSeconds(
+    intervalBounds,
+    elapsedSeconds
+  )
+  const intervalProgressPercent = getIntervalProgressPercent(
+    intervalBounds,
+    elapsedSeconds
+  )
+  const overallProgressPercent = getOverallProgressPercent(
+    totalDurationSeconds,
+    elapsedSeconds
+  )
+  const completedIntervalCount = getCompletedIntervalCount(
+    workout.intervals,
+    elapsedSeconds,
+    workoutState.isComplete
+  )
+  const currentInterval =
+    workoutState.activeSegmentIndex === null
+      ? null
+      : workout.intervals[workoutState.activeSegmentIndex]
+  const currentComment = currentInterval?.comment?.trim() ?? ""
+  const intervalWarning =
+    intervalRemainingSeconds <= 5 &&
+    intervalRemainingSeconds > 0 &&
+    !workoutState.isComplete
 
   return (
-    <div className="relative mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4">
+    <div className="relative flex min-h-full w-full flex-1 flex-col gap-5 px-0 py-2 sm:gap-6">
       {showDisconnectedOverlay && onReconnect && (
         <DisconnectedOverlay
           onReconnect={onReconnect}
@@ -119,92 +149,134 @@ export function LiveWorkoutDashboard({
           errorCopy={getDisconnectErrorCopy(lastTrainerErrorCode)}
         />
       )}
-      <Card size="sm" className="bg-background/85 shadow-xl backdrop-blur-md">
-        <CardContent className="flex flex-col gap-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[0.65rem] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-                  {workoutState.isComplete ? "Complete" : "Now riding"}
-                </span>
-                {showStaleBadge && <TelemetryStaleBadge />}
-              </div>
-              <h2 className="font-heading text-xl font-semibold tracking-tight">
-                {workout.title}
-              </h2>
-            </div>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={onEnd}
-              size="sm"
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[0.65rem] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+              {workoutState.isComplete ? "Complete" : "Now riding"}
+            </span>
+            {showStaleBadge && <TelemetryStaleBadge />}
+          </div>
+          <h2 className="font-heading mt-1 truncate text-lg font-semibold tracking-tight sm:text-xl">
+            {workout.title}
+          </h2>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            type="button"
+            variant={paused ? "default" : "secondary"}
+            onClick={paused ? onResume : onPause}
+            size="sm"
+            disabled={workoutState.isComplete}
+            aria-label={paused ? "Start workout" : "Pause workout"}
+          >
+            {paused ? (
+              <Play data-icon="inline-start" />
+            ) : (
+              <Pause data-icon="inline-start" />
+            )}
+            {paused ? "Start" : "Pause"}
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger
+              render={
+                <Button type="button" variant="destructive" size="sm" />
+              }
             >
               <Square data-icon="inline-start" />
               End workout
-            </Button>
-          </div>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>End workout?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Your current workout session will end and you&apos;ll return
+                  to workout selection.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel type="button">Stay here</AlertDialogCancel>
+                <AlertDialogAction type="button" onClick={onEnd}>
+                  End workout
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Stat
-              icon={<Zap className="size-4" />}
-              label="Target"
-              value={
-                workoutState.targetWatts !== null
-                  ? `${workoutState.targetWatts} W`
-                  : "-"
-              }
-              accent={workoutState.targetWatts !== null}
-            />
-            <Stat
-              icon={<Timer className="size-4" />}
-              label="Elapsed"
-              value={formatDuration(Math.floor(elapsedSeconds))}
-            />
-            <Stat
-              icon={<Gauge className="size-4" />}
-              label="Remaining"
-              value={formatDuration(Math.ceil(remainingSeconds))}
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between text-[0.7rem] font-medium text-muted-foreground">
-              <span className="truncate">
-                {workoutState.activeSegmentLabel ??
-                  (workoutState.isComplete
-                    ? "Workout complete"
-                    : "Loading segment...")}
-              </span>
-              <span>{Math.round(progress)}%</span>
-            </div>
-            <Progress value={progress}>
-              <ProgressTrack>
-                <ProgressIndicator />
-              </ProgressTrack>
-            </Progress>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card size="sm" className="bg-background/80 shadow-md backdrop-blur-md">
-        <CardContent className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="font-heading text-sm font-semibold tracking-tight">
-              Workout overview
-            </h3>
-            <span className="text-[0.65rem] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-              {workout.intervals.length} intervals
-            </span>
-          </div>
-          <div className="rounded-3xl border bg-background/60 px-3 pt-3">
-            <WorkoutMini intervals={workout.intervals} className="h-20" />
-          </div>
-          <UpcomingPreview
-            isComplete={workoutState.isComplete}
-            upcoming={upcoming}
+      <div className="grid flex-1 content-center gap-7 md:grid-cols-3 md:gap-8 xl:gap-10">
+        <PowerModule
+          targetWatts={workoutState.targetWatts}
+          powerWatts={telemetry.powerWatts}
+          telemetrySource={telemetry.telemetrySource}
+          telemetryStatus={telemetry.telemetryStatus}
+        />
+        <div className="relative min-w-0 overflow-hidden border-l-2 border-muted pl-4 sm:pl-6">
+          <div
+            aria-hidden="true"
+            className={
+              intervalWarning
+                ? "absolute top-0 left-0 w-1 bg-destructive"
+                : "absolute top-0 left-0 w-1 bg-primary"
+            }
+            style={{ height: `${intervalProgressPercent}%` }}
           />
-        </CardContent>
-      </Card>
+          <RideMetric
+            label={
+              workoutState.activeSegmentLabel ??
+              (workoutState.isComplete ? "Workout complete" : "Current interval")
+            }
+            value={formatDuration(Math.ceil(intervalRemainingSeconds))}
+            tone={intervalWarning ? "danger" : "default"}
+            valueClassName="text-6xl md:text-7xl xl:text-8xl"
+            testId="current-interval-timer"
+          />
+        </div>
+        <div className="flex min-w-0 flex-col gap-5">
+          <div className="min-w-0">
+            <div className="text-[0.65rem] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+              Heart rate
+            </div>
+            <div
+              className={
+                telemetry.heartRateBpm !== null
+                  ? "font-heading mt-2 truncate text-6xl leading-none font-semibold tabular-nums md:text-7xl xl:text-8xl"
+                  : "mt-2 truncate text-base font-medium text-muted-foreground md:text-lg"
+              }
+            >
+              {telemetry.heartRateBpm !== null
+                ? `${Math.round(telemetry.heartRateBpm)} bpm`
+                : "Not connected"}
+            </div>
+          </div>
+          <RideMetric
+            label="Cadence"
+            value={
+              telemetry.cadenceRpm !== null
+                ? `${Math.round(telemetry.cadenceRpm)} rpm`
+                : "-- rpm"
+            }
+            tone={telemetry.cadenceRpm === null ? "muted" : "default"}
+            valueClassName="text-4xl md:text-5xl xl:text-6xl"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(0,0.45fr)_minmax(0,1fr)]">
+        <RideMetric
+          label="Workout remaining"
+          value={formatDuration(Math.ceil(workoutRemainingSeconds))}
+          testId="workout-remaining-timer"
+        />
+        <IntervalComment comment={currentComment} />
+      </div>
+
+      <WorkoutProgressOverview
+        intervals={workout.intervals}
+        overallProgressPercent={overallProgressPercent}
+        completedIntervalCount={completedIntervalCount}
+      />
     </div>
   )
 }
