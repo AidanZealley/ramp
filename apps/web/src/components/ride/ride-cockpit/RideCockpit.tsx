@@ -2,16 +2,17 @@ import { useEffect, useState } from "react"
 import { Pause, Play } from "lucide-react"
 import { motion } from "motion/react"
 import { useRideSession, useRideSessionContext } from "@ramp/ride-core"
+import { CockpitMetric } from "./components/cockpit-metric"
+import { CockpitModeSelect } from "./components/cockpit-mode-select"
+import { CockpitRangeControl } from "./components/cockpit-range-control"
+import { CockpitSection } from "./components/cockpit-section"
+import type { Ref } from "react"
 import type {
   RiderPowerMode,
   SimulatedRiderState,
   SimulatedTrainerMode,
   SimulatedTrainerState,
 } from "@ramp/trainer-io"
-import { CockpitMetric } from "./components/cockpit-metric"
-import { CockpitModeSelect } from "./components/cockpit-mode-select"
-import { CockpitRangeControl } from "./components/cockpit-range-control"
-import { CockpitSection } from "./components/cockpit-section"
 import type { RideTrainerController } from "@/ride/use-ride-trainer"
 import { Button } from "@/components/ui/button"
 import { formatDuration } from "@/lib/workout-utils"
@@ -19,6 +20,7 @@ import { formatDuration } from "@/lib/workout-utils"
 type RideCockpitProps = {
   trainerController: RideTrainerController
   riderState: SimulatedRiderState | null
+  rootRef?: Ref<HTMLDivElement>
 }
 
 const riderModeOptions: Array<{
@@ -42,6 +44,7 @@ const trainerModeOptions: Array<{
 export function RideCockpit({
   trainerController,
   riderState,
+  rootRef,
 }: RideCockpitProps) {
   const session = useRideSessionContext()
   const { telemetry } = useRideSession(session)
@@ -73,13 +76,14 @@ export function RideCockpit({
 
   return (
     <motion.div
-      className="pointer-events-auto fixed inset-x-0 bottom-0 max-h-[33svh] overflow-y-auto border-t border-border/50 bg-linear-to-t from-background/90 via-background/70 to-transparent shadow-[0_-16px_40px_rgba(0,0,0,0.18)] backdrop-blur-xl"
-      initial={{ opacity: 0, y: 28 }}
+      ref={rootRef}
+      className="pointer-events-auto fixed inset-x-0 bottom-0 p-6"
+      initial={{ opacity: 0, y: "100%" }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 28 }}
-      transition={{ duration: 0.18, ease: "easeOut" }}
+      exit={{ opacity: 0, y: "100%" }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
     >
-      <div className="mx-auto grid w-full max-w-7xl gap-3 px-4 pt-5 pb-3">
+      <div className="mx-auto grid w-full max-w-7xl gap-3 rounded-4xl bg-background/50 p-6 backdrop-blur-xl">
         <div className="grid grid-cols-3 gap-x-4 gap-y-3 sm:grid-cols-6">
           <CockpitMetric
             label="Power"

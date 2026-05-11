@@ -5,7 +5,9 @@ import { AnimatePresence } from "motion/react"
 import { RideCockpit } from "./ride-cockpit"
 import type { SimulatedRiderState } from "@ramp/trainer-io"
 import type { RideTrainerController } from "@/ride/use-ride-trainer"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { useElementSize } from "@/hooks/use-element-size"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,26 +19,50 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Badge } from "../ui/badge"
 
 type RideOverlayProps = {
   trainerController: RideTrainerController
+  isCockpitOpen?: boolean
+  onCockpitHeightChange?: (height: number) => void
+  onCockpitOpenChange?: (open: boolean) => void
+  onHeaderHeightChange?: (height: number) => void
 }
 
 const HIDE_DELAY_MS = 2000
 
-export function RideOverlay({ trainerController }: RideOverlayProps) {
+export function RideOverlay({
+  trainerController,
+  isCockpitOpen: controlledIsCockpitOpen,
+  onCockpitHeightChange,
+  onCockpitOpenChange,
+  onHeaderHeightChange,
+}: RideOverlayProps) {
   const navigate = useNavigate()
   const simulatedRider = trainerController.simulatedRider
 
   const [shown, setShown] = useState(true)
-  const [isCockpitOpen, setIsCockpitOpen] = useState(false)
+  const [uncontrolledIsCockpitOpen, setUncontrolledIsCockpitOpen] =
+    useState(false)
   const [isExitDialogOpen, setIsExitDialogOpen] = useState(false)
   const [riderState, setRiderState] = useState<SimulatedRiderState | null>(
     simulatedRider?.state ?? null
   )
-  const contentRef = useRef<HTMLDivElement>(null)
+  const {
+    element: headerElement,
+    ref: headerRef,
+    size: headerSize,
+  } = useElementSize<HTMLDivElement>()
+  const { ref: cockpitRef, size: cockpitSize } =
+    useElementSize<HTMLDivElement>()
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  const isCockpitOpen = controlledIsCockpitOpen ?? uncontrolledIsCockpitOpen
+  const setIsCockpitOpen = (open: boolean) => {
+    if (controlledIsCockpitOpen === undefined) {
+      setUncontrolledIsCockpitOpen(open)
+    }
+    onCockpitOpenChange?.(open)
+  }
 
   const hasOpenSurface = isCockpitOpen || isExitDialogOpen
   const sourceLabel =
@@ -70,7 +96,7 @@ export function RideOverlay({ trainerController }: RideOverlayProps) {
     const handleMouseMove = (e: MouseEvent) => {
       setShown(true)
 
-      const rect = contentRef.current?.getBoundingClientRect()
+      const rect = headerElement?.getBoundingClientRect()
       const isOverOverlay =
         rect != null &&
         e.clientX >= rect.left &&
@@ -92,14 +118,22 @@ export function RideOverlay({ trainerController }: RideOverlayProps) {
       document.removeEventListener("mousemove", handleMouseMove)
       clearTimeout(timerRef.current)
     }
-  }, [hasOpenSurface])
+  }, [hasOpenSurface, headerElement])
+
+  useEffect(() => {
+    onCockpitHeightChange?.(isCockpitOpen ? cockpitSize.height : 0)
+  }, [cockpitSize.height, isCockpitOpen, onCockpitHeightChange])
+
+  useEffect(() => {
+    onHeaderHeightChange?.(headerSize.height)
+  }, [headerSize.height, onHeaderHeightChange])
 
   const overlayVisible = shown || hasOpenSurface
 
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0">
       <div
-        ref={contentRef}
+        ref={headerRef}
         className={`bg-linear-to-b from-background/50 to-transparent transition-opacity duration-500 ease-in-out ${
           overlayVisible ? "opacity-100" : "opacity-0"
         }`}
@@ -199,7 +233,7 @@ export function RideOverlay({ trainerController }: RideOverlayProps) {
               isCockpitOpen ? "Hide ride cockpit" : "Show ride cockpit"
             }
             type="button"
-            onClick={() => setIsCockpitOpen((open) => !open)}
+            onClick={() => setIsCockpitOpen(!isCockpitOpen)}
           >
             <Settings />
           </Button>
@@ -209,6 +243,7 @@ export function RideOverlay({ trainerController }: RideOverlayProps) {
         {isCockpitOpen ? (
           <RideCockpit
             key="ride-cockpit"
+            rootRef={cockpitRef}
             trainerController={trainerController}
             riderState={riderState}
           />

@@ -1,13 +1,80 @@
 <!-- convex-ai-start -->
+
 This project uses [Convex](https://convex.dev) as its backend.
 
 When working on Convex code, **always read `convex/_generated/ai/guidelines.md` first** for important guidelines on how to correctly use Convex APIs and patterns. The file contains rules that override what you may have learned about Convex from training data.
 
 Convex agent skills for common tasks can be installed by running `npx convex ai-files install`.
+
 <!-- convex-ai-end -->
 
-## Component structure
+## Component Directory Structure
 
-- Do not define multiple React components in a single file unless they are truly trivial.
-- If a component needs local subcomponents, create a folder for it and place those subcomponents in a `components/` directory within that folder.
-- Prefer a top-level `index.tsx` (or similarly focused entry file) that only defines the main exported component and imports subcomponents from sibling files.
+Components should follow this structure for organization and maintainability:
+
+### Directory and File Naming
+
+- **Directory name**: kebab-case (e.g., `example-card`, `shopping-list`)
+- **Component file**: PascalCase matching the component name (e.g., `ExampleCard.tsx`, `ShoppingList.tsx`)
+- **Index file**: `index.ts` that re-exports from the component file
+- **Related files**: `types.ts` and `utils.ts` for component-specific types and utilities
+
+### Example Structure
+
+```
+src/components/example-card/
+├── ExampleCard.tsx    # Main component file
+├── index.ts           # Re-exports: export * from "./ExampleCard"
+├── types.ts           # Component-specific types
+└── utils.ts           # Component-specific utilities
+```
+
+### Nested Components
+
+For complex components, child/related components can be nested in a `components/` directory:
+
+```
+src/components/shopping-list/
+├── ShoppingList.tsx
+├── index.ts
+├── types.ts
+├── utils.ts
+└── components/
+    ├── editable-item-name/
+    │   ├── EditableItemName.tsx
+    │   ├── index.ts
+    │   ├── types.ts
+    │   └── utils.ts
+    └── quantity-badge/
+        ├── QuantityBadge.tsx
+        ├── index.ts
+        ├── types.ts
+        └── utils.ts
+```
+
+### Component Export Syntax
+
+Use named exports with `export const`:
+
+```typescript
+export const ExampleCard = () => {
+  // component implementation
+}
+```
+
+### One Component Per File
+
+Prefer creating separate component files rather than defining multiple components in the same file. This improves:
+
+- Code organization and maintainability
+- Component reusability
+- Import clarity
+
+### Importing Components
+
+Components can be imported using the directory path:
+
+```typescript
+import { ExampleCard } from "@/components/example-card"
+import { EditableItemName } from "@/components/shopping-list/components/editable-item-name"
+```
