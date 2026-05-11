@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react"
 import Confetti from "react-confetti"
 import { useRideHeartbeat, useRideSelector } from "@ramp/ride-core"
+import {
+  RideDashboardMetric,
+  RideHeartCadenceModule,
+  RidePowerModule,
+} from "@/components/ride/ride-dashboard"
 import { DisconnectedOverlay } from "./components/disconnected-overlay"
 import { IntervalComment } from "./components/interval-comment"
-import { PowerModule } from "./components/power-module"
-import { RideMetric } from "./components/ride-metric"
 import { TelemetryStaleBadge } from "./components/telemetry-stale-badge"
 import {
   WorkoutCompleteDialog,
@@ -224,7 +227,7 @@ export function LiveWorkoutDashboard({
       </div>
 
       <div className="grid flex-1 content-center gap-7 md:grid-cols-3 md:gap-8 xl:gap-10">
-        <PowerModule
+        <RidePowerModule
           targetWatts={workoutState.targetWatts}
           powerWatts={telemetry.powerWatts}
           telemetrySource={telemetry.telemetrySource}
@@ -240,7 +243,7 @@ export function LiveWorkoutDashboard({
             }
             style={{ height: `${intervalProgressPercent}%` }}
           />
-          <RideMetric
+          <RideDashboardMetric
             label={
               workoutState.activeSegmentIndex === null
                 ? workoutState.isComplete
@@ -254,38 +257,14 @@ export function LiveWorkoutDashboard({
             testId="current-interval-timer"
           />
         </div>
-        <div className="flex min-w-0 flex-col gap-5">
-          <div className="min-w-0">
-            <div className="text-[0.65rem] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-              Heart rate
-            </div>
-            <div
-              className={
-                telemetry.heartRateBpm !== null
-                  ? "font-heading mt-2 truncate text-6xl leading-none font-semibold tabular-nums md:text-7xl xl:text-8xl"
-                  : "mt-2 truncate text-base font-medium text-muted-foreground md:text-lg"
-              }
-            >
-              {telemetry.heartRateBpm !== null
-                ? `${Math.round(telemetry.heartRateBpm)} bpm`
-                : "Not connected"}
-            </div>
-          </div>
-          <RideMetric
-            label="Cadence"
-            value={
-              telemetry.cadenceRpm !== null
-                ? `${Math.round(telemetry.cadenceRpm)} rpm`
-                : "-- rpm"
-            }
-            tone={telemetry.cadenceRpm === null ? "muted" : "default"}
-            valueClassName="text-4xl md:text-5xl xl:text-6xl"
-          />
-        </div>
+        <RideHeartCadenceModule
+          heartRateBpm={telemetry.heartRateBpm}
+          cadenceRpm={telemetry.cadenceRpm}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(0,0.45fr)_minmax(0,1fr)]">
-        <RideMetric
+        <RideDashboardMetric
           label="Workout remaining"
           value={formatDuration(Math.ceil(workoutRemainingSeconds))}
           valueSuffix={formatDuration(totalDurationSeconds)}

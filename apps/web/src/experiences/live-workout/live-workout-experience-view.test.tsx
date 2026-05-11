@@ -332,7 +332,7 @@ describe("LiveWorkoutExperienceView", () => {
       screen.getByRole("link", { name: "Edit workout" }).getAttribute("href")
     ).toBe("/workout/w1")
     expect(
-      screen.getByRole("link", { name: "Back to ride" }).getAttribute("href")
+      screen.getByRole("link", { name: "Back to rides" }).getAttribute("href")
     ).toBe("/ride")
   })
 

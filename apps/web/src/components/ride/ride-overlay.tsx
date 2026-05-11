@@ -136,7 +136,7 @@ export function RideOverlay({
     <div className="pointer-events-none absolute inset-x-0 top-0">
       <div
         ref={headerRef}
-        className={`bg-linear-to-b from-background/50 to-transparent transition-opacity duration-500 ease-in-out ${
+        className={`transition-opacity duration-500 ease-in-out ${
           overlayVisible ? "opacity-100" : "opacity-0"
         }`}
       >

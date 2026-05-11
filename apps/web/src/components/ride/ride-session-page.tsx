@@ -82,26 +82,13 @@ function RideSessionExperience({
     isCockpitOpen && cockpitHeight > 0
       ? `calc(100svh - ${cockpitHeight}px)`
       : "100svh"
-  const isLiveWorkout = experience.id === "live-workout"
-
   return (
     <RideSessionContext.Provider value={session}>
       <section
         ref={sectionRef}
         aria-label={`${experience.displayName} ride`}
-        className={
-          isLiveWorkout
-            ? "relative h-svh min-h-[620px] overflow-hidden"
-            : "relative h-svh min-h-[620px] overflow-hidden"
-        }
+        className="relative h-svh min-h-[620px] overflow-hidden"
         data-cockpit-open={isCockpitOpen}
-        style={
-          isLiveWorkout
-            ? undefined
-            : {
-                background: `linear-gradient(180deg, ${experience.accent.from}, ${experience.accent.to})`,
-              }
-        }
       >
         <h1 className="sr-only">{experience.displayName}</h1>
         <div

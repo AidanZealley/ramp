@@ -1,17 +1,7 @@
 import { cn } from "@/lib/utils"
+import type { RideDashboardMetricProps } from "./types"
 
-type RideMetricProps = {
-  label: string
-  value: string
-  valueSuffix?: string
-  tone?: "default" | "danger" | "muted"
-  className?: string
-  valueClassName?: string
-  valueSuffixClassName?: string
-  testId?: string
-}
-
-export const RideMetric = ({
+export const RideDashboardMetric = ({
   label,
   value,
   valueSuffix,
@@ -20,7 +10,7 @@ export const RideMetric = ({
   valueClassName,
   valueSuffixClassName,
   testId,
-}: RideMetricProps) => (
+}: RideDashboardMetricProps) => (
   <div className={cn("min-w-0", className)}>
     <div className="text-[0.65rem] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
       {label}

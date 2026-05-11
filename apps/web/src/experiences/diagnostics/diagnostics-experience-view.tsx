@@ -1,5 +1,13 @@
-import { TelemetryPanel } from "./components/telemetry-panel"
-import { CommandPanel } from "./components/command-panel"
+import { useRideSelector } from "@ramp/ride-core"
+import {
+  formatSpeedKph,
+  RideDashboardMetric,
+  RideHeartCadenceModule,
+  RidePowerModule,
+} from "@/components/ride/ride-dashboard"
+import { CapabilitiesModule } from "./components/capabilities-module"
+import { CommandsModule } from "./components/commands-module"
+import { StatusModule } from "./components/status-module"
 import type { RideSessionController } from "@ramp/ride-core"
 
 export function DiagnosticsExperienceView({
@@ -7,14 +15,55 @@ export function DiagnosticsExperienceView({
 }: {
   session: RideSessionController
 }) {
+  const telemetry = useRideSelector(session, (s) => s.telemetry)
+  const trainerConnected = useRideSelector(session, (s) => s.trainerConnected)
+  const showStaleBadge =
+    telemetry.telemetryStatus === "stale" && trainerConnected
+
   return (
     <div className="absolute inset-0 flex flex-col overflow-y-auto px-4 pt-16 pb-6 sm:px-8 sm:pt-20">
-      <div className="mx-auto grid w-full max-w-5xl flex-1 grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-white/10 bg-black/30 p-5 backdrop-blur-sm">
-          <TelemetryPanel session={session} />
+      <div className="relative flex min-h-full w-full flex-1 flex-col gap-5 px-0 py-2 sm:gap-6">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-[0.65rem] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+                Diagnostics
+              </span>
+              {showStaleBadge && (
+                <span className="rounded-full border border-border px-2 py-0.5 text-[0.6rem] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+                  Stale
+                </span>
+              )}
+            </div>
+            <h2 className="font-heading mt-1 truncate text-lg font-semibold tracking-tight sm:text-xl">
+              Trainer telemetry
+            </h2>
+          </div>
         </div>
-        <div className="rounded-xl border border-white/10 bg-black/30 p-5 backdrop-blur-sm">
-          <CommandPanel session={session} />
+
+        <div className="grid flex-1 content-center gap-7 md:grid-cols-3 md:gap-8 xl:gap-10">
+          <RidePowerModule
+            powerWatts={telemetry.powerWatts}
+            telemetrySource={telemetry.telemetrySource}
+            telemetryStatus={telemetry.telemetryStatus}
+            showTarget={false}
+          />
+          <RideDashboardMetric
+            label="Speed"
+            value={formatSpeedKph(telemetry.speedMps)}
+            tone={telemetry.speedMps === null ? "muted" : "default"}
+            valueClassName="text-6xl md:text-7xl xl:text-8xl"
+          />
+          <RideHeartCadenceModule
+            heartRateBpm={telemetry.heartRateBpm}
+            cadenceRpm={telemetry.cadenceRpm}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-8 xl:gap-10">
+          <StatusModule session={session} />
+          <CapabilitiesModule session={session} />
+          <CommandsModule session={session} />
         </div>
       </div>
     </div>

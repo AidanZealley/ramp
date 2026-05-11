@@ -15,7 +15,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 
 type WorkoutProgressOverviewProps = {
   intervals: Array<Interval>

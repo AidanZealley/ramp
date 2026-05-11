@@ -1,31 +1,14 @@
 import { cn } from "@/lib/utils"
+import type { RidePowerModuleProps } from "./types"
+import { getSourceLabel } from "./utils"
 
-type TelemetrySource =
-  | "simulated"
-  | "ftms-ble"
-  | "wahoo-kickr-ble"
-  | "ant"
-  | null
-
-type PowerModuleProps = {
-  targetWatts: number | null
-  powerWatts: number | null
-  telemetrySource: TelemetrySource
-  telemetryStatus: string
-}
-
-function getSourceLabel(source: TelemetrySource): string {
-  if (source === "simulated") return "Simulator"
-  if (source) return "Trainer"
-  return "No source"
-}
-
-export const PowerModule = ({
-  targetWatts,
+export const RidePowerModule = ({
+  targetWatts = null,
   powerWatts,
   telemetrySource,
   telemetryStatus,
-}: PowerModuleProps) => {
+  showTarget = true,
+}: RidePowerModuleProps) => {
   const riderUnavailable = powerWatts === null
 
   return (
@@ -45,20 +28,22 @@ export const PowerModule = ({
             {powerWatts !== null ? `${Math.round(powerWatts)}W` : "--W"}
           </div>
         </div>
-        <div className="min-w-0">
-          <div className="text-[0.65rem] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-            Target
+        {showTarget && (
+          <div className="min-w-0">
+            <div className="text-[0.65rem] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+              Target
+            </div>
+            <div
+              data-testid="target-power"
+              className={cn(
+                "mt-1 truncate font-heading text-4xl leading-none font-semibold tabular-nums md:text-5xl xl:text-6xl",
+                targetWatts === null && "text-muted-foreground"
+              )}
+            >
+              {targetWatts !== null ? `${targetWatts}W` : "--"}
+            </div>
           </div>
-          <div
-            data-testid="target-power"
-            className={cn(
-              "mt-1 truncate font-heading text-4xl leading-none font-semibold tabular-nums md:text-5xl xl:text-6xl",
-              targetWatts === null && "text-muted-foreground"
-            )}
-          >
-            {targetWatts !== null ? `${targetWatts}W` : "--"}
-          </div>
-        </div>
+        )}
       </div>
       <div className="mt-3 text-xs font-medium text-muted-foreground">
         {getSourceLabel(telemetrySource)}
