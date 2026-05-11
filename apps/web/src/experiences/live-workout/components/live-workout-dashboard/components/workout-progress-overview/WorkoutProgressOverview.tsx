@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react"
-import { Pause, Play, SkipBack, SkipForward, Square } from "lucide-react"
+import { Check, Pause, Play, SkipBack, SkipForward, Square } from "lucide-react"
 import type { PointerEvent } from "react"
 import type { Interval } from "@/lib/workout-utils"
 import { WorkoutMini } from "@/components/workout-mini"
@@ -173,7 +173,10 @@ export const WorkoutProgressOverview = ({
         )}
         {isComplete && (
           <div className="absolute inset-0 grid place-items-center bg-background/75">
-            <Badge variant="outline">Complete</Badge>
+            <div className="flex flex-col items-center gap-1 rounded-2xl border bg-background/50 p-3">
+              <Check className="size-5 text-muted-foreground" />
+              <span className="text-sm">Workout complete</span>
+            </div>
           </div>
         )}
       </div>
