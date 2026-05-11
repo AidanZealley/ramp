@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, Settings } from "lucide-react"
-import { RideHud } from "./ride-hud"
-import { RideSimulatorControls } from "./ride-simulator-controls"
-import { RideTrainerSimulatorPanel } from "./ride-trainer-simulator-panel"
+import { AnimatePresence } from "motion/react"
+import { RideCockpit } from "./ride-cockpit"
 import type { SimulatedRiderState } from "@ramp/trainer-io"
 import type { RideTrainerController } from "@/ride/use-ride-trainer"
 import { Button } from "@/components/ui/button"
@@ -18,11 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
+import { Badge } from "../ui/badge"
 
 type RideOverlayProps = {
   trainerController: RideTrainerController
@@ -33,10 +28,9 @@ const HIDE_DELAY_MS = 2000
 export function RideOverlay({ trainerController }: RideOverlayProps) {
   const navigate = useNavigate()
   const simulatedRider = trainerController.simulatedRider
-  const simulatedTrainer = trainerController.simulatedTrainer
 
   const [shown, setShown] = useState(true)
-  const [isOverlayOpen, setIsOverlayOpen] = useState(false)
+  const [isCockpitOpen, setIsCockpitOpen] = useState(false)
   const [isExitDialogOpen, setIsExitDialogOpen] = useState(false)
   const [riderState, setRiderState] = useState<SimulatedRiderState | null>(
     simulatedRider?.state ?? null
@@ -44,7 +38,7 @@ export function RideOverlay({ trainerController }: RideOverlayProps) {
   const contentRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-  const hasOpenSurface = isOverlayOpen || isExitDialogOpen
+  const hasOpenSurface = isCockpitOpen || isExitDialogOpen
   const sourceLabel =
     trainerController.source === "simulated"
       ? "Simulator"
@@ -103,7 +97,7 @@ export function RideOverlay({ trainerController }: RideOverlayProps) {
   const overlayVisible = shown || hasOpenSurface
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 z-999">
+    <div className="pointer-events-none absolute inset-x-0 top-0">
       <div
         ref={contentRef}
         className={`bg-linear-to-b from-background/50 to-transparent transition-opacity duration-500 ease-in-out ${
@@ -151,9 +145,7 @@ export function RideOverlay({ trainerController }: RideOverlayProps) {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            <span className="rounded-full border border-border/70 bg-background/80 px-3 py-1.5 text-xs font-semibold">
-              {sourceLabel}
-            </span>
+
             <Button
               type="button"
               variant="secondary"
@@ -196,68 +188,32 @@ export function RideOverlay({ trainerController }: RideOverlayProps) {
                 Disconnect
               </Button>
             )}
+
+            <Badge>{sourceLabel}</Badge>
           </div>
 
-          <Popover open={isOverlayOpen} onOpenChange={setIsOverlayOpen}>
-            <PopoverTrigger
-              render={
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  aria-label={
-                    isOverlayOpen
-                      ? "Hide ride overlay panels"
-                      : "Show ride overlay panels"
-                  }
-                />
-              }
-            >
-              <Settings />
-            </PopoverTrigger>
-            <PopoverContent
-              className="w-[min(720px,calc(100vw-1rem))]"
-              align="end"
-              side="bottom"
-              sideOffset={10}
-            >
-              <RideHud />
-              {trainerController.devSimulationEnabled &&
-              trainerController.source === "simulated" &&
-              simulatedRider &&
-              simulatedTrainer &&
-              riderState ? (
-                <>
-                  <RideSimulatorControls
-                    powerWatts={riderState.powerWatts}
-                    cadenceRpm={riderState.cadenceRpm}
-                    paused={riderState.paused}
-                    powerMode={riderState.powerMode}
-                    onPowerChange={(watts) =>
-                      simulatedRider.dispatch({
-                        type: "setManualPower",
-                        watts,
-                      })
-                    }
-                    onCadenceChange={(rpm) =>
-                      simulatedRider.dispatch({ type: "setCadence", rpm })
-                    }
-                    onPauseToggle={() =>
-                      simulatedRider.dispatch({
-                        type: "setPaused",
-                        paused: !riderState.paused,
-                      })
-                    }
-                    onPowerModeChange={(mode) =>
-                      simulatedRider.dispatch({ type: "setPowerMode", mode })
-                    }
-                  />
-                  <RideTrainerSimulatorPanel trainer={simulatedTrainer} />
-                </>
-              ) : null}
-            </PopoverContent>
-          </Popover>
+          <Button
+            size="icon"
+            variant="secondary"
+            aria-label={
+              isCockpitOpen ? "Hide ride cockpit" : "Show ride cockpit"
+            }
+            type="button"
+            onClick={() => setIsCockpitOpen((open) => !open)}
+          >
+            <Settings />
+          </Button>
         </div>
       </div>
+      <AnimatePresence>
+        {isCockpitOpen ? (
+          <RideCockpit
+            key="ride-cockpit"
+            trainerController={trainerController}
+            riderState={riderState}
+          />
+        ) : null}
+      </AnimatePresence>
     </div>
   )
 }

@@ -8,8 +8,19 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => vi.fn(),
 }))
 
-vi.mock("./ride-hud", () => ({
-  RideHud: () => <div>Ride HUD</div>,
+vi.mock("@ramp/ride-core", () => ({
+  useRideSessionContext: () => ({}),
+  useRideSession: () => ({
+    telemetry: {
+      powerWatts: 180,
+      cadenceRpm: 88,
+      speedMps: 9.1,
+      elapsedSeconds: 315,
+      distanceMeters: 2400,
+      telemetrySource: "simulated",
+      trainerStatus: "ready",
+    },
+  }),
 }))
 
 function createController(
@@ -55,8 +66,17 @@ describe("RideOverlay", () => {
     )
 
     expect(screen.queryByText("Use simulator")).toBeNull()
-    fireEvent.click(screen.getByLabelText("Show ride overlay panels"))
-    expect(screen.queryByText("Manual inputs")).toBeNull()
+    fireEvent.click(screen.getByLabelText("Show ride cockpit"))
+    expect(screen.queryByLabelText("Rider power mode")).toBeNull()
+    expect(screen.queryByLabelText("Trainer mode")).toBeNull()
+  })
+
+  it("toggles the cockpit from the settings button", () => {
+    render(<RideOverlay trainerController={createController()} />)
+
+    fireEvent.click(screen.getByLabelText("Show ride cockpit"))
+    expect(screen.getByLabelText("Hide ride cockpit")).toBeTruthy()
+    expect(screen.getByText("Power")).toBeTruthy()
   })
 
   it("displays source status for simulator, BLE, and none", () => {
@@ -93,7 +113,8 @@ describe("RideOverlay", () => {
       />
     )
 
-    fireEvent.click(screen.getByLabelText("Show ride overlay panels"))
+    fireEvent.click(screen.getByLabelText("Show ride cockpit"))
+    fireEvent.click(screen.getByLabelText("Rider power mode"))
     fireEvent.click(screen.getByText("Manual"))
     fireEvent.click(screen.getByLabelText("Pause ride"))
 
@@ -124,7 +145,8 @@ describe("RideOverlay", () => {
       />
     )
 
-    fireEvent.click(screen.getByLabelText("Show ride overlay panels"))
+    fireEvent.click(screen.getByLabelText("Show ride cockpit"))
+    fireEvent.click(screen.getByLabelText("Trainer mode"))
     fireEvent.click(screen.getByText("Simulation"))
 
     await waitFor(() => {
