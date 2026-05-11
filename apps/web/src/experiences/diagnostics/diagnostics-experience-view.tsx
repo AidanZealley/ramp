@@ -1,14 +1,14 @@
 import { useRideSelector } from "@ramp/ride-core"
-import {
-  formatSpeedKph,
-  RideDashboardMetric,
-  RideHeartCadenceModule,
-  RidePowerModule,
-} from "@/components/ride/ride-dashboard"
 import { CapabilitiesModule } from "./components/capabilities-module"
 import { CommandsModule } from "./components/commands-module"
 import { StatusModule } from "./components/status-module"
 import type { RideSessionController } from "@ramp/ride-core"
+import {
+  RideDashboardMetric,
+  RideHeartCadenceModule,
+  RidePowerModule,
+  formatSpeedKph,
+} from "@/components/ride/ride-dashboard"
 
 export function DiagnosticsExperienceView({
   session,

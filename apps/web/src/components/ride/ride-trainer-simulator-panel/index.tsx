@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react"
+import { Capability as TrainerCapability } from "@ramp/trainer-io"
+import { TrainerModeStatus } from "./components/trainer-mode-status"
+import { TrainerStateGrid } from "./components/trainer-state-grid"
 import type {
   Capability,
   SimulatedTrainer,
   SimulatedTrainerMode,
   SimulatedTrainerState,
 } from "@ramp/trainer-io"
-import { Capability as TrainerCapability } from "@ramp/trainer-io"
-import { TrainerModeStatus } from "./components/trainer-mode-status"
-import { TrainerStateGrid } from "./components/trainer-state-grid"
 import { RangeControl } from "@/components/ride/ride-simulator-controls/components/range-control"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 

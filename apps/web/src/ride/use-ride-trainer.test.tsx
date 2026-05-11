@@ -80,7 +80,7 @@ describe("useRideTrainer", () => {
 
     expect(requestBleTrainer).not.toHaveBeenCalled()
 
-    await act(async () => {
+    act(() => {
       result.current.selectSource("ble")
     })
     await act(async () => {
@@ -116,7 +116,7 @@ describe("useRideTrainer", () => {
     requestBleTrainer.mockRejectedValue(new Error("cancelled"))
     const { result } = renderHook(() => useRideTrainer())
 
-    await act(async () => {
+    act(() => {
       result.current.selectSource("ble")
     })
     await act(async () => {

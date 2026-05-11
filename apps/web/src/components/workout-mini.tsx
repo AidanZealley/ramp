@@ -48,7 +48,7 @@ export const WorkoutMini = ({
   const getIntervalOpacity = (index: number) => {
     if (highlightedIntervalIndex === index) return 1
     if (reducedIndexes.has(index)) return 0.35
-    if (highlightedIntervalIndex !== null && highlightedIntervalIndex !== undefined) {
+    if (highlightedIntervalIndex !== null) {
       return 0.9
     }
     return 1

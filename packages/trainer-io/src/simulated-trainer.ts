@@ -103,7 +103,7 @@ export class SimulatedTrainer implements TrainerSource {
     return connectPromise
   }
 
-  async disconnect(): Promise<void> {
+  disconnect(): Promise<void> {
     this.connectGeneration += 1
     if (this.timer) clearInterval(this.timer)
     this.timer = null
@@ -115,6 +115,7 @@ export class SimulatedTrainer implements TrainerSource {
       currentSpeedMps: null,
     })
     this.setConnectionState({ kind: "disconnected" })
+    return Promise.resolve()
   }
 
   async sendCommand(command: TrainerCommand): Promise<void> {

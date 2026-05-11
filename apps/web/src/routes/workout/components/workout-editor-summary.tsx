@@ -1,7 +1,7 @@
 import { WorkoutSummary } from "@/components/workout-summary"
 import {
-  useWorkoutEditorFtp,
   useWorkoutEditorCurrentIntervals,
+  useWorkoutEditorFtp,
   useWorkoutEditorStats,
 } from "@/components/workout-editor/store"
 

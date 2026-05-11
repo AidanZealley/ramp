@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react"
-import { describe, expect, it, beforeEach, afterEach, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { EditorMinimap } from "./components/editor-minimap"
 import {

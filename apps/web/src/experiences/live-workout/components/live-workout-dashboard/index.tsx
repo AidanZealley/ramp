@@ -1,17 +1,12 @@
 import { useEffect, useRef, useState } from "react"
 import Confetti from "react-confetti"
 import { useRideHeartbeat, useRideSelector } from "@ramp/ride-core"
-import {
-  RideDashboardMetric,
-  RideHeartCadenceModule,
-  RidePowerModule,
-} from "@/components/ride/ride-dashboard"
 import { DisconnectedOverlay } from "./components/disconnected-overlay"
 import { IntervalComment } from "./components/interval-comment"
 import { TelemetryStaleBadge } from "./components/telemetry-stale-badge"
 import {
-  WorkoutCompleteDialog,
-  type WorkoutCompletionSummary,
+  WorkoutCompleteDialog
+  
 } from "./components/workout-complete-dialog"
 import { WorkoutProgressOverview } from "./components/workout-progress-overview"
 import {
@@ -22,9 +17,15 @@ import {
   getTotalDurationSeconds,
   getWorkoutRemainingSeconds,
 } from "./utils"
+import type {WorkoutCompletionSummary} from "./components/workout-complete-dialog";
 import type { RideSessionController } from "@ramp/ride-core"
 import type { WorkoutSessionState } from "@ramp/ride-workouts"
 import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
+import {
+  RideDashboardMetric,
+  RideHeartCadenceModule,
+  RidePowerModule,
+} from "@/components/ride/ride-dashboard"
 import { formatDuration } from "@/lib/workout-utils"
 
 type LiveWorkoutDashboardProps = {

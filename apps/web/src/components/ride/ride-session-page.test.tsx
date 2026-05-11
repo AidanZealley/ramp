@@ -1,9 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
-import { Capability } from "@ramp/trainer-io"
 import { describe, expect, it, vi } from "vitest"
 import { RideSessionPage } from "./ride-session-page"
+import type { Capability } from "@ramp/trainer-io"
 import type { RideExperienceDefinition } from "@/experiences/types"
 import type { RideTrainerController } from "@/ride/use-ride-trainer"
+import type * as ReactModule from "react"
 
 const { trainer } = vi.hoisted(() => ({
   trainer: {
@@ -20,7 +21,7 @@ const { trainer } = vi.hoisted(() => ({
 }))
 
 vi.mock("@/ride/use-ride-trainer", async () => {
-  const React = await vi.importActual<typeof import("react")>("react")
+  const React = await vi.importActual<typeof ReactModule>("react")
   return {
     useRideTrainer: () => {
       const [activeTrainer, setActiveTrainer] = React.useState<
@@ -41,10 +42,10 @@ vi.mock("@/ride/use-ride-trainer", async () => {
         simulatedTrainer: null,
         simulatedRider: null,
         selectSource: vi.fn(),
-        connectSelectedTrainer: vi.fn(async () => {
+        connectSelectedTrainer: vi.fn(() => {
           setActiveTrainer(trainer)
           setSource("simulated")
-          return true
+          return Promise.resolve(true)
         }),
         connectBleTrainer: vi.fn(() => Promise.resolve(false)),
         useSimulatedTrainer: vi.fn(() => Promise.resolve(false)),
@@ -93,11 +94,13 @@ const experience: RideExperienceDefinition = {
     eyebrow: "Test",
     spotlight: "Ride",
   },
-  loadPlugin: vi.fn(async () => ({
-    id: "test",
-    displayName: "Test Ride",
-    ExperienceView: () => <div>Experience mounted</div>,
-  })),
+  loadPlugin: vi.fn(() =>
+    Promise.resolve({
+      id: "test",
+      displayName: "Test Ride",
+      ExperienceView: () => <div>Experience mounted</div>,
+    })
+  ),
 }
 
 describe("RideSessionPage", () => {

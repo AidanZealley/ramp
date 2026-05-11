@@ -1822,7 +1822,7 @@ describe("WorkoutEditor edit feedback bubble", () => {
     vi.restoreAllMocks()
   })
 
-  it("shows a single selected interval duration keyboard nudge", async () => {
+  it("shows a single selected interval duration keyboard nudge", () => {
     const { container } = render(<EditorActionHarness />)
 
     fireEvent.click(getIntervalBody(container, 0)!)
@@ -1833,7 +1833,7 @@ describe("WorkoutEditor edit feedback bubble", () => {
     expect(bubble.textContent).toBe("1:10 · 250W (100%)")
   })
 
-  it("updates and resets the timeout during repeated edits", async () => {
+  it("updates and resets the timeout during repeated edits", () => {
     const { container } = render(<EditorActionHarness />)
 
     fireEvent.click(getIntervalBody(container, 0)!)
@@ -1863,7 +1863,7 @@ describe("WorkoutEditor edit feedback bubble", () => {
     expect(screen.queryByText("1:20 · 250W (100%)")).toBeNull()
   })
 
-  it("shows preferred and secondary units for single selected power nudges", async () => {
+  it("shows preferred and secondary units for single selected power nudges", () => {
     const { container } = render(<EditorActionHarness />)
 
     fireEvent.click(getIntervalBody(container, 0)!)
@@ -1874,7 +1874,7 @@ describe("WorkoutEditor edit feedback bubble", () => {
     )
   })
 
-  it("shows ramp-aware values for subsection power nudges", async () => {
+  it("shows ramp-aware values for subsection power nudges", () => {
     const { container } = render(
       <EditorActionHarness
         initialIntervals={[

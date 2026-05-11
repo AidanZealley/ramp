@@ -1,5 +1,5 @@
-import { cn } from "@/lib/utils"
 import type { RideDashboardMetricProps } from "./types"
+import { cn } from "@/lib/utils"
 
 export const RideDashboardMetric = ({
   label,

@@ -1,6 +1,6 @@
-import { cn } from "@/lib/utils"
-import type { RidePowerModuleProps } from "./types"
 import { getSourceLabel } from "./utils"
+import type { RidePowerModuleProps } from "./types"
+import { cn } from "@/lib/utils"
 
 export const RidePowerModule = ({
   targetWatts = null,

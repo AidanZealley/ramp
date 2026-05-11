@@ -1,11 +1,11 @@
 import { Activity, ArrowLeft, Bluetooth } from "lucide-react"
+import type { RideTrainerConnectionChoice } from "@/ride/use-ride-trainer"
+import type React from "react"
+import type { RideConnectionGateProps } from "./types"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { cn } from "@/lib/utils"
-import type { RideTrainerConnectionChoice } from "@/ride/use-ride-trainer"
-import type React from "react"
-import type { RideConnectionGateProps } from "./types"
 
 const WEB_BLUETOOTH_MESSAGE = "Web Bluetooth requires a Chromium-class browser."
 

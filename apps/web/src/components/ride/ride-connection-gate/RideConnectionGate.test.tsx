@@ -99,10 +99,10 @@ describe("RideConnectionGate", () => {
       "Web Bluetooth requires a Chromium-class browser."
     ).length).toBeGreaterThan(0)
     expect(
-      (screen.getByText("Connect trainer") as HTMLButtonElement).disabled
+      (screen.getByText("Connect trainer")).disabled
     ).toBe(true)
     expect(
-      (screen.getByLabelText("Bluetooth trainer") as HTMLButtonElement).disabled
+      (screen.getByLabelText("Bluetooth trainer")).disabled
     ).toBe(true)
   })
 
@@ -118,9 +118,9 @@ describe("RideConnectionGate", () => {
           experience={experience}
           trainerController={createController({
             connectionError,
-            connectSelectedTrainer: vi.fn(async () => {
+            connectSelectedTrainer: vi.fn(() => {
               setConnectionError("Could not connect to trainer.")
-              return false
+              return Promise.resolve(false)
             }),
           })}
           onConnected={onConnected}

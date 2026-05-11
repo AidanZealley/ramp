@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router"
-import type { WorkoutCompleteDialogProps } from "./types"
+import { ArrowLeft, Pencil } from "lucide-react"
 import { formatDistance } from "./utils"
+import type { WorkoutCompleteDialogProps } from "./types"
 import { buttonVariants } from "@/components/ui/button"
 import {
   Dialog,
@@ -12,7 +13,6 @@ import {
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { formatDuration } from "@/lib/workout-utils"
-import { ArrowLeft, Pencil } from "lucide-react"
 
 export const WorkoutCompleteDialog = ({
   open,

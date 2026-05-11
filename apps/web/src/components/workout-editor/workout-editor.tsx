@@ -22,19 +22,19 @@ import { useEditFeedbackBubble } from "./hooks/use-edit-feedback-bubble"
 import { useEditorAutoScroll } from "./hooks/use-editor-auto-scroll"
 import { useEditorKeypresses } from "./hooks/use-editor-keypresses"
 import { useEditorZoom } from "./hooks/use-editor-zoom"
+import type { DragType } from "@/lib/timeline/types"
+import type { Interval } from "@/lib/workout-utils"
 import { useIntervalDrag } from "@/hooks/use-interval-drag"
 import {
   MIN_DURATION,
   MIN_POWER,
   TIMELINE_EDGE_GUTTER,
-  type DragType,
 } from "@/lib/timeline/types"
 import {
   clamp,
   computeMaxPower,
   formatDuration,
   formatPowerWithSecondary,
-  type Interval,
 } from "@/lib/workout-utils"
 
 const FEEDBACK_DRAG_TYPES = new Set<DragType>([
@@ -108,8 +108,8 @@ export function WorkoutEditor() {
       nudgeSelectedPower: (delta: number) => {
         if (selectedIds.length === 1) {
           const index = stableIds.indexOf(selectedIds[0])
-          const interval = intervals[index]
-          if (interval) {
+          if (index !== -1) {
+            const interval = intervals[index]
             const currentMaxPower = computeMaxPower(intervals)
             showSingleIntervalFeedback({
               ...interval,
@@ -131,8 +131,8 @@ export function WorkoutEditor() {
       nudgeSelectedSectionPower: (delta: number) => {
         if (selectedIds.length === 1 && selectedSection) {
           const index = stableIds.indexOf(selectedSection.intervalId)
-          const interval = intervals[index]
-          if (interval) {
+          if (index !== -1) {
+            const interval = intervals[index]
             const currentMaxPower = computeMaxPower(intervals)
             showSingleIntervalFeedback({
               ...interval,
@@ -160,8 +160,8 @@ export function WorkoutEditor() {
       nudgeSelectedDuration: (delta: number) => {
         if (selectedIds.length === 1) {
           const index = stableIds.indexOf(selectedIds[0])
-          const interval = intervals[index]
-          if (interval) {
+          if (index !== -1) {
+            const interval = intervals[index]
             showSingleIntervalFeedback({
               ...interval,
               durationSeconds: Math.max(

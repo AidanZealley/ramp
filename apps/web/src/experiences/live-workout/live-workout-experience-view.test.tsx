@@ -1,13 +1,13 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { Capability } from "@ramp/ride-core"
-import type React from "react"
 import { LiveWorkoutExperienceView } from "./live-workout-experience-view"
 import {
   getCompletedIntervalCount,
   getIntervalBounds,
   getIntervalRemainingSeconds,
 } from "./components/live-workout-dashboard/utils"
+import type React from "react"
 
 const useQuery = vi.fn()
 const confettiRender = vi.hoisted(() => vi.fn())

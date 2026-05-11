@@ -4,8 +4,8 @@ import {
   isWebBluetoothAvailable,
   requestBleTrainer,
 } from "@ramp/trainer-io"
-import type { SimulatedRider, TrainerSource } from "@ramp/trainer-io"
 import { rideDevSimulationEnabled } from "./dev-simulation-config"
+import type { SimulatedRider, TrainerSource } from "@ramp/trainer-io"
 
 export type RideTrainerSource = "none" | "simulated" | "ble"
 export type RideTrainerConnectionChoice = "simulated" | "ble"

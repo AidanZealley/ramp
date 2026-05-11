@@ -1,4 +1,4 @@
-/// <reference path="./transports/bluetooth/web-bluetooth/globals.d.ts" />
+import "./transports/bluetooth/web-bluetooth/globals.d.ts"
 
 export * from "./types"
 export * from "./simulation-types"
