@@ -1,10 +1,12 @@
-import { ArrowLeft } from "lucide-react"
+import { Link } from "@tanstack/react-router"
+import { ArrowLeft, Play } from "lucide-react"
 import { useMutation } from "convex/react"
 import { WorkoutActionsMenu } from "./workout-actions-menu"
 import type { Id } from "#convex/_generated/dataModel"
 import { api } from "#convex/_generated/api"
 import { EditableTitle } from "@/components/editable-title"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 interface WorkoutPageHeaderProps {
   workoutId: Id<"workouts">
@@ -35,11 +37,22 @@ export function WorkoutPageHeader({
             void updateTitle({ id: workoutId, title: nextTitle })
           }
         />
-        <WorkoutActionsMenu
-          title={title}
-          onDuplicate={onDuplicate}
-          onDelete={onDelete}
-        />
+        <div className="flex items-center gap-2">
+          <Link
+            className={cn(buttonVariants({ variant: "secondary" }))}
+            to="/ride/$experienceId"
+            params={{ experienceId: "live-workout" }}
+            search={{ workoutId }}
+          >
+            <Play data-icon="inline-start" />
+            Ride workout
+          </Link>
+          <WorkoutActionsMenu
+            title={title}
+            onDuplicate={onDuplicate}
+            onDelete={onDelete}
+          />
+        </div>
       </div>
     </div>
   )

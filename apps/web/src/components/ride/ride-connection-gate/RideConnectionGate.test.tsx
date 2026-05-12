@@ -99,10 +99,11 @@ describe("RideConnectionGate", () => {
       "Web Bluetooth requires a Chromium-class browser."
     ).length).toBeGreaterThan(0)
     expect(
-      (screen.getByText("Connect trainer")).disabled
+      (screen.getByText("Connect trainer") as HTMLButtonElement).disabled
     ).toBe(true)
     expect(
-      (screen.getByLabelText("Bluetooth trainer")).disabled
+      (screen.getByLabelText("Bluetooth trainer") as HTMLButtonElement)
+        .disabled
     ).toBe(true)
   })
 

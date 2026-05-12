@@ -14,6 +14,7 @@ type WorkoutDetailPanelProps = {
   isLoading: boolean
   isStarting: boolean
   onStart: () => void
+  selectionError?: string | null
   startError: string | null
   trainerConnected: boolean
   trainerStatus: TrainerStatus
@@ -28,6 +29,7 @@ export function WorkoutDetailPanel({
   isLoading,
   isStarting,
   onStart,
+  selectionError,
   startError,
   trainerConnected,
   trainerStatus,
@@ -65,7 +67,7 @@ export function WorkoutDetailPanel({
           </div>
         ) : !workout ? (
           <div className="flex flex-1 items-center justify-center rounded-3xl border border-dashed border-border/70 bg-background/60 px-4 py-10 text-center text-sm text-muted-foreground">
-            Pick a workout from the list to see its preview.
+            {selectionError ?? "Pick a workout from the list to see its preview."}
           </div>
         ) : (
           <WorkoutDetail workout={workout} ftp={ftp} />

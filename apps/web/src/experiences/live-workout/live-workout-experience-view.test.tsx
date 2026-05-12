@@ -11,6 +11,7 @@ import type React from "react"
 
 const useQuery = vi.fn()
 const confettiRender = vi.hoisted(() => vi.fn())
+const navigateMock = vi.hoisted(() => vi.fn())
 
 vi.mock("react-confetti", () => ({
   default: (props: Record<string, unknown>) => {
@@ -46,6 +47,7 @@ vi.mock("@tanstack/react-router", () => ({
       </a>
     )
   },
+  useNavigate: () => navigateMock,
 }))
 
 function createSession(options?: {
@@ -133,6 +135,7 @@ const workoutDoc = {
 describe("LiveWorkoutExperienceView", () => {
   beforeEach(() => {
     useQuery.mockReset()
+    navigateMock.mockReset()
     confettiRender.mockClear()
   })
 
@@ -162,6 +165,152 @@ describe("LiveWorkoutExperienceView", () => {
       screen.getByText("Connect a trainer or use the simulator to start.")
     ).toBeTruthy()
     expect(screen.getByText("Start workout")).toHaveProperty("disabled", true)
+  })
+
+  it("preselects a matching URL workout after workouts load", () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+
+    render(
+      <LiveWorkoutExperienceView
+        search={{ workoutId: "w1" }}
+        session={createSession()}
+      />
+    )
+
+    expect(screen.getByText("ERG mode at FTP 200 W")).toBeTruthy()
+    expect(screen.getByText("Start workout")).toHaveProperty("disabled", false)
+  })
+
+  it("starts a selected URL workout when session rules allow", async () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+
+    render(
+      <LiveWorkoutExperienceView
+        search={{ workoutId: "w1" }}
+        session={createSession()}
+      />
+    )
+
+    fireEvent.click(screen.getByText("Start workout"))
+
+    await waitFor(() => {
+      expect(screen.getByText("Now riding")).toBeTruthy()
+    })
+  })
+
+  it("shows not-found copy for an unknown URL workout and keeps start disabled", () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+
+    render(
+      <LiveWorkoutExperienceView
+        search={{ workoutId: "missing-workout" }}
+        session={createSession()}
+      />
+    )
+
+    expect(
+      screen.getByText("Workout not found. Pick another workout.")
+    ).toBeTruthy()
+    expect(screen.getByText("Start workout")).toHaveProperty("disabled", true)
+  })
+
+  it("manual selection updates selected workout and replaces URL search", () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+
+    render(<LiveWorkoutExperienceView session={createSession()} />)
+
+    fireEvent.click(screen.getByText("Ramp Builder"))
+
+    expect(screen.getByText("ERG mode at FTP 200 W")).toBeTruthy()
+    expect(navigateMock).toHaveBeenCalledWith({
+      search: expect.any(Function),
+      replace: true,
+    })
+    const searchUpdater = navigateMock.mock.calls[0][0].search
+    expect(searchUpdater({ run: "today" })).toEqual({
+      run: "today",
+      workoutId: "w1",
+    })
+  })
+
+  it("no URL workout keeps the initial no-selection behavior", () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+
+    render(<LiveWorkoutExperienceView session={createSession()} />)
+
+    expect(
+      screen.getByText("Pick a workout from the list to see its preview.")
+    ).toBeTruthy()
+    expect(screen.getByText("Start workout")).toHaveProperty("disabled", true)
+  })
+
+  it("clears selection when URL workout is removed before start", () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+
+    const { rerender } = render(
+      <LiveWorkoutExperienceView
+        search={{ workoutId: "w1" }}
+        session={createSession()}
+      />
+    )
+
+    expect(screen.getByText("ERG mode at FTP 200 W")).toBeTruthy()
+
+    rerender(<LiveWorkoutExperienceView session={createSession()} />)
+
+    expect(
+      screen.getByText("Pick a workout from the list to see its preview.")
+    ).toBeTruthy()
+    expect(screen.getByText("Start workout")).toHaveProperty("disabled", true)
+  })
+
+  it("does not replace an active workout after URL selection changes", async () => {
+    const secondWorkout = {
+      ...workoutDoc,
+      _id: "w2",
+      title: "Tempo Builder",
+    }
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1
+        ? [workoutDoc, secondWorkout]
+        : { ftp: 200 }
+    )
+
+    const session = createSession()
+    const { rerender } = render(
+      <LiveWorkoutExperienceView
+        search={{ workoutId: "w1" }}
+        session={session}
+      />
+    )
+
+    fireEvent.click(screen.getByText("Start workout"))
+
+    await waitFor(() => {
+      expect(screen.getByText("Now riding")).toBeTruthy()
+    })
+
+    rerender(
+      <LiveWorkoutExperienceView
+        search={{ workoutId: "w2" }}
+        session={session}
+      />
+    )
+
+    expect(screen.getByText("Ramp Builder")).toBeTruthy()
+    expect(screen.queryByText("Tempo Builder")).toBeNull()
   })
 
   it("shows simulator ready copy when the simulated trainer can start", () => {

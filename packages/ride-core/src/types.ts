@@ -89,6 +89,9 @@ export type RideExperiencePlugin = {
   displayName: string
   ExperienceView: React.ComponentType<{
     session: RideSessionController
+    search?: {
+      workoutId?: string
+    }
   }>
 }
 

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { RideSessionPage } from "./ride-session-page"
 import type { Capability } from "@ramp/trainer-io"
 import type { RideExperienceDefinition } from "@/experiences/types"
@@ -19,6 +19,8 @@ const { trainer } = vi.hoisted(() => ({
     subscribeError: vi.fn(() => () => undefined),
   },
 }))
+
+const experienceViewProps = vi.hoisted(() => vi.fn())
 
 vi.mock("@/ride/use-ride-trainer", async () => {
   const React = await vi.importActual<typeof ReactModule>("react")
@@ -98,12 +100,19 @@ const experience: RideExperienceDefinition = {
     Promise.resolve({
       id: "test",
       displayName: "Test Ride",
-      ExperienceView: () => <div>Experience mounted</div>,
+      ExperienceView: (props: Record<string, unknown>) => {
+        experienceViewProps(props)
+        return <div>Experience mounted</div>
+      },
     })
   ),
 }
 
 describe("RideSessionPage", () => {
+  beforeEach(() => {
+    experienceViewProps.mockClear()
+  })
+
   it("does not mount the experience before trainer connection", () => {
     render(<RideSessionPage experience={experience} />)
 
@@ -132,6 +141,25 @@ describe("RideSessionPage", () => {
     await waitFor(() => {
       expect(screen.getByText("Start with simulator")).toBeTruthy()
       expect(screen.queryByText("Experience mounted")).toBeNull()
+    })
+  })
+
+  it("passes search workoutId to the experience view", async () => {
+    render(
+      <RideSessionPage
+        experience={experience}
+        search={{ workoutId: "workout-1" as never }}
+      />
+    )
+
+    fireEvent.click(screen.getByText("Start with simulator"))
+
+    await waitFor(() => {
+      expect(experienceViewProps).toHaveBeenCalledWith(
+        expect.objectContaining({
+          search: { workoutId: "workout-1" },
+        })
+      )
     })
   })
 })

@@ -2,15 +2,22 @@ import { Suspense, lazy, useMemo, useState } from "react"
 import { RideSessionContext } from "@ramp/ride-core"
 import { RideConnectionGate } from "./ride-connection-gate"
 import { RideOverlay } from "./ride-overlay"
+import type { Id } from "#convex/_generated/dataModel"
 import type { RideExperienceDefinition } from "@/experiences/types"
 import { useElementSize } from "@/hooks/use-element-size"
 import { useRideSessionBootstrap } from "@/ride/use-ride-session-bootstrap"
 import { useRideTrainer } from "@/ride/use-ride-trainer"
 
+type RideExperienceSearchProps = {
+  workoutId?: Id<"workouts">
+}
+
 export function RideSessionPage({
   experience,
+  search,
 }: {
   experience: RideExperienceDefinition
+  search?: RideExperienceSearchProps
 }) {
   const trainerController = useRideTrainer()
   const { trainer } = trainerController
@@ -33,6 +40,7 @@ export function RideSessionPage({
     <RideSessionExperience
       experience={experience}
       onDisconnected={() => setConnectionConfirmed(false)}
+      search={search}
       session={session}
       trainerController={trainerController}
     />
@@ -42,11 +50,13 @@ export function RideSessionPage({
 function RideSessionExperience({
   experience,
   onDisconnected,
+  search,
   session,
   trainerController,
 }: {
   experience: RideExperienceDefinition
   onDisconnected: () => void
+  search?: RideExperienceSearchProps
   session: ReturnType<typeof useRideSessionBootstrap>["session"]
   trainerController: ReturnType<typeof useRideTrainer>
 }) {
@@ -110,7 +120,7 @@ function RideSessionExperience({
             }}
           >
             <Suspense fallback={null}>
-              <ExperienceView session={session} />
+              <ExperienceView session={session} search={search} />
             </Suspense>
           </div>
         </div>

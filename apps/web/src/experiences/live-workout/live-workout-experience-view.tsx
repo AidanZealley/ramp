@@ -6,6 +6,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react"
+import { useNavigate } from "@tanstack/react-router"
 import { useQuery } from "convex/react"
 import { Capability, useRideSelector } from "@ramp/ride-core"
 import { createWorkoutController } from "@ramp/ride-workouts"
@@ -63,10 +64,15 @@ function getTrainerErrorCopy(code: string | undefined): string | null {
 }
 
 export function LiveWorkoutExperienceView({
+  search,
   session,
 }: {
+  search?: {
+    workoutId?: string
+  }
   session: RideSessionController
 }) {
+  const navigate = useNavigate({ from: "/ride/$experienceId" })
   const trainerConnected = useRideSelector(session, (s) => s.trainerConnected)
   const trainerStatus = useRideSelector(
     session,
@@ -105,6 +111,7 @@ export function LiveWorkoutExperienceView({
   const [activeWorkout, setActiveWorkout] = useState<WorkoutDoc | null>(null)
   const [startError, setStartError] = useState<string | null>(null)
   const [isStarting, setIsStarting] = useState(false)
+  const lastLinkedWorkoutId = useRef<Id<"workouts"> | undefined>(undefined)
 
   const ftp = settings?.ftp ?? DEFAULT_FTP
   const supportsTargetPower = session.controls
@@ -112,9 +119,39 @@ export function LiveWorkoutExperienceView({
     .has(Capability.TargetPower)
 
   const isLoading = workouts === undefined || settings === undefined
+  const linkedWorkoutId = search?.workoutId as Id<"workouts"> | undefined
   const selectedWorkout: WorkoutDoc | null =
     workouts?.find((workout) => workout._id === selectedWorkoutId) ?? null
   const selectedWorkoutHasDuration = hasPositiveDuration(selectedWorkout)
+  const selectionError =
+    !isLoading &&
+    linkedWorkoutId &&
+    !activeWorkout &&
+    !workouts?.some((workout) => workout._id === linkedWorkoutId)
+      ? "Workout not found. Pick another workout."
+      : null
+
+  useEffect(() => {
+    if (activeWorkout || workouts === undefined) return
+    if (
+      linkedWorkoutId === lastLinkedWorkoutId.current &&
+      selectedWorkoutId === linkedWorkoutId
+    ) {
+      return
+    }
+    if (!linkedWorkoutId) {
+      if (lastLinkedWorkoutId.current) {
+        setSelectedWorkoutId(null)
+      }
+      lastLinkedWorkoutId.current = undefined
+      return
+    }
+    const hasLinkedWorkout = workouts.some(
+      (workout) => workout._id === linkedWorkoutId
+    )
+    lastLinkedWorkoutId.current = linkedWorkoutId
+    setSelectedWorkoutId(hasLinkedWorkout ? linkedWorkoutId : null)
+  }, [activeWorkout, linkedWorkoutId, selectedWorkoutId, workouts])
 
   useEffect(() => {
     setStartError(null)
@@ -182,6 +219,20 @@ export function LiveWorkoutExperienceView({
     setStartError(null)
   }, [workoutController])
 
+  const handleSelectWorkout = useCallback(
+    (nextWorkoutId: Id<"workouts">) => {
+      setSelectedWorkoutId(nextWorkoutId)
+      void navigate({
+        search: (previous) => ({
+          ...previous,
+          workoutId: nextWorkoutId,
+        }),
+        replace: true,
+      })
+    },
+    [navigate]
+  )
+
   const handleSeek = useCallback(
     async (elapsedSeconds: number) => {
       await workoutController.seekToElapsedSeconds(elapsedSeconds)
@@ -205,7 +256,7 @@ export function LiveWorkoutExperienceView({
         <div className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           <WorkoutPickerPanel
             isLoading={isLoading}
-            onSelect={setSelectedWorkoutId}
+            onSelect={handleSelectWorkout}
             selectedWorkoutId={selectedWorkoutId}
             workouts={workouts ?? []}
           />
@@ -216,6 +267,7 @@ export function LiveWorkoutExperienceView({
             onStart={() => {
               void handleStart()
             }}
+            selectionError={selectionError}
             startError={
               startError ??
               getTrainerErrorCopy(lastTrainerError?.code) ??
