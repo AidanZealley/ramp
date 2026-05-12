@@ -9,6 +9,7 @@ import {
   
 } from "./components/workout-complete-dialog"
 import { WorkoutProgressOverview } from "./components/workout-progress-overview"
+import { useIntervalCountdownBeeps } from "./use-interval-countdown-beeps"
 import {
   getCompletedIntervalCount,
   getIntervalBounds,
@@ -102,6 +103,7 @@ export function LiveWorkoutDashboard({
     useState<WorkoutCompletionSummary | null>(null)
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
+  const [manualSeekKey, setManualSeekKey] = useState(0)
 
   // Auto-pause when trainer disconnects
   useEffect(() => {
@@ -161,6 +163,20 @@ export function LiveWorkoutDashboard({
     intervalRemainingSeconds <= 5 &&
     intervalRemainingSeconds > 0 &&
     !workoutState.isComplete
+
+  useIntervalCountdownBeeps({
+    activeSegmentIndex: workoutState.activeSegmentIndex,
+    intervalRemainingSeconds,
+    isActive: workoutState.isActive,
+    isComplete: workoutState.isComplete,
+    paused,
+    suppressForSeekKey: manualSeekKey,
+  })
+
+  const handleSeek = (elapsedSeconds: number) => {
+    setManualSeekKey((key) => key + 1)
+    return onSeek(elapsedSeconds)
+  }
 
   useEffect(() => {
     if (!previousIsComplete.current && workoutState.isComplete) {
@@ -285,7 +301,7 @@ export function LiveWorkoutDashboard({
         onPause={onPause}
         onResume={onResume}
         onStop={onEnd}
-        onSeek={onSeek}
+        onSeek={handleSeek}
       />
     </div>
   )
