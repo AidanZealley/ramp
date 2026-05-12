@@ -12,6 +12,7 @@ import { TelemetryStaleBadge } from "./components/telemetry-stale-badge"
 import { WorkoutCompleteDialog } from "./components/workout-complete-dialog"
 import { WorkoutProgressOverview } from "./components/workout-progress-overview"
 import { useIntervalCountdownBeeps } from "./use-interval-countdown-beeps"
+import { useWorkoutKeypresses } from "./use-workout-keypresses"
 import {
   getCompletedIntervalCount,
   getIntervalBounds,
@@ -110,6 +111,14 @@ export function LiveWorkoutDashboard({
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
   const [manualSeekKey, setManualSeekKey] = useState(0)
+  const { stopDialogOpen, setStopDialogOpen } = useWorkoutKeypresses({
+    difficultyPercent: workoutState.difficultyPercent,
+    isComplete: workoutState.isComplete,
+    paused,
+    onDifficultyChange,
+    onPause,
+    onResume,
+  })
 
   // Auto-pause when trainer disconnects
   useEffect(() => {
@@ -322,6 +331,8 @@ export function LiveWorkoutDashboard({
         onResume={onResume}
         onStop={onEnd}
         onSeek={handleSeek}
+        stopDialogOpen={stopDialogOpen}
+        onStopDialogOpenChange={setStopDialogOpen}
       />
     </div>
   )

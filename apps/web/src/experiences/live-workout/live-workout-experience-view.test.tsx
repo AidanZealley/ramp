@@ -139,6 +139,15 @@ const workoutDoc = {
   intervalsRevision: 0,
 }
 
+async function startWorkout() {
+  fireEvent.click(screen.getByText("Ramp Builder"))
+  fireEvent.click(screen.getByText("Start workout"))
+
+  await waitFor(() => {
+    expect(screen.getByText("Now riding")).toBeTruthy()
+  })
+}
+
 describe("LiveWorkoutExperienceView", () => {
   beforeEach(() => {
     useQuery.mockReset()
@@ -645,6 +654,85 @@ describe("LiveWorkoutExperienceView", () => {
     expect(resume).toHaveBeenCalledTimes(1)
   })
 
+  it("resumes a paused active workout when Space is pressed", async () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+    const pause = vi.fn()
+    const resume = vi.fn()
+
+    render(
+      <LiveWorkoutExperienceView
+        session={createSession({ pauseImpl: pause, resumeImpl: resume })}
+      />
+    )
+
+    fireEvent.click(screen.getByText("Ramp Builder"))
+    fireEvent.click(screen.getByText("Start workout"))
+
+    await waitFor(() => {
+      expect(pause).toHaveBeenCalledTimes(1)
+    })
+
+    fireEvent.keyDown(document, { key: " " })
+
+    expect(resume).toHaveBeenCalledTimes(1)
+  })
+
+  it("pauses a running active workout when Space is pressed", async () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+    const pause = vi.fn()
+    const resume = vi.fn()
+
+    render(
+      <LiveWorkoutExperienceView
+        session={createSession({ pauseImpl: pause, resumeImpl: resume })}
+      />
+    )
+
+    fireEvent.click(screen.getByText("Ramp Builder"))
+    fireEvent.click(screen.getByText("Start workout"))
+
+    await waitFor(() => {
+      expect(pause).toHaveBeenCalledTimes(1)
+    })
+
+    fireEvent.keyDown(document, { key: " " })
+    expect(resume).toHaveBeenCalledTimes(1)
+
+    fireEvent.keyDown(document, { key: " " })
+
+    expect(pause).toHaveBeenCalledTimes(2)
+  })
+
+  it("ignores Space with modifiers", async () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+    const pause = vi.fn()
+    const resume = vi.fn()
+
+    render(
+      <LiveWorkoutExperienceView
+        session={createSession({ pauseImpl: pause, resumeImpl: resume })}
+      />
+    )
+
+    fireEvent.click(screen.getByText("Ramp Builder"))
+    fireEvent.click(screen.getByText("Start workout"))
+
+    await waitFor(() => {
+      expect(pause).toHaveBeenCalledTimes(1)
+    })
+
+    fireEvent.keyDown(document, { key: " ", shiftKey: true })
+
+    expect(pause).toHaveBeenCalledTimes(1)
+    expect(resume).not.toHaveBeenCalled()
+  })
+
   it("gates ending the workout behind a confirmation dialog", async () => {
     useQuery.mockImplementation((_query) =>
       useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
@@ -671,6 +759,98 @@ describe("LiveWorkoutExperienceView", () => {
       expect(screen.queryByText("Now riding")).toBeNull()
     })
     expect(screen.getByText("Selected workout")).toBeTruthy()
+  })
+
+  it("opens the stop confirmation dialog when Escape is pressed", async () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+
+    render(<LiveWorkoutExperienceView session={createSession()} />)
+
+    await startWorkout()
+
+    fireEvent.keyDown(document, { key: "Escape" })
+
+    expect(screen.getByText("End workout?")).toBeTruthy()
+    expect(screen.getByText("Stay here")).toBeTruthy()
+    expect(screen.getByText("Now riding")).toBeTruthy()
+
+    fireEvent.click(screen.getByText("End workout"))
+
+    await waitFor(() => {
+      expect(screen.queryByText("Now riding")).toBeNull()
+    })
+    expect(screen.getByText("Selected workout")).toBeTruthy()
+  })
+
+  it("increases workout difficulty when ArrowUp is pressed", async () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+
+    render(<LiveWorkoutExperienceView session={createSession()} />)
+
+    await startWorkout()
+
+    const difficulty = screen.getByLabelText("Workout difficulty")
+    fireEvent.keyDown(document, { key: "ArrowUp" })
+
+    await waitFor(() => {
+      expect(within(difficulty).getByText("101%")).toBeTruthy()
+    })
+  })
+
+  it("decreases workout difficulty when ArrowDown is pressed", async () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+
+    render(<LiveWorkoutExperienceView session={createSession()} />)
+
+    await startWorkout()
+
+    const difficulty = screen.getByLabelText("Workout difficulty")
+    fireEvent.keyDown(document, { key: "ArrowDown" })
+
+    await waitFor(() => {
+      expect(within(difficulty).getByText("99%")).toBeTruthy()
+    })
+  })
+
+  it("ignores keyboard shortcuts from interactive targets", async () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+    const pause = vi.fn()
+    const resume = vi.fn()
+
+    const { container } = render(
+      <LiveWorkoutExperienceView
+        session={createSession({ pauseImpl: pause, resumeImpl: resume })}
+      />
+    )
+
+    fireEvent.click(screen.getByText("Ramp Builder"))
+    fireEvent.click(screen.getByText("Start workout"))
+
+    await waitFor(() => {
+      expect(pause).toHaveBeenCalledTimes(1)
+    })
+
+    const input = document.createElement("input")
+    container.append(input)
+    input.focus()
+
+    const difficulty = screen.getByLabelText("Workout difficulty")
+    fireEvent.keyDown(input, { key: "Escape" })
+    fireEvent.keyDown(input, { key: "ArrowUp" })
+    fireEvent.keyDown(input, { key: " " })
+
+    expect(screen.queryByText("End workout?")).toBeNull()
+    expect(within(difficulty).getByText("100%")).toBeTruthy()
+    expect(pause).toHaveBeenCalledTimes(1)
+    expect(resume).not.toHaveBeenCalled()
   })
 
   it("shows available heart rate in the active dashboard", async () => {

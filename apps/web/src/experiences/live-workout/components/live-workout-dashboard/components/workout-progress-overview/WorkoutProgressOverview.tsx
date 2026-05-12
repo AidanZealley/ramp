@@ -28,6 +28,8 @@ type WorkoutProgressOverviewProps = {
   onResume?: () => void
   onStop: () => void
   onSeek: (elapsedSeconds: number) => void | Promise<void>
+  stopDialogOpen?: boolean
+  onStopDialogOpenChange?: (open: boolean) => void
 }
 
 export const WorkoutProgressOverview = ({
@@ -42,6 +44,8 @@ export const WorkoutProgressOverview = ({
   onResume,
   onStop,
   onSeek,
+  stopDialogOpen,
+  onStopDialogOpenChange,
 }: WorkoutProgressOverviewProps) => {
   const timelineRef = useRef<HTMLDivElement | null>(null)
   const [previewElapsedSeconds, setPreviewElapsedSeconds] = useState<
@@ -203,7 +207,10 @@ export const WorkoutProgressOverview = ({
           >
             {paused ? <Play /> : <Pause />}
           </Button>
-          <AlertDialog>
+          <AlertDialog
+            open={stopDialogOpen}
+            onOpenChange={onStopDialogOpenChange}
+          >
             <AlertDialogTrigger
               render={
                 <Button
