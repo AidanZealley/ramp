@@ -240,6 +240,17 @@ export function LiveWorkoutExperienceView({
     [workoutController]
   )
 
+  const handleDifficultyChange = useCallback(
+    async (difficultyPercent: number) => {
+      await workoutController.setDifficultyPercent(difficultyPercent)
+    },
+    [workoutController]
+  )
+
+  const handleDifficultyReset = useCallback(async () => {
+    await workoutController.resetDifficultyPercent()
+  }, [workoutController])
+
   return (
     <div className="absolute inset-0 flex flex-col overflow-y-auto px-4 pt-16 pb-6 sm:px-8 sm:pt-20">
       {activeWorkout ? (
@@ -248,6 +259,8 @@ export function LiveWorkoutExperienceView({
           onPause={session.pause}
           onResume={session.resume}
           onSeek={handleSeek}
+          onDifficultyChange={handleDifficultyChange}
+          onDifficultyReset={handleDifficultyReset}
           session={session}
           workout={activeWorkout}
           workoutState={workoutState}

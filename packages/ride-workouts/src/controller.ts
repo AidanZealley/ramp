@@ -8,6 +8,7 @@ export type WorkoutSessionState = {
   activeSegmentLabel: string | null
   activeSegmentIndex: number | null
   targetWatts: number | null
+  difficultyPercent: number
   isActive: boolean
   elapsedSeconds: number
   totalDurationSeconds: number
@@ -22,6 +23,10 @@ export interface WorkoutSessionController {
     ftpWatts: number
   ) => Promise<DispatchResult>
   seekToElapsedSeconds: (elapsedSeconds: number) => Promise<DispatchResult>
+  setDifficultyPercent: (
+    difficultyPercent: number
+  ) => Promise<DispatchResult>
+  resetDifficultyPercent: () => Promise<DispatchResult>
   clearWorkout: () => void
   getState: () => WorkoutSessionState
   subscribe: (listener: () => void) => () => void
@@ -33,11 +38,16 @@ export type CreateWorkoutControllerOptions = {
   dispatchIntervalSeconds?: number
 }
 
+export const BASELINE_DIFFICULTY_PERCENT = 100
+export const MIN_DIFFICULTY_PERCENT = 50
+export const MAX_DIFFICULTY_PERCENT = 150
+
 const initialState: WorkoutSessionState = {
   activeWorkoutId: null,
   activeSegmentLabel: null,
   activeSegmentIndex: null,
   targetWatts: null,
+  difficultyPercent: BASELINE_DIFFICULTY_PERCENT,
   isActive: false,
   elapsedSeconds: 0,
   totalDurationSeconds: 0,
@@ -55,6 +65,21 @@ function getTotalDurationSeconds(workout: WorkoutDefinition): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
+}
+
+function normalizeDifficultyPercent(difficultyPercent: number): number {
+  const finiteValue = Number.isFinite(difficultyPercent)
+    ? difficultyPercent
+    : BASELINE_DIFFICULTY_PERCENT
+  return clamp(
+    Math.round(finiteValue),
+    MIN_DIFFICULTY_PERCENT,
+    MAX_DIFFICULTY_PERCENT
+  )
+}
+
+function scaleTargetWatts(targetWatts: number, difficultyPercent: number) {
+  return Math.round((targetWatts * difficultyPercent) / 100)
 }
 
 export function createWorkoutController({
@@ -91,6 +116,7 @@ export function createWorkoutController({
     previous.activeSegmentLabel === next.activeSegmentLabel &&
     previous.activeSegmentIndex === next.activeSegmentIndex &&
     previous.targetWatts === next.targetWatts &&
+    previous.difficultyPercent === next.difficultyPercent &&
     previous.isActive === next.isActive &&
     Math.floor(previous.elapsedSeconds) === Math.floor(next.elapsedSeconds) &&
     previous.totalDurationSeconds === next.totalDurationSeconds &&
@@ -161,6 +187,7 @@ export function createWorkoutController({
       ftpWatts,
       activeWorkout.powerMode
     )
+    const difficultyPercent = state.difficultyPercent
 
     if (!segment) {
       setWorkoutState({
@@ -168,6 +195,7 @@ export function createWorkoutController({
         activeSegmentLabel: null,
         activeSegmentIndex: null,
         targetWatts: null,
+        difficultyPercent,
         isActive: false,
         elapsedSeconds: elapsed,
         totalDurationSeconds,
@@ -180,11 +208,16 @@ export function createWorkoutController({
     }
 
     const telemetryFresh = sessionState.telemetry.telemetryStatus === "fresh"
+    const scaledTargetWatts = scaleTargetWatts(
+      segment.targetWatts,
+      difficultyPercent
+    )
     setWorkoutState({
       activeWorkoutId: activeWorkout.id,
       activeSegmentLabel: segment.label,
       activeSegmentIndex: segment.index,
-      targetWatts: segment.targetWatts,
+      targetWatts: scaledTargetWatts,
+      difficultyPercent,
       isActive: true,
       elapsedSeconds: elapsed,
       totalDurationSeconds,
@@ -204,7 +237,7 @@ export function createWorkoutController({
       const generation = asyncStateGeneration
       void session.controls
         .dispatch(
-          { type: "setTargetPower", watts: segment.targetWatts },
+          { type: "setTargetPower", watts: scaledTargetWatts },
           "workout",
           {
             priority:
@@ -280,6 +313,68 @@ export function createWorkoutController({
     }
   }
 
+  const setDifficultyPercent = async (
+    nextDifficultyPercent: number
+  ): Promise<DispatchResult> => {
+    if (disposed) return { ok: false, reason: "disposed" }
+    const difficultyPercent = normalizeDifficultyPercent(nextDifficultyPercent)
+
+    if (!activeWorkout) {
+      setWorkoutState((previous) => ({
+        ...previous,
+        difficultyPercent,
+      }))
+      return { ok: true }
+    }
+
+    const sessionState = session.getState()
+    const elapsed = Math.max(
+      0,
+      sessionState.telemetry.elapsedSeconds - workoutStartedAtSessionSeconds
+    )
+    const segment = getWorkoutSegmentAtElapsed(
+      activeWorkout.intervals,
+      elapsed,
+      ftpWatts,
+      activeWorkout.powerMode
+    )
+
+    if (!segment) {
+      setWorkoutState((previous) => ({
+        ...previous,
+        difficultyPercent,
+      }))
+      return { ok: true }
+    }
+
+    const scaledTargetWatts = scaleTargetWatts(
+      segment.targetWatts,
+      difficultyPercent
+    )
+    asyncStateGeneration += 1
+    const generation = asyncStateGeneration
+    setWorkoutState((previous) => ({
+      ...previous,
+      activeSegmentLabel: segment.label,
+      activeSegmentIndex: segment.index,
+      targetWatts: scaledTargetWatts,
+      difficultyPercent,
+      isActive: true,
+      elapsedSeconds: elapsed,
+      totalDurationSeconds,
+      isComplete: false,
+    }))
+
+    if (
+      sessionState.telemetry.telemetryStatus !== "fresh" ||
+      !sessionState.trainerConnected
+    ) {
+      return { ok: true }
+    }
+
+    return dispatchImmediateTarget(scaledTargetWatts, generation)
+  }
+
   return {
     async loadWorkout(workout, nextFtpWatts) {
       if (disposed) return { ok: false, reason: "disposed" }
@@ -303,6 +398,7 @@ export function createWorkoutController({
       asyncStateGeneration += 1
       setWorkoutState({
         ...initialState,
+        difficultyPercent: BASELINE_DIFFICULTY_PERCENT,
         totalDurationSeconds,
         controlStatus: "starting",
       })
@@ -318,13 +414,18 @@ export function createWorkoutController({
         return modeResult
       }
 
+      const difficultyPercent = BASELINE_DIFFICULTY_PERCENT
+      const firstTargetWatts = scaleTargetWatts(
+        firstSegment.targetWatts,
+        difficultyPercent
+      )
       const targetResult = await session.controls.dispatch(
-        { type: "setTargetPower", watts: firstSegment.targetWatts },
+        { type: "setTargetPower", watts: firstTargetWatts },
         "workout",
         { priority: "immediate" }
       )
       console.info("[ride-workouts] initial target result", {
-        targetWatts: firstSegment.targetWatts,
+        targetWatts: firstTargetWatts,
         result: targetResult,
       })
       if (!targetResult.ok) {
@@ -347,7 +448,8 @@ export function createWorkoutController({
         activeWorkoutId: activeWorkout.id,
         activeSegmentLabel: firstSegment.label,
         activeSegmentIndex: firstSegment.index,
-        targetWatts: firstSegment.targetWatts,
+        targetWatts: firstTargetWatts,
+        difficultyPercent,
         isActive: true,
         elapsedSeconds: 0,
         totalDurationSeconds,
@@ -374,6 +476,11 @@ export function createWorkoutController({
         activeWorkout.powerMode
       )
       if (!segment) return { ok: false, reason: "invalid-workout:no-segment" }
+      const difficultyPercent = state.difficultyPercent
+      const scaledTargetWatts = scaleTargetWatts(
+        segment.targetWatts,
+        difficultyPercent
+      )
 
       asyncStateGeneration += 1
       const generation = asyncStateGeneration
@@ -386,7 +493,8 @@ export function createWorkoutController({
         activeWorkoutId: activeWorkout.id,
         activeSegmentLabel: segment.label,
         activeSegmentIndex: segment.index,
-        targetWatts: segment.targetWatts,
+        targetWatts: scaledTargetWatts,
+        difficultyPercent,
         isActive: true,
         elapsedSeconds: nextElapsed,
         totalDurationSeconds,
@@ -402,10 +510,18 @@ export function createWorkoutController({
         return { ok: true }
       }
 
-      return dispatchImmediateTarget(segment.targetWatts, generation)
+      return dispatchImmediateTarget(scaledTargetWatts, generation)
+    },
+    setDifficultyPercent,
+    resetDifficultyPercent() {
+      return setDifficultyPercent(BASELINE_DIFFICULTY_PERCENT)
     },
     clearWorkout() {
-      if (disposed || !activeWorkout) return
+      if (disposed) return
+      if (!activeWorkout) {
+        setWorkoutState({ ...initialState })
+        return
+      }
       asyncStateGeneration += 1
       activeWorkout = null
       totalDurationSeconds = 0

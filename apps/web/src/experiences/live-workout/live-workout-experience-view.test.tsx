@@ -1,4 +1,11 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { Capability } from "@ramp/ride-core"
 import { LiveWorkoutExperienceView } from "./live-workout-experience-view"
@@ -405,6 +412,95 @@ describe("LiveWorkoutExperienceView", () => {
     expect(screen.getByText("0/1 intervals completed")).toBeTruthy()
     expect(screen.getByLabelText("Workout interval shape")).toBeTruthy()
     expect(screen.getByTestId("workout-progress-line")).toBeTruthy()
+  })
+
+  it("renders workout difficulty controls after the cue and supports adjust/reset", async () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+
+    render(<LiveWorkoutExperienceView session={createSession()} />)
+
+    fireEvent.click(screen.getByText("Ramp Builder"))
+    fireEvent.click(screen.getByText("Start workout"))
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Workout difficulty")).toBeTruthy()
+    })
+
+    const cue = screen.getByLabelText("Interval cue")
+    const difficulty = screen.getByLabelText("Workout difficulty")
+    expect(
+      cue.compareDocumentPosition(difficulty) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+
+    expect(within(difficulty).getByText("100%")).toBeTruthy()
+
+    fireEvent.click(screen.getByLabelText("Increase workout difficulty"))
+    await waitFor(() => {
+      expect(within(difficulty).getByText("101%")).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByLabelText("Reset workout difficulty"))
+    await waitFor(() => {
+      expect(within(difficulty).getByText("100%")).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByLabelText("Decrease workout difficulty"))
+    await waitFor(() => {
+      expect(within(difficulty).getByText("99%")).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByLabelText("Reset workout difficulty"))
+    await waitFor(() => {
+      expect(within(difficulty).getByText("100%")).toBeTruthy()
+    })
+  })
+
+  it("disables difficulty controls at range boundaries", async () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+
+    render(<LiveWorkoutExperienceView session={createSession()} />)
+
+    fireEvent.click(screen.getByText("Ramp Builder"))
+    fireEvent.click(screen.getByText("Start workout"))
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Workout difficulty")).toBeTruthy()
+    })
+
+    const difficulty = screen.getByLabelText("Workout difficulty")
+    const decrease = screen.getByLabelText("Decrease workout difficulty")
+    const increase = screen.getByLabelText("Increase workout difficulty")
+    const reset = screen.getByLabelText("Reset workout difficulty")
+
+    expect(reset).toHaveProperty("disabled", true)
+
+    for (let percent = 100; percent > 50; percent--) {
+      fireEvent.click(decrease)
+      await waitFor(() => {
+        expect(within(difficulty).getByText(`${percent - 1}%`)).toBeTruthy()
+      })
+    }
+    expect(decrease).toHaveProperty("disabled", true)
+    expect(increase).toHaveProperty("disabled", false)
+
+    fireEvent.click(reset)
+    await waitFor(() => {
+      expect(within(difficulty).getByText("100%")).toBeTruthy()
+    })
+
+    for (let percent = 100; percent < 150; percent++) {
+      fireEvent.click(increase)
+      await waitFor(() => {
+        expect(within(difficulty).getByText(`${percent + 1}%`)).toBeTruthy()
+      })
+    }
+    expect(increase).toHaveProperty("disabled", true)
+    expect(decrease).toHaveProperty("disabled", false)
   })
 
   it("opens the completion dialog once with the frozen workout summary", async () => {

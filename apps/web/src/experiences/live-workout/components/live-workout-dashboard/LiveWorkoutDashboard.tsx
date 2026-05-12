@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from "react"
 import Confetti from "react-confetti"
 import { useRideHeartbeat, useRideSelector } from "@ramp/ride-core"
+import {
+  MAX_DIFFICULTY_PERCENT,
+  MIN_DIFFICULTY_PERCENT,
+} from "@ramp/ride-workouts"
 import { DisconnectedOverlay } from "./components/disconnected-overlay"
+import { DifficultyControl } from "./components/difficulty-control"
 import { IntervalComment } from "./components/interval-comment"
 import { TelemetryStaleBadge } from "./components/telemetry-stale-badge"
-import {
-  WorkoutCompleteDialog
-  
-} from "./components/workout-complete-dialog"
+import { WorkoutCompleteDialog } from "./components/workout-complete-dialog"
 import { WorkoutProgressOverview } from "./components/workout-progress-overview"
 import { useIntervalCountdownBeeps } from "./use-interval-countdown-beeps"
 import {
@@ -18,7 +20,7 @@ import {
   getTotalDurationSeconds,
   getWorkoutRemainingSeconds,
 } from "./utils"
-import type {WorkoutCompletionSummary} from "./components/workout-complete-dialog";
+import type { WorkoutCompletionSummary } from "./components/workout-complete-dialog"
 import type { RideSessionController } from "@ramp/ride-core"
 import type { WorkoutSessionState } from "@ramp/ride-workouts"
 import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
@@ -35,6 +37,8 @@ type LiveWorkoutDashboardProps = {
   onPause?: () => void
   onResume?: () => void
   onSeek: (elapsedSeconds: number) => void | Promise<void>
+  onDifficultyChange: (difficultyPercent: number) => void | Promise<void>
+  onDifficultyReset: () => void | Promise<void>
   session: RideSessionController
   workout: ClientWorkoutDoc
   workoutState: WorkoutSessionState
@@ -79,6 +83,8 @@ export function LiveWorkoutDashboard({
   onPause,
   onResume,
   onSeek,
+  onDifficultyChange,
+  onDifficultyReset,
   session,
   workout,
   workoutState,
@@ -280,7 +286,7 @@ export function LiveWorkoutDashboard({
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(0,0.45fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(0,0.45fr)_minmax(0,1fr)_minmax(13rem,0.55fr)]">
         <RideDashboardMetric
           label="Workout remaining"
           value={formatDuration(Math.ceil(workoutRemainingSeconds))}
@@ -288,6 +294,20 @@ export function LiveWorkoutDashboard({
           testId="workout-remaining-timer"
         />
         <IntervalComment comment={currentComment} />
+        <DifficultyControl
+          difficultyPercent={workoutState.difficultyPercent}
+          minPercent={MIN_DIFFICULTY_PERCENT}
+          maxPercent={MAX_DIFFICULTY_PERCENT}
+          onDecrease={() => {
+            void onDifficultyChange(workoutState.difficultyPercent - 1)
+          }}
+          onIncrease={() => {
+            void onDifficultyChange(workoutState.difficultyPercent + 1)
+          }}
+          onReset={() => {
+            void onDifficultyReset()
+          }}
+        />
       </div>
 
       <WorkoutProgressOverview

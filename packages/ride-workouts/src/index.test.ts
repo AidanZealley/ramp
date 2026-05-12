@@ -113,8 +113,151 @@ describe("ride-workouts", () => {
     expect(controller.getState()).toMatchObject({
       activeWorkoutId: "w1",
       controlStatus: "active",
+      difficultyPercent: 100,
       isActive: true,
     })
+  })
+
+  it("immediately dispatches scaled target watts after difficulty changes", async () => {
+    const harness = createSessionHarness()
+    const controller = createWorkoutController({ session: harness.session })
+    await controller.loadWorkout(
+      {
+        id: "w1",
+        title: "Workout",
+        powerMode: "percentage",
+        intervals: [{ startPower: 100, endPower: 100, durationSeconds: 60 }],
+      },
+      200
+    )
+
+    harness.dispatch.mockClear()
+    await expect(controller.setDifficultyPercent(105)).resolves.toEqual({
+      ok: true,
+    })
+
+    expect(controller.getState()).toMatchObject({
+      difficultyPercent: 105,
+      targetWatts: 210,
+    })
+    expect(harness.dispatch).toHaveBeenCalledWith(
+      { type: "setTargetPower", watts: 210 },
+      "workout",
+      { priority: "immediate" }
+    )
+  })
+
+  it("scales steady-state and ramp segment targets from the current segment", async () => {
+    const harness = createSessionHarness()
+    const controller = createWorkoutController({ session: harness.session })
+    await controller.loadWorkout(
+      {
+        id: "w1",
+        title: "Workout",
+        powerMode: "percentage",
+        intervals: [
+          { startPower: 100, endPower: 100, durationSeconds: 30 },
+          { startPower: 50, endPower: 100, durationSeconds: 60 },
+        ],
+      },
+      200
+    )
+
+    harness.dispatch.mockClear()
+    await controller.setDifficultyPercent(110)
+    expect(controller.getState().targetWatts).toBe(220)
+    expect(harness.dispatch).toHaveBeenLastCalledWith(
+      { type: "setTargetPower", watts: 220 },
+      "workout",
+      { priority: "immediate" }
+    )
+
+    harness.dispatch.mockClear()
+    harness.setElapsedSeconds(60)
+    await controller.setDifficultyPercent(90)
+    expect(controller.getState()).toMatchObject({
+      activeSegmentIndex: 1,
+      difficultyPercent: 90,
+      targetWatts: 135,
+    })
+    expect(harness.dispatch).toHaveBeenLastCalledWith(
+      { type: "setTargetPower", watts: 135 },
+      "workout",
+      { priority: "immediate" }
+    )
+  })
+
+  it("clamps difficulty values to the supported range", async () => {
+    const harness = createSessionHarness()
+    const controller = createWorkoutController({ session: harness.session })
+
+    await controller.setDifficultyPercent(10)
+    expect(controller.getState().difficultyPercent).toBe(50)
+
+    await controller.setDifficultyPercent(200)
+    expect(controller.getState().difficultyPercent).toBe(150)
+  })
+
+  it("resetDifficultyPercent restores baseline and dispatches the baseline target", async () => {
+    const harness = createSessionHarness()
+    const controller = createWorkoutController({ session: harness.session })
+    await controller.loadWorkout(
+      {
+        id: "w1",
+        title: "Workout",
+        powerMode: "percentage",
+        intervals: [{ startPower: 100, endPower: 100, durationSeconds: 60 }],
+      },
+      200
+    )
+    await controller.setDifficultyPercent(125)
+
+    harness.dispatch.mockClear()
+    await expect(controller.resetDifficultyPercent()).resolves.toEqual({
+      ok: true,
+    })
+
+    expect(controller.getState()).toMatchObject({
+      difficultyPercent: 100,
+      targetWatts: 200,
+    })
+    expect(harness.dispatch).toHaveBeenCalledWith(
+      { type: "setTargetPower", watts: 200 },
+      "workout",
+      { priority: "immediate" }
+    )
+  })
+
+  it("updates difficulty without immediate dispatch when telemetry is stale or disconnected", async () => {
+    const harness = createSessionHarness()
+    const controller = createWorkoutController({ session: harness.session })
+    await controller.loadWorkout(
+      {
+        id: "w1",
+        title: "Workout",
+        powerMode: "percentage",
+        intervals: [{ startPower: 100, endPower: 100, durationSeconds: 60 }],
+      },
+      200
+    )
+
+    harness.dispatch.mockClear()
+    harness.setTelemetryStatus("stale")
+    await controller.setDifficultyPercent(105)
+    expect(controller.getState()).toMatchObject({
+      difficultyPercent: 105,
+      targetWatts: 210,
+    })
+    expect(harness.dispatch).not.toHaveBeenCalled()
+
+    harness.setTelemetryStatus("fresh")
+    harness.setTrainerConnected(false)
+    await controller.setDifficultyPercent(106)
+    expect(controller.getState()).toMatchObject({
+      difficultyPercent: 106,
+      targetWatts: 212,
+    })
+    expect(harness.dispatch).not.toHaveBeenCalled()
   })
 
   it("fails cleanly without target power capability", async () => {
@@ -206,6 +349,56 @@ describe("ride-workouts", () => {
       "workout",
       { priority: "immediate" }
     )
+  })
+
+  it("continues dispatching scaled targets during periodic updates after difficulty changes", async () => {
+    const harness = createSessionHarness({ telemetryStatus: "fresh" })
+    const controller = createWorkoutController({
+      session: harness.session,
+      dispatchIntervalSeconds: 1,
+    })
+    await controller.loadWorkout(
+      {
+        id: "w1",
+        title: "Workout",
+        powerMode: "percentage",
+        intervals: [{ startPower: 100, endPower: 100, durationSeconds: 60 }],
+      },
+      200
+    )
+    await controller.setDifficultyPercent(110)
+
+    harness.dispatch.mockClear()
+    harness.setElapsedSeconds(1)
+    harness.tick()
+
+    expect(harness.dispatch).toHaveBeenCalledWith(
+      { type: "setTargetPower", watts: 220 },
+      "workout",
+      { priority: "normal" }
+    )
+  })
+
+  it("clearWorkout resets difficulty to baseline", async () => {
+    const harness = createSessionHarness()
+    const controller = createWorkoutController({ session: harness.session })
+    await controller.loadWorkout(
+      {
+        id: "w1",
+        title: "Workout",
+        powerMode: "percentage",
+        intervals: [{ startPower: 100, endPower: 100, durationSeconds: 60 }],
+      },
+      200
+    )
+    await controller.setDifficultyPercent(120)
+
+    controller.clearWorkout()
+
+    expect(controller.getState()).toMatchObject({
+      activeWorkoutId: null,
+      difficultyPercent: 100,
+    })
   })
 
   it("dispose during an active workout sends free mode once", async () => {
@@ -326,6 +519,7 @@ describe("ride-workouts", () => {
       activeSegmentLabel: null,
       activeSegmentIndex: null,
       targetWatts: null,
+      difficultyPercent: 100,
       isActive: false,
       elapsedSeconds: 0,
       totalDurationSeconds: 0,
