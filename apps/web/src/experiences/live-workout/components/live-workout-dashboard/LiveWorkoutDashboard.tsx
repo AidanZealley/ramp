@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import Confetti from "react-confetti"
-import { useRideThrottledSelector, useRideSelector } from "@ramp/ride-core"
+import { useRideThrottledSelector, useRideSelector } from "@ramp/ride-core/react"
 import {
   MAX_DIFFICULTY_PERCENT,
   MIN_DIFFICULTY_PERCENT,

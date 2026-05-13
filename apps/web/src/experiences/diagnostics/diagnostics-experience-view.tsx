@@ -1,4 +1,4 @@
-import { useRideSelector, useRideThrottledSelector } from "@ramp/ride-core"
+import { useRideSelector, useRideThrottledSelector } from "@ramp/ride-core/react"
 import { CapabilitiesModule } from "./components/capabilities-module"
 import { CommandsModule } from "./components/commands-module"
 import { StatusModule } from "./components/status-module"

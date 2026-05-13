@@ -11,7 +11,7 @@ import type {
   RideFrameData,
   RideSessionController,
   RideSessionState,
-} from "./types"
+} from "../types"
 
 export const RideSessionContext = createContext<RideSessionController | null>(
   null

@@ -3,7 +3,7 @@ import {
   Capability,
   TRAINER_COMMAND_LIMITS,
   useRideSelector,
-} from "@ramp/ride-core"
+} from "@ramp/ride-core/react"
 import type { RideSessionController, TrainerCommand } from "@ramp/ride-core"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"

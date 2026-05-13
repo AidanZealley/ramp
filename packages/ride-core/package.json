@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./react": "./src/react/index.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",
@@ -13,6 +14,10 @@
   "peerDependencies": {
     "@types/react": "^19",
     "react": "^19"
+  },
+  "peerDependenciesMeta": {
+    "react": { "optional": true },
+    "@types/react": { "optional": true }
   },
   "dependencies": {
     "@ramp/ride-contracts": "workspace:*"

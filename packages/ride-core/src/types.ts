@@ -1,4 +1,3 @@
-import type React from "react"
 import type {
   Capability,
   TrainerCapabilities,
@@ -88,18 +87,6 @@ export interface RideSessionController {
   resume: () => void
   dispose: () => Promise<void>
   controls: TrainerControlAPI
-}
-
-export type RideExperiencePlugin = {
-  id: string
-  displayName: string
-  ExperienceView: React.ComponentType<{
-    session: RideSessionController
-    connection: RideExperienceConnection
-    search?: {
-      workoutId?: string
-    }
-  }>
 }
 
 export type RideExperienceConnection = {

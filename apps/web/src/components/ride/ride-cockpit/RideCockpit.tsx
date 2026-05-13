@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { Pause, Play } from "lucide-react"
 import { motion } from "motion/react"
-import { useRideSelector, useRideSessionContext } from "@ramp/ride-core"
+import { useRideSelector, useRideSessionContext } from "@ramp/ride-core/react"
 import { CockpitMetric } from "./components/cockpit-metric"
 import { CockpitModeSelect } from "./components/cockpit-mode-select"
 import { CockpitRangeControl } from "./components/cockpit-range-control"

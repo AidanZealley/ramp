@@ -6,7 +6,7 @@ import {
   useRideR3FFrame,
   useRideSession,
   useRideThrottledSelector,
-} from "./use-ride-session"
+} from "./react/use-ride-session"
 import { createRAFShim } from "./test-utils/raf-shim"
 import { Capability } from "./index"
 import type { RideTrainerAdapter, TrainerCommand } from "./index"

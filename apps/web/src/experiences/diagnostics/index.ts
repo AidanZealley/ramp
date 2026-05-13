@@ -1,5 +1,5 @@
 import { DiagnosticsExperienceView } from "./diagnostics-experience-view"
-import type { RideExperiencePlugin } from "@ramp/ride-core"
+import type { RideExperiencePlugin } from "@/experiences/types"
 
 export const diagnosticsExperience: RideExperiencePlugin = {
   id: "diagnostics",

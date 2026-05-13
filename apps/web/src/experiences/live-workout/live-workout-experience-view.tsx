@@ -8,7 +8,7 @@ import {
 } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import { useQuery } from "convex/react"
-import { Capability, useRideSelector } from "@ramp/ride-core"
+import { Capability, useRideSelector } from "@ramp/ride-core/react"
 import { createWorkoutController } from "@ramp/ride-workouts"
 import { LiveWorkoutDashboard } from "./components/live-workout-dashboard"
 import { WorkoutDetailPanel } from "./components/workout-detail-panel"

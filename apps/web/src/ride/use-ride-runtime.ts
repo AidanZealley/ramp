@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { createRideSession, useRideSelector } from "@ramp/ride-core"
+import { createRideSession, useRideSelector } from "@ramp/ride-core/react"
 import {
   canUseBleTrainerSource,
   createSimulatedTrainerSource,
@@ -10,7 +10,7 @@ import type {
   RideConnectionResult,
   RideExperienceConnection,
   RideSessionController,
-} from "@ramp/ride-core"
+} from "@ramp/ride-core/react"
 import type {
   SimulatedRider,
   SimulatedTrainer,

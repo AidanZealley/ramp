@@ -1,5 +1,5 @@
 import { LiveWorkoutExperienceView } from "./live-workout-experience-view"
-import type { RideExperiencePlugin } from "@ramp/ride-core"
+import type { RideExperiencePlugin } from "@/experiences/types"
 
 export const liveWorkoutExperience: RideExperiencePlugin = {
   id: "live-workout",
