@@ -23,9 +23,7 @@ export interface WorkoutSessionController {
     ftpWatts: number
   ) => Promise<DispatchResult>
   seekToElapsedSeconds: (elapsedSeconds: number) => Promise<DispatchResult>
-  setDifficultyPercent: (
-    difficultyPercent: number
-  ) => Promise<DispatchResult>
+  setDifficultyPercent: (difficultyPercent: number) => Promise<DispatchResult>
   resetDifficultyPercent: () => Promise<DispatchResult>
   clearWorkout: () => void
   getState: () => WorkoutSessionState
@@ -155,7 +153,8 @@ export function createWorkoutController({
     try {
       const result = await session.controls.dispatch(
         { type: "setMode", mode: "free" },
-        "workout"
+        "workout",
+        { delivery: "acknowledged", priority: "immediate", timeoutMs: 3000 }
       )
       if (generation !== asyncStateGeneration || disposed) return
       if (!result.ok) {
@@ -242,6 +241,12 @@ export function createWorkoutController({
           {
             priority:
               isFirstDispatch || segmentChanged ? "immediate" : "normal",
+            delivery:
+              (isFirstDispatch || segmentChanged) &&
+              sessionState.telemetry.telemetryStatus === "fresh"
+                ? "acknowledged"
+                : "enqueued",
+            timeoutMs: 3000,
           }
         )
         .then((result) => {
@@ -282,7 +287,7 @@ export function createWorkoutController({
       const result = await session.controls.dispatch(
         { type: "setTargetPower", watts: targetWatts },
         "workout",
-        { priority: "immediate" }
+        { priority: "immediate", delivery: "acknowledged", timeoutMs: 3000 }
       )
       if (generation !== asyncStateGeneration || disposed) return result
       if (result.ok) {
@@ -406,9 +411,8 @@ export function createWorkoutController({
       const modeResult = await session.controls.dispatch(
         { type: "setMode", mode: "erg" },
         "workout",
-        { priority: "immediate" }
+        { priority: "immediate", delivery: "acknowledged", timeoutMs: 3000 }
       )
-      console.info("[ride-workouts] setMode erg result", modeResult)
       if (!modeResult.ok) {
         failState(modeResult.reason)
         return modeResult
@@ -422,12 +426,8 @@ export function createWorkoutController({
       const targetResult = await session.controls.dispatch(
         { type: "setTargetPower", watts: firstTargetWatts },
         "workout",
-        { priority: "immediate" }
+        { priority: "immediate", delivery: "acknowledged", timeoutMs: 3000 }
       )
-      console.info("[ride-workouts] initial target result", {
-        targetWatts: firstTargetWatts,
-        result: targetResult,
-      })
       if (!targetResult.ok) {
         failState(targetResult.reason)
         freeModeSent = false

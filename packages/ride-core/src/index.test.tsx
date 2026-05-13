@@ -295,7 +295,7 @@ describe("ride-core", () => {
     })
 
     const staleState = session.getState()
-    expect(staleState.telemetry.telemetryStatus).toBe("stale")
+    expect(staleState.telemetry.telemetryStatus).toBe("missing")
     expect(staleState.telemetry.elapsedSeconds).toBe(staleElapsed)
     expect(staleState.telemetry.distanceMeters).toBe(staleDistance)
 
@@ -304,7 +304,7 @@ describe("ride-core", () => {
       await Promise.resolve()
     })
 
-    expect(session.getState().telemetry.telemetryStatus).toBe("stale")
+    expect(session.getState().telemetry.telemetryStatus).toBe("missing")
 
     await act(async () => {
       nowMs = 3300
@@ -396,6 +396,87 @@ describe("ride-core", () => {
       await vi.advanceTimersByTimeAsync(50)
     })
     expect(sendCommand).toHaveBeenCalledTimes(2)
+  })
+
+  it("acknowledged dispatch resolves after send succeeds", async () => {
+    const trainer = new TestTrainer()
+    const sendCommand = vi.spyOn(trainer, "sendCommand")
+    const session = createTestSession()
+    await session.connectTrainer(trainer)
+
+    const dispatch = session.controls.dispatch(
+      { type: "setTargetPower", watts: 225 },
+      "user",
+      { priority: "immediate", delivery: "acknowledged" }
+    )
+
+    expect(sendCommand).not.toHaveBeenCalled()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+
+    await expect(dispatch).resolves.toEqual({ ok: true })
+    expect(sendCommand).toHaveBeenCalledWith({
+      type: "setTargetPower",
+      watts: 225,
+    })
+  })
+
+  it("acknowledged dispatch rejects on max retry", async () => {
+    const trainer = new TestTrainer()
+    vi.spyOn(trainer, "sendCommand").mockRejectedValue(new Error("nope"))
+    const session = createTestSession()
+    await session.connectTrainer(trainer)
+
+    const dispatch = session.controls.dispatch(
+      { type: "setTargetPower", watts: 225 },
+      "user",
+      { priority: "immediate", delivery: "acknowledged" }
+    )
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6000)
+    })
+
+    await expect(dispatch).resolves.toEqual({ ok: false, reason: "nope" })
+  })
+
+  it("settles acknowledged dispatch on disconnect", async () => {
+    const trainer = new TestTrainer()
+    const session = createTestSession()
+    await session.connectTrainer(trainer)
+
+    const dispatch = session.controls.dispatch(
+      { type: "setTargetPower", watts: 225 },
+      "user",
+      { priority: "immediate", delivery: "acknowledged" }
+    )
+    await session.disconnectTrainer()
+
+    await expect(dispatch).resolves.toEqual({
+      ok: false,
+      reason: "trainer-disconnected",
+    })
+  })
+
+  it("does not report active mode before acknowledged mode send", async () => {
+    const trainer = new TestTrainer()
+    const session = createTestSession()
+    await session.connectTrainer(trainer)
+
+    const dispatch = session.controls.dispatch(
+      { type: "setMode", mode: "erg" },
+      "workout",
+      { priority: "immediate", delivery: "acknowledged" }
+    )
+
+    expect(session.getState().activeControlMode).toBe("manual")
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+    await dispatch
+
+    expect(session.getState().activeControlMode).toBe("workout")
   })
 
   it("sends immediate commands before normal queued commands", async () => {

@@ -29,4 +29,12 @@ describe("decodeFtmsIndoorBikeData", () => {
       heartRateBpm: null,
     })
   })
+
+  it("throws a validation error for truncated packets", () => {
+    const bytes = new Uint8Array([0x44, 0x02, 0x6a])
+
+    expect(() => decodeFtmsIndoorBikeData(new DataView(bytes.buffer))).toThrow(
+      "Malformed FTMS indoor bike data"
+    )
+  })
 })

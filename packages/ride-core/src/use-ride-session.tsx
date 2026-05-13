@@ -13,8 +13,9 @@ import type {
   RideSessionState,
 } from "./types"
 
-export const RideSessionContext =
-  createContext<RideSessionController | null>(null)
+export const RideSessionContext = createContext<RideSessionController | null>(
+  null
+)
 
 export function useRideSessionContext(): RideSessionController {
   const session = useContext(RideSessionContext)
@@ -107,7 +108,14 @@ export function useRideR3FFrame(
 // Shared heartbeat subjects per session and Hz
 const heartbeatCache = new WeakMap<
   RideSessionController,
-  Map<number, { count: number; listeners: Set<() => void>; timer: ReturnType<typeof setInterval> | null }>
+  Map<
+    number,
+    {
+      count: number
+      listeners: Set<() => void>
+      timer: ReturnType<typeof setInterval> | null
+    }
+  >
 >()
 
 /**
@@ -162,6 +170,51 @@ export function useRideHeartbeat(
     const entry = sessionMap?.get(hz)
     return entry?.count ?? 0
   }, [session, hz])
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
+}
+
+export function useRideThrottledSelector<T>(
+  session: RideSessionController,
+  selector: (state: RideSessionState) => T,
+  options: {
+    hz: number
+    equals?: (a: T, b: T) => boolean
+  }
+): T {
+  const selectorRef = useRef(selector)
+  const equalsRef = useRef(options.equals ?? Object.is)
+  const valueRef = useRef<T>(selector(session.getState()))
+  selectorRef.current = selector
+  equalsRef.current = options.equals ?? Object.is
+
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      const intervalMs = 1000 / options.hz
+      let dirty = true
+      const update = () => {
+        if (!dirty) return
+        dirty = false
+        const nextValue = selectorRef.current(session.getState())
+        if (!equalsRef.current(valueRef.current, nextValue)) {
+          valueRef.current = nextValue
+          onStoreChange()
+        }
+      }
+      const unsubscribe = session.subscribe(() => {
+        dirty = true
+      })
+      const timer = setInterval(update, intervalMs)
+      update()
+      return () => {
+        unsubscribe()
+        clearInterval(timer)
+      }
+    },
+    [session, options.hz]
+  )
+
+  const getSnapshot = useCallback(() => valueRef.current, [])
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 }

@@ -1,5 +1,5 @@
 import { Activity, ArrowLeft, Bluetooth } from "lucide-react"
-import type { RideTrainerConnectionChoice } from "@/ride/use-ride-trainer"
+import type { RideTrainerConnectionChoice } from "@/ride/use-ride-runtime"
 import type React from "react"
 import type { RideConnectionGateProps } from "./types"
 import { Badge } from "@/components/ui/badge"

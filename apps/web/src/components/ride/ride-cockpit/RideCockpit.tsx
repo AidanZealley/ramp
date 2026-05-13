@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { Pause, Play } from "lucide-react"
 import { motion } from "motion/react"
-import { useRideSession, useRideSessionContext } from "@ramp/ride-core"
+import { useRideSelector, useRideSessionContext } from "@ramp/ride-core"
 import { CockpitMetric } from "./components/cockpit-metric"
 import { CockpitModeSelect } from "./components/cockpit-mode-select"
 import { CockpitRangeControl } from "./components/cockpit-range-control"
@@ -13,12 +13,12 @@ import type {
   SimulatedTrainerMode,
   SimulatedTrainerState,
 } from "@ramp/trainer-io"
-import type { RideTrainerController } from "@/ride/use-ride-trainer"
+import type { RideRuntime } from "@/ride/use-ride-runtime"
 import { Button } from "@/components/ui/button"
 import { formatDuration } from "@/lib/workout-utils"
 
 type RideCockpitProps = {
-  trainerController: RideTrainerController
+  trainerController: RideRuntime
   riderState: SimulatedRiderState | null
   rootRef?: Ref<HTMLDivElement>
 }
@@ -41,13 +41,31 @@ const trainerModeOptions: Array<{
   { label: "Resistance", value: "resistance" },
 ]
 
+function shallowEqual<T extends Record<string, unknown>>(left: T, right: T) {
+  const leftKeys = Object.keys(left)
+  if (leftKeys.length !== Object.keys(right).length) return false
+  return leftKeys.every((key) => Object.is(left[key], right[key]))
+}
+
 export function RideCockpit({
   trainerController,
   riderState,
   rootRef,
 }: RideCockpitProps) {
   const session = useRideSessionContext()
-  const { telemetry } = useRideSession(session)
+  const telemetry = useRideSelector(
+    session,
+    (state) => ({
+      powerWatts: Math.round(state.telemetry.powerWatts ?? 0),
+      cadenceRpm: Math.round(state.telemetry.cadenceRpm ?? 0),
+      speedKph: ((state.telemetry.speedMps ?? 0) * 3.6).toFixed(1),
+      elapsedSeconds: Math.floor(state.telemetry.elapsedSeconds),
+      distanceKm: (state.telemetry.distanceMeters / 1000).toFixed(2),
+      trainerStatus: state.telemetry.trainerStatus,
+      telemetrySource: state.telemetry.telemetrySource,
+    }),
+    shallowEqual
+  )
   const simulatedRider = trainerController.simulatedRider
   const simulatedTrainer = trainerController.simulatedTrainer
   const [trainerState, setTrainerState] =
@@ -85,25 +103,19 @@ export function RideCockpit({
     >
       <div className="mx-auto grid w-full max-w-7xl gap-3 rounded-4xl border bg-background/50 p-6 backdrop-blur-xl">
         <div className="grid grid-cols-3 gap-x-4 gap-y-3 sm:grid-cols-6">
-          <CockpitMetric
-            label="Power"
-            value={`${Math.round(telemetry.powerWatts ?? 0)} W`}
-          />
+          <CockpitMetric label="Power" value={`${telemetry.powerWatts} W`} />
           <CockpitMetric
             label="Cadence"
-            value={`${Math.round(telemetry.cadenceRpm ?? 0)} rpm`}
+            value={`${telemetry.cadenceRpm} rpm`}
           />
-          <CockpitMetric
-            label="Speed"
-            value={`${((telemetry.speedMps ?? 0) * 3.6).toFixed(1)} km/h`}
-          />
+          <CockpitMetric label="Speed" value={`${telemetry.speedKph} km/h`} />
           <CockpitMetric
             label="Time"
             value={formatDuration(telemetry.elapsedSeconds)}
           />
           <CockpitMetric
             label="Distance"
-            value={`${(telemetry.distanceMeters / 1000).toFixed(2)} km`}
+            value={`${telemetry.distanceKm} km`}
           />
           <CockpitMetric label="Status" value={`${status} · ${source}`} />
         </div>

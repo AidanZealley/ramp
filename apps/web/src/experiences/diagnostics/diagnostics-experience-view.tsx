@@ -1,4 +1,4 @@
-import { useRideSelector } from "@ramp/ride-core"
+import { useRideSelector, useRideThrottledSelector } from "@ramp/ride-core"
 import { CapabilitiesModule } from "./components/capabilities-module"
 import { CommandsModule } from "./components/commands-module"
 import { StatusModule } from "./components/status-module"
@@ -15,7 +15,18 @@ export function DiagnosticsExperienceView({
 }: {
   session: RideSessionController
 }) {
-  const telemetry = useRideSelector(session, (s) => s.telemetry)
+  const telemetry = useRideThrottledSelector(
+    session,
+    (s) => ({
+      powerWatts: s.telemetry.powerWatts,
+      speedMps: s.telemetry.speedMps,
+      cadenceRpm: s.telemetry.cadenceRpm,
+      heartRateBpm: s.telemetry.heartRateBpm,
+      telemetrySource: s.telemetry.telemetrySource,
+      telemetryStatus: s.telemetry.telemetryStatus,
+    }),
+    { hz: 4, equals: shallowEqual }
+  )
   const trainerConnected = useRideSelector(session, (s) => s.trainerConnected)
   const showStaleBadge =
     telemetry.telemetryStatus === "stale" && trainerConnected
@@ -35,7 +46,7 @@ export function DiagnosticsExperienceView({
                 </span>
               )}
             </div>
-            <h2 className="font-heading mt-1 truncate text-lg font-semibold tracking-tight sm:text-xl">
+            <h2 className="mt-1 truncate font-heading text-lg font-semibold tracking-tight sm:text-xl">
               Trainer telemetry
             </h2>
           </div>
@@ -68,4 +79,10 @@ export function DiagnosticsExperienceView({
       </div>
     </div>
   )
+}
+
+function shallowEqual<T extends Record<string, unknown>>(left: T, right: T) {
+  const leftKeys = Object.keys(left)
+  if (leftKeys.length !== Object.keys(right).length) return false
+  return leftKeys.every((key) => Object.is(left[key], right[key]))
 }

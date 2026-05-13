@@ -16,6 +16,14 @@ type Pending = {
   priority: NonNullable<DispatchOptions["priority"]>
   attempts: number
   nextAttemptAt: number
+  completion: CommandCompletion | null
+}
+
+type CommandCompletion = {
+  promise: Promise<void>
+  resolve: () => void
+  reject: (error: Error) => void
+  settled: boolean
 }
 
 export type ArbiterError = {
@@ -48,16 +56,21 @@ export class CommandArbiter {
     command: TrainerCommand,
     source: TrainerCommandSource,
     options: DispatchOptions = {}
-  ): void {
+  ):
+    | { accepted: true; acknowledged: Promise<void> | null }
+    | { accepted: false; reason: string } {
     const key = this.keyFor(command)
     const current = this.pending.get(key)
     if (
       current &&
       this.policy.precedence[current.source] > this.policy.precedence[source]
     ) {
-      return
+      return { accepted: false, reason: "command-superseded" }
     }
     const now = this.now()
+    this.settlePending(current, "command-superseded")
+    const completion =
+      options.delivery === "acknowledged" ? createCompletion() : null
     this.pending.set(key, {
       command,
       source,
@@ -65,10 +78,19 @@ export class CommandArbiter {
       priority: options.priority ?? "normal",
       attempts: 0,
       nextAttemptAt: now,
+      completion,
     })
+    return { accepted: true, acknowledged: completion?.promise ?? null }
   }
 
-  clear(options: { clearLastSent?: boolean } = {}): void {
+  clear(options: { clearLastSent?: boolean; reason?: string } = {}): void {
+    const reason = options.reason ?? "commands-cleared"
+    for (const pending of this.pending.values()) {
+      this.settlePending(pending, reason)
+    }
+    if (this.inFlight) {
+      this.settlePending(this.inFlight.pending, reason)
+    }
     this.pending.clear()
     this.inFlight = null
     if (options.clearLastSent ?? false) {
@@ -78,7 +100,9 @@ export class CommandArbiter {
 
   async flush(
     trainer: RideTrainerAdapter | null
-  ): Promise<{ sent: true; key: CommandKey } | { sent: false }> {
+  ): Promise<
+    { sent: true; key: CommandKey; command: TrainerCommand } | { sent: false }
+  > {
     if (!trainer || this.inFlight) return { sent: false }
     const now = this.now()
     const nextEntry = this.nextSendableEntry(now)
@@ -91,8 +115,9 @@ export class CommandArbiter {
       if (this.pending.get(key) === pending) {
         this.pending.delete(key)
       }
+      this.resolvePending(pending)
       this.lastSentAt.set(key, now)
-      return { sent: true, key }
+      return { sent: true, key, command: pending.command }
     } catch (error: unknown) {
       // Handle retry with backoff
       const currentPending = this.pending.get(key)
@@ -102,7 +127,10 @@ export class CommandArbiter {
           // Max retries reached, drop and emit error
           this.pending.delete(key)
           const reason =
-            error instanceof Error ? error.message : "command-rejected:max-retries"
+            error instanceof Error
+              ? error.message
+              : "command-rejected:max-retries"
+          this.rejectPending(pending, reason)
           this.errors.emit({ key, command: pending.command, reason })
         } else {
           // Schedule retry with backoff
@@ -168,6 +196,35 @@ export class CommandArbiter {
     if (command.type === "setMode") return "mode"
     return commandCapability(command) ?? "mode"
   }
+
+  private settlePending(pending: Pending | undefined, reason: string): void {
+    if (!pending) return
+    this.rejectPending(pending, reason)
+  }
+
+  private resolvePending(pending: Pending): void {
+    const completion = pending.completion
+    if (!completion || completion.settled) return
+    completion.settled = true
+    completion.resolve()
+  }
+
+  private rejectPending(pending: Pending, reason: string): void {
+    const completion = pending.completion
+    if (!completion || completion.settled) return
+    completion.settled = true
+    completion.reject(new Error(reason))
+  }
+}
+
+function createCompletion(): CommandCompletion {
+  let resolve!: () => void
+  let reject!: (error: Error) => void
+  const promise = new Promise<void>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve
+    reject = promiseReject
+  })
+  return { promise, resolve, reject, settled: false }
 }
 
 function isCapabilityKey(key: CommandKey): key is Capability {

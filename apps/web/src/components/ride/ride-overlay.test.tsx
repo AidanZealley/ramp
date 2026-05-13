@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import { SimulatedTrainer } from "@ramp/trainer-io"
 import { RideOverlay } from "./ride-overlay"
-import type { RideTrainerController } from "@/ride/use-ride-trainer"
+import type { RideRuntime } from "@/ride/use-ride-runtime"
 
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => vi.fn(),
@@ -10,6 +10,31 @@ vi.mock("@tanstack/react-router", () => ({
 
 vi.mock("@ramp/ride-core", () => ({
   useRideSessionContext: () => ({}),
+  useRideSelector: (
+    _session: unknown,
+    selector: (state: {
+      telemetry: {
+        powerWatts: number
+        cadenceRpm: number
+        speedMps: number
+        elapsedSeconds: number
+        distanceMeters: number
+        telemetrySource: string
+        trainerStatus: string
+      }
+    }) => unknown
+  ) =>
+    selector({
+      telemetry: {
+        powerWatts: 180,
+        cadenceRpm: 88,
+        speedMps: 9.1,
+        elapsedSeconds: 315,
+        distanceMeters: 2400,
+        telemetrySource: "simulated",
+        trainerStatus: "ready",
+      },
+    }),
   useRideSession: () => ({
     telemetry: {
       powerWatts: 180,
@@ -23,11 +48,16 @@ vi.mock("@ramp/ride-core", () => ({
   }),
 }))
 
-function createController(
-  patch: Partial<RideTrainerController> = {}
-): RideTrainerController {
+function createController(patch: Partial<RideRuntime> = {}): RideRuntime {
   const simulatedTrainer = new SimulatedTrainer()
   return {
+    session: {} as RideRuntime["session"],
+    connection: {
+      status: "disconnected",
+      reconnect: vi.fn(() => Promise.resolve({ ok: true as const })),
+      disconnect: vi.fn(() => Promise.resolve()),
+      error: null,
+    },
     trainer: null,
     source: "none",
     selectedSource: "simulated",

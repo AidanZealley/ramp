@@ -13,7 +13,10 @@ import { createWorkoutController } from "@ramp/ride-workouts"
 import { LiveWorkoutDashboard } from "./components/live-workout-dashboard"
 import { WorkoutDetailPanel } from "./components/workout-detail-panel"
 import { WorkoutPickerPanel } from "./components/workout-picker-panel"
-import type { RideSessionController } from "@ramp/ride-core"
+import type {
+  RideExperienceConnection,
+  RideSessionController,
+} from "@ramp/ride-core"
 import type { Id } from "#convex/_generated/dataModel"
 import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
 import { api } from "#convex/_generated/api"
@@ -64,9 +67,11 @@ function getTrainerErrorCopy(code: string | undefined): string | null {
 }
 
 export function LiveWorkoutExperienceView({
+  connection,
   search,
   session,
 }: {
+  connection?: RideExperienceConnection
   search?: {
     workoutId?: string
   }
@@ -99,7 +104,7 @@ export function LiveWorkoutExperienceView({
     mounted.current = true
     return () => {
       mounted.current = false
-      workoutController.clearWorkout()
+      workoutController.dispose()
     }
   }, [workoutController])
 
@@ -159,27 +164,14 @@ export function LiveWorkoutExperienceView({
 
   const handleStart = useCallback(async () => {
     if (!selectedWorkout || !trainerConnected || !selectedWorkoutHasDuration) {
-      console.info("[live-workout] start ignored", {
-        hasWorkout: Boolean(selectedWorkout),
-        trainerConnected,
-        selectedWorkoutHasDuration,
-      })
       return
     }
 
     setIsStarting(true)
-    console.info("[live-workout] start requested", {
-      workoutId: selectedWorkout._id,
-      title: selectedWorkout.title,
-      trainerConnected,
-      supportsTargetPower,
-      capabilities: Array.from(session.controls.getCapabilities()),
-    })
 
     try {
       const definition = toWorkoutDefinition(selectedWorkout)
       const result = await workoutController.loadWorkout(definition, ftp)
-      console.info("[live-workout] loadWorkout result", result)
       if (!mounted.current) return
       if (!result.ok) {
         setStartError(getWorkoutErrorCopy(result.reason))
@@ -208,7 +200,6 @@ export function LiveWorkoutExperienceView({
     selectedWorkout,
     selectedWorkoutHasDuration,
     session,
-    supportsTargetPower,
     trainerConnected,
     workoutController,
   ])
@@ -256,6 +247,7 @@ export function LiveWorkoutExperienceView({
       {activeWorkout ? (
         <LiveWorkoutDashboard
           onEnd={handleEnd}
+          onReconnect={connection?.reconnect}
           onPause={session.pause}
           onResume={session.resume}
           onSeek={handleSeek}

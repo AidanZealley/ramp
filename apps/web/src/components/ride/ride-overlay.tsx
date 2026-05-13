@@ -4,7 +4,7 @@ import { ArrowLeft, Settings } from "lucide-react"
 import { AnimatePresence } from "motion/react"
 import { RideCockpit } from "./ride-cockpit"
 import type { SimulatedRiderState } from "@ramp/trainer-io"
-import type { RideTrainerController } from "@/ride/use-ride-trainer"
+import type { RideRuntime } from "@/ride/use-ride-runtime"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useElementSize } from "@/hooks/use-element-size"
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/alert-dialog"
 
 type RideOverlayProps = {
-  trainerController: RideTrainerController
+  trainerController: RideRuntime
   isCockpitOpen?: boolean
   onCockpitHeightChange?: (height: number) => void
   onCockpitOpenChange?: (open: boolean) => void

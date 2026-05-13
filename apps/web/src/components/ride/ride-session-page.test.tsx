@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { RideSessionPage } from "./ride-session-page"
 import type { Capability } from "@ramp/trainer-io"
 import type { RideExperienceDefinition } from "@/experiences/types"
-import type { RideTrainerController } from "@/ride/use-ride-trainer"
+import type { RideRuntime } from "@/ride/use-ride-runtime"
 import type * as ReactModule from "react"
 
 const { trainer } = vi.hoisted(() => ({
@@ -22,10 +22,10 @@ const { trainer } = vi.hoisted(() => ({
 
 const experienceViewProps = vi.hoisted(() => vi.fn())
 
-vi.mock("@/ride/use-ride-trainer", async () => {
+vi.mock("@/ride/use-ride-runtime", async () => {
   const React = await vi.importActual<typeof ReactModule>("react")
   return {
-    useRideTrainer: () => {
+    useRideRuntime: () => {
       const [activeTrainer, setActiveTrainer] = React.useState<
         typeof trainer | null
       >(null)
@@ -33,6 +33,13 @@ vi.mock("@/ride/use-ride-trainer", async () => {
         "none"
       )
       return {
+        session: {} as RideRuntime["session"],
+        connection: {
+          status: activeTrainer ? "ready" : "disconnected",
+          reconnect: vi.fn(() => Promise.resolve({ ok: true as const })),
+          disconnect: vi.fn(() => Promise.resolve()),
+          error: null,
+        },
         trainer: activeTrainer,
         source,
         selectedSource: "simulated",
@@ -56,7 +63,7 @@ vi.mock("@/ride/use-ride-trainer", async () => {
           setActiveTrainer(null)
           setSource("none")
         }),
-      } satisfies RideTrainerController
+      } satisfies RideRuntime
     },
   }
 })
@@ -67,7 +74,7 @@ vi.mock("./ride-overlay", () => ({
     trainerController,
   }: {
     onDisconnected?: () => void
-    trainerController: RideTrainerController
+    trainerController: RideRuntime
   }) => (
     <button
       type="button"

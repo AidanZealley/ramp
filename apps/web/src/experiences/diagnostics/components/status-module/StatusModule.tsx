@@ -1,4 +1,4 @@
-import { useRideHeartbeat, useRideSession } from "@ramp/ride-core"
+import { useRideThrottledSelector } from "@ramp/ride-core"
 import type React from "react"
 import type { RideSessionController } from "@ramp/ride-core"
 
@@ -7,8 +7,24 @@ type StatusModuleProps = {
 }
 
 export const StatusModule = ({ session }: StatusModuleProps) => {
-  useRideHeartbeat(session, 4)
-  const state = useRideSession(session)
+  const state = useRideThrottledSelector(
+    session,
+    (s) => ({
+      trainerConnected: s.trainerConnected,
+      activeControlMode: s.activeControlMode,
+      paused: s.paused,
+      lastError: s.lastError,
+      telemetry: {
+        trainerStatus: s.telemetry.trainerStatus,
+        telemetryStatus: s.telemetry.telemetryStatus,
+        telemetrySource: s.telemetry.telemetrySource,
+        elapsedSeconds: Math.floor(s.telemetry.elapsedSeconds),
+        distanceMeters: s.telemetry.distanceMeters,
+        telemetryAgeMs: s.telemetry.telemetryAgeMs,
+      },
+    }),
+    { hz: 4, equals: shallowEqualStatus }
+  )
   const { telemetry } = state
 
   return (
@@ -16,7 +32,10 @@ export const StatusModule = ({ session }: StatusModuleProps) => {
       <ModuleLabel>Status</ModuleLabel>
       <div className="mt-3 grid grid-cols-2 gap-x-5 gap-y-3">
         <StatusField label="Trainer status" value={telemetry.trainerStatus} />
-        <StatusField label="Telemetry status" value={telemetry.telemetryStatus} />
+        <StatusField
+          label="Telemetry status"
+          value={telemetry.telemetryStatus}
+        />
         <StatusField label="Source" value={telemetry.telemetrySource ?? "--"} />
         <StatusField
           label="Connected"
@@ -71,4 +90,28 @@ function formatSeconds(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = Math.floor(totalSeconds % 60)
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+}
+
+function shallowEqualStatus(
+  left: ReturnType<typeof selectComparableStatus>,
+  right: ReturnType<typeof selectComparableStatus>
+) {
+  return JSON.stringify(left) === JSON.stringify(right)
+}
+
+function selectComparableStatus(value: {
+  trainerConnected: boolean
+  activeControlMode: string
+  paused: boolean
+  lastError: string | null
+  telemetry: {
+    trainerStatus: string
+    telemetryStatus: string
+    telemetrySource: string | null
+    elapsedSeconds: number
+    distanceMeters: number
+    telemetryAgeMs: number | null
+  }
+}) {
+  return value
 }

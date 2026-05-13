@@ -52,6 +52,7 @@ type FtmsConnectionFactoryInput = {
   now: () => number
   requestTimeoutMs: number
   onTelemetry: (telemetry: TrainerTelemetryMessage) => void
+  onError: (error: TrainerError) => void
   onDisconnected: () => void
   onDeviceInfo: (deviceInfo: BleTrainerDeviceInfo) => void
 }
@@ -60,6 +61,7 @@ type FtmsConnection = {
   capabilities: TrainerCapabilities
   disconnect: () => Promise<void>
   release: () => Promise<void>
+  requestControl: () => Promise<void>
   sendCommand: (command: TrainerCommand) => Promise<void>
 }
 
@@ -125,6 +127,9 @@ export class FtmsBleTrainer implements TrainerSource {
             this._capabilities,
             telemetry
           )
+        },
+        onError: (error) => {
+          this.errorSubject.emit(error)
         },
         onDisconnected: () => {
           this.handleUnexpectedDisconnect()
@@ -204,13 +209,33 @@ export class FtmsBleTrainer implements TrainerSource {
     }
     if (command.type === "setMode") {
       const nextMode = command.mode
-      if (nextMode === "free" && this.connection) {
+      if (!this.connection) {
+        const error: TrainerError = {
+          code: "transport",
+          message: "Trainer is not connected.",
+        }
+        this.errorSubject.emit(error)
+        throw error
+      }
+      if (nextMode === "free") {
         try {
           await this.connection.release()
         } catch (error: unknown) {
           const trainerError = mapWebBluetoothError(error, "transport")
           this.errorSubject.emit(trainerError)
           console.error("[trainer-io][ftms] setMode free failed", trainerError)
+          throw trainerError
+        }
+      } else {
+        try {
+          await this.connection.requestControl()
+        } catch (error: unknown) {
+          const trainerError = mapWebBluetoothError(error, "transport")
+          this.errorSubject.emit(trainerError)
+          console.error(
+            "[trainer-io][ftms] setMode requestControl failed",
+            trainerError
+          )
           throw trainerError
         }
       }
@@ -363,13 +388,25 @@ async function createFtmsConnectionFromDevice(
 
     await indoorBikeData.startNotifications()
     const unsubscribeTelemetry = indoorBikeData.subscribe((value) => {
-      const parsed = decodeFtmsIndoorBikeData(value)
-      console.debug("[trainer-io][ftms] telemetry", parsed)
-      input.onTelemetry({
-        ...parsed,
-        timestampMs: input.now(),
-        source: "ftms-ble",
-      })
+      try {
+        const parsed = decodeFtmsIndoorBikeData(value)
+        console.debug("[trainer-io][ftms] telemetry", parsed)
+        input.onTelemetry({
+          ...parsed,
+          timestampMs: input.now(),
+          source: "ftms-ble",
+        })
+      } catch (error: unknown) {
+        const trainerError: TrainerError = {
+          code: "transport",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Malformed FTMS indoor bike data.",
+          cause: error,
+        }
+        input.onError(trainerError)
+      }
     })
 
     const controlPoint = new FtmsControlPointClient(
@@ -387,6 +424,9 @@ async function createFtmsConnectionFromDevice(
       capabilities,
       async release() {
         await releaseTrainerControl(controlPoint, capabilities)
+      },
+      async requestControl() {
+        await controlPoint.requestControl()
       },
       async disconnect() {
         isIntentionalDisconnect = true
@@ -464,7 +504,7 @@ function errorMatchesCode(error: unknown, code: TrainerError["code"]): boolean {
     typeof error === "object" &&
     error !== null &&
     "code" in error &&
-    (error).code === code
+    error.code === code
   )
 }
 

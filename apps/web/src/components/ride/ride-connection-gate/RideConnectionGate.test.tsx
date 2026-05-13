@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest"
 import { SimulatedTrainer } from "@ramp/trainer-io"
 import { RideConnectionGate } from "./RideConnectionGate"
 import type { RideExperienceDefinition } from "@/experiences/types"
-import type { RideTrainerController } from "@/ride/use-ride-trainer"
+import type { RideRuntime } from "@/ride/use-ride-runtime"
 
 const experience: RideExperienceDefinition = {
   id: "test",
@@ -23,11 +23,16 @@ const experience: RideExperienceDefinition = {
   loadPlugin: vi.fn(),
 }
 
-function createController(
-  patch: Partial<RideTrainerController> = {}
-): RideTrainerController {
+function createController(patch: Partial<RideRuntime> = {}): RideRuntime {
   const simulatedTrainer = new SimulatedTrainer()
   return {
+    session: {} as RideRuntime["session"],
+    connection: {
+      status: "disconnected",
+      reconnect: vi.fn(() => Promise.resolve({ ok: true as const })),
+      disconnect: vi.fn(() => Promise.resolve()),
+      error: null,
+    },
     trainer: null,
     source: "none",
     selectedSource: "simulated",
@@ -95,15 +100,15 @@ describe("RideConnectionGate", () => {
       />
     )
 
-    expect(screen.getAllByText(
-      "Web Bluetooth requires a Chromium-class browser."
-    ).length).toBeGreaterThan(0)
+    expect(
+      screen.getAllByText("Web Bluetooth requires a Chromium-class browser.")
+        .length
+    ).toBeGreaterThan(0)
     expect(
       (screen.getByText("Connect trainer") as HTMLButtonElement).disabled
     ).toBe(true)
     expect(
-      (screen.getByLabelText("Bluetooth trainer") as HTMLButtonElement)
-        .disabled
+      (screen.getByLabelText("Bluetooth trainer") as HTMLButtonElement).disabled
     ).toBe(true)
   })
 

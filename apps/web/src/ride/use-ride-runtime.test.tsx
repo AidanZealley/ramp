@@ -1,4 +1,5 @@
-import { act, renderHook } from "@testing-library/react"
+import { act, renderHook, waitFor } from "@testing-library/react"
+import { StrictMode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { SimulatedTrainer } from "@ramp/trainer-io"
 import type * as RampTrainerIo from "@ramp/trainer-io"
@@ -15,7 +16,7 @@ vi.mock("@ramp/trainer-io", async () => {
   }
 })
 
-describe("useRideTrainer", () => {
+describe("useRideRuntime", () => {
   beforeEach(() => {
     vi.resetModules()
     vi.unstubAllEnvs()
@@ -26,8 +27,8 @@ describe("useRideTrainer", () => {
 
   it("defaults to simulator selection without selecting a trainer in dev mode", async () => {
     vi.stubEnv("VITE_RIDE_DEV_SIMULATION", "true")
-    const { useRideTrainer } = await import("./use-ride-trainer")
-    const { result } = renderHook(() => useRideTrainer())
+    const { useRideRuntime } = await import("./use-ride-runtime")
+    const { result } = renderHook(() => useRideRuntime())
 
     expect(result.current.source).toBe("none")
     expect(result.current.selectedSource).toBe("simulated")
@@ -39,8 +40,8 @@ describe("useRideTrainer", () => {
 
   it("connects the selected simulator in dev mode", async () => {
     vi.stubEnv("VITE_RIDE_DEV_SIMULATION", "true")
-    const { useRideTrainer } = await import("./use-ride-trainer")
-    const { result } = renderHook(() => useRideTrainer())
+    const { useRideRuntime } = await import("./use-ride-runtime")
+    const { result } = renderHook(() => useRideRuntime())
 
     await act(async () => {
       await expect(result.current.connectSelectedTrainer()).resolves.toBe(true)
@@ -50,19 +51,37 @@ describe("useRideTrainer", () => {
     expect(result.current.trainer).toBeInstanceOf(SimulatedTrainer)
   })
 
+  it("keeps the session usable after StrictMode effect replay", async () => {
+    vi.stubEnv("VITE_RIDE_DEV_SIMULATION", "true")
+    const { useRideRuntime } = await import("./use-ride-runtime")
+    const { result } = renderHook(() => useRideRuntime(), {
+      wrapper: ({ children }) => <StrictMode>{children}</StrictMode>,
+    })
+
+    await act(async () => {
+      await expect(result.current.connectSelectedTrainer()).resolves.toBe(true)
+    })
+
+    expect(result.current.source).toBe("simulated")
+    expect(result.current.connectionError).toBeNull()
+  })
+
   it("defaults to no trainer and BLE selection when the dev flag is disabled", async () => {
     vi.stubEnv("VITE_RIDE_DEV_SIMULATION", "false")
-    const { useRideTrainer } = await import("./use-ride-trainer")
-    const { result } = renderHook(() => useRideTrainer())
+    const { useRideRuntime } = await import("./use-ride-runtime")
+    const { result } = renderHook(() => useRideRuntime())
 
     expect(result.current.source).toBe("none")
-    expect(result.current.selectedSource).toBe("ble")
     expect(result.current.trainer).toBeNull()
+    await waitFor(() => {
+      expect(result.current.bleAvailable).toBe(true)
+      expect(result.current.selectedSource).toBe("ble")
+    })
   })
 
   it("only switches to BLE after an explicit user action", async () => {
     vi.stubEnv("VITE_RIDE_DEV_SIMULATION", "true")
-    const { useRideTrainer } = await import("./use-ride-trainer")
+    const { useRideRuntime } = await import("./use-ride-runtime")
     const bleTrainer = {
       kind: "ftms-ble",
       capabilities: new Set(),
@@ -76,9 +95,12 @@ describe("useRideTrainer", () => {
     }
     requestBleTrainer.mockResolvedValue(bleTrainer)
 
-    const { result } = renderHook(() => useRideTrainer())
+    const { result } = renderHook(() => useRideRuntime())
 
     expect(requestBleTrainer).not.toHaveBeenCalled()
+    await waitFor(() => {
+      expect(result.current.bleAvailable).toBe(true)
+    })
 
     act(() => {
       result.current.selectSource("ble")
@@ -95,9 +117,12 @@ describe("useRideTrainer", () => {
   it("keeps no trainer selected when BLE is unavailable and the flag is disabled", async () => {
     vi.stubEnv("VITE_RIDE_DEV_SIMULATION", "false")
     isWebBluetoothAvailable.mockReturnValue(false)
-    const { useRideTrainer } = await import("./use-ride-trainer")
-    const { result } = renderHook(() => useRideTrainer())
+    const { useRideRuntime } = await import("./use-ride-runtime")
+    const { result } = renderHook(() => useRideRuntime())
 
+    await waitFor(() => {
+      expect(result.current.bleAvailable).toBe(false)
+    })
     await act(async () => {
       await result.current.connectBleTrainer()
     })
@@ -112,9 +137,9 @@ describe("useRideTrainer", () => {
 
   it("keeps no active source when BLE selection is cancelled before connection", async () => {
     vi.stubEnv("VITE_RIDE_DEV_SIMULATION", "true")
-    const { useRideTrainer } = await import("./use-ride-trainer")
+    const { useRideRuntime } = await import("./use-ride-runtime")
     requestBleTrainer.mockRejectedValue(new Error("cancelled"))
-    const { result } = renderHook(() => useRideTrainer())
+    const { result } = renderHook(() => useRideRuntime())
 
     act(() => {
       result.current.selectSource("ble")
@@ -132,9 +157,9 @@ describe("useRideTrainer", () => {
 
   it("keeps a prior source when BLE selection is cancelled", async () => {
     vi.stubEnv("VITE_RIDE_DEV_SIMULATION", "true")
-    const { useRideTrainer } = await import("./use-ride-trainer")
+    const { useRideRuntime } = await import("./use-ride-runtime")
     requestBleTrainer.mockRejectedValue(new Error("cancelled"))
-    const { result } = renderHook(() => useRideTrainer())
+    const { result } = renderHook(() => useRideRuntime())
 
     await act(async () => {
       await result.current.useSimulatedTrainer()
@@ -149,7 +174,7 @@ describe("useRideTrainer", () => {
 
   it("switches back to the simulator after disconnecting the active BLE trainer", async () => {
     vi.stubEnv("VITE_RIDE_DEV_SIMULATION", "true")
-    const { useRideTrainer } = await import("./use-ride-trainer")
+    const { useRideRuntime } = await import("./use-ride-runtime")
     const bleTrainer = {
       kind: "ftms-ble",
       capabilities: new Set(),
@@ -162,7 +187,7 @@ describe("useRideTrainer", () => {
       subscribeError: vi.fn(() => () => undefined),
     }
     requestBleTrainer.mockResolvedValue(bleTrainer)
-    const { result } = renderHook(() => useRideTrainer())
+    const { result } = renderHook(() => useRideRuntime())
 
     await act(async () => {
       await result.current.connectBleTrainer()
@@ -178,8 +203,8 @@ describe("useRideTrainer", () => {
 
   it("disconnect leaves the source as none", async () => {
     vi.stubEnv("VITE_RIDE_DEV_SIMULATION", "true")
-    const { useRideTrainer } = await import("./use-ride-trainer")
-    const { result } = renderHook(() => useRideTrainer())
+    const { useRideRuntime } = await import("./use-ride-runtime")
+    const { result } = renderHook(() => useRideRuntime())
 
     await act(async () => {
       await result.current.useSimulatedTrainer()
@@ -195,7 +220,7 @@ describe("useRideTrainer", () => {
 
   it("coalesces rapid repeated BLE connect requests", async () => {
     vi.stubEnv("VITE_RIDE_DEV_SIMULATION", "true")
-    const { useRideTrainer } = await import("./use-ride-trainer")
+    const { useRideRuntime } = await import("./use-ride-runtime")
     let resolveTrainer:
       | ((trainer: {
           kind: "ftms-ble"
@@ -215,7 +240,7 @@ describe("useRideTrainer", () => {
           resolveTrainer = resolve
         })
     )
-    const { result } = renderHook(() => useRideTrainer())
+    const { result } = renderHook(() => useRideRuntime())
 
     let first: Promise<boolean>
     let second: Promise<boolean>

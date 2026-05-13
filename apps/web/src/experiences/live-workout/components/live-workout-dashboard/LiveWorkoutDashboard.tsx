@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import Confetti from "react-confetti"
-import { useRideHeartbeat, useRideSelector } from "@ramp/ride-core"
+import { useRideThrottledSelector, useRideSelector } from "@ramp/ride-core"
 import {
   MAX_DIFFICULTY_PERCENT,
   MIN_DIFFICULTY_PERCENT,
@@ -78,6 +78,12 @@ function useViewportSize() {
   return viewportSize
 }
 
+function shallowEqual<T extends Record<string, unknown>>(left: T, right: T) {
+  const leftKeys = Object.keys(left)
+  if (leftKeys.length !== Object.keys(right).length) return false
+  return leftKeys.every((key) => Object.is(left[key], right[key]))
+}
+
 export function LiveWorkoutDashboard({
   onEnd,
   onReconnect,
@@ -95,15 +101,24 @@ export function LiveWorkoutDashboard({
     session,
     (s) => s.telemetry.telemetryStatus
   )
-  const telemetry = useRideSelector(session, (s) => s.telemetry)
+  const telemetry = useRideThrottledSelector(
+    session,
+    (s) => ({
+      powerWatts: s.telemetry.powerWatts,
+      cadenceRpm: s.telemetry.cadenceRpm,
+      heartRateBpm: s.telemetry.heartRateBpm,
+      distanceMeters: s.telemetry.distanceMeters,
+      telemetrySource: s.telemetry.telemetrySource,
+      telemetryStatus: s.telemetry.telemetryStatus,
+    }),
+    { hz: 4, equals: shallowEqual }
+  )
   const paused = useRideSelector(session, (s) => s.paused)
   const lastTrainerErrorCode = useRideSelector(
     session,
     (s) => s.lastTrainerError?.code
   )
   const viewportSize = useViewportSize()
-  // Ensure at-minimum 1 Hz re-renders for time displays
-  useRideHeartbeat(session, 1)
   const hasPausedForDisconnect = useRef(false)
   const previousIsComplete = useRef(workoutState.isComplete)
   const [completionSummary, setCompletionSummary] =
@@ -122,7 +137,7 @@ export function LiveWorkoutDashboard({
 
   // Auto-pause when trainer disconnects
   useEffect(() => {
-    if (!trainerConnected && !hasPausedForDisconnect.current) {
+    if (!trainerConnected && !hasPausedForDisconnect.current && !paused) {
       hasPausedForDisconnect.current = true
       onPause?.()
     } else if (trainerConnected && hasPausedForDisconnect.current) {
@@ -197,17 +212,13 @@ export function LiveWorkoutDashboard({
     if (!previousIsComplete.current && workoutState.isComplete) {
       setCompletionSummary({
         durationSeconds: Math.round(completionDurationSeconds),
-        distanceMeters: telemetry.distanceMeters,
+        distanceMeters: session.getState().telemetry.distanceMeters,
       })
       setCompletionDialogOpen(true)
       setShowConfetti(true)
     }
     previousIsComplete.current = workoutState.isComplete
-  }, [
-    completionDurationSeconds,
-    telemetry.distanceMeters,
-    workoutState.isComplete,
-  ])
+  }, [completionDurationSeconds, session, workoutState.isComplete])
 
   return (
     <div className="relative flex min-h-full w-full flex-1 flex-col gap-5 px-0 py-2 sm:gap-6">
@@ -252,7 +263,7 @@ export function LiveWorkoutDashboard({
             </span>
             {showStaleBadge && <TelemetryStaleBadge />}
           </div>
-          <h2 className="font-heading mt-1 truncate text-lg font-semibold tracking-tight sm:text-xl">
+          <h2 className="mt-1 truncate font-heading text-lg font-semibold tracking-tight sm:text-xl">
             {workout.title}
           </h2>
         </div>
