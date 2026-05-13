@@ -3,8 +3,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, Settings } from "lucide-react"
 import { AnimatePresence } from "motion/react"
 import { RideCockpit } from "./ride-cockpit"
-import type { SimulatedRiderState } from "@ramp/trainer-io"
-import type { RideTrainerController } from "@/ride/use-ride-trainer"
+import type { RideRuntimeController } from "@/ride/use-ride-runtime"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useElementSize } from "@/hooks/use-element-size"
@@ -21,7 +20,7 @@ import {
 } from "@/components/ui/alert-dialog"
 
 type RideOverlayProps = {
-  trainerController: RideTrainerController
+  trainerController: RideRuntimeController
   isCockpitOpen?: boolean
   onCockpitHeightChange?: (height: number) => void
   onCockpitOpenChange?: (open: boolean) => void
@@ -40,15 +39,11 @@ export function RideOverlay({
   onHeaderHeightChange,
 }: RideOverlayProps) {
   const navigate = useNavigate()
-  const simulatedRider = trainerController.simulatedRider
 
   const [shown, setShown] = useState(true)
   const [uncontrolledIsCockpitOpen, setUncontrolledIsCockpitOpen] =
     useState(false)
   const [isExitDialogOpen, setIsExitDialogOpen] = useState(false)
-  const [riderState, setRiderState] = useState<SimulatedRiderState | null>(
-    simulatedRider?.state ?? null
-  )
   const {
     element: headerElement,
     ref: headerRef,
@@ -73,15 +68,6 @@ export function RideOverlay({
       : trainerController.source === "ble"
         ? "Bluetooth trainer"
         : "No trainer"
-
-  useEffect(() => {
-    if (!simulatedRider) {
-      setRiderState(null)
-      return
-    }
-    setRiderState(simulatedRider.state)
-    return simulatedRider.subscribeState(setRiderState)
-  }, [simulatedRider])
 
   const scheduleHide = () => {
     clearTimeout(timerRef.current)
@@ -188,13 +174,14 @@ export function RideOverlay({
               size="sm"
               disabled={
                 !trainerController.bleAvailable ||
-                trainerController.selectingBleTrainer
+                trainerController.selectingTrainer ||
+                trainerController.connecting
               }
               onClick={() => {
-                void trainerController.connectBleTrainer()
+                void trainerController.connectTrainer()
               }}
             >
-              {trainerController.selectingBleTrainer
+              {trainerController.selectingTrainer
                 ? "Opening Bluetooth"
                 : "Connect trainer"}
             </Button>
@@ -203,13 +190,17 @@ export function RideOverlay({
                 Web Bluetooth requires a Chromium-class browser.
               </span>
             )}
-            {trainerController.devSimulationEnabled &&
+            {import.meta.env.DEV &&
               trainerController.source !== "simulated" && (
                 <Button
                   type="button"
                   variant="secondary"
                   size="sm"
-                  onClick={trainerController.useSimulatedTrainer}
+                  disabled={
+                    trainerController.connecting ||
+                    trainerController.selectingTrainer
+                  }
+                  onClick={() => void trainerController.useSimulatorTrainer()}
                 >
                   Use simulator
                 </Button>
@@ -251,7 +242,6 @@ export function RideOverlay({
             key="ride-cockpit"
             rootRef={cockpitRef}
             trainerController={trainerController}
-            riderState={riderState}
           />
         ) : null}
       </AnimatePresence>

@@ -6,6 +6,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react"
+import { StrictMode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { Capability } from "@ramp/ride-core"
 import { LiveWorkoutExperienceView } from "./live-workout-experience-view"
@@ -209,6 +210,27 @@ describe("LiveWorkoutExperienceView", () => {
         search={{ workoutId: "w1" }}
         session={createSession()}
       />
+    )
+
+    fireEvent.click(screen.getByText("Start workout"))
+
+    await waitFor(() => {
+      expect(screen.getByText("Now riding")).toBeTruthy()
+    })
+  })
+
+  it("starts a selected URL workout under StrictMode effect replay", async () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+
+    render(
+      <StrictMode>
+        <LiveWorkoutExperienceView
+          search={{ workoutId: "w1" }}
+          session={createSession()}
+        />
+      </StrictMode>
     )
 
     fireEvent.click(screen.getByText("Start workout"))

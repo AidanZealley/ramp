@@ -1,8 +1,8 @@
 import type { RideExperienceDefinition } from "@/experiences/types"
-import type { RideTrainerController } from "@/ride/use-ride-trainer"
+import type { RideRuntimeController } from "@/ride/use-ride-runtime"
 
 export type RideConnectionGateProps = {
   experience: RideExperienceDefinition
-  trainerController: RideTrainerController
+  trainerController: RideRuntimeController | null
   onConnected: () => void
 }

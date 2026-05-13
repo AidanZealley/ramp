@@ -1,25 +1,25 @@
-import { useEffect, useState } from "react"
 import { Pause, Play } from "lucide-react"
 import { motion } from "motion/react"
-import { useRideSession, useRideSessionContext } from "@ramp/ride-core"
+import {
+  useRideSessionContext,
+  useRideThrottledSelector,
+} from "@ramp/ride-core"
 import { CockpitMetric } from "./components/cockpit-metric"
 import { CockpitModeSelect } from "./components/cockpit-mode-select"
 import { CockpitRangeControl } from "./components/cockpit-range-control"
 import { CockpitSection } from "./components/cockpit-section"
 import type { Ref } from "react"
-import type {
-  RiderPowerMode,
-  SimulatedRiderState,
-  SimulatedTrainerMode,
-  SimulatedTrainerState,
-} from "@ramp/trainer-io"
-import type { RideTrainerController } from "@/ride/use-ride-trainer"
+import type { RiderPowerMode, SimulatedTrainerMode } from "@ramp/trainer-io"
+import type {RideRuntimeController} from "@/ride/use-ride-runtime";
+import {
+  
+  useRideSimulatorControls
+} from "@/ride/use-ride-runtime"
 import { Button } from "@/components/ui/button"
 import { formatDuration } from "@/lib/workout-utils"
 
 type RideCockpitProps = {
-  trainerController: RideTrainerController
-  riderState: SimulatedRiderState | null
+  trainerController: RideRuntimeController
   rootRef?: Ref<HTMLDivElement>
 }
 
@@ -41,33 +41,18 @@ const trainerModeOptions: Array<{
   { label: "Resistance", value: "resistance" },
 ]
 
-export function RideCockpit({
-  trainerController,
-  riderState,
-  rootRef,
-}: RideCockpitProps) {
+export function RideCockpit({ trainerController, rootRef }: RideCockpitProps) {
   const session = useRideSessionContext()
-  const { telemetry } = useRideSession(session)
-  const simulatedRider = trainerController.simulatedRider
-  const simulatedTrainer = trainerController.simulatedTrainer
-  const [trainerState, setTrainerState] =
-    useState<SimulatedTrainerState | null>(simulatedTrainer?.simulator ?? null)
-
-  useEffect(() => {
-    if (!simulatedTrainer) {
-      setTrainerState(null)
-      return
-    }
-
-    setTrainerState(simulatedTrainer.simulator)
-    return simulatedTrainer.subscribeSimulatorState(setTrainerState)
-  }, [simulatedTrainer])
+  const telemetry = useRideThrottledSelector(session, (s) => s.telemetry, {
+    hz: 2,
+  })
+  const simulatorControls = useRideSimulatorControls(trainerController)
+  const riderState = simulatorControls.riderState
+  const trainerState = simulatorControls.trainerState
 
   const showSimulatorControls =
-    trainerController.devSimulationEnabled &&
     trainerController.source === "simulated" &&
-    simulatedRider &&
-    simulatedTrainer &&
+    simulatorControls.active &&
     riderState &&
     trainerState
 
@@ -116,9 +101,7 @@ export function RideCockpit({
                   ariaLabel="Rider power mode"
                   value={riderState.powerMode}
                   options={riderModeOptions}
-                  onChange={(mode) =>
-                    simulatedRider.dispatch({ type: "setPowerMode", mode })
-                  }
+                  onChange={(mode) => simulatorControls.setRiderPowerMode(mode)}
                 />
                 <Button
                   aria-label={riderState.paused ? "Resume ride" : "Pause ride"}
@@ -127,10 +110,7 @@ export function RideCockpit({
                   type="button"
                   variant={riderState.paused ? "default" : "secondary"}
                   onClick={() =>
-                    simulatedRider.dispatch({
-                      type: "setPaused",
-                      paused: !riderState.paused,
-                    })
+                    simulatorControls.setRiderPaused(!riderState.paused)
                   }
                 >
                   {riderState.paused ? <Play /> : <Pause />}
@@ -141,12 +121,7 @@ export function RideCockpit({
                   label="Power"
                   max={700}
                   min={0}
-                  onChange={(watts) =>
-                    simulatedRider.dispatch({
-                      type: "setManualPower",
-                      watts,
-                    })
-                  }
+                  onChange={simulatorControls.setManualPower}
                   step={5}
                   unit="W"
                   value={riderState.powerWatts}
@@ -155,9 +130,7 @@ export function RideCockpit({
                   label="Cadence"
                   max={130}
                   min={40}
-                  onChange={(rpm) =>
-                    simulatedRider.dispatch({ type: "setCadence", rpm })
-                  }
+                  onChange={simulatorControls.setCadence}
                   step={1}
                   unit="rpm"
                   value={riderState.cadenceRpm}
@@ -172,7 +145,7 @@ export function RideCockpit({
                   value={trainerState.mode}
                   options={trainerModeOptions}
                   onChange={(mode) => {
-                    void simulatedTrainer.sendCommand({ type: "setMode", mode })
+                    void simulatorControls.setTrainerMode(mode)
                   }}
                 />
               </div>
@@ -186,11 +159,7 @@ export function RideCockpit({
                   value={trainerState.gradePercent}
                   formatValue={(value) => `${value.toFixed(1)}%`}
                   onChange={(gradePercent) => {
-                    void simulatedTrainer.sendCommand({
-                      type: "setSimulationGrade",
-                      gradePercent,
-                      windSpeedMps: trainerState.windSpeedMps,
-                    })
+                    void simulatorControls.setSimulationGrade(gradePercent)
                   }}
                 />
                 <CockpitRangeControl
@@ -201,10 +170,7 @@ export function RideCockpit({
                   unit=""
                   value={trainerState.resistanceLevel ?? 0}
                   onChange={(level) => {
-                    void simulatedTrainer.sendCommand({
-                      type: "setResistance",
-                      level,
-                    })
+                    void simulatorControls.setResistance(level)
                   }}
                 />
                 <CockpitRangeControl
@@ -215,10 +181,7 @@ export function RideCockpit({
                   unit="W"
                   value={trainerState.targetPowerWatts ?? 0}
                   onChange={(watts) => {
-                    void simulatedTrainer.sendCommand({
-                      type: "setTargetPower",
-                      watts,
-                    })
+                    void simulatorControls.setTargetPower(watts)
                   }}
                 />
               </div>

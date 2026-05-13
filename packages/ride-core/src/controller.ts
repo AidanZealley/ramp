@@ -169,7 +169,7 @@ export function createRideSession(
   }
 
   const resetArbiter = (clearLastSent = true) => {
-    arbiter.clear({ clearLastSent })
+    arbiter.clear({ clearLastSent, reason: "commands-cleared" })
   }
 
   const resetConnectionState = ({
@@ -186,6 +186,9 @@ export function createRideSession(
     setState((previous) => ({
       ...previous,
       trainerConnected,
+      activeControlMode: trainerConnected
+        ? previous.activeControlMode
+        : "manual",
       lastError,
       lastTrainerError,
       telemetry: {
@@ -261,6 +264,30 @@ export function createRideSession(
   }
 
   const setTrainerErrorState = (error: TrainerError) => {
+    resetLatestTelemetry()
+    arbiter.clear({ clearLastSent: true, reason: error.message })
+    setState((previous) => ({
+      ...previous,
+      lastError: error.message,
+      lastTrainerError: error,
+      trainerConnected: false,
+      activeControlMode: "manual",
+      telemetry: {
+        ...previous.telemetry,
+        speedMps: null,
+        powerWatts: null,
+        cadenceRpm: null,
+        heartRateBpm: null,
+        trainerStatus: "error",
+        telemetryStatus: "missing",
+        lastTelemetryAtMs: null,
+        telemetryAgeMs: null,
+        telemetrySource: null,
+      },
+    }))
+  }
+
+  const setCommandErrorState = (error: TrainerError) => {
     setState((previous) => ({
       ...previous,
       lastError: error.message,
@@ -271,7 +298,7 @@ export function createRideSession(
 
   // Subscribe to arbiter errors for max-retries failures
   arbiter.errors.subscribe((error) => {
-    setTrainerErrorState({
+    setCommandErrorState({
       code: "command-rejected",
       message: error.reason,
     })
@@ -281,6 +308,18 @@ export function createRideSession(
     void arbiter
       .flush(trainer)
       .then((result) => {
+        if (result.sent && result.command.type === "setMode") {
+          const mode = result.command.mode
+          setState((previous) => ({
+            ...previous,
+            activeControlMode:
+              mode === "erg"
+                ? "workout"
+                : mode === "free"
+                  ? "manual"
+                  : "experience",
+          }))
+        }
         if (result.sent && state.lastError !== null) {
           setState((previous) => ({
             ...previous,
@@ -297,7 +336,7 @@ export function createRideSession(
         }
       })
       .catch((error: unknown) => {
-        setTrainerErrorState(toTrainerError(error))
+        setCommandErrorState(toTrainerError(error))
       })
   }
 
@@ -322,19 +361,38 @@ export function createRideSession(
         return { ok: true }
       }
 
-      if (command.type === "setMode") {
-        setState((previous) => ({
-          ...previous,
-          activeControlMode:
-            command.mode === "erg"
-              ? "workout"
-              : command.mode === "free"
-                ? "manual"
-                : "experience",
-        }))
+      const delivery = dispatchOptions?.delivery ?? "enqueued"
+      const completion = arbiter.enqueue(command, source, dispatchOptions)
+      if (delivery === "acknowledged") {
+        try {
+          await withTimeout(
+            completion ?? Promise.resolve(),
+            dispatchOptions?.timeoutMs ?? 3000,
+            "command-timeout"
+          )
+          if (command.type === "setMode") {
+            const mode = command.mode
+            setState((previous) => ({
+              ...previous,
+              activeControlMode:
+                mode === "erg"
+                  ? "workout"
+                  : mode === "free"
+                    ? "manual"
+                    : "experience",
+            }))
+          }
+        } catch (error: unknown) {
+          arbiter.clear({
+            clearLastSent: false,
+            reason: error instanceof Error ? error.message : String(error),
+          })
+          return {
+            ok: false,
+            reason: error instanceof Error ? error.message : String(error),
+          }
+        }
       }
-
-      arbiter.enqueue(command, source, dispatchOptions)
       return { ok: true }
     },
     getCapabilities() {
@@ -392,9 +450,23 @@ export function createRideSession(
         }),
         nextTrainer.subscribeState((connectionState) => {
           const ready = connectionState.kind === "connected"
+          if (
+            connectionState.kind === "disconnected" ||
+            connectionState.kind === "error"
+          ) {
+            resetLatestTelemetry()
+            arbiter.clear({
+              clearLastSent: true,
+              reason:
+                connectionState.kind === "error"
+                  ? connectionState.error.message
+                  : "trainer-disconnected",
+            })
+          }
           setState((previous) => ({
             ...previous,
             trainerConnected: ready,
+            activeControlMode: ready ? previous.activeControlMode : "manual",
             lastTrainerError:
               connectionState.kind === "error"
                 ? connectionState.error
@@ -405,7 +477,21 @@ export function createRideSession(
                 : previous.lastError,
             telemetry: {
               ...previous.telemetry,
+              speedMps: ready ? previous.telemetry.speedMps : null,
+              powerWatts: ready ? previous.telemetry.powerWatts : null,
+              cadenceRpm: ready ? previous.telemetry.cadenceRpm : null,
+              heartRateBpm: ready ? previous.telemetry.heartRateBpm : null,
               trainerStatus: mapTrainerStatus(connectionState.kind),
+              telemetryStatus: ready
+                ? previous.telemetry.telemetryStatus
+                : "missing",
+              lastTelemetryAtMs: ready
+                ? previous.telemetry.lastTelemetryAtMs
+                : null,
+              telemetryAgeMs: ready ? previous.telemetry.telemetryAgeMs : null,
+              telemetrySource: ready
+                ? previous.telemetry.telemetrySource
+                : null,
             },
           }))
         }),
@@ -442,7 +528,7 @@ export function createRideSession(
         if (generation !== connectionGeneration || trainer !== nextTrainer) {
           // Superseded by a newer connection attempt, clean up the stale adapter
           void nextTrainer.disconnect().catch(() => undefined)
-          return
+          return { ok: false, error: toTrainerError(connectError) }
         }
 
         const trainerError = toTrainerError(connectError)
@@ -462,16 +548,20 @@ export function createRideSession(
           lastError: trainerError.message,
           lastTrainerError: trainerError,
         })
-        return
+        return { ok: false, error: trainerError }
       }
 
       if (generation !== connectionGeneration || trainer !== nextTrainer) {
         // Superseded by a newer connection attempt, clean up the stale adapter
         void nextTrainer.disconnect().catch(() => undefined)
-        return
+        return {
+          ok: false,
+          error: { code: "transport", message: "Connection superseded." },
+        }
       }
       lastTickMs = now()
       startTimers()
+      return { ok: true }
     },
     async disconnectTrainer() {
       connectionGeneration += 1
@@ -526,6 +616,20 @@ function toTrainerError(error: unknown): TrainerError {
     return { code: "unknown", message: error.message, cause: error }
   }
   return { code: "unknown", message: String(error), cause: error }
+}
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  reason: string
+): Promise<T> {
+  let timeoutHandle: ReturnType<typeof setTimeout>
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(() => reject(new Error(reason)), timeoutMs)
+    }),
+  ]).finally(() => clearTimeout(timeoutHandle!))
 }
 
 function isTrainerError(value: unknown): value is TrainerError {

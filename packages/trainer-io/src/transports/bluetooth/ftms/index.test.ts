@@ -256,6 +256,36 @@ describe("FtmsBleTrainer", () => {
     })
   })
 
+  it("reacquires control when returning from free to erg mode", async () => {
+    const requestControl = vi.fn(() => Promise.resolve(undefined))
+    const release = vi.fn(() => Promise.resolve(undefined))
+    const sendCommand = vi.fn(() => Promise.resolve(undefined))
+    const trainer = new FtmsBleTrainer({
+      device: createDevice(),
+      connectionFactory: () =>
+        Promise.resolve({
+          capabilities: new Set([Capability.TargetPower]),
+          requestControl,
+          release,
+          disconnect: () => Promise.resolve(undefined),
+          sendCommand,
+        }),
+    })
+
+    await trainer.connect()
+    await trainer.sendCommand({ type: "setMode", mode: "erg" })
+    await trainer.sendCommand({ type: "setMode", mode: "free" })
+    await trainer.sendCommand({ type: "setMode", mode: "erg" })
+    await trainer.sendCommand({ type: "setTargetPower", watts: 210 })
+
+    expect(requestControl).toHaveBeenCalledTimes(2)
+    expect(release).toHaveBeenCalledTimes(1)
+    expect(sendCommand).toHaveBeenCalledWith({
+      type: "setTargetPower",
+      watts: 210,
+    })
+  })
+
   // C2: disconnect calls release exactly once (via connection.disconnect)
   it("disconnect does not call release() separately", async () => {
     const release = vi.fn(() => Promise.resolve(undefined))

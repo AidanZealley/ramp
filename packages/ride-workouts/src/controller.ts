@@ -242,6 +242,8 @@ export function createWorkoutController({
           {
             priority:
               isFirstDispatch || segmentChanged ? "immediate" : "normal",
+            delivery:
+              isFirstDispatch || segmentChanged ? "acknowledged" : "enqueued",
           }
         )
         .then((result) => {
@@ -282,7 +284,7 @@ export function createWorkoutController({
       const result = await session.controls.dispatch(
         { type: "setTargetPower", watts: targetWatts },
         "workout",
-        { priority: "immediate" }
+        { priority: "immediate", delivery: "acknowledged" }
       )
       if (generation !== asyncStateGeneration || disposed) return result
       if (result.ok) {
@@ -406,9 +408,8 @@ export function createWorkoutController({
       const modeResult = await session.controls.dispatch(
         { type: "setMode", mode: "erg" },
         "workout",
-        { priority: "immediate" }
+        { priority: "immediate", delivery: "acknowledged" }
       )
-      console.info("[ride-workouts] setMode erg result", modeResult)
       if (!modeResult.ok) {
         failState(modeResult.reason)
         return modeResult
@@ -422,12 +423,8 @@ export function createWorkoutController({
       const targetResult = await session.controls.dispatch(
         { type: "setTargetPower", watts: firstTargetWatts },
         "workout",
-        { priority: "immediate" }
+        { priority: "immediate", delivery: "acknowledged" }
       )
-      console.info("[ride-workouts] initial target result", {
-        targetWatts: firstTargetWatts,
-        result: targetResult,
-      })
       if (!targetResult.ok) {
         failState(targetResult.reason)
         freeModeSent = false

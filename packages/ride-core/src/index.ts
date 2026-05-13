@@ -11,12 +11,15 @@ export {
   useRideSelector,
   useRideSession,
   useRideSessionContext,
+  useRideThrottledSelector,
 } from "./use-ride-session"
 export * from "@ramp/ride-contracts"
 export type {
   DispatchResult,
   DispatchOptions,
   RideExperiencePlugin,
+  RideExperienceConnection,
+  RideConnectionResult,
   RideFrameData,
   RideSessionController,
   RideSessionState,

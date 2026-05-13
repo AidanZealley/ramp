@@ -1,10 +1,7 @@
-import { Activity, ArrowLeft, Bluetooth } from "lucide-react"
-import type { RideTrainerConnectionChoice } from "@/ride/use-ride-trainer"
-import type React from "react"
+import { ArrowLeft } from "lucide-react"
 import type { RideConnectionGateProps } from "./types"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { cn } from "@/lib/utils"
 
 const WEB_BLUETOOTH_MESSAGE = "Web Bluetooth requires a Chromium-class browser."
@@ -14,28 +11,32 @@ export const RideConnectionGate = ({
   trainerController,
   onConnected,
 }: RideConnectionGateProps) => {
-  const selectedSource = trainerController.selectedSource
   const primaryText =
-    selectedSource === "simulated"
-      ? "Start with simulator"
-      : trainerController.selectingBleTrainer
+    trainerController == null
+      ? "Preparing ride"
+      : trainerController.selectingTrainer
         ? "Opening Bluetooth"
         : "Connect trainer"
   const primaryDisabled =
+    trainerController == null ||
     trainerController.connecting ||
-    selectedSource == null ||
-    (selectedSource === "ble" && !trainerController.bleAvailable)
+    trainerController.selectingTrainer ||
+    !trainerController.bleAvailable
+  const simulatorDisabled =
+    trainerController == null ||
+    trainerController.connecting ||
+    trainerController.selectingTrainer
 
   const handleConnect = async () => {
-    const connected = await trainerController.connectSelectedTrainer()
-    if (connected) onConnected()
+    if (!trainerController) return
+    const connected = await trainerController.connectTrainer()
+    if (connected.ok) onConnected()
   }
 
-  const handleSourceChange = (value: Array<string>) => {
-    const nextSource = value[0]
-    if (nextSource === "simulated" || nextSource === "ble") {
-      trainerController.selectSource(nextSource)
-    }
+  const handleUseSimulator = async () => {
+    if (!trainerController) return
+    const connected = await trainerController.useSimulatorTrainer()
+    if (connected.ok) onConnected()
   }
 
   return (
@@ -67,43 +68,12 @@ export const RideConnectionGate = ({
         </div>
 
         <div className="grid gap-3">
-          <div className="text-sm font-medium">Trainer source</div>
-          <ToggleGroup
-            aria-label="Trainer source"
-            variant="outline"
-            className="grid w-full grid-cols-1 sm:grid-cols-2"
-            size="lg"
-            value={selectedSource ? [selectedSource] : []}
-            onValueChange={handleSourceChange}
-          >
-            {trainerController.devSimulationEnabled ? (
-              <SourceOption
-                description="Use generated ride telemetry for local development."
-                icon={<Activity />}
-                label="Simulator"
-                selected={selectedSource === "simulated"}
-                value="simulated"
-              />
-            ) : null}
-            <SourceOption
-              description={
-                trainerController.bleAvailable
-                  ? "Pair with an FTMS Bluetooth trainer."
-                  : WEB_BLUETOOTH_MESSAGE
-              }
-              disabled={!trainerController.bleAvailable}
-              icon={<Bluetooth />}
-              label="Bluetooth trainer"
-              selected={selectedSource === "ble"}
-              value="ble"
-            />
-          </ToggleGroup>
-          {!trainerController.bleAvailable ? (
+          {trainerController?.ready && !trainerController.bleAvailable ? (
             <p className="text-sm text-muted-foreground">
               {WEB_BLUETOOTH_MESSAGE}
             </p>
           ) : null}
-          {trainerController.connectionError ? (
+          {trainerController?.connectionError ? (
             <p className="text-sm font-medium text-destructive">
               {trainerController.connectionError}
             </p>
@@ -118,6 +88,16 @@ export const RideConnectionGate = ({
           >
             {primaryText}
           </Button>
+          {import.meta.env.DEV ? (
+            <Button
+              disabled={simulatorDisabled}
+              type="button"
+              variant="secondary"
+              onClick={() => void handleUseSimulator()}
+            >
+              Use simulator
+            </Button>
+          ) : null}
           <a
             className={cn(buttonVariants({ variant: "outline" }))}
             href="/ride"
@@ -127,48 +107,5 @@ export const RideConnectionGate = ({
         </div>
       </div>
     </section>
-  )
-}
-
-function SourceOption({
-  description,
-  disabled,
-  icon,
-  label,
-  selected,
-  value,
-}: {
-  description: string
-  disabled?: boolean
-  icon: React.ReactNode
-  label: string
-  selected: boolean
-  value: RideTrainerConnectionChoice
-}) {
-  return (
-    <ToggleGroupItem
-      aria-label={label}
-      className="h-auto min-h-24 items-start justify-start rounded-lg px-4 py-3 text-left data-[state=on]:bg-primary/10"
-      disabled={disabled}
-      value={value}
-    >
-      <span className="flex min-w-0 items-start gap-3">
-        <span
-          className={`mt-0.5 rounded-md border p-2 ${
-            selected
-              ? "border-primary/30 bg-primary/10 text-primary"
-              : "border-border bg-muted text-muted-foreground"
-          }`}
-        >
-          {icon}
-        </span>
-        <span className="grid min-w-0 gap-1">
-          <span className="font-medium text-foreground">{label}</span>
-          <span className="text-sm leading-5 whitespace-normal text-muted-foreground">
-            {description}
-          </span>
-        </span>
-      </span>
-    </ToggleGroupItem>
   )
 }

@@ -1,4 +1,4 @@
-import { useRideHeartbeat, useRideSession } from "@ramp/ride-core"
+import { useRideThrottledSelector } from "@ramp/ride-core"
 import type React from "react"
 import type { RideSessionController } from "@ramp/ride-core"
 
@@ -7,8 +7,9 @@ type StatusModuleProps = {
 }
 
 export const StatusModule = ({ session }: StatusModuleProps) => {
-  useRideHeartbeat(session, 4)
-  const state = useRideSession(session)
+  const state = useRideThrottledSelector(session, (nextState) => nextState, {
+    hz: 4,
+  })
   const { telemetry } = state
 
   return (

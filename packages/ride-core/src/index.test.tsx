@@ -132,6 +132,7 @@ describe("ride-core", () => {
   })
 
   afterEach(() => {
+    vi.restoreAllMocks()
     vi.useRealTimers()
     rafShim.reset()
   })
@@ -295,7 +296,7 @@ describe("ride-core", () => {
     })
 
     const staleState = session.getState()
-    expect(staleState.telemetry.telemetryStatus).toBe("stale")
+    expect(staleState.telemetry.telemetryStatus).toBe("missing")
     expect(staleState.telemetry.elapsedSeconds).toBe(staleElapsed)
     expect(staleState.telemetry.distanceMeters).toBe(staleDistance)
 
@@ -304,7 +305,7 @@ describe("ride-core", () => {
       await Promise.resolve()
     })
 
-    expect(session.getState().telemetry.telemetryStatus).toBe("stale")
+    expect(session.getState().telemetry.telemetryStatus).toBe("missing")
 
     await act(async () => {
       nowMs = 3300
@@ -360,6 +361,54 @@ describe("ride-core", () => {
     })
 
     expect(sendCommand).toHaveBeenCalledTimes(2)
+  })
+
+  it("acknowledged dispatch resolves after the trainer accepts the command", async () => {
+    const trainer = new TestTrainer()
+    let releaseCommand!: () => void
+    vi.spyOn(trainer, "sendCommand").mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseCommand = resolve
+        })
+    )
+    const session = createTestSession()
+    await session.connectTrainer(trainer)
+
+    const dispatch = session.controls.dispatch(
+      { type: "setMode", mode: "erg" },
+      "workout",
+      { priority: "immediate", delivery: "acknowledged" }
+    )
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+    expect(session.getState().activeControlMode).toBe("manual")
+
+    releaseCommand()
+    await expect(dispatch).resolves.toEqual({ ok: true })
+    expect(session.getState().activeControlMode).toBe("workout")
+  })
+
+  it("acknowledged dispatch rejects after max retry", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0)
+    const trainer = new TestTrainer()
+    vi.spyOn(trainer, "sendCommand").mockRejectedValue(new Error("nope"))
+    const session = createTestSession()
+    await session.connectTrainer(trainer)
+
+    const dispatch = session.controls.dispatch(
+      { type: "setTargetPower", watts: 225 },
+      "user",
+      { priority: "immediate", delivery: "acknowledged", timeoutMs: 10_000 }
+    )
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000)
+    })
+
+    await expect(dispatch).resolves.toEqual({ ok: false, reason: "nope" })
   })
 
   it("serializes command writes globally across keys", async () => {

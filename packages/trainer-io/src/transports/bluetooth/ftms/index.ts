@@ -54,12 +54,14 @@ type FtmsConnectionFactoryInput = {
   onTelemetry: (telemetry: TrainerTelemetryMessage) => void
   onDisconnected: () => void
   onDeviceInfo: (deviceInfo: BleTrainerDeviceInfo) => void
+  onError: (error: TrainerError) => void
 }
 
 type FtmsConnection = {
   capabilities: TrainerCapabilities
   disconnect: () => Promise<void>
   release: () => Promise<void>
+  requestControl?: () => Promise<void>
   sendCommand: (command: TrainerCommand) => Promise<void>
 }
 
@@ -128,6 +130,9 @@ export class FtmsBleTrainer implements TrainerSource {
         },
         onDisconnected: () => {
           this.handleUnexpectedDisconnect()
+        },
+        onError: (error) => {
+          this.errorSubject.emit(error)
         },
         onDeviceInfo: (deviceInfo) => {
           this.deviceInfo = deviceInfo
@@ -211,6 +216,18 @@ export class FtmsBleTrainer implements TrainerSource {
           const trainerError = mapWebBluetoothError(error, "transport")
           this.errorSubject.emit(trainerError)
           console.error("[trainer-io][ftms] setMode free failed", trainerError)
+          throw trainerError
+        }
+      } else if (nextMode !== "free" && this.connection?.requestControl) {
+        try {
+          await this.connection.requestControl()
+        } catch (error: unknown) {
+          const trainerError = mapWebBluetoothError(error, "transport")
+          this.errorSubject.emit(trainerError)
+          console.error(
+            "[trainer-io][ftms] setMode request control failed",
+            trainerError
+          )
           throw trainerError
         }
       }
@@ -363,13 +380,17 @@ async function createFtmsConnectionFromDevice(
 
     await indoorBikeData.startNotifications()
     const unsubscribeTelemetry = indoorBikeData.subscribe((value) => {
-      const parsed = decodeFtmsIndoorBikeData(value)
-      console.debug("[trainer-io][ftms] telemetry", parsed)
-      input.onTelemetry({
-        ...parsed,
-        timestampMs: input.now(),
-        source: "ftms-ble",
-      })
+      try {
+        const parsed = decodeFtmsIndoorBikeData(value)
+        console.debug("[trainer-io][ftms] telemetry", parsed)
+        input.onTelemetry({
+          ...parsed,
+          timestampMs: input.now(),
+          source: "ftms-ble",
+        })
+      } catch (error: unknown) {
+        input.onError(toTrainerError(error, "transport"))
+      }
     })
 
     const controlPoint = new FtmsControlPointClient(
@@ -385,6 +406,9 @@ async function createFtmsConnectionFromDevice(
 
     return {
       capabilities,
+      async requestControl() {
+        await controlPoint.requestControl()
+      },
       async release() {
         await releaseTrainerControl(controlPoint, capabilities)
       },
@@ -466,6 +490,27 @@ function errorMatchesCode(error: unknown, code: TrainerError["code"]): boolean {
     "code" in error &&
     (error).code === code
   )
+}
+
+function toTrainerError(
+  error: unknown,
+  fallbackCode: TrainerError["code"]
+): TrainerError {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    "message" in error &&
+    typeof (error as { code: unknown }).code === "string" &&
+    typeof (error as { message: unknown }).message === "string"
+  ) {
+    return {
+      code: (error as TrainerError).code,
+      message: (error as TrainerError).message,
+      cause: error,
+    }
+  }
+  return mapWebBluetoothError(error, fallbackCode)
 }
 
 function isCommandRoutable(

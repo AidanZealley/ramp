@@ -103,11 +103,15 @@ describe("ride-workouts", () => {
     })
 
     expect(harness.dispatch.mock.calls).toEqual([
-      [{ type: "setMode", mode: "erg" }, "workout", { priority: "immediate" }],
+      [
+        { type: "setMode", mode: "erg" },
+        "workout",
+        { priority: "immediate", delivery: "acknowledged" },
+      ],
       [
         { type: "setTargetPower", watts: 220 },
         "workout",
-        { priority: "immediate" },
+        { priority: "immediate", delivery: "acknowledged" },
       ],
     ])
     expect(controller.getState()).toMatchObject({
@@ -143,7 +147,7 @@ describe("ride-workouts", () => {
     expect(harness.dispatch).toHaveBeenCalledWith(
       { type: "setTargetPower", watts: 210 },
       "workout",
-      { priority: "immediate" }
+      { priority: "immediate", delivery: "acknowledged" }
     )
   })
 
@@ -169,7 +173,7 @@ describe("ride-workouts", () => {
     expect(harness.dispatch).toHaveBeenLastCalledWith(
       { type: "setTargetPower", watts: 220 },
       "workout",
-      { priority: "immediate" }
+      { priority: "immediate", delivery: "acknowledged" }
     )
 
     harness.dispatch.mockClear()
@@ -183,7 +187,7 @@ describe("ride-workouts", () => {
     expect(harness.dispatch).toHaveBeenLastCalledWith(
       { type: "setTargetPower", watts: 135 },
       "workout",
-      { priority: "immediate" }
+      { priority: "immediate", delivery: "acknowledged" }
     )
   })
 
@@ -224,7 +228,7 @@ describe("ride-workouts", () => {
     expect(harness.dispatch).toHaveBeenCalledWith(
       { type: "setTargetPower", watts: 200 },
       "workout",
-      { priority: "immediate" }
+      { priority: "immediate", delivery: "acknowledged" }
     )
   })
 
@@ -347,7 +351,7 @@ describe("ride-workouts", () => {
     expect(harness.dispatch).toHaveBeenCalledWith(
       { type: "setTargetPower", watts: 300 },
       "workout",
-      { priority: "immediate" }
+      { priority: "immediate", delivery: "acknowledged" }
     )
   })
 
@@ -375,7 +379,7 @@ describe("ride-workouts", () => {
     expect(harness.dispatch).toHaveBeenCalledWith(
       { type: "setTargetPower", watts: 220 },
       "workout",
-      { priority: "normal" }
+      { priority: "normal", delivery: "enqueued" }
     )
   })
 
@@ -644,7 +648,7 @@ describe("ride-workouts", () => {
     expect(harness.dispatch).toHaveBeenCalledWith(
       { type: "setTargetPower", watts: 300 },
       "workout",
-      { priority: "immediate" }
+      { priority: "immediate", delivery: "acknowledged" }
     )
   })
 
@@ -680,7 +684,7 @@ describe("ride-workouts", () => {
     expect(harness.dispatch).toHaveBeenCalledWith(
       { type: "setTargetPower", watts: 300 },
       "workout",
-      { priority: "immediate" }
+      { priority: "immediate", delivery: "acknowledged" }
     )
   })
 
@@ -767,7 +771,7 @@ describe("ride-workouts", () => {
     expect(harness.dispatch).toHaveBeenCalledWith(
       { type: "setTargetPower", watts: 150 },
       "workout",
-      { priority: "immediate" }
+      { priority: "immediate", delivery: "acknowledged" }
     )
   })
 

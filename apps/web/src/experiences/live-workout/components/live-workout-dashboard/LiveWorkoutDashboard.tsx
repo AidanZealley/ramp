@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import Confetti from "react-confetti"
-import { useRideHeartbeat, useRideSelector } from "@ramp/ride-core"
+import { useRideSelector, useRideThrottledSelector } from "@ramp/ride-core"
 import {
   MAX_DIFFICULTY_PERCENT,
   MIN_DIFFICULTY_PERCENT,
@@ -95,15 +95,15 @@ export function LiveWorkoutDashboard({
     session,
     (s) => s.telemetry.telemetryStatus
   )
-  const telemetry = useRideSelector(session, (s) => s.telemetry)
+  const telemetry = useRideThrottledSelector(session, (s) => s.telemetry, {
+    hz: 2,
+  })
   const paused = useRideSelector(session, (s) => s.paused)
   const lastTrainerErrorCode = useRideSelector(
     session,
     (s) => s.lastTrainerError?.code
   )
   const viewportSize = useViewportSize()
-  // Ensure at-minimum 1 Hz re-renders for time displays
-  useRideHeartbeat(session, 1)
   const hasPausedForDisconnect = useRef(false)
   const previousIsComplete = useRef(workoutState.isComplete)
   const [completionSummary, setCompletionSummary] =
@@ -122,14 +122,14 @@ export function LiveWorkoutDashboard({
 
   // Auto-pause when trainer disconnects
   useEffect(() => {
-    if (!trainerConnected && !hasPausedForDisconnect.current) {
+    if (!trainerConnected && !paused && !hasPausedForDisconnect.current) {
       hasPausedForDisconnect.current = true
       onPause?.()
     } else if (trainerConnected && hasPausedForDisconnect.current) {
       hasPausedForDisconnect.current = false
       onResume?.()
     }
-  }, [trainerConnected, onPause, onResume])
+  }, [paused, trainerConnected, onPause, onResume])
 
   const showDisconnectedOverlay =
     !trainerConnected && workoutState.isActive && !workoutState.isComplete
@@ -188,9 +188,9 @@ export function LiveWorkoutDashboard({
     suppressForSeekKey: manualSeekKey,
   })
 
-  const handleSeek = (elapsedSeconds: number) => {
+  const handleSeek = (nextElapsedSeconds: number) => {
     setManualSeekKey((key) => key + 1)
-    return onSeek(elapsedSeconds)
+    return onSeek(nextElapsedSeconds)
   }
 
   useEffect(() => {
@@ -252,7 +252,7 @@ export function LiveWorkoutDashboard({
             </span>
             {showStaleBadge && <TelemetryStaleBadge />}
           </div>
-          <h2 className="font-heading mt-1 truncate text-lg font-semibold tracking-tight sm:text-xl">
+          <h2 className="mt-1 truncate font-heading text-lg font-semibold tracking-tight sm:text-xl">
             {workout.title}
           </h2>
         </div>

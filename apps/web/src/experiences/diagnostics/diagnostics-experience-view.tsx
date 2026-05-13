@@ -1,4 +1,4 @@
-import { useRideSelector } from "@ramp/ride-core"
+import { useRideSelector, useRideThrottledSelector } from "@ramp/ride-core"
 import { CapabilitiesModule } from "./components/capabilities-module"
 import { CommandsModule } from "./components/commands-module"
 import { StatusModule } from "./components/status-module"
@@ -15,7 +15,9 @@ export function DiagnosticsExperienceView({
 }: {
   session: RideSessionController
 }) {
-  const telemetry = useRideSelector(session, (s) => s.telemetry)
+  const telemetry = useRideThrottledSelector(session, (s) => s.telemetry, {
+    hz: 2,
+  })
   const trainerConnected = useRideSelector(session, (s) => s.trainerConnected)
   const showStaleBadge =
     telemetry.telemetryStatus === "stale" && trainerConnected

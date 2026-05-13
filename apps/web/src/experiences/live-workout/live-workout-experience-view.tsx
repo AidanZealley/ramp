@@ -1,7 +1,6 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -13,7 +12,14 @@ import { createWorkoutController } from "@ramp/ride-workouts"
 import { LiveWorkoutDashboard } from "./components/live-workout-dashboard"
 import { WorkoutDetailPanel } from "./components/workout-detail-panel"
 import { WorkoutPickerPanel } from "./components/workout-picker-panel"
-import type { RideSessionController } from "@ramp/ride-core"
+import type {
+  RideExperienceConnection,
+  RideSessionController,
+} from "@ramp/ride-core"
+import type {
+  WorkoutSessionController,
+  WorkoutSessionState,
+} from "@ramp/ride-workouts"
 import type { Id } from "#convex/_generated/dataModel"
 import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
 import { api } from "#convex/_generated/api"
@@ -24,6 +30,22 @@ import {
 } from "@/ride/convex-workout-mapper"
 
 type WorkoutDoc = ClientWorkoutDoc
+
+const subscribeToPendingWorkout = () => () => undefined
+
+const pendingWorkoutState: WorkoutSessionState = {
+  activeWorkoutId: null,
+  activeSegmentLabel: null,
+  activeSegmentIndex: null,
+  targetWatts: null,
+  difficultyPercent: 100,
+  isActive: false,
+  elapsedSeconds: 0,
+  totalDurationSeconds: 0,
+  isComplete: false,
+  controlStatus: "idle",
+  lastError: null,
+}
 
 function hasPositiveDuration(workout: WorkoutDoc | null): boolean {
   return (
@@ -64,9 +86,11 @@ function getTrainerErrorCopy(code: string | undefined): string | null {
 }
 
 export function LiveWorkoutExperienceView({
+  connection,
   search,
   session,
 }: {
+  connection?: RideExperienceConnection
   search?: {
     workoutId?: string
   }
@@ -83,15 +107,23 @@ export function LiveWorkoutExperienceView({
     (s) => s.telemetry.telemetrySource
   )
   const lastTrainerError = useRideSelector(session, (s) => s.lastTrainerError)
-  const workoutController = useMemo(
-    () => createWorkoutController({ session }),
-    [session]
-  )
+  const [workoutController, setWorkoutController] =
+    useState<WorkoutSessionController | null>(null)
+
+  useEffect(() => {
+    const nextController = createWorkoutController({ session })
+    setWorkoutController(nextController)
+
+    return () => {
+      nextController.dispose()
+      setWorkoutController(null)
+    }
+  }, [session])
 
   const workoutState = useSyncExternalStore(
-    workoutController.subscribe,
-    workoutController.getState,
-    workoutController.getState
+    workoutController?.subscribe ?? subscribeToPendingWorkout,
+    workoutController?.getState ?? (() => pendingWorkoutState),
+    workoutController?.getState ?? (() => pendingWorkoutState)
   )
 
   const mounted = useRef(true)
@@ -99,9 +131,8 @@ export function LiveWorkoutExperienceView({
     mounted.current = true
     return () => {
       mounted.current = false
-      workoutController.clearWorkout()
     }
-  }, [workoutController])
+  }, [])
 
   const workouts = useQuery(api.workouts.list)
   const settings = useQuery(api.settings.get)
@@ -127,7 +158,7 @@ export function LiveWorkoutExperienceView({
     !isLoading &&
     linkedWorkoutId &&
     !activeWorkout &&
-    !workouts?.some((workout) => workout._id === linkedWorkoutId)
+    !workouts.some((workout) => workout._id === linkedWorkoutId)
       ? "Workout not found. Pick another workout."
       : null
 
@@ -158,8 +189,14 @@ export function LiveWorkoutExperienceView({
   }, [selectedWorkoutId, trainerConnected, supportsTargetPower])
 
   const handleStart = useCallback(async () => {
-    if (!selectedWorkout || !trainerConnected || !selectedWorkoutHasDuration) {
+    if (
+      !workoutController ||
+      !selectedWorkout ||
+      !trainerConnected ||
+      !selectedWorkoutHasDuration
+    ) {
       console.info("[live-workout] start ignored", {
+        hasWorkoutController: Boolean(workoutController),
         hasWorkout: Boolean(selectedWorkout),
         trainerConnected,
         selectedWorkoutHasDuration,
@@ -214,6 +251,7 @@ export function LiveWorkoutExperienceView({
   ])
 
   const handleEnd = useCallback(() => {
+    if (!workoutController) return
     workoutController.clearWorkout()
     setActiveWorkout(null)
     setStartError(null)
@@ -235,6 +273,7 @@ export function LiveWorkoutExperienceView({
 
   const handleSeek = useCallback(
     async (elapsedSeconds: number) => {
+      if (!workoutController) return
       await workoutController.seekToElapsedSeconds(elapsedSeconds)
     },
     [workoutController]
@@ -242,20 +281,23 @@ export function LiveWorkoutExperienceView({
 
   const handleDifficultyChange = useCallback(
     async (difficultyPercent: number) => {
+      if (!workoutController) return
       await workoutController.setDifficultyPercent(difficultyPercent)
     },
     [workoutController]
   )
 
   const handleDifficultyReset = useCallback(async () => {
+    if (!workoutController) return
     await workoutController.resetDifficultyPercent()
   }, [workoutController])
 
   return (
     <div className="absolute inset-0 flex flex-col overflow-y-auto px-4 pt-16 pb-6 sm:px-8 sm:pt-20">
-      {activeWorkout ? (
+      {workoutController == null ? null : activeWorkout ? (
         <LiveWorkoutDashboard
           onEnd={handleEnd}
+          onReconnect={connection?.reconnect}
           onPause={session.pause}
           onResume={session.resume}
           onSeek={handleSeek}
