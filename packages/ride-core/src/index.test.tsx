@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { createRideSession } from "./controller"
+import { createRideSession } from "./session"
 import {
   useRideR3FFrame,
   useRideSession,
   useRideThrottledSelector,
-} from "./react/use-ride-session"
+} from "./react"
 import { createRAFShim } from "./test-utils/raf-shim"
 import { Capability } from "./index"
 import type { RideTrainerAdapter, TrainerCommand } from "./index"

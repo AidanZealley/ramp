@@ -2,7 +2,6 @@ import {
   Capability,
   commandCapability,
 } from "@ramp/ride-contracts"
-import type { Capability as CapabilityName } from "@ramp/ride-contracts"
 import type {
   DispatchResult,
   TrainerCapabilities,
@@ -14,7 +13,7 @@ export { commandCapability }
 
 export type ArbitrationPolicy = {
   precedence: Record<TrainerCommandSource, number>
-  coalesceMs: Partial<Record<CapabilityName, number>>
+  coalesceMs: Partial<Record<Capability, number>>
   alwaysAllow: ReadonlyArray<TrainerCommand["type"]>
 }
 

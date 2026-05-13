@@ -1,13 +1,13 @@
-import { Capability, Subject, commandCapability } from "@ramp/ride-contracts"
-import type { ArbitrationPolicy } from "./policy"
+import { Subject, commandCapability } from "@ramp/ride-contracts"
+import type { ArbitrationPolicy } from "../policy"
 import type {
   DispatchOptions,
   RideTrainerAdapter,
   TrainerCommand,
   TrainerCommandSource,
-} from "./types"
-
-type CommandKey = Capability | "mode" | "disconnect"
+} from "../types"
+import { MAX_ATTEMPTS, backoffFor, createCompletion, isCapabilityKey } from "./utils"
+import type { CommandCompletion, CommandKey } from "./utils"
 
 type Pending = {
   command: TrainerCommand
@@ -19,26 +19,10 @@ type Pending = {
   completion: CommandCompletion | null
 }
 
-type CommandCompletion = {
-  promise: Promise<void>
-  resolve: () => void
-  reject: (error: Error) => void
-  settled: boolean
-}
-
 export type ArbiterError = {
   key: CommandKey
   command: TrainerCommand
   reason: string
-}
-
-const MAX_ATTEMPTS = 6
-const MAX_BACKOFF_MS = 2000
-
-function backoffFor(attempts: number): number {
-  const base = Math.min(MAX_BACKOFF_MS, 100 * Math.pow(2, attempts - 1))
-  const jitter = Math.random() * 50
-  return base + jitter
 }
 
 export class CommandArbiter {
@@ -119,12 +103,10 @@ export class CommandArbiter {
       this.lastSentAt.set(key, now)
       return { sent: true, key, command: pending.command }
     } catch (error: unknown) {
-      // Handle retry with backoff
       const currentPending = this.pending.get(key)
       if (currentPending === pending) {
         const newAttempts = pending.attempts + 1
         if (newAttempts >= MAX_ATTEMPTS) {
-          // Max retries reached, drop and emit error
           this.pending.delete(key)
           const reason =
             error instanceof Error
@@ -132,16 +114,17 @@ export class CommandArbiter {
               : "command-rejected:max-retries"
           this.rejectPending(pending, reason)
           this.errors.emit({ key, command: pending.command, reason })
+          // Don't re-throw — error is handled via errors.emit
         } else {
-          // Schedule retry with backoff
           this.pending.set(key, {
             ...pending,
             attempts: newAttempts,
             nextAttemptAt: this.now() + backoffFor(newAttempts),
           })
+          throw error
         }
       }
-      throw error
+      return { sent: false }
     } finally {
       this.inFlight = null
     }
@@ -170,7 +153,6 @@ export class CommandArbiter {
   }
 
   private isSendable(key: CommandKey, pending: Pending, now: number): boolean {
-    // Must wait for backoff delay
     if (now < pending.nextAttemptAt) return false
 
     const coalesceMs = isCapabilityKey(key)
@@ -215,18 +197,4 @@ export class CommandArbiter {
     completion.settled = true
     completion.reject(new Error(reason))
   }
-}
-
-function createCompletion(): CommandCompletion {
-  let resolve!: () => void
-  let reject!: (error: Error) => void
-  const promise = new Promise<void>((promiseResolve, promiseReject) => {
-    resolve = promiseResolve
-    reject = promiseReject
-  })
-  return { promise, resolve, reject, settled: false }
-}
-
-function isCapabilityKey(key: CommandKey): key is Capability {
-  return Object.values(Capability).includes(key as Capability)
 }

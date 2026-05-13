@@ -1,11 +1,4 @@
 export * from "../index"
-export {
-  RideSessionContext,
-  useRideFrame,
-  useRideHeartbeat,
-  useRideR3FFrame,
-  useRideSelector,
-  useRideSession,
-  useRideSessionContext,
-  useRideThrottledSelector,
-} from "./use-ride-session"
+export { RideSessionContext, useRideSessionContext } from "./context"
+export { useRideFrame, useRideR3FFrame, useRideSelector, useRideSession } from "./hooks"
+export { useRideHeartbeat, useRideThrottledSelector } from "./throttled"

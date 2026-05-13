@@ -8,8 +8,6 @@ import type {
   TrainerSourceKind,
   TrainerTelemetry,
 } from "@ramp/ride-contracts"
-import type { TrainerControlAPI } from "./controls"
-
 export type TrainerCapabilitiesView = ReadonlySet<Capability>
 
 export type RideTelemetry = {
@@ -75,6 +73,15 @@ export type RideTrainerAdapter = Pick<
   | "subscribeState"
   | "subscribeError"
 >
+
+export interface TrainerControlAPI {
+  dispatch: (
+    command: TrainerCommand,
+    source: TrainerCommandSource,
+    options?: DispatchOptions
+  ) => Promise<DispatchResult>
+  getCapabilities: () => TrainerCapabilitiesView
+}
 
 export interface RideSessionController {
   getState: () => RideSessionState

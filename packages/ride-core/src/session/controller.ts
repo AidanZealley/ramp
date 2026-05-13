@@ -1,9 +1,8 @@
 import { Subject, validateTrainerCommand } from "@ramp/ride-contracts"
-import { CommandArbiter } from "./arbiter"
-import { defaultPolicy, enforce } from "./policy"
-import type { ArbitrationPolicy } from "./policy"
+import { CommandArbiter } from "../arbiter"
+import { defaultPolicy, enforce } from "../policy"
+import type { ArbitrationPolicy } from "../policy"
 import type { TrainerError, TrainerTelemetry } from "@ramp/ride-contracts"
-import type { TrainerControlAPI } from "./controls"
 import type {
   DispatchResult,
   RideFrameData,
@@ -13,7 +12,15 @@ import type {
   RideTrainerAdapter,
   RideTrainerTelemetry,
   TrainerCapabilitiesView,
-} from "./types"
+  TrainerControlAPI,
+} from "../types"
+import {
+  initialTelemetry,
+  mapTrainerStatus,
+  telemetryEqual,
+  toTrainerError,
+  withOptionalTimeout,
+} from "./utils"
 
 export type CreateRideSessionOptions = {
   now?: () => number
@@ -32,20 +39,6 @@ export type CreateRideSessionOptions = {
 const emptyCapabilities: TrainerCapabilitiesView = new Set()
 
 type LatestTelemetry = TrainerTelemetry | null
-
-const initialTelemetry = (): RideTelemetry => ({
-  elapsedSeconds: 0,
-  distanceMeters: 0,
-  speedMps: null,
-  powerWatts: null,
-  cadenceRpm: null,
-  heartRateBpm: null,
-  trainerStatus: "disconnected",
-  telemetryStatus: "missing",
-  lastTelemetryAtMs: null,
-  telemetryAgeMs: null,
-  telemetrySource: null,
-})
 
 export function createRideSession(
   options: CreateRideSessionOptions = {}
@@ -102,22 +95,6 @@ export function createRideSession(
     if (state === previous) return
     notify()
   }
-
-  const telemetryEqual = (
-    previous: RideSessionState["telemetry"],
-    next: RideSessionState["telemetry"]
-  ) =>
-    previous.elapsedSeconds === next.elapsedSeconds &&
-    previous.distanceMeters === next.distanceMeters &&
-    previous.speedMps === next.speedMps &&
-    previous.powerWatts === next.powerWatts &&
-    previous.cadenceRpm === next.cadenceRpm &&
-    previous.heartRateBpm === next.heartRateBpm &&
-    previous.trainerStatus === next.trainerStatus &&
-    previous.telemetryStatus === next.telemetryStatus &&
-    previous.lastTelemetryAtMs === next.lastTelemetryAtMs &&
-    previous.telemetryAgeMs === next.telemetryAgeMs &&
-    previous.telemetrySource === next.telemetrySource
 
   // rAF-driven tick loop — runs at display frame rate, fires tickTelemetry
   // at telemetryIntervalMs cadence. Compares wall-clock (now()) so the timing
@@ -261,43 +238,28 @@ export function createRideSession(
   }
 
   const setTrainerErrorState = (error: TrainerError) => {
-    if (error.code === "transport") {
+    const isTransport = error.code === "transport"
+    if (isTransport) {
       resetArbiter(true)
       resetLatestTelemetry()
     }
     setState((previous) => ({
       ...previous,
-      trainerConnected:
-        error.code === "transport" ? false : previous.trainerConnected,
-      activeControlMode:
-        error.code === "transport" ? "manual" : previous.activeControlMode,
+      trainerConnected: isTransport ? false : previous.trainerConnected,
+      activeControlMode: isTransport ? "manual" : previous.activeControlMode,
       lastError: error.message,
       lastTrainerError: error,
       telemetry: {
         ...previous.telemetry,
-        speedMps:
-          error.code === "transport" ? null : previous.telemetry.speedMps,
-        powerWatts:
-          error.code === "transport" ? null : previous.telemetry.powerWatts,
-        cadenceRpm:
-          error.code === "transport" ? null : previous.telemetry.cadenceRpm,
-        heartRateBpm:
-          error.code === "transport" ? null : previous.telemetry.heartRateBpm,
+        speedMps: isTransport ? null : previous.telemetry.speedMps,
+        powerWatts: isTransport ? null : previous.telemetry.powerWatts,
+        cadenceRpm: isTransport ? null : previous.telemetry.cadenceRpm,
+        heartRateBpm: isTransport ? null : previous.telemetry.heartRateBpm,
         trainerStatus: "error",
-        telemetryStatus:
-          error.code === "transport"
-            ? "missing"
-            : previous.telemetry.telemetryStatus,
-        lastTelemetryAtMs:
-          error.code === "transport"
-            ? null
-            : previous.telemetry.lastTelemetryAtMs,
-        telemetryAgeMs:
-          error.code === "transport" ? null : previous.telemetry.telemetryAgeMs,
-        telemetrySource:
-          error.code === "transport"
-            ? null
-            : previous.telemetry.telemetrySource,
+        telemetryStatus: isTransport ? "missing" : previous.telemetry.telemetryStatus,
+        lastTelemetryAtMs: isTransport ? null : previous.telemetry.lastTelemetryAtMs,
+        telemetryAgeMs: isTransport ? null : previous.telemetry.telemetryAgeMs,
+        telemetrySource: isTransport ? null : previous.telemetry.telemetrySource,
       },
     }))
   }
@@ -593,51 +555,4 @@ export function createRideSession(
   }
 
   return controller
-}
-
-function mapTrainerStatus(
-  kind: "disconnected" | "connecting" | "connected" | "reconnecting" | "error"
-): RideTelemetry["trainerStatus"] {
-  if (kind === "connected") return "ready"
-  if (kind === "connecting" || kind === "reconnecting") return "connecting"
-  if (kind === "error") return "error"
-  return "disconnected"
-}
-
-function toTrainerError(error: unknown): TrainerError {
-  if (isTrainerError(error)) return error
-  if (error instanceof Error) {
-    return { code: "unknown", message: error.message, cause: error }
-  }
-  return { code: "unknown", message: String(error), cause: error }
-}
-
-async function withOptionalTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number | undefined,
-  reason: string
-): Promise<T> {
-  if (timeoutMs === undefined) return promise
-  let timeoutHandle: ReturnType<typeof setTimeout> | undefined
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<never>((_, reject) => {
-        timeoutHandle = setTimeout(() => reject(new Error(reason)), timeoutMs)
-      }),
-    ])
-  } finally {
-    if (timeoutHandle) clearTimeout(timeoutHandle)
-  }
-}
-
-function isTrainerError(value: unknown): value is TrainerError {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "code" in value &&
-    "message" in value &&
-    typeof (value as { code: unknown }).code === "string" &&
-    typeof (value as { message: unknown }).message === "string"
-  )
 }
