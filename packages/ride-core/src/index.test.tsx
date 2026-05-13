@@ -2,7 +2,11 @@
 import { act, renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { createRideSession } from "./controller"
-import { useRideR3FFrame, useRideSession } from "./use-ride-session"
+import {
+  useRideR3FFrame,
+  useRideSession,
+  useRideThrottledSelector,
+} from "./use-ride-session"
 import { createRAFShim } from "./test-utils/raf-shim"
 import { Capability } from "./index"
 import type { RideTrainerAdapter, TrainerCommand } from "./index"
@@ -263,6 +267,46 @@ describe("ride-core", () => {
     expect(session.controls.getCapabilities().has(Capability.TargetPower)).toBe(
       true
     )
+  })
+
+  it("useRideThrottledSelector resets snapshot when session changes", async () => {
+    const first = createTestSession()
+    const second = createTestSession()
+    await first.connectTrainer(new TestTrainer())
+    await second.connectTrainer(new TestTrainer())
+    first.pause()
+
+    const { result, rerender } = renderHook(
+      ({ session }) =>
+        useRideThrottledSelector(session, (state) => state.paused, { hz: 1 }),
+      { initialProps: { session: first } }
+    )
+
+    expect(result.current).toBe(true)
+    rerender({ session: second })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+    expect(result.current).toBe(false)
+  })
+
+  it("useRideThrottledSelector handles invalid hz predictably", async () => {
+    const session = createTestSession()
+
+    const { result } = renderHook(() =>
+      useRideThrottledSelector(
+        session,
+        (state) => state.telemetry.elapsedSeconds,
+        { hz: 0 }
+      )
+    )
+
+    expect(result.current).toBe(0)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+    expect(Number.isFinite(result.current)).toBe(true)
   })
 
   it("stops distance and elapsed progression after telemetry goes stale", async () => {

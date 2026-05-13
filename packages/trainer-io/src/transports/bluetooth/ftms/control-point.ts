@@ -1,6 +1,8 @@
 import type { TrainerCommand, TrainerError } from "../../../types"
 import type { GattCharacteristic } from "../web-bluetooth/gatt-characteristic"
 import type { FtmsControlPointResponse } from "./types"
+import { noopTrainerIoLogger } from "./logger"
+import type { TrainerIoLogger } from "./logger"
 
 const RESPONSE_OPCODE = 0x80
 const REQUEST_CONTROL_OPCODE = 0x00
@@ -79,7 +81,8 @@ export class FtmsControlPointClient {
 
   constructor(
     private readonly characteristic: GattCharacteristic,
-    private readonly timeoutMs: number
+    private readonly timeoutMs: number,
+    private readonly logger: TrainerIoLogger = noopTrainerIoLogger
   ) {}
 
   async start(): Promise<void> {
@@ -100,18 +103,18 @@ export class FtmsControlPointClient {
   }
 
   async requestControl(): Promise<void> {
-    console.info("[trainer-io][ftms] requesting control")
+    this.logger.info("[trainer-io][ftms] requesting control")
     await this.enqueue(REQUEST_CONTROL_OPCODE, encodeRequestControl())
   }
 
   async reset(): Promise<void> {
-    console.info("[trainer-io][ftms] reset")
+    this.logger.info("[trainer-io][ftms] reset")
     await this.enqueue(RESET_OPCODE, encodeReset())
   }
 
   async sendCommand(command: TrainerCommand): Promise<void> {
     if (command.type === "setTargetPower") {
-      console.info("[trainer-io][ftms] setTargetPower", {
+      this.logger.info("[trainer-io][ftms] setTargetPower", {
         watts: command.watts,
       })
       await this.enqueue(
@@ -121,7 +124,7 @@ export class FtmsControlPointClient {
       return
     }
     if (command.type === "setResistance") {
-      console.info("[trainer-io][ftms] setResistance", {
+      this.logger.info("[trainer-io][ftms] setResistance", {
         level: command.level,
       })
       await this.enqueue(
@@ -131,7 +134,7 @@ export class FtmsControlPointClient {
       return
     }
     if (command.type === "setSimulationGrade") {
-      console.info("[trainer-io][ftms] setSimulationGrade", {
+      this.logger.info("[trainer-io][ftms] setSimulationGrade", {
         gradePercent: command.gradePercent,
         windSpeedMps: command.windSpeedMps,
       })
@@ -182,7 +185,7 @@ export class FtmsControlPointClient {
 
   private handleResponse(value: DataView): void {
     const response = decodeControlPointResponse(value)
-    console.info("[trainer-io][ftms] control response", response)
+    this.logger.info("[trainer-io][ftms] control response", response)
     if (!this.pending || response.requestCode !== this.pending.opcode) return
 
     const pending = this.pending

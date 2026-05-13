@@ -52,6 +52,16 @@ function createSessionHarness(options?: {
   }
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (error: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
 describe("ride-workouts", () => {
   it("handles exact boundary times", () => {
     const intervals = [
@@ -826,6 +836,103 @@ describe("ride-workouts", () => {
       activeWorkoutId: "w2",
       controlStatus: "active",
       lastError: null,
+    })
+  })
+
+  it("loadWorkout does not activate after dispose during setMode", async () => {
+    const modeDispatch = deferred<{ ok: true }>()
+    const dispatch = vi.fn().mockReturnValueOnce(modeDispatch.promise)
+    const harness = createSessionHarness({ dispatchImpl: dispatch })
+    const controller = createWorkoutController({ session: harness.session })
+
+    const load = controller.loadWorkout(
+      {
+        id: "w1",
+        title: "Workout 1",
+        powerMode: "percentage",
+        intervals: [{ startPower: 100, endPower: 100, durationSeconds: 10 }],
+      },
+      200
+    )
+
+    controller.dispose()
+    modeDispatch.resolve({ ok: true })
+
+    await expect(load).resolves.toEqual({
+      ok: false,
+      reason: "stale-dispatch",
+    })
+    expect(controller.getState().activeWorkoutId).toBeNull()
+  })
+
+  it("loadWorkout does not activate after clearWorkout during first target dispatch", async () => {
+    const targetDispatch = deferred<{ ok: true }>()
+    const dispatch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true })
+      .mockReturnValueOnce(targetDispatch.promise)
+    const harness = createSessionHarness({ dispatchImpl: dispatch })
+    const controller = createWorkoutController({ session: harness.session })
+
+    const load = controller.loadWorkout(
+      {
+        id: "w1",
+        title: "Workout 1",
+        powerMode: "percentage",
+        intervals: [{ startPower: 100, endPower: 100, durationSeconds: 10 }],
+      },
+      200
+    )
+    await Promise.resolve()
+    controller.clearWorkout()
+    targetDispatch.resolve({ ok: true })
+
+    await expect(load).resolves.toEqual({
+      ok: false,
+      reason: "stale-dispatch",
+    })
+    expect(controller.getState().activeWorkoutId).toBeNull()
+  })
+
+  it("starting workout B while workout A start is in flight ignores A's late result", async () => {
+    const firstTarget = deferred<{ ok: true }>()
+    const dispatch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true })
+      .mockReturnValueOnce(firstTarget.promise)
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({ ok: true })
+    const harness = createSessionHarness({ dispatchImpl: dispatch })
+    const controller = createWorkoutController({ session: harness.session })
+
+    const loadA = controller.loadWorkout(
+      {
+        id: "a",
+        title: "Workout A",
+        powerMode: "percentage",
+        intervals: [{ startPower: 100, endPower: 100, durationSeconds: 10 }],
+      },
+      200
+    )
+    await Promise.resolve()
+    await controller.loadWorkout(
+      {
+        id: "b",
+        title: "Workout B",
+        powerMode: "percentage",
+        intervals: [{ startPower: 120, endPower: 120, durationSeconds: 10 }],
+      },
+      200
+    )
+
+    firstTarget.resolve({ ok: true })
+    await expect(loadA).resolves.toEqual({
+      ok: false,
+      reason: "stale-dispatch",
+    })
+    expect(controller.getState()).toMatchObject({
+      activeWorkoutId: "b",
+      targetWatts: 240,
     })
   })
 })

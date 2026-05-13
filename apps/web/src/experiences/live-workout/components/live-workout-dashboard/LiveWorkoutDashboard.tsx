@@ -120,6 +120,7 @@ export function LiveWorkoutDashboard({
   )
   const viewportSize = useViewportSize()
   const hasPausedForDisconnect = useRef(false)
+  const previousTrainerConnected = useRef(trainerConnected)
   const previousIsComplete = useRef(workoutState.isComplete)
   const [completionSummary, setCompletionSummary] =
     useState<WorkoutCompletionSummary | null>(null)
@@ -137,14 +138,24 @@ export function LiveWorkoutDashboard({
 
   // Auto-pause when trainer disconnects
   useEffect(() => {
-    if (!trainerConnected && !hasPausedForDisconnect.current && !paused) {
-      hasPausedForDisconnect.current = true
-      onPause?.()
-    } else if (trainerConnected && hasPausedForDisconnect.current) {
-      hasPausedForDisconnect.current = false
-      onResume?.()
+    const wasTrainerConnected = previousTrainerConnected.current
+    previousTrainerConnected.current = trainerConnected
+
+    if (wasTrainerConnected && !trainerConnected) {
+      if (!paused) {
+        hasPausedForDisconnect.current = true
+        onPause?.()
+      }
+      return
     }
-  }, [trainerConnected, onPause, onResume])
+
+    if (!wasTrainerConnected && trainerConnected) {
+      if (hasPausedForDisconnect.current) {
+        onResume?.()
+      }
+      hasPausedForDisconnect.current = false
+    }
+  }, [paused, trainerConnected, onPause, onResume])
 
   const showDisconnectedOverlay =
     !trainerConnected && workoutState.isActive && !workoutState.isComplete
@@ -206,6 +217,16 @@ export function LiveWorkoutDashboard({
   const handleSeek = (elapsedSeconds: number) => {
     setManualSeekKey((key) => key + 1)
     return onSeek(elapsedSeconds)
+  }
+
+  const handlePause = () => {
+    hasPausedForDisconnect.current = false
+    onPause?.()
+  }
+
+  const handleResume = () => {
+    hasPausedForDisconnect.current = !trainerConnected
+    onResume?.()
   }
 
   useEffect(() => {
@@ -338,8 +359,8 @@ export function LiveWorkoutDashboard({
         completedIntervalCount={completedIntervalCount}
         paused={paused}
         isComplete={workoutState.isComplete}
-        onPause={onPause}
-        onResume={onResume}
+        onPause={handlePause}
+        onResume={handleResume}
         onStop={onEnd}
         onSeek={handleSeek}
         stopDialogOpen={stopDialogOpen}

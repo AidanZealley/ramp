@@ -16,6 +16,22 @@ describe("FtmsBleTrainer", () => {
     vi.useFakeTimers()
   })
 
+  it("defaults diagnostics logging to no-op", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined)
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined)
+    const trainer = new FtmsBleTrainer({
+      device: createDevice(),
+      connectionFactory: () => Promise.reject(new Error("boom")),
+    })
+
+    await expect(trainer.connect()).rejects.toMatchObject({ code: "transport" })
+
+    expect(info).not.toHaveBeenCalled()
+    expect(error).not.toHaveBeenCalled()
+    info.mockRestore()
+    error.mockRestore()
+  })
+
   it("transitions through connecting to connected on success", async () => {
     const states: Array<string> = []
     const trainer = new FtmsBleTrainer({
@@ -367,6 +383,7 @@ describe("FtmsBleTrainer", () => {
   it("unexpected disconnect emits error without immediate disconnected transition", async () => {
     let triggerDisconnect: (() => void) | null = null
     const states: Array<string> = []
+    const errors: Array<string> = []
     const trainer = new FtmsBleTrainer({
       device: createDevice(),
       connectionFactory: ({ onDisconnected }) => {
@@ -382,6 +399,7 @@ describe("FtmsBleTrainer", () => {
     })
 
     trainer.subscribeState((state) => states.push(state.kind))
+    trainer.subscribeError((error) => errors.push(error.code))
     await trainer.connect()
 
     states.length = 0
@@ -389,6 +407,7 @@ describe("FtmsBleTrainer", () => {
 
     // Should emit only error, not error then disconnected
     expect(states).toEqual(["error"])
+    expect(errors).toEqual(["transport"])
   })
 
   it("resets connection-scoped state on disconnect", async () => {

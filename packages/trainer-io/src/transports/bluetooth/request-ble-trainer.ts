@@ -10,5 +10,6 @@ export async function requestBleTrainer(
   return new FtmsBleTrainer({
     device,
     requestTimeoutMs: options.requestTimeoutMs,
+    logger: options.logger,
   })
 }

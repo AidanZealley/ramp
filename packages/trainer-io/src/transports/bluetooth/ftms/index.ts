@@ -24,11 +24,13 @@ import {
   deriveTrainerCapabilities,
 } from "./fitness-machine-feature"
 import { decodeFtmsIndoorBikeData } from "./indoor-bike-data"
+import { noopTrainerIoLogger } from "./logger"
 import {
   decodeSupportedPowerRange,
   decodeSupportedResistanceLevelRange,
 } from "./supported-ranges"
 import type { BleTrainerDeviceInfo } from "./device-info"
+import type { TrainerIoLogger } from "./logger"
 import type {
   TrainerCapabilities,
   TrainerCommand,
@@ -42,6 +44,7 @@ export type FtmsBleTrainerOptions = {
   device: BluetoothDevice
   now?: () => number
   requestTimeoutMs?: number
+  logger?: TrainerIoLogger
   connectionFactory?: (
     input: FtmsConnectionFactoryInput
   ) => Promise<FtmsConnection>
@@ -55,6 +58,7 @@ type FtmsConnectionFactoryInput = {
   onError: (error: TrainerError) => void
   onDisconnected: () => void
   onDeviceInfo: (deviceInfo: BleTrainerDeviceInfo) => void
+  logger: TrainerIoLogger
 }
 
 type FtmsConnection = {
@@ -80,6 +84,7 @@ export class FtmsBleTrainer implements TrainerSource {
 
   private readonly now: () => number
   private readonly requestTimeoutMs: number
+  private readonly logger: TrainerIoLogger
   private readonly connectionFactory: (
     input: FtmsConnectionFactoryInput
   ) => Promise<FtmsConnection>
@@ -91,6 +96,7 @@ export class FtmsBleTrainer implements TrainerSource {
   constructor(options: FtmsBleTrainerOptions) {
     this.now = options.now ?? (() => Date.now())
     this.requestTimeoutMs = options.requestTimeoutMs ?? 3000
+    this.logger = options.logger ?? noopTrainerIoLogger
     this.connectionFactory =
       options.connectionFactory ?? createFtmsConnectionFromDevice
     this.device = options.device
@@ -110,7 +116,7 @@ export class FtmsBleTrainer implements TrainerSource {
   private async doConnect(): Promise<void> {
     if (this.connection) return
     const generation = ++this.connectGeneration
-    console.info("[trainer-io][ftms] connect start", {
+    this.logger.info("[trainer-io][ftms] connect start", {
       deviceName: this.device.name ?? null,
       deviceId: this.device.id ?? null,
     })
@@ -137,6 +143,7 @@ export class FtmsBleTrainer implements TrainerSource {
         onDeviceInfo: (deviceInfo) => {
           this.deviceInfo = deviceInfo
         },
+        logger: this.logger,
       })
 
       if (generation !== this.connectGeneration) {
@@ -146,7 +153,7 @@ export class FtmsBleTrainer implements TrainerSource {
 
       this.connection = connection
       this._capabilities = new Set(connection.capabilities)
-      console.info("[trainer-io][ftms] connect complete", {
+      this.logger.info("[trainer-io][ftms] connect complete", {
         capabilities: Array.from(connection.capabilities),
         deviceInfo: this.deviceInfo,
       })
@@ -158,7 +165,7 @@ export class FtmsBleTrainer implements TrainerSource {
       }
 
       const trainerError = mapWebBluetoothError(error, "transport")
-      console.error("[trainer-io][ftms] connect failed", trainerError)
+      this.logger.error("[trainer-io][ftms] connect failed", trainerError)
       this.resetConnectionScopedState()
       this.errorSubject.emit(trainerError)
       this.setState({ kind: "error", error: trainerError })
@@ -168,7 +175,7 @@ export class FtmsBleTrainer implements TrainerSource {
 
   async disconnect(): Promise<void> {
     this.connectGeneration += 1
-    console.info("[trainer-io][ftms] disconnect")
+    this.logger.info("[trainer-io][ftms] disconnect")
     const connection = this.connection
     this.connection = null
     try {
@@ -223,7 +230,10 @@ export class FtmsBleTrainer implements TrainerSource {
         } catch (error: unknown) {
           const trainerError = mapWebBluetoothError(error, "transport")
           this.errorSubject.emit(trainerError)
-          console.error("[trainer-io][ftms] setMode free failed", trainerError)
+          this.logger.error(
+            "[trainer-io][ftms] setMode free failed",
+            trainerError
+          )
           throw trainerError
         }
       } else {
@@ -232,7 +242,7 @@ export class FtmsBleTrainer implements TrainerSource {
         } catch (error: unknown) {
           const trainerError = mapWebBluetoothError(error, "transport")
           this.errorSubject.emit(trainerError)
-          console.error(
+          this.logger.error(
             "[trainer-io][ftms] setMode requestControl failed",
             trainerError
           )
@@ -269,7 +279,7 @@ export class FtmsBleTrainer implements TrainerSource {
     }
 
     try {
-      console.info("[trainer-io][ftms] sendCommand", command)
+      this.logger.info("[trainer-io][ftms] sendCommand", command)
       await this.connection.sendCommand(command)
     } catch (error: unknown) {
       const trainerError = mapWebBluetoothError(
@@ -277,7 +287,7 @@ export class FtmsBleTrainer implements TrainerSource {
         errorMatchesCode(error, "timeout") ? "timeout" : "transport"
       )
       this.errorSubject.emit(trainerError)
-      console.error("[trainer-io][ftms] sendCommand failed", trainerError)
+      this.logger.error("[trainer-io][ftms] sendCommand failed", trainerError)
       throw trainerError
     }
   }
@@ -314,7 +324,7 @@ export class FtmsBleTrainer implements TrainerSource {
       code: "transport",
       message: "Trainer disconnected unexpectedly.",
     }
-    console.error("[trainer-io][ftms] unexpected disconnect", error)
+    this.logger.error("[trainer-io][ftms] unexpected disconnect", error)
     this.errorSubject.emit(error)
     // Emit only the error state; do not immediately transition to disconnected.
     // The consumer (ride-core) decides whether to reconnect or give up.
@@ -340,7 +350,7 @@ async function createFtmsConnectionFromDevice(
 
   try {
     const server = gatt.connected ? gatt : await gatt.connect()
-    console.info("[trainer-io][ftms] gatt connected")
+    input.logger.info("[trainer-io][ftms] gatt connected")
     const service = new GattService(
       await server.getPrimaryService(FITNESS_MACHINE_SERVICE_UUID)
     )
@@ -379,7 +389,7 @@ async function createFtmsConnectionFromDevice(
       supportedPowerRange,
       supportedResistanceRange,
     })
-    console.info("[trainer-io][ftms] feature summary", {
+    input.logger.info("[trainer-io][ftms] feature summary", {
       feature,
       supportedPowerRange,
       supportedResistanceRange,
@@ -390,7 +400,7 @@ async function createFtmsConnectionFromDevice(
     const unsubscribeTelemetry = indoorBikeData.subscribe((value) => {
       try {
         const parsed = decodeFtmsIndoorBikeData(value)
-        console.debug("[trainer-io][ftms] telemetry", parsed)
+        input.logger.debug("[trainer-io][ftms] telemetry", parsed)
         input.onTelemetry({
           ...parsed,
           timestampMs: input.now(),
@@ -411,19 +421,20 @@ async function createFtmsConnectionFromDevice(
 
     const controlPoint = new FtmsControlPointClient(
       controlPointCharacteristic,
-      input.requestTimeoutMs
+      input.requestTimeoutMs,
+      input.logger
     )
     await controlPoint.start()
     await controlPoint.requestControl()
 
     const deviceInfo = await readBleTrainerDeviceInfo(device)
-    console.info("[trainer-io][ftms] device info", deviceInfo)
+    input.logger.info("[trainer-io][ftms] device info", deviceInfo)
     input.onDeviceInfo(deviceInfo)
 
     return {
       capabilities,
       async release() {
-        await releaseTrainerControl(controlPoint, capabilities)
+        await releaseTrainerControl(controlPoint, capabilities, input.logger)
       },
       async requestControl() {
         await controlPoint.requestControl()
@@ -432,9 +443,9 @@ async function createFtmsConnectionFromDevice(
         isIntentionalDisconnect = true
         unsubscribeTelemetry()
         try {
-          await releaseTrainerControl(controlPoint, capabilities)
+          await releaseTrainerControl(controlPoint, capabilities, input.logger)
         } catch (error: unknown) {
-          console.warn(
+          input.logger.warn(
             "[trainer-io][ftms] reset during disconnect failed",
             error
           )
@@ -521,16 +532,17 @@ function isCommandRoutable(
 
 async function releaseTrainerControl(
   controlPoint: FtmsControlPointClient,
-  capabilities: TrainerCapabilities
+  capabilities: TrainerCapabilities,
+  logger: TrainerIoLogger = noopTrainerIoLogger
 ): Promise<void> {
   if (capabilities.has(Capability.Resistance)) {
-    console.info("[trainer-io][ftms] release via resistance 0")
+    logger.info("[trainer-io][ftms] release via resistance 0")
     await controlPoint.sendCommand({ type: "setResistance", level: 0 })
     return
   }
 
   if (capabilities.has(Capability.SimulationGrade)) {
-    console.info("[trainer-io][ftms] release via simulation 0")
+    logger.info("[trainer-io][ftms] release via simulation 0")
     await controlPoint.sendCommand({
       type: "setSimulationGrade",
       gradePercent: 0,
@@ -539,6 +551,6 @@ async function releaseTrainerControl(
     return
   }
 
-  console.info("[trainer-io][ftms] release via reset")
+  logger.info("[trainer-io][ftms] release via reset")
   await controlPoint.reset()
 }

@@ -271,4 +271,29 @@ describe("useRideRuntime", () => {
     expect(result.current.trainer).not.toBeInstanceOf(SimulatedTrainer)
     expect(result.current.source).toBe("ble")
   })
+
+  it("reconnect clears connecting and returns a structured failure when connect throws", async () => {
+    vi.stubEnv("VITE_RIDE_DEV_SIMULATION", "true")
+    const { useRideRuntime } = await import("./use-ride-runtime")
+    const { result } = renderHook(() => useRideRuntime())
+
+    await act(async () => {
+      await result.current.useSimulatedTrainer()
+    })
+    vi.spyOn(result.current.session, "connectTrainer").mockRejectedValueOnce(
+      new Error("boom")
+    )
+
+    let reconnectResult: unknown
+    await act(async () => {
+      reconnectResult = await result.current.connection.reconnect()
+    })
+
+    expect(reconnectResult).toEqual({
+      ok: false,
+      error: { code: "transport", message: "boom" },
+    })
+    expect(result.current.connecting).toBe(false)
+    expect(result.current.connectionError).toBe("boom")
+  })
 })

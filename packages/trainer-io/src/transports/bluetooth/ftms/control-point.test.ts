@@ -131,4 +131,36 @@ describe("FtmsControlPointClient", () => {
     await expect(client.requestControl()).rejects.toThrow("write failed")
     await expect(client.requestControl()).resolves.toBeUndefined()
   })
+
+  it("clears pending state after timeout so a later command can proceed", async () => {
+    let listener: ((value: DataView) => void) | null = null
+    const writeValue = vi.fn(() => Promise.resolve(undefined))
+    const client = new FtmsControlPointClient(
+      {
+        uuid: "control",
+        startNotifications: vi.fn(() => Promise.resolve(undefined)),
+        stopNotifications: vi.fn(() => Promise.resolve(undefined)),
+        writeValue,
+        subscribe(next: (value: DataView) => void) {
+          listener = next
+          return () => {
+            listener = null
+          }
+        },
+      } as never,
+      1000
+    )
+
+    await client.start()
+
+    const timedOut = client.requestControl().catch((error: unknown) => error)
+    await vi.advanceTimersByTimeAsync(1000)
+    await expect(timedOut).resolves.toMatchObject({ code: "timeout" })
+
+    const next = client.requestControl()
+    await Promise.resolve()
+    const emit = listener as ((value: DataView) => void) | null
+    emit?.(new DataView(Uint8Array.of(0x80, 0x00, 0x01).buffer))
+    await expect(next).resolves.toBeUndefined()
+  })
 })

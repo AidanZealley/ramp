@@ -1,17 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createRideSession, useRideSelector } from "@ramp/ride-core"
 import {
-  SimulatedTrainer,
-  isWebBluetoothAvailable,
-  requestBleTrainer,
-} from "@ramp/trainer-io"
+  canUseBleTrainerSource,
+  createSimulatedTrainerSource,
+  requestBleTrainerSource,
+} from "./trainer-sources"
 import { rideDevSimulationEnabled } from "./dev-simulation-config"
 import type {
   RideConnectionResult,
   RideExperienceConnection,
   RideSessionController,
 } from "@ramp/ride-core"
-import type { SimulatedRider, TrainerSource } from "@ramp/trainer-io"
+import type {
+  SimulatedRider,
+  SimulatedTrainer,
+  TrainerSource,
+} from "./trainer-sources"
 
 export type RideTrainerSource = "none" | "simulated" | "ble"
 export type RideTrainerConnectionChoice = "simulated" | "ble"
@@ -39,7 +43,7 @@ export type RideRuntime = {
 export function useRideRuntime(): RideRuntime {
   const session = useMemo(() => createRideSession(), [])
   const simulatedTrainer = useMemo(
-    () => (rideDevSimulationEnabled ? new SimulatedTrainer() : null),
+    () => (rideDevSimulationEnabled ? createSimulatedTrainerSource() : null),
     []
   )
   const [trainer, setTrainer] = useState<TrainerSource | null>(null)
@@ -52,6 +56,7 @@ export function useRideRuntime(): RideRuntime {
     )
   const [bleAvailable, setBleAvailable] = useState(false)
   const [connectionError, setConnectionError] = useState<string | null>(null)
+  const connectionErrorRef = useRef<string | null>(null)
   const [connecting, setConnecting] = useState(false)
   const [selectingBleTrainer, setSelectingBleTrainer] = useState(false)
   const disposeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -66,48 +71,60 @@ export function useRideRuntime(): RideRuntime {
     (state) => state.lastTrainerError
   )
 
-  const setSource = (nextSource: RideTrainerSource) => {
+  const setSource = useCallback((nextSource: RideTrainerSource) => {
     sourceRef.current = nextSource
     setSourceState(nextSource)
-  }
+  }, [])
 
-  const connectTrainer = async (
-    nextTrainer: TrainerSource,
-    nextSource: RideTrainerSource
-  ): Promise<boolean> => {
-    const result = await session.connectTrainer(nextTrainer)
-    if (!result.ok) {
-      setConnectionError(result.error.message)
-      setTrainer(null)
-      trainerRef.current = null
-      setSource("none")
-      return false
-    }
-    setTrainer(nextTrainer)
-    trainerRef.current = nextTrainer
-    setSource(nextSource)
-    setConnectionError(null)
-    return true
-  }
+  const setConnectionErrorState = useCallback((message: string | null) => {
+    connectionErrorRef.current = message
+    setConnectionError(message)
+  }, [])
 
-  const connectBleTrainer = async (): Promise<boolean> => {
+  const connectTrainer = useCallback(
+    async (
+      nextTrainer: TrainerSource,
+      nextSource: RideTrainerSource
+    ): Promise<boolean> => {
+      const previousTrainer = trainerRef.current
+      const previousSource = sourceRef.current
+      const result = await session.connectTrainer(nextTrainer)
+      if (!result.ok) {
+        setConnectionErrorState(result.error.message)
+        setTrainer(previousTrainer)
+        trainerRef.current = previousTrainer
+        setSource(previousSource)
+        return false
+      }
+      setTrainer(nextTrainer)
+      trainerRef.current = nextTrainer
+      setSource(nextSource)
+      setConnectionErrorState(null)
+      return true
+    },
+    [session, setConnectionErrorState, setSource]
+  )
+
+  const connectBleTrainer = useCallback(async (): Promise<boolean> => {
     if (selectingBleTrainerRef.current || connectingRef.current) return false
     if (!bleAvailable) {
-      setConnectionError("Web Bluetooth requires a Chromium-class browser.")
+      setConnectionErrorState(
+        "Web Bluetooth requires a Chromium-class browser."
+      )
       return false
     }
     selectingBleTrainerRef.current = true
     connectingRef.current = true
     setSelectingBleTrainer(true)
     setConnecting(true)
-    setConnectionError(null)
+    setConnectionErrorState(null)
     try {
-      const nextTrainer = await requestBleTrainer()
+      const nextTrainer = await requestBleTrainerSource()
       const connected = await connectTrainer(nextTrainer, "ble")
       if (connected) setSelectedSource("ble")
       return connected
     } catch {
-      setConnectionError("Bluetooth trainer selection was cancelled.")
+      setConnectionErrorState("Bluetooth trainer selection was cancelled.")
       return false
     } finally {
       selectingBleTrainerRef.current = false
@@ -115,17 +132,17 @@ export function useRideRuntime(): RideRuntime {
       setSelectingBleTrainer(false)
       setConnecting(false)
     }
-  }
+  }, [bleAvailable, connectTrainer, setConnectionErrorState])
 
-  const useSimulatedTrainer = async (): Promise<boolean> => {
+  const useSimulatedTrainer = useCallback(async (): Promise<boolean> => {
     if (connectingRef.current) return false
     if (!simulatedTrainer) {
-      setConnectionError("The ride simulator is not available.")
+      setConnectionErrorState("The ride simulator is not available.")
       return false
     }
     connectingRef.current = true
     setConnecting(true)
-    setConnectionError(null)
+    setConnectionErrorState(null)
     try {
       const connected = await connectTrainer(simulatedTrainer, "simulated")
       if (connected) setSelectedSource("simulated")
@@ -134,48 +151,66 @@ export function useRideRuntime(): RideRuntime {
       connectingRef.current = false
       setConnecting(false)
     }
-  }
+  }, [connectTrainer, setConnectionErrorState, simulatedTrainer])
 
-  const connectSelectedTrainer = async (): Promise<boolean> => {
+  const connectSelectedTrainer = useCallback(async (): Promise<boolean> => {
     if (selectedSource === "simulated") return useSimulatedTrainer()
     if (selectedSource === "ble") return connectBleTrainer()
-    setConnectionError("Choose a trainer source before starting.")
+    setConnectionErrorState("Choose a trainer source before starting.")
     return false
-  }
+  }, [
+    connectBleTrainer,
+    selectedSource,
+    setConnectionErrorState,
+    useSimulatedTrainer,
+  ])
 
-  const disconnectTrainer = async (): Promise<void> => {
+  const disconnectTrainer = useCallback(async (): Promise<void> => {
     await session.disconnectTrainer()
     setTrainer(null)
     trainerRef.current = null
     setSource("none")
-  }
+  }, [session, setSource])
 
-  const reconnect = async (): Promise<RideConnectionResult> => {
+  const reconnect = useCallback(async (): Promise<RideConnectionResult> => {
     const activeTrainer = trainerRef.current
     if (activeTrainer) {
       connectingRef.current = true
       setConnecting(true)
-      const result = await session.connectTrainer(activeTrainer)
-      connectingRef.current = false
-      setConnecting(false)
-      if (!result.ok) setConnectionError(result.error.message)
-      return result
+      try {
+        const result = await session.connectTrainer(activeTrainer)
+        if (!result.ok) setConnectionErrorState(result.error.message)
+        return result
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unable to reconnect trainer."
+        const result: RideConnectionResult = {
+          ok: false,
+          error: { code: "transport", message },
+        }
+        setConnectionErrorState(message)
+        return result
+      } finally {
+        connectingRef.current = false
+        setConnecting(false)
+      }
     }
 
     const ok = await connectSelectedTrainer()
-    return ok
-      ? { ok: true }
-      : {
-          ok: false,
-          error: {
-            code: "transport",
-            message: connectionError ?? "Unable to reconnect trainer.",
-          },
-        }
-  }
+    if (ok) return { ok: true }
+    return {
+      ok: false,
+      error: {
+        code: "transport",
+        message: connectionErrorRef.current ?? "Unable to reconnect trainer.",
+      },
+    }
+  }, [connectSelectedTrainer, session, setConnectionErrorState])
 
   useEffect(() => {
-    const nextBleAvailable = isWebBluetoothAvailable()
+    const nextBleAvailable = canUseBleTrainerSource()
     setBleAvailable(nextBleAvailable)
     if (!rideDevSimulationEnabled && nextBleAvailable) {
       setSelectedSource((current) => current ?? "ble")
@@ -195,32 +230,61 @@ export function useRideRuntime(): RideRuntime {
     }
   }, [session])
 
-  return {
-    session,
-    trainer,
-    bleAvailable,
-    devSimulationEnabled: rideDevSimulationEnabled,
-    simulatedTrainer,
-    simulatedRider: simulatedTrainer?.rider ?? null,
-    source,
-    selectedSource,
-    selectingBleTrainer,
-    connecting,
-    connectionError,
-    connection: {
+  const selectSource = useCallback(
+    (nextSource: RideTrainerConnectionChoice) => {
+      if (nextSource === "simulated" && !rideDevSimulationEnabled) return
+      setSelectedSource(nextSource)
+      setConnectionErrorState(null)
+    },
+    [setConnectionErrorState]
+  )
+
+  const connection = useMemo<RideExperienceConnection>(
+    () => ({
       status: trainerStatus,
       reconnect,
       disconnect: disconnectTrainer,
       error: lastTrainerError,
-    },
-    selectSource(nextSource) {
-      if (nextSource === "simulated" && !rideDevSimulationEnabled) return
-      setSelectedSource(nextSource)
-      setConnectionError(null)
-    },
-    connectSelectedTrainer,
-    connectBleTrainer,
-    useSimulatedTrainer,
-    disconnectTrainer,
-  }
+    }),
+    [disconnectTrainer, lastTrainerError, reconnect, trainerStatus]
+  )
+
+  return useMemo(
+    () => ({
+      session,
+      trainer,
+      bleAvailable,
+      devSimulationEnabled: rideDevSimulationEnabled,
+      simulatedTrainer,
+      simulatedRider: simulatedTrainer?.rider ?? null,
+      source,
+      selectedSource,
+      selectingBleTrainer,
+      connecting,
+      connectionError,
+      connection,
+      selectSource,
+      connectSelectedTrainer,
+      connectBleTrainer,
+      useSimulatedTrainer,
+      disconnectTrainer,
+    }),
+    [
+      bleAvailable,
+      connectBleTrainer,
+      connectSelectedTrainer,
+      connecting,
+      connection,
+      connectionError,
+      disconnectTrainer,
+      selectSource,
+      selectingBleTrainer,
+      selectedSource,
+      session,
+      simulatedTrainer,
+      source,
+      trainer,
+      useSimulatedTrainer,
+    ]
+  )
 }

@@ -117,6 +117,7 @@ export function LiveWorkoutExperienceView({
   const [startError, setStartError] = useState<string | null>(null)
   const [isStarting, setIsStarting] = useState(false)
   const lastLinkedWorkoutId = useRef<Id<"workouts"> | undefined>(undefined)
+  const startGeneration = useRef(0)
 
   const ftp = settings?.ftp ?? DEFAULT_FTP
   const supportsTargetPower = session.controls
@@ -163,17 +164,25 @@ export function LiveWorkoutExperienceView({
   }, [selectedWorkoutId, trainerConnected, supportsTargetPower])
 
   const handleStart = useCallback(async () => {
-    if (!selectedWorkout || !trainerConnected || !selectedWorkoutHasDuration) {
+    if (
+      isStarting ||
+      !selectedWorkout ||
+      !trainerConnected ||
+      !selectedWorkoutHasDuration
+    ) {
       return
     }
 
+    const generation = startGeneration.current + 1
+    startGeneration.current = generation
     setIsStarting(true)
 
     try {
       const definition = toWorkoutDefinition(selectedWorkout)
       const result = await workoutController.loadWorkout(definition, ftp)
-      if (!mounted.current) return
+      if (!mounted.current || generation !== startGeneration.current) return
       if (!result.ok) {
+        if (result.reason === "stale-dispatch") return
         setStartError(getWorkoutErrorCopy(result.reason))
         setActiveWorkout(null)
         return
@@ -183,7 +192,7 @@ export function LiveWorkoutExperienceView({
       setActiveWorkout(selectedWorkout)
     } catch (error: unknown) {
       console.error("[live-workout] start failed", error)
-      if (!mounted.current) return
+      if (!mounted.current || generation !== startGeneration.current) return
       setActiveWorkout(null)
       if (error instanceof InvalidWorkoutDefinitionError) {
         setStartError("Workout data is invalid.")
@@ -191,12 +200,13 @@ export function LiveWorkoutExperienceView({
       }
       setStartError("Unable to start workout.")
     } finally {
-      if (mounted.current) {
+      if (mounted.current && generation === startGeneration.current) {
         setIsStarting(false)
       }
     }
   }, [
     ftp,
+    isStarting,
     selectedWorkout,
     selectedWorkoutHasDuration,
     session,
@@ -205,6 +215,7 @@ export function LiveWorkoutExperienceView({
   ])
 
   const handleEnd = useCallback(() => {
+    startGeneration.current += 1
     workoutController.clearWorkout()
     setActiveWorkout(null)
     setStartError(null)

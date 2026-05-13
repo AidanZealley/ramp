@@ -175,6 +175,9 @@ export function createWorkoutController({
     }
   }
 
+  const isCurrentGeneration = (generation: number) =>
+    !disposed && generation === asyncStateGeneration
+
   const update = () => {
     if (!activeWorkout || disposed) return
     const sessionState = session.getState()
@@ -401,6 +404,7 @@ export function createWorkoutController({
       }
 
       asyncStateGeneration += 1
+      const generation = asyncStateGeneration
       setWorkoutState({
         ...initialState,
         difficultyPercent: BASELINE_DIFFICULTY_PERCENT,
@@ -413,6 +417,9 @@ export function createWorkoutController({
         "workout",
         { priority: "immediate", delivery: "acknowledged", timeoutMs: 3000 }
       )
+      if (!isCurrentGeneration(generation)) {
+        return { ok: false, reason: "stale-dispatch" }
+      }
       if (!modeResult.ok) {
         failState(modeResult.reason)
         return modeResult
@@ -428,10 +435,17 @@ export function createWorkoutController({
         "workout",
         { priority: "immediate", delivery: "acknowledged", timeoutMs: 3000 }
       )
+      if (!isCurrentGeneration(generation)) {
+        return { ok: false, reason: "stale-dispatch" }
+      }
       if (!targetResult.ok) {
         failState(targetResult.reason)
+        const rollbackGeneration = asyncStateGeneration
         freeModeSent = false
         await dispatchFreeMode()
+        if (!isCurrentGeneration(rollbackGeneration)) {
+          return { ok: false, reason: "stale-dispatch" }
+        }
         activeWorkout = null
         return targetResult
       }
@@ -519,6 +533,9 @@ export function createWorkoutController({
     clearWorkout() {
       if (disposed) return
       if (!activeWorkout) {
+        if (state.controlStatus === "starting") {
+          asyncStateGeneration += 1
+        }
         setWorkoutState({ ...initialState })
         return
       }

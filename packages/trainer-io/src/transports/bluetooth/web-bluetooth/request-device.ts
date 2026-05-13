@@ -1,9 +1,12 @@
 import { createControllableTrainerRequestOptions } from "./uuids"
+import { noopTrainerIoLogger } from "../ftms/logger"
 import type { TrainerError } from "../../../types"
+import type { TrainerIoLogger } from "../ftms/logger"
 
 export type BleTrainerRequestOptions = {
   requestDevice?: (options: RequestDeviceOptions) => Promise<BluetoothDevice>
   requestTimeoutMs?: number
+  logger?: TrainerIoLogger
 }
 
 export function isWebBluetoothAvailable(): boolean {
@@ -18,6 +21,8 @@ export function isWebBluetoothAvailable(): boolean {
 export async function requestBleDevice(
   options: BleTrainerRequestOptions = {}
 ): Promise<BluetoothDevice> {
+  const logger = options.logger ?? noopTrainerIoLogger
+
   if (!isWebBluetoothAvailable()) {
     throw createTrainerError(
       "unsupported",
@@ -38,10 +43,10 @@ export async function requestBleDevice(
     bluetooth.requestDevice.bind(bluetooth)
 
   try {
-    console.info("[trainer-io][ble] opening device chooser")
+    logger.info("[trainer-io][ble] opening device chooser")
     return await requestDevice(createControllableTrainerRequestOptions())
   } catch (error: unknown) {
-    console.error("[trainer-io][ble] requestDevice failed", error)
+    logger.error("[trainer-io][ble] requestDevice failed", error)
     throw mapWebBluetoothError(error, "permission")
   }
 }
@@ -110,7 +115,7 @@ function getErrorName(error: unknown): string | null {
     typeof error === "object" &&
     error !== null &&
     "name" in error &&
-    typeof (error).name === "string"
+    typeof error.name === "string"
   ) {
     return (error as { name: string }).name
   }
