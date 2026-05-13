@@ -16,6 +16,11 @@ type Pending = {
   priority: NonNullable<DispatchOptions["priority"]>
   attempts: number
   nextAttemptAt: number
+  acknowledged: boolean
+  settle?: {
+    resolve: () => void
+    reject: (reason: string) => void
+  }
 }
 
 export type ArbiterError = {
@@ -48,16 +53,29 @@ export class CommandArbiter {
     command: TrainerCommand,
     source: TrainerCommandSource,
     options: DispatchOptions = {}
-  ): void {
+  ): Promise<void> | null {
     const key = this.keyFor(command)
     const current = this.pending.get(key)
     if (
       current &&
       this.policy.precedence[current.source] > this.policy.precedence[source]
     ) {
-      return
+      return options.delivery === "acknowledged"
+        ? Promise.reject(new Error("command-superseded"))
+        : null
     }
     const now = this.now()
+    current?.settle?.reject("command-superseded")
+    let settle: Pending["settle"]
+    const promise =
+      options.delivery === "acknowledged"
+        ? new Promise<void>((resolve, reject) => {
+            settle = {
+              resolve,
+              reject: (reason) => reject(new Error(reason)),
+            }
+          })
+        : null
     this.pending.set(key, {
       command,
       source,
@@ -65,10 +83,20 @@ export class CommandArbiter {
       priority: options.priority ?? "normal",
       attempts: 0,
       nextAttemptAt: now,
+      acknowledged: options.delivery === "acknowledged",
+      settle,
     })
+    return promise
   }
 
-  clear(options: { clearLastSent?: boolean } = {}): void {
+  clear(
+    options: { clearLastSent?: boolean; reason?: string } = {}
+  ): void {
+    const reason = options.reason ?? "commands-cleared"
+    for (const pending of this.pending.values()) {
+      pending.settle?.reject(reason)
+    }
+    this.inFlight?.pending.settle?.reject(reason)
     this.pending.clear()
     this.inFlight = null
     if (options.clearLastSent ?? false) {
@@ -78,7 +106,9 @@ export class CommandArbiter {
 
   async flush(
     trainer: RideTrainerAdapter | null
-  ): Promise<{ sent: true; key: CommandKey } | { sent: false }> {
+  ): Promise<
+    { sent: true; key: CommandKey; command: TrainerCommand } | { sent: false }
+  > {
     if (!trainer || this.inFlight) return { sent: false }
     const now = this.now()
     const nextEntry = this.nextSendableEntry(now)
@@ -92,7 +122,8 @@ export class CommandArbiter {
         this.pending.delete(key)
       }
       this.lastSentAt.set(key, now)
-      return { sent: true, key }
+      pending.settle?.resolve()
+      return { sent: true, key, command: pending.command }
     } catch (error: unknown) {
       // Handle retry with backoff
       const currentPending = this.pending.get(key)
@@ -103,6 +134,7 @@ export class CommandArbiter {
           this.pending.delete(key)
           const reason =
             error instanceof Error ? error.message : "command-rejected:max-retries"
+          pending.settle?.reject(reason)
           this.errors.emit({ key, command: pending.command, reason })
         } else {
           // Schedule retry with backoff

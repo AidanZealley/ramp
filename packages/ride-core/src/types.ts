@@ -42,7 +42,13 @@ export type DispatchResult = { ok: true } | { ok: false; reason: string }
 
 export type DispatchOptions = {
   priority?: "normal" | "immediate"
+  delivery?: "enqueued" | "acknowledged"
+  timeoutMs?: number
 }
+
+export type RideConnectionResult =
+  | { ok: true }
+  | { ok: false; error: TrainerError }
 
 export type RideFrameData = {
   telemetry: RideTrainerTelemetry | null
@@ -76,7 +82,7 @@ export interface RideSessionController {
   getLatestTelemetry: () => RideTrainerTelemetry | null
   subscribe: (listener: () => void) => () => void
   subscribeFrame: (listener: (frame: RideFrameData) => void) => () => void
-  connectTrainer: (trainer: RideTrainerAdapter) => Promise<void>
+  connectTrainer: (trainer: RideTrainerAdapter) => Promise<RideConnectionResult>
   disconnectTrainer: () => Promise<void>
   pause: () => void
   resume: () => void
@@ -89,10 +95,18 @@ export type RideExperiencePlugin = {
   displayName: string
   ExperienceView: React.ComponentType<{
     session: RideSessionController
+    connection?: RideExperienceConnection
     search?: {
       workoutId?: string
     }
   }>
+}
+
+export type RideExperienceConnection = {
+  status: "disconnected" | "connecting" | "connected" | "error"
+  reconnect: () => Promise<RideConnectionResult>
+  disconnect: () => Promise<void>
+  error: TrainerError | null
 }
 
 export type { Capability, TrainerCapabilities, TrainerCommand }

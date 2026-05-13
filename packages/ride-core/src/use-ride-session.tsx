@@ -67,6 +67,51 @@ export function useRideSelector<T>(
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 }
 
+export function useRideThrottledSelector<T>(
+  session: RideSessionController,
+  selector: (state: RideSessionState) => T,
+  options: {
+    hz: number
+    equals?: (a: T, b: T) => boolean
+  }
+): T {
+  const selectorRef = useRef(selector)
+  const equalsRef = useRef(options.equals ?? Object.is)
+  const hzRef = useRef(options.hz)
+  selectorRef.current = selector
+  equalsRef.current = options.equals ?? Object.is
+  hzRef.current = options.hz
+
+  const valueRef = useRef(selector(session.getState()))
+
+  const getSnapshot = useCallback(() => valueRef.current, [])
+
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      let latestValue = selectorRef.current(session.getState())
+      valueRef.current = latestValue
+
+      const unsubscribe = session.subscribe(() => {
+        latestValue = selectorRef.current(session.getState())
+      })
+      const interval = setInterval(() => {
+        if (!equalsRef.current(valueRef.current, latestValue)) {
+          valueRef.current = latestValue
+          onStoreChange()
+        }
+      }, 1000 / hzRef.current)
+
+      return () => {
+        unsubscribe()
+        clearInterval(interval)
+      }
+    },
+    [session]
+  )
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
+}
+
 /**
  * Subscribe to frame events for game/render loops.
  * Callback fires on each tickTelemetry, receives telemetry and deltaMs.

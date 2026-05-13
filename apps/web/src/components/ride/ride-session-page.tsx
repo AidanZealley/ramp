@@ -4,12 +4,17 @@ import { RideConnectionGate } from "./ride-connection-gate"
 import { RideOverlay } from "./ride-overlay"
 import type { Id } from "#convex/_generated/dataModel"
 import type { RideExperienceDefinition } from "@/experiences/types"
+import type { RideRuntimeController } from "@/ride/use-ride-runtime"
 import { useElementSize } from "@/hooks/use-element-size"
-import { useRideSessionBootstrap } from "@/ride/use-ride-session-bootstrap"
-import { useRideTrainer } from "@/ride/use-ride-trainer"
+import { useRideRuntime } from "@/ride/use-ride-runtime"
 
 type RideExperienceSearchProps = {
   workoutId?: Id<"workouts">
+}
+
+type ReadyRideRuntimeController = RideRuntimeController & {
+  ready: true
+  session: NonNullable<RideRuntimeController["session"]>
 }
 
 export function RideSessionPage({
@@ -19,18 +24,14 @@ export function RideSessionPage({
   experience: RideExperienceDefinition
   search?: RideExperienceSearchProps
 }) {
-  const trainerController = useRideTrainer()
-  const { trainer } = trainerController
+  const runtime = useRideRuntime()
   const [connectionConfirmed, setConnectionConfirmed] = useState(false)
-  const { session } = useRideSessionBootstrap(
-    connectionConfirmed ? trainer : null
-  )
 
-  if (!connectionConfirmed) {
+  if (!connectionConfirmed || !runtime.ready || runtime.session === null) {
     return (
       <RideConnectionGate
         experience={experience}
-        trainerController={trainerController}
+        trainerController={runtime.ready ? runtime : null}
         onConnected={() => setConnectionConfirmed(true)}
       />
     )
@@ -41,8 +42,7 @@ export function RideSessionPage({
       experience={experience}
       onDisconnected={() => setConnectionConfirmed(false)}
       search={search}
-      session={session}
-      trainerController={trainerController}
+      trainerController={runtime as ReadyRideRuntimeController}
     />
   )
 }
@@ -51,15 +51,14 @@ function RideSessionExperience({
   experience,
   onDisconnected,
   search,
-  session,
   trainerController,
 }: {
   experience: RideExperienceDefinition
   onDisconnected: () => void
   search?: RideExperienceSearchProps
-  session: ReturnType<typeof useRideSessionBootstrap>["session"]
-  trainerController: ReturnType<typeof useRideTrainer>
+  trainerController: ReadyRideRuntimeController
 }) {
+  const { connection, session } = trainerController
   const [isCockpitOpen, setIsCockpitOpen] = useState(false)
   const [cockpitHeight, setCockpitHeight] = useState(0)
   const [overlayHeaderHeight, setOverlayHeaderHeight] = useState(0)
@@ -120,7 +119,11 @@ function RideSessionExperience({
             }}
           >
             <Suspense fallback={null}>
-              <ExperienceView session={session} search={search} />
+              <ExperienceView
+                session={session}
+                connection={connection}
+                search={search}
+              />
             </Suspense>
           </div>
         </div>

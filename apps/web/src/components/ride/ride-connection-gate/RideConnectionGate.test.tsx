@@ -1,10 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { useState } from "react"
 import { describe, expect, it, vi } from "vitest"
-import { SimulatedTrainer } from "@ramp/trainer-io"
 import { RideConnectionGate } from "./RideConnectionGate"
 import type { RideExperienceDefinition } from "@/experiences/types"
-import type { RideTrainerController } from "@/ride/use-ride-trainer"
+import type { RideRuntimeController } from "@/ride/use-ride-runtime"
 
 const experience: RideExperienceDefinition = {
   id: "test",
@@ -24,31 +23,47 @@ const experience: RideExperienceDefinition = {
 }
 
 function createController(
-  patch: Partial<RideTrainerController> = {}
-): RideTrainerController {
-  const simulatedTrainer = new SimulatedTrainer()
+  patch: Partial<RideRuntimeController> = {}
+): RideRuntimeController {
   return {
+    ready: true,
+    session: {} as RideRuntimeController["session"],
+    connection: {
+      status: "disconnected",
+      reconnect: vi.fn(() => Promise.resolve({ ok: true as const })),
+      disconnect: vi.fn(() => Promise.resolve()),
+      error: null,
+    },
     trainer: null,
     source: "none",
-    selectedSource: "simulated",
-    devSimulationEnabled: true,
     bleAvailable: true,
-    selectingBleTrainer: false,
+    selectingTrainer: false,
     connecting: false,
     connectionError: null,
-    simulatedTrainer,
-    simulatedRider: simulatedTrainer.rider,
-    selectSource: vi.fn(),
-    connectSelectedTrainer: vi.fn(() => Promise.resolve(true)),
-    connectBleTrainer: vi.fn(() => Promise.resolve(true)),
-    useSimulatedTrainer: vi.fn(() => Promise.resolve(true)),
+    connectTrainer: vi.fn(() => Promise.resolve({ ok: true as const })),
+    useSimulatorTrainer: vi.fn(() => Promise.resolve({ ok: true as const })),
     disconnectTrainer: vi.fn(() => Promise.resolve()),
     ...patch,
   }
 }
 
 describe("RideConnectionGate", () => {
-  it("renders simulator and BLE choices with simulator selected in dev mode", () => {
+  it("renders disabled setup shell while runtime is preparing", () => {
+    render(
+      <RideConnectionGate
+        experience={experience}
+        trainerController={null}
+        onConnected={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText("Test Ride")).toBeTruthy()
+    expect(screen.getByText("Preparing ride").hasAttribute("disabled")).toBe(
+      true
+    )
+  })
+
+  it("renders the experience summary and Connect trainer action", () => {
     render(
       <RideConnectionGate
         experience={experience}
@@ -59,52 +74,70 @@ describe("RideConnectionGate", () => {
 
     expect(screen.getByText("Test Ride")).toBeTruthy()
     expect(screen.getByText("A focused test ride.")).toBeTruthy()
-    expect(screen.getByText("Start with simulator")).toBeTruthy()
-    expect(screen.getByLabelText("Bluetooth trainer")).toBeTruthy()
+    expect(screen.getByText("Connect trainer")).toBeTruthy()
   })
 
-  it("connects and calls onConnected from the simulator primary action", async () => {
-    const onConnected = vi.fn()
-    const connectSelectedTrainer = vi.fn(() => Promise.resolve(true))
-
+  it("disables Connect trainer and shows unsupported copy when BLE is unavailable", () => {
     render(
       <RideConnectionGate
         experience={experience}
-        trainerController={createController({ connectSelectedTrainer })}
-        onConnected={onConnected}
-      />
-    )
-
-    fireEvent.click(screen.getByText("Start with simulator"))
-
-    await waitFor(() => {
-      expect(connectSelectedTrainer).toHaveBeenCalledTimes(1)
-      expect(onConnected).toHaveBeenCalledTimes(1)
-    })
-  })
-
-  it("disables the BLE path and shows the Web Bluetooth message", () => {
-    render(
-      <RideConnectionGate
-        experience={experience}
-        trainerController={createController({
-          bleAvailable: false,
-          selectedSource: "ble",
-        })}
+        trainerController={createController({ bleAvailable: false })}
         onConnected={vi.fn()}
       />
     )
 
-    expect(screen.getAllByText(
-      "Web Bluetooth requires a Chromium-class browser."
-    ).length).toBeGreaterThan(0)
     expect(
-      (screen.getByText("Connect trainer") as HTMLButtonElement).disabled
-    ).toBe(true)
-    expect(
-      (screen.getByLabelText("Bluetooth trainer") as HTMLButtonElement)
-        .disabled
-    ).toBe(true)
+      screen.getByText("Web Bluetooth requires a Chromium-class browser.")
+    ).toBeTruthy()
+    expect(screen.getByText("Connect trainer").hasAttribute("disabled")).toBe(
+      true
+    )
+  })
+
+  it("renders the dev simulator action", () => {
+    render(
+      <RideConnectionGate
+        experience={experience}
+        trainerController={createController()}
+        onConnected={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText("Use simulator")).toBeTruthy()
+  })
+
+  it("selects the simulator and calls onConnected after success", async () => {
+    const onConnected = vi.fn()
+    const useSimulatorTrainer = vi.fn(() =>
+      Promise.resolve({ ok: true as const })
+    )
+
+    render(
+      <RideConnectionGate
+        experience={experience}
+        trainerController={createController({ useSimulatorTrainer })}
+        onConnected={onConnected}
+      />
+    )
+
+    fireEvent.click(screen.getByText("Use simulator"))
+
+    await waitFor(() => {
+      expect(useSimulatorTrainer).toHaveBeenCalledTimes(1)
+      expect(onConnected).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it("does not render a trainer source toggle group", () => {
+    render(
+      <RideConnectionGate
+        experience={experience}
+        trainerController={createController()}
+        onConnected={vi.fn()}
+      />
+    )
+
+    expect(screen.queryByLabelText("Trainer source")).toBeNull()
   })
 
   it("shows connection errors and does not call onConnected on failure", async () => {
@@ -119,9 +152,12 @@ describe("RideConnectionGate", () => {
           experience={experience}
           trainerController={createController({
             connectionError,
-            connectSelectedTrainer: vi.fn(() => {
+            connectTrainer: vi.fn(() => {
               setConnectionError("Could not connect to trainer.")
-              return Promise.resolve(false)
+              return Promise.resolve({
+                ok: false,
+                error: { code: "transport", message: "Could not connect." },
+              } as const)
             }),
           })}
           onConnected={onConnected}
@@ -131,7 +167,7 @@ describe("RideConnectionGate", () => {
 
     render(<FailedGate />)
 
-    fireEvent.click(screen.getByText("Start with simulator"))
+    fireEvent.click(screen.getByText("Connect trainer"))
 
     await waitFor(() => {
       expect(screen.getByText("Could not connect to trainer.")).toBeTruthy()

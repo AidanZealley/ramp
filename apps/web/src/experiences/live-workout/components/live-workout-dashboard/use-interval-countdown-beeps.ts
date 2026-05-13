@@ -139,7 +139,6 @@ export function useIntervalCountdownBeeps({
 
     const isRealIntervalTransition =
       previousSegmentIndex !== null &&
-      activeSegmentIndex !== null &&
       previousSegmentIndex !== activeSegmentIndex
 
     if (isRealIntervalTransition) {
