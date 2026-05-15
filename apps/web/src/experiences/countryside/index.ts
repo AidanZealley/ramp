@@ -1,5 +1,5 @@
 import { CountrysideExperienceView } from "./countryside-experience-view"
-import type { RideExperiencePlugin } from "@ramp/ride-core"
+import type { RideExperiencePlugin } from "@/ride/experience-runtime"
 
 export const countrysideExperience: RideExperiencePlugin = {
   id: "countryside-r3f",

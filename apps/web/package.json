@@ -20,6 +20,8 @@
     "@fontsource-variable/geist": "^5.2.8",
     "@fontsource-variable/oxanium": "^5.2.8",
     "@ramp/ride-core": "workspace:*",
+    "@ramp/ride-r3f": "workspace:*",
+    "@ramp/ride-react": "workspace:*",
     "@ramp/ride-workouts": "workspace:*",
     "@ramp/trainer-io": "workspace:*",
     "@react-three/drei": "^10.7.7",

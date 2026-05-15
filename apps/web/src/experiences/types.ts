@@ -1,4 +1,4 @@
-import type { RideExperiencePlugin } from "@ramp/ride-core"
+import type { RideExperiencePlugin } from "@/ride/experience-runtime"
 
 export type RideExperienceDefinition = {
   id: string

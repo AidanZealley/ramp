@@ -3,7 +3,7 @@ import { motion } from "motion/react"
 import {
   useRideSessionContext,
   useRideThrottledSelector,
-} from "@ramp/ride-core"
+} from "@ramp/ride-react"
 import { CockpitMetric } from "./components/cockpit-metric"
 import { CockpitModeSelect } from "./components/cockpit-mode-select"
 import { CockpitRangeControl } from "./components/cockpit-range-control"

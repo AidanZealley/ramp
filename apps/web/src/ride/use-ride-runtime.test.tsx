@@ -119,6 +119,68 @@ describe("useRideRuntime", () => {
     unmount()
   })
 
+  it("preserves typed unsupported errors from BLE selection", async () => {
+    Object.defineProperty(navigator, "bluetooth", {
+      configurable: true,
+      value: { requestDevice: vi.fn() },
+    })
+    const error = {
+      code: "unsupported",
+      message: "Web Bluetooth is unsupported on this browser or platform.",
+    }
+    requestBleTrainer.mockRejectedValue(error)
+    const { useRideRuntime } = await import("./use-ride-runtime")
+    const { result, unmount } = renderHook(() => useRideRuntime())
+
+    await waitFor(() => {
+      expect(result.current.ready).toBe(true)
+      expect(result.current.bleAvailable).toBe(true)
+    })
+
+    await act(async () => {
+      await expect(result.current.connectTrainer()).resolves.toEqual({
+        ok: false,
+        error,
+      })
+    })
+    await waitFor(() => {
+      expect(result.current.connectionError).toBe(error.message)
+    })
+
+    unmount()
+  })
+
+  it("preserves typed transport errors from BLE selection", async () => {
+    Object.defineProperty(navigator, "bluetooth", {
+      configurable: true,
+      value: { requestDevice: vi.fn() },
+    })
+    const error = {
+      code: "transport",
+      message: "Trainer communication failed.",
+    }
+    requestBleTrainer.mockRejectedValue(error)
+    const { useRideRuntime } = await import("./use-ride-runtime")
+    const { result, unmount } = renderHook(() => useRideRuntime())
+
+    await waitFor(() => {
+      expect(result.current.ready).toBe(true)
+      expect(result.current.bleAvailable).toBe(true)
+    })
+
+    await act(async () => {
+      await expect(result.current.connectTrainer()).resolves.toEqual({
+        ok: false,
+        error,
+      })
+    })
+    await waitFor(() => {
+      expect(result.current.connectionError).toBe(error.message)
+    })
+
+    unmount()
+  })
+
   it("useSimulatorTrainer succeeds across StrictMode effect replay in dev mode", async () => {
     const { useRideRuntime } = await import("./use-ride-runtime")
     const wrapper = ({ children }: { children: ReactNode }) => (

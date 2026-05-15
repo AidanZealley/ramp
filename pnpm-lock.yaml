@@ -67,6 +67,12 @@ importers:
       '@ramp/ride-core':
         specifier: workspace:*
         version: link:../../packages/ride-core
+      '@ramp/ride-r3f':
+        specifier: workspace:*
+        version: link:../../packages/ride-r3f
+      '@ramp/ride-react':
+        specifier: workspace:*
+        version: link:../../packages/ride-react
       '@ramp/ride-workouts':
         specifier: workspace:*
         version: link:../../packages/ride-workouts
@@ -215,9 +221,19 @@ importers:
       '@ramp/ride-contracts':
         specifier: workspace:*
         version: link:../ride-contracts
-      react:
-        specifier: ^19
-        version: 19.2.5
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/node@22.19.17)(jsdom@27.4.0)
+
+  packages/ride-r3f:
+    dependencies:
+      '@ramp/ride-core':
+        specifier: workspace:*
+        version: link:../ride-core
     devDependencies:
       '@testing-library/react':
         specifier: ^16.3.2
@@ -225,6 +241,31 @@ importers:
       '@types/react':
         specifier: ^19.2.14
         version: 19.2.14
+      react:
+        specifier: ^19.2.4
+        version: 19.2.5
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/node@22.19.17)(jsdom@27.4.0)
+
+  packages/ride-react:
+    dependencies:
+      '@ramp/ride-core':
+        specifier: workspace:*
+        version: link:../ride-core
+    devDependencies:
+      '@testing-library/react':
+        specifier: ^16.3.2
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3)(@types/react@19.2.14)(react-dom@19.2.5)(react@19.2.5)
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.14
+      react:
+        specifier: ^19.2.4
+        version: 19.2.5
       typescript:
         specifier: ^5.9.3
         version: 5.9.3

@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react"
 import { createRideSession } from "@ramp/ride-core"
 import {
   SimulatedTrainer,
@@ -7,9 +13,10 @@ import {
 } from "@ramp/trainer-io"
 import type {
   RideConnectionResult,
-  RideExperienceConnection,
   RideSessionController,
+  RideSessionState,
 } from "@ramp/ride-core"
+import type { RideExperienceConnection } from "@/ride/experience-runtime"
 import type {
   RiderPowerMode,
   SimulatedRiderState,
@@ -60,6 +67,27 @@ const initializingConnectionError: TrainerError = {
   message: "Ride session is still initializing.",
 }
 
+const disconnectedSessionState: RideSessionState = {
+  telemetry: {
+    elapsedSeconds: 0,
+    distanceMeters: 0,
+    speedMps: null,
+    powerWatts: null,
+    cadenceRpm: null,
+    heartRateBpm: null,
+    trainerStatus: "disconnected",
+    telemetryStatus: "missing",
+    lastTelemetryAtMs: null,
+    telemetryAgeMs: null,
+    telemetrySource: null,
+  },
+  trainerConnected: false,
+  paused: false,
+  activeControlMode: "manual",
+  lastError: null,
+  lastTrainerError: null,
+}
+
 const simulatorBySession = new WeakMap<
   RideSessionController,
   SimulatedTrainer
@@ -70,12 +98,12 @@ export function useRideRuntime(): RideRuntimeController {
   const [trainer, setTrainer] = useState<TrainerSource | null>(null)
   const [source, setSource] = useState<RideTrainerSource>("none")
   const [bleAvailable, setBleAvailable] = useState(false)
-  const [connectionError, setConnectionError] = useState<string | null>(null)
+  const [connectionError, setConnectionError] = useState<TrainerError | null>(
+    null
+  )
   const [connecting, setConnecting] = useState(false)
   const [selectingTrainer, setSelectingTrainer] = useState(false)
-  const [status, setStatus] =
-    useState<RideExperienceConnection["status"]>("disconnected")
-  const [lastError, setLastError] = useState<TrainerError | null>(null)
+  const sessionState = useOptionalRideSessionState(session)
   const trainerRef = useRef<TrainerSource | null>(trainer)
   const sourceRef = useRef<RideTrainerSource>(source)
   const connectingRef = useRef(false)
@@ -110,23 +138,6 @@ export function useRideRuntime(): RideRuntimeController {
     sourceRef.current = source
   }, [source])
 
-  useEffect(() => {
-    if (!session) return
-    return session.subscribe(() => {
-      const state = session.getState()
-      setStatus(
-        state.trainerConnected
-          ? "connected"
-          : state.telemetry.trainerStatus === "connecting"
-            ? "connecting"
-            : state.telemetry.trainerStatus === "error"
-              ? "error"
-              : "disconnected"
-      )
-      setLastError(state.lastTrainerError)
-    })
-  }, [session])
-
   const attachTrainer = useCallback(
     async (
       nextTrainer: TrainerSource,
@@ -142,19 +153,15 @@ export function useRideRuntime(): RideRuntimeController {
       connectingRef.current = true
       setConnecting(true)
       setConnectionError(null)
-      setStatus("connecting")
       try {
         const result = await session.connectTrainer(nextTrainer)
         if (!result.ok) {
-          setConnectionError(result.error.message)
-          setLastError(result.error)
-          setStatus("error")
+          setConnectionError(result.error)
           return result
         }
         setTrainer(nextTrainer)
         setSource(nextSource)
-        setLastError(null)
-        setStatus("connected")
+        setConnectionError(null)
         return result
       } finally {
         connectingRef.current = false
@@ -178,7 +185,7 @@ export function useRideRuntime(): RideRuntimeController {
           code: "unsupported",
           message: "Web Bluetooth requires a Chromium-class browser.",
         }
-        setConnectionError(error.message)
+        setConnectionError(error)
         return { ok: false, error }
       }
       selectingTrainerRef.current = true
@@ -187,9 +194,10 @@ export function useRideRuntime(): RideRuntimeController {
       try {
         const nextTrainer = await requestBleTrainer()
         return await attachTrainer(nextTrainer, "ble")
-      } catch {
-        setConnectionError(cancelledSelectionError.message)
-        return { ok: false, error: cancelledSelectionError }
+      } catch (error: unknown) {
+        const trainerError = toTrainerError(error, cancelledSelectionError)
+        setConnectionError(trainerError)
+        return { ok: false, error: trainerError }
       } finally {
         selectingTrainerRef.current = false
         setSelectingTrainer(false)
@@ -211,7 +219,7 @@ export function useRideRuntime(): RideRuntimeController {
           code: "unsupported",
           message: "The ride simulator is not available.",
         }
-        setConnectionError(error.message)
+        setConnectionError(error)
         return { ok: false, error }
       }
       return attachTrainer(simulatedTrainer, "simulated")
@@ -219,10 +227,10 @@ export function useRideRuntime(): RideRuntimeController {
 
   const disconnectTrainer = useCallback(async (): Promise<void> => {
     if (!session) return
-    await session.disconnectTrainer()
+    await session.disconnectTrainer({ clearError: true })
     setTrainer(null)
     setSource("none")
-    setStatus("disconnected")
+    setConnectionError(null)
   }, [session])
 
   const reconnect = useCallback(async (): Promise<RideConnectionResult> => {
@@ -235,6 +243,9 @@ export function useRideRuntime(): RideRuntimeController {
     return connectTrainer()
   }, [attachTrainer, connectTrainer, session])
 
+  const status = toRideConnectionStatus(sessionState)
+  const visibleError = sessionState.lastTrainerError ?? connectionError
+
   return {
     ready: session !== null,
     session,
@@ -242,14 +253,14 @@ export function useRideRuntime(): RideRuntimeController {
       status,
       reconnect,
       disconnect: disconnectTrainer,
-      error: lastError,
+      error: visibleError,
     },
     trainer,
     bleAvailable,
     source,
     selectingTrainer,
     connecting,
-    connectionError,
+    connectionError: visibleError?.message ?? null,
     connectTrainer,
     useSimulatorTrainer,
     disconnectTrainer,
@@ -260,7 +271,7 @@ export function useRideSimulatorControls(
   runtime: RideRuntimeController
 ): RideSimulatorControls {
   const simulator =
-    runtime.session && import.meta.env.DEV
+    runtime.session && runtime.source === "simulated" && import.meta.env.DEV
       ? simulatorBySession.get(runtime.session)
       : null
   const [riderState, setRiderState] = useState<SimulatedRiderState | null>(
@@ -320,4 +331,38 @@ export function useRideSimulatorControls(
       })
     },
   }
+}
+
+function useOptionalRideSessionState(
+  session: RideSessionController | null
+): RideSessionState {
+  return useSyncExternalStore(
+    session?.subscribe ?? (() => () => undefined),
+    () => session?.getState() ?? disconnectedSessionState,
+    () => disconnectedSessionState
+  )
+}
+
+function toRideConnectionStatus(
+  state: RideSessionState
+): RideExperienceConnection["status"] {
+  if (state.trainerConnected) return "connected"
+  if (state.telemetry.trainerStatus === "connecting") return "connecting"
+  if (state.telemetry.trainerStatus === "error") return "error"
+  return "disconnected"
+}
+
+function isTrainerError(value: unknown): value is TrainerError {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "code" in value &&
+    "message" in value &&
+    typeof (value as { code: unknown }).code === "string" &&
+    typeof (value as { message: unknown }).message === "string"
+  )
+}
+
+function toTrainerError(value: unknown, fallback: TrainerError): TrainerError {
+  return isTrainerError(value) ? value : fallback
 }

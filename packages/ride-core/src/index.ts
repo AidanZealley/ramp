@@ -3,27 +3,18 @@ export { createRideSession } from "./controller"
 export type { CreateRideSessionOptions } from "./controller"
 export { defaultPolicy, enforce } from "./policy"
 export type { ArbitrationPolicy } from "./policy"
-export {
-  RideSessionContext,
-  useRideFrame,
-  useRideHeartbeat,
-  useRideR3FFrame,
-  useRideSelector,
-  useRideSession,
-  useRideSessionContext,
-  useRideThrottledSelector,
-} from "./use-ride-session"
 export * from "@ramp/ride-contracts"
 export type {
   DispatchResult,
   DispatchOptions,
-  RideExperiencePlugin,
-  RideExperienceConnection,
   RideConnectionResult,
+  RideDisconnectOptions,
   RideFrameData,
   RideSessionController,
   RideSessionState,
   RideTrainerAdapter,
   RideTelemetry,
+  ReadonlyStore,
+  Subscribable,
   TrainerCommandSource,
 } from "./types"

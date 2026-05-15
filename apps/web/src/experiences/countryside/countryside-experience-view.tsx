@@ -1,5 +1,5 @@
 import { useCallback, useRef } from "react"
-import { useRideFrame } from "@ramp/ride-core"
+import { useRideFrame } from "@ramp/ride-react"
 import { sampleRouteAtDistance } from "./procgen/generate"
 import { RideScene } from "./components/ride-scene"
 import { RIDE_WORLD } from "./world-config"

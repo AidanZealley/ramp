@@ -1,4 +1,3 @@
-import type React from "react"
 import type {
   Capability,
   TrainerCapabilities,
@@ -50,6 +49,19 @@ export type RideConnectionResult =
   | { ok: true }
   | { ok: false; error: TrainerError }
 
+export type ReadonlyStore<T> = {
+  getSnapshot: () => T
+  subscribe: (listener: () => void) => () => void
+}
+
+export type Subscribable<T> = {
+  subscribe: (listener: (value: T) => void) => () => void
+}
+
+export type RideDisconnectOptions = {
+  clearError?: boolean
+}
+
 export type RideFrameData = {
   telemetry: RideTrainerTelemetry | null
   elapsedSeconds: number
@@ -83,30 +95,11 @@ export interface RideSessionController {
   subscribe: (listener: () => void) => () => void
   subscribeFrame: (listener: (frame: RideFrameData) => void) => () => void
   connectTrainer: (trainer: RideTrainerAdapter) => Promise<RideConnectionResult>
-  disconnectTrainer: () => Promise<void>
+  disconnectTrainer: (options?: RideDisconnectOptions) => Promise<void>
   pause: () => void
   resume: () => void
   dispose: () => Promise<void>
   controls: TrainerControlAPI
-}
-
-export type RideExperiencePlugin = {
-  id: string
-  displayName: string
-  ExperienceView: React.ComponentType<{
-    session: RideSessionController
-    connection?: RideExperienceConnection
-    search?: {
-      workoutId?: string
-    }
-  }>
-}
-
-export type RideExperienceConnection = {
-  status: "disconnected" | "connecting" | "connected" | "error"
-  reconnect: () => Promise<RideConnectionResult>
-  disconnect: () => Promise<void>
-  error: TrainerError | null
 }
 
 export type { Capability, TrainerCapabilities, TrainerCommand }

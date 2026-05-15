@@ -1,5 +1,5 @@
 {
-  "name": "@ramp/ride-core",
+  "name": "@ramp/ride-r3f",
   "private": true,
   "type": "module",
   "exports": {
@@ -11,9 +11,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ramp/ride-contracts": "workspace:*"
+    "@ramp/ride-core": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.14",
+    "react": "^19.2.4",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   }
