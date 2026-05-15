@@ -14,7 +14,7 @@ vi.mock("@/ride/use-ride-runtime", () => ({
   useRideSimulatorControls,
 }))
 
-vi.mock("@ramp/ride-core", () => ({
+vi.mock("@ramp/ride-react", () => ({
   useRideSessionContext: () => ({}),
   useRideThrottledSelector: () => ({
     powerWatts: 180,

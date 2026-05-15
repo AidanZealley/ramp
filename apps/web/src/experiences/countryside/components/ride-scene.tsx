@@ -1,6 +1,6 @@
 import { Canvas } from "@react-three/fiber"
 import { Sky } from "@react-three/drei"
-import { useRideR3FFrame } from "@ramp/ride-core"
+import { useRideR3FFrame } from "@ramp/ride-r3f"
 import { RideCamera } from "./camera"
 import { RideWorld } from "./world"
 import { RiderMarker } from "./rider-marker"

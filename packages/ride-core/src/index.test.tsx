@@ -1,8 +1,6 @@
 // @vitest-environment jsdom
-import { act, renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { createRideSession } from "./controller"
-import { useRideR3FFrame, useRideSession } from "./use-ride-session"
 import { createRAFShim } from "./test-utils/raf-shim"
 import { Capability } from "./index"
 import type { RideTrainerAdapter, TrainerCommand } from "./index"
@@ -191,9 +189,8 @@ describe("ride-core", () => {
       )
     }
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(200)
-    })
+          await vi.advanceTimersByTimeAsync(200)
+    
 
     expect(sendCommand).toHaveBeenCalledWith({
       type: "setSimulationGrade",
@@ -277,10 +274,8 @@ describe("ride-core", () => {
     })
     await session.connectTrainer(trainer)
 
-    await act(async () => {
-      nowMs = 1000
-      await vi.advanceTimersByTimeAsync(1000)
-    })
+    nowMs = 1000
+    await vi.advanceTimersByTimeAsync(1000)
     const freshState = session.getState()
     expect(freshState.telemetry.telemetryStatus).toBe("fresh")
     expect(freshState.telemetry.elapsedSeconds).toBeGreaterThan(0)
@@ -290,10 +285,8 @@ describe("ride-core", () => {
     const staleDistance = freshState.telemetry.distanceMeters
 
     await trainer.disconnect()
-    await act(async () => {
-      nowMs = 3200
-      await vi.advanceTimersByTimeAsync(2200)
-    })
+    nowMs = 3200
+    await vi.advanceTimersByTimeAsync(2200)
 
     const staleState = session.getState()
     expect(staleState.telemetry.telemetryStatus).toBe("missing")
@@ -301,16 +294,12 @@ describe("ride-core", () => {
     expect(staleState.telemetry.distanceMeters).toBe(staleDistance)
 
     trainer.pushTelemetry()
-    await act(async () => {
-      await Promise.resolve()
-    })
+    await Promise.resolve()
 
     expect(session.getState().telemetry.telemetryStatus).toBe("missing")
 
-    await act(async () => {
-      nowMs = 3300
-      await vi.advanceTimersByTimeAsync(100)
-    })
+    nowMs = 3300
+    await vi.advanceTimersByTimeAsync(100)
     expect(session.getState().telemetry.telemetryStatus).toBe("fresh")
   })
 
@@ -329,9 +318,8 @@ describe("ride-core", () => {
     await session.disconnectTrainer()
     await session.connectTrainer(secondTrainer)
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(100)
-    })
+          await vi.advanceTimersByTimeAsync(100)
+    
 
     expect(firstSend).not.toHaveBeenCalled()
     expect(secondSend).not.toHaveBeenCalled()
@@ -350,15 +338,13 @@ describe("ride-core", () => {
       { priority: "immediate" }
     )
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(50)
-    })
+          await vi.advanceTimersByTimeAsync(50)
+    
     expect(session.getState().lastError).toBe("temporary failure")
 
     // Backoff is ~100ms for first retry (+ jitter), so wait enough for backoff
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(200)
-    })
+          await vi.advanceTimersByTimeAsync(200)
+    
 
     expect(sendCommand).toHaveBeenCalledTimes(2)
   })
@@ -381,9 +367,8 @@ describe("ride-core", () => {
       { priority: "immediate", delivery: "acknowledged" }
     )
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(50)
-    })
+          await vi.advanceTimersByTimeAsync(50)
+    
     expect(session.getState().activeControlMode).toBe("manual")
 
     releaseCommand()
@@ -404,9 +389,8 @@ describe("ride-core", () => {
       { priority: "immediate", delivery: "acknowledged", timeoutMs: 10_000 }
     )
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(4000)
-    })
+          await vi.advanceTimersByTimeAsync(4000)
+    
 
     await expect(dispatch).resolves.toEqual({ ok: false, reason: "nope" })
   })
@@ -434,16 +418,14 @@ describe("ride-core", () => {
       { priority: "immediate" }
     )
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(50)
-    })
+          await vi.advanceTimersByTimeAsync(50)
+    
     expect(sendCommand).toHaveBeenCalledTimes(1)
 
     release.shift()?.()
-    await act(async () => {
-      await Promise.resolve()
+          await Promise.resolve()
       await vi.advanceTimersByTimeAsync(50)
-    })
+    
     expect(sendCommand).toHaveBeenCalledTimes(2)
   })
 
@@ -463,26 +445,13 @@ describe("ride-core", () => {
       { priority: "immediate" }
     )
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(50)
-    })
+          await vi.advanceTimersByTimeAsync(50)
+    
 
     expect(sendCommand.mock.calls[0]?.[0]).toEqual({
       type: "setTargetPower",
       watts: 230,
     })
-  })
-
-  it("notifies the React hook after telemetry ticks", async () => {
-    const session = createTestSession()
-    await session.connectTrainer(new TestTrainer())
-    const { result } = renderHook(() => useRideSession(session))
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(300)
-    })
-
-    expect(result.current.telemetry.elapsedSeconds).toBeGreaterThan(0)
   })
 
   it("re-exports trainer contracts through the public API", () => {
@@ -498,9 +467,8 @@ describe("ride-core", () => {
 
     const connectPromise = session.connectTrainer(trainer)
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(600)
-    })
+          await vi.advanceTimersByTimeAsync(600)
+    
     await connectPromise
 
     expect(session.getState()).toMatchObject({
@@ -529,9 +497,8 @@ describe("ride-core", () => {
       { priority: "immediate" }
     )
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(50)
-    })
+          await vi.advanceTimersByTimeAsync(50)
+    
     expect(session.getState().lastError).toBe("transient failure")
 
     // Second dispatch succeeds
@@ -540,12 +507,37 @@ describe("ride-core", () => {
       "user",
       { priority: "immediate" }
     )
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(50)
-    })
+          await vi.advanceTimersByTimeAsync(50)
+    
 
     expect(session.getState().lastError).toBeNull()
     expect(session.getState().telemetry.trainerStatus).toBe("ready")
+  })
+
+  it("preserves error state by default after disconnect", async () => {
+    const session = createTestSession()
+    await session.connectTrainer(new FailingConnectTrainer())
+
+    await session.disconnectTrainer()
+
+    expect(session.getState()).toMatchObject({
+      lastError: "connect failed",
+      lastTrainerError: { code: "transport", message: "connect failed" },
+      telemetry: { trainerStatus: "disconnected" },
+    })
+  })
+
+  it("clears error state when disconnect requests clearError", async () => {
+    const session = createTestSession()
+    await session.connectTrainer(new FailingConnectTrainer())
+
+    await session.disconnectTrainer({ clearError: true })
+
+    expect(session.getState()).toMatchObject({
+      lastError: null,
+      lastTrainerError: null,
+      telemetry: { trainerStatus: "disconnected" },
+    })
   })
 
   it("cleans up superseded trainer on concurrent connect", async () => {
@@ -589,34 +581,6 @@ describe("ride-core", () => {
   })
 
   // ---------------------------------------------------------------------------
-  // useRideR3FFrame
-  // ---------------------------------------------------------------------------
-
-  describe("useRideR3FFrame", () => {
-    it("updates ref without triggering React re-renders", async () => {
-      const session = createTestSession()
-      await session.connectTrainer(new TestTrainer())
-
-      let renderCount = 0
-      const { result } = renderHook(() => {
-        renderCount++
-        return useRideR3FFrame(session)
-      })
-
-      const renderCountAfterMount = renderCount
-
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(500)
-      })
-
-      // Ref should have been populated by frame events
-      expect(result.current.current).not.toBeNull()
-      // No additional React renders caused by frame updates
-      expect(renderCount).toBe(renderCountAfterMount)
-    })
-  })
-
-  // ---------------------------------------------------------------------------
   // rAF tick driver
   // ---------------------------------------------------------------------------
 
@@ -628,9 +592,8 @@ describe("ride-core", () => {
       const frames: Array<number> = []
       session.subscribeFrame((f) => frames.push(f.elapsedSeconds))
 
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(500)
-      })
+              await vi.advanceTimersByTimeAsync(500)
+      
 
       // ~5 ticks in 500ms with 100ms interval (first deferred by one interval)
       expect(frames.length).toBeGreaterThanOrEqual(4)
@@ -647,9 +610,8 @@ describe("ride-core", () => {
       const countAtDispose = callback.mock.calls.length
 
       // No more frames should fire after dispose
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(200)
-      })
+              await vi.advanceTimersByTimeAsync(200)
+      
 
       expect(callback.mock.calls.length).toBe(countAtDispose)
     })
@@ -658,15 +620,13 @@ describe("ride-core", () => {
       const session = createTestSession({ telemetryIntervalMs: 100 })
       await session.connectTrainer(new TestTrainer())
 
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(300)
-      })
+              await vi.advanceTimersByTimeAsync(300)
+      
       session.pause()
       const elapsedAtPause = session.getState().telemetry.elapsedSeconds
 
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(300)
-      })
+              await vi.advanceTimersByTimeAsync(300)
+      
 
       expect(session.getState().telemetry.elapsedSeconds).toBe(elapsedAtPause)
     })

@@ -1,5 +1,5 @@
 import { Suspense, lazy, useMemo, useState } from "react"
-import { RideSessionContext } from "@ramp/ride-core"
+import { RideSessionContext } from "@ramp/ride-react"
 import { RideConnectionGate } from "./ride-connection-gate"
 import { RideOverlay } from "./ride-overlay"
 import type { Id } from "#convex/_generated/dataModel"

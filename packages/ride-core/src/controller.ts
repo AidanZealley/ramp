@@ -563,7 +563,8 @@ export function createRideSession(
       startTimers()
       return { ok: true }
     },
-    async disconnectTrainer() {
+    async disconnectTrainer(options = {}) {
+      const clearError = options.clearError ?? false
       connectionGeneration += 1
       stopTimers()
       clearSubscriptions()
@@ -577,8 +578,8 @@ export function createRideSession(
         resetConnectionState({
           trainerStatus: "disconnected",
           trainerConnected: false,
-          lastError: state.lastError,
-          lastTrainerError: state.lastTrainerError,
+          lastError: clearError ? null : state.lastError,
+          lastTrainerError: clearError ? null : state.lastTrainerError,
         })
       }
     },

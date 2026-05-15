@@ -18,7 +18,7 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => vi.fn(),
 }))
 
-vi.mock("@ramp/ride-core", () => ({
+vi.mock("@ramp/ride-react", () => ({
   useRideSessionContext: () => ({}),
   useRideThrottledSelector: () => ({
     powerWatts: 180,

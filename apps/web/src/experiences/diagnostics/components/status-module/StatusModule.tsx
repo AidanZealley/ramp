@@ -1,4 +1,4 @@
-import { useRideThrottledSelector } from "@ramp/ride-core"
+import { useRideThrottledSelector } from "@ramp/ride-react"
 import type React from "react"
 import type { RideSessionController } from "@ramp/ride-core"
 
