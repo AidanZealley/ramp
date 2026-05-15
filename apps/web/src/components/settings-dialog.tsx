@@ -23,18 +23,30 @@ export function SettingsDialog() {
   const upsertSettings = useMutation(api.settings.upsert)
   const [open, setOpen] = useState(false)
   const [ftp, setFtp] = useState(String(DEFAULT_FTP))
+  const [riderWeightKg, setRiderWeightKg] = useState("75")
   const [powerDisplayMode, setPowerDisplayMode] =
     useState<PowerDisplayMode>("percentage")
 
   useEffect(() => {
     setFtp(String(settings?.ftp ?? DEFAULT_FTP))
+    setRiderWeightKg(String(settings?.riderWeightKg ?? 75))
     setPowerDisplayMode(settings?.powerDisplayMode ?? "percentage")
   }, [settings])
 
   const handleSave = async () => {
-    const value = parseInt(ftp, 10)
-    if (!isNaN(value) && value > 0 && value <= 2000) {
-      await upsertSettings({ ftp: value, powerDisplayMode })
+    const ftpValue = parseInt(ftp, 10)
+    const weightValue = Number(riderWeightKg)
+    if (
+      !isNaN(ftpValue) &&
+      ftpValue > 0 &&
+      ftpValue <= 2000 &&
+      Number.isFinite(weightValue)
+    ) {
+      await upsertSettings({
+        ftp: ftpValue,
+        powerDisplayMode,
+        riderWeightKg: weightValue,
+      })
       setOpen(false)
     }
   }
@@ -71,6 +83,27 @@ export function SettingsDialog() {
           </div>
           <p className="text-xs text-muted-foreground">
             Your FTP is used to calculate power zones for interval colouring.
+          </p>
+
+          <Label htmlFor="rider-weight">Rider weight</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              id="rider-weight"
+              type="number"
+              min={30}
+              max={250}
+              step={0.1}
+              value={riderWeightKg}
+              onChange={(e) => setRiderWeightKg(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSave()
+              }}
+              className="max-w-32"
+            />
+            <span className="text-sm text-muted-foreground">kg</span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Stored for route simulation physics settings.
           </p>
 
           <div className="grid gap-2 pt-2">

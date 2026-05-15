@@ -6,6 +6,7 @@ import { getRideExperienceDefinition } from "@/experiences/catalog"
 
 type RideExperienceSearch = {
   run?: string
+  routeId?: Id<"routes">
   workoutId?: Id<"workouts">
 }
 
@@ -14,6 +15,10 @@ export function validateRideExperienceSearch(
 ): RideExperienceSearch {
   return {
     run: typeof search.run === "string" ? search.run : undefined,
+    routeId:
+      typeof search.routeId === "string"
+        ? (search.routeId as Id<"routes">)
+        : undefined,
     workoutId:
       typeof search.workoutId === "string"
         ? (search.workoutId as Id<"workouts">)
@@ -28,7 +33,7 @@ export const Route = createFileRoute("/ride/$experienceId")({
 
 function RideExperienceRoute() {
   const { experienceId } = Route.useParams()
-  const { run, workoutId } = Route.useSearch()
+  const { routeId, run, workoutId } = Route.useSearch()
   const experience = getRideExperienceDefinition(experienceId)
 
   if (!experience) {
@@ -39,7 +44,7 @@ function RideExperienceRoute() {
     <RideSessionPage
       key={`${experienceId}:${run ?? "default"}`}
       experience={experience}
-      search={{ workoutId }}
+      search={{ routeId, workoutId }}
     />
   )
 }

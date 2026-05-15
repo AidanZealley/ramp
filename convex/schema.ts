@@ -30,6 +30,7 @@ export default defineSchema({
     powerDisplayMode: v.optional(
       v.union(v.literal("absolute"), v.literal("percentage"))
     ),
+    riderWeightKg: v.optional(v.number()),
   }),
   plans: defineTable({
     title: v.string(),

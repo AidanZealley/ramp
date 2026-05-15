@@ -18,6 +18,7 @@ type RideExperienceViewProps = {
   connection?: RideExperienceConnection
   search?: {
     workoutId?: string
+    routeId?: string
   }
 }
 
@@ -26,6 +27,7 @@ type PrivilegedRideExperienceViewProps = {
   connection?: RideExperienceConnection
   search?: {
     workoutId?: string
+    routeId?: string
   }
 }
 

@@ -38,6 +38,24 @@ export const rideExperiences: Array<RideExperienceDefinition> = [
       (await import("./live-workout")).liveWorkoutExperience,
   },
   {
+    id: "route",
+    displayName: "Route Simulation",
+    description:
+      "Ride saved GPX routes with map progress and trainer simulation grade.",
+    tags: ["route", "GPX", "simulation"],
+    accent: {
+      from: "#cfeee5",
+      to: "#287c72",
+      ink: "#0b221f",
+    },
+    preview: {
+      eyebrow: "GPX simulation",
+      spotlight: "Map-based route ride",
+    },
+    loadPlugin: async () =>
+      (await import("./route-simulation")).routeSimulationExperience,
+  },
+  {
     id: "diagnostics",
     displayName: "Diagnostics",
     description:

@@ -11,6 +11,7 @@ import { useRideRuntime } from "@/ride/use-ride-runtime"
 
 type RideExperienceSearchProps = {
   workoutId?: Id<"workouts">
+  routeId?: Id<"routes">
 }
 
 type ReadyRideRuntimeController = RideRuntimeController & {

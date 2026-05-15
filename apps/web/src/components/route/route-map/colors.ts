@@ -11,9 +11,9 @@ export const routeMapTheme = {
     finishPoint: "#dc2626",
   },
   dark: {
-    routeLine: "#4f46e5",
+    routeLine: "#818cf8",
     routeLineShadow: "rgba(0,0,0,0.65)",
-    startPoint: "#65a30d",
-    finishPoint: "#dc2626",
+    startPoint: "#84cc16",
+    finishPoint: "#f87171",
   },
 } as const

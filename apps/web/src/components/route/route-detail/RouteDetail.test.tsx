@@ -14,7 +14,24 @@ vi.mock("@tanstack/react-router", async () => {
   )
   return {
     ...actual,
-    Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
+    Link: ({
+      children,
+      params,
+      search,
+      to,
+    }: {
+      children: React.ReactNode
+      params?: Record<string, string>
+      search?: Record<string, string>
+      to: string
+    }) => {
+      const href = to.replace(
+        "$experienceId",
+        params?.experienceId ?? "$experienceId"
+      )
+      const query = search?.routeId ? `?routeId=${search.routeId}` : ""
+      return <a href={`${href}${query}`}>{children}</a>
+    },
   }
 })
 
@@ -31,7 +48,7 @@ describe("RouteDetail", () => {
     expect(screen.getByText("Route not found")).toBeTruthy()
   })
 
-  it("renders the no-op Ride Route button", () => {
+  it("links the Ride Route button to route simulation", () => {
     useQuery.mockReturnValue({
       _id: "route-1",
       _creationTime: 0,
@@ -58,7 +75,9 @@ describe("RouteDetail", () => {
 
     render(<RouteDetail routeId={"route-1" as never} />)
 
-    expect(screen.getByRole("button", { name: /ride route/i })).toBeTruthy()
+    expect(
+      screen.getByRole("link", { name: /ride route/i }).getAttribute("href")
+    ).toBe("/ride/route?routeId=route-1")
     expect(screen.getByText("Lunch Loop")).toBeTruthy()
   })
 })

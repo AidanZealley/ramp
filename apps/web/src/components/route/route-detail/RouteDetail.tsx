@@ -100,7 +100,16 @@ export const RouteDetail = ({ routeId }: RouteDetailProps) => {
           <ArrowLeft />
           Back
         </Button>
-        <Button>
+        <Button
+          nativeButton={false}
+          render={
+            <Link
+              to="/ride/$experienceId"
+              params={{ experienceId: "route" }}
+              search={{ routeId: routeDoc._id }}
+            />
+          }
+        >
           <Bike />
           Ride Route
         </Button>
