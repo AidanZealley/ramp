@@ -9,6 +9,7 @@
  */
 
 import type * as plans from "../plans.js";
+import type * as routes from "../routes.js";
 import type * as settings from "../settings.js";
 import type * as workoutSummary from "../workoutSummary.js";
 import type * as workouts from "../workouts.js";
@@ -21,6 +22,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   plans: typeof plans;
+  routes: typeof routes;
   settings: typeof settings;
   workoutSummary: typeof workoutSummary;
   workouts: typeof workouts;

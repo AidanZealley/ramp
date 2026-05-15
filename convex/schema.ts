@@ -34,6 +34,35 @@ export default defineSchema({
   plans: defineTable({
     title: v.string(),
   }),
+  routes: defineTable({
+    title: v.string(),
+    source: v.literal("gpx"),
+    fileStorageId: v.id("_storage"),
+    originalFileName: v.string(),
+    contentType: v.string(),
+    fileSizeBytes: v.number(),
+    stats: v.object({
+      distanceMeters: v.number(),
+      elevationGainMeters: v.number(),
+      elevationLossMeters: v.number(),
+      minElevationMeters: v.union(v.number(), v.null()),
+      maxElevationMeters: v.union(v.number(), v.null()),
+      pointCount: v.number(),
+    }),
+    bounds: v.union(
+      v.object({
+        minLat: v.number(),
+        minLng: v.number(),
+        maxLat: v.number(),
+        maxLng: v.number(),
+      }),
+      v.null()
+    ),
+    start: v.union(v.object({ lat: v.number(), lng: v.number() }), v.null()),
+    finish: v.union(v.object({ lat: v.number(), lng: v.number() }), v.null()),
+    previewPoints: v.array(v.object({ x: v.number(), y: v.number() })),
+    tags: v.optional(v.array(v.string())),
+  }).index("by_source", ["source"]),
   planWeeks: defineTable({
     planId: v.id("plans"),
     orderIndex: v.number(),

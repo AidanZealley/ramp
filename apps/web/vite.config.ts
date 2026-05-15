@@ -18,7 +18,14 @@ const config = defineConfig(({ mode }) => ({
           viteReact(),
         ]
       : [
-          devtools(),
+          devtools({
+            injectSource: {
+              enabled: true,
+              ignore: {
+                components: ["Source", "Layer"],
+              },
+            },
+          }),
           nitro(),
           viteTsConfigPaths({
             projects: ["./tsconfig.json"],

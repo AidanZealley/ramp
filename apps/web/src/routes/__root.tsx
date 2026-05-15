@@ -59,6 +59,7 @@ function RootLayout() {
   })
   const workoutsActive = pathname.startsWith("/workout")
   const plansActive = pathname.startsWith("/plan")
+  const routeActive = pathname.startsWith("/route")
   const rideActive = pathname.startsWith("/ride")
   const rideImmersive = pathname.startsWith("/ride/")
 
@@ -100,6 +101,16 @@ function RootLayout() {
                       }
                     >
                       Plans
+                    </Link>
+                    <Link
+                      to="/route"
+                      className={
+                        routeActive
+                          ? "font-medium text-foreground"
+                          : "text-muted-foreground transition-colors hover:text-foreground"
+                      }
+                    >
+                      Routes
                     </Link>
                     <Link
                       to="/ride"
