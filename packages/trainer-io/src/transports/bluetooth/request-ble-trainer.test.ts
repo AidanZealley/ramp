@@ -9,6 +9,7 @@ const originalNavigator = globalThis.navigator
 
 describe("Web Bluetooth request helpers", () => {
   afterEach(() => {
+    vi.restoreAllMocks()
     Object.defineProperty(globalThis, "navigator", {
       configurable: true,
       value: originalNavigator,
@@ -29,6 +30,8 @@ describe("Web Bluetooth request helpers", () => {
   })
 
   it("maps chooser cancellation to permission", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined)
+    vi.spyOn(console, "info").mockImplementation(() => undefined)
     Object.defineProperty(globalThis, "navigator", {
       configurable: true,
       value: {

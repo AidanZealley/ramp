@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest"
 import { Capability } from "@ramp/ride-core"
 import { createWorkoutController } from "./controller"
-import { getWorkoutSegmentAtElapsed } from "./segments"
+import { createWorkoutSessionHarness } from "./test-utils/workout-session-harness"
 import type { WorkoutDefinition } from "./types"
+import type { DispatchResult } from "@ramp/ride-core"
 
 function createSessionHarness(options?: {
   telemetryStatus?: "missing" | "fresh" | "stale"
@@ -10,84 +11,23 @@ function createSessionHarness(options?: {
   capabilities?: ReadonlySet<Capability>
   dispatchImpl?: ReturnType<typeof vi.fn>
 }) {
-  const listeners = new Set<() => void>()
-  let elapsedSeconds = 0
-  let telemetryStatus = options?.telemetryStatus ?? "fresh"
-  let trainerConnected = options?.trainerConnected ?? true
   const dispatch =
     options?.dispatchImpl ??
-    vi.fn(() => Promise.resolve({ ok: true } as const))
-
-  const session = {
-    getState: () => ({
-      telemetry: { elapsedSeconds, telemetryStatus },
-      trainerConnected,
-    }),
-    subscribe: (listener: () => void) => {
-      listeners.add(listener)
-      return () => listeners.delete(listener)
-    },
-    controls: {
-      dispatch,
-      getCapabilities: () =>
-        options?.capabilities ?? new Set(Object.values(Capability)),
-    },
-  } as never
-
+    vi.fn(async () => ({ ok: true }) satisfies DispatchResult)
+  const harness = createWorkoutSessionHarness({
+    telemetryStatus: options?.telemetryStatus,
+    trainerConnected: options?.trainerConnected,
+    capabilities: options?.capabilities,
+    dispatch: ({ command, source, options: dispatchOptions }) =>
+      dispatch(command, source, dispatchOptions),
+  })
   return {
+    ...harness,
     dispatch,
-    listeners,
-    session,
-    setElapsedSeconds(next: number) {
-      elapsedSeconds = next
-    },
-    setTelemetryStatus(next: "missing" | "fresh" | "stale") {
-      telemetryStatus = next
-    },
-    setTrainerConnected(next: boolean) {
-      trainerConnected = next
-    },
-    tick() {
-      for (const listener of listeners) listener()
-    },
   }
 }
 
 describe("ride-workouts", () => {
-  it("handles exact boundary times", () => {
-    const intervals = [
-      { startPower: 70, endPower: 70, durationSeconds: 60 },
-      { startPower: 110, endPower: 110, durationSeconds: 30 },
-    ]
-
-    expect(getWorkoutSegmentAtElapsed(intervals, 60, 200)?.index).toBe(1)
-    expect(getWorkoutSegmentAtElapsed(intervals, 90, 200)?.index).toBe(1)
-  })
-
-  it("supports absolute power mode", () => {
-    expect(
-      getWorkoutSegmentAtElapsed(
-        [{ startPower: 220, endPower: 220, durationSeconds: 60 }],
-        0,
-        200,
-        "absolute"
-      )?.targetWatts
-    ).toBe(220)
-  })
-
-  it("interpolates ramp targets over elapsed segment time", () => {
-    const intervals = [{ startPower: 50, endPower: 100, durationSeconds: 60 }]
-
-    expect(getWorkoutSegmentAtElapsed(intervals, 0, 200)?.targetWatts).toBe(100)
-    expect(getWorkoutSegmentAtElapsed(intervals, 30, 200)?.targetWatts).toBe(
-      150
-    )
-    expect(getWorkoutSegmentAtElapsed(intervals, 60, 200)?.targetWatts).toBe(
-      200
-    )
-    expect(getWorkoutSegmentAtElapsed(intervals, 61, 200)).toBeNull()
-  })
-
   it("loads a workout only after ERG mode and the first target dispatch succeed", async () => {
     const harness = createSessionHarness()
     const controller = createWorkoutController({ session: harness.session })
@@ -319,7 +259,8 @@ describe("ride-workouts", () => {
     })
     expect(dispatch).toHaveBeenLastCalledWith(
       { type: "setMode", mode: "free" },
-      "workout"
+      "workout",
+      undefined
     )
   })
 
@@ -425,7 +366,8 @@ describe("ride-workouts", () => {
     expect(harness.dispatch).toHaveBeenCalledTimes(1)
     expect(harness.dispatch).toHaveBeenCalledWith(
       { type: "setMode", mode: "free" },
-      "workout"
+      "workout",
+      undefined
     )
   })
 

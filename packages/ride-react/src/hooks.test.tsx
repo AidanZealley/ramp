@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { renderHook, act } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   RideSessionContext,
   useRideFrame,
@@ -68,6 +68,10 @@ function createSession() {
 }
 
 describe("ride-react", () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it("throws when context is missing", () => {
     expect(() => renderHook(() => useRideSessionContext())).toThrow(
       "RideSessionContext is missing"
@@ -139,7 +143,6 @@ describe("ride-react", () => {
     expect(result.current).toBe(true)
 
     unmount()
-    vi.useRealTimers()
   })
 
   it("subscribes to ride frames", () => {
@@ -188,6 +191,69 @@ describe("ride-react", () => {
 
     expect(result.current).toBe(1)
     unmount()
-    vi.useRealTimers()
+  })
+
+  it("does not re-render selector consumers for non-selected state changes", () => {
+    const harness = createSession()
+    let renders = 0
+    const { result } = renderHook(() => {
+      renders += 1
+      return useRideSelector(harness.session, (s) => s.trainerConnected)
+    })
+
+    act(() =>
+      harness.setState({
+        ...state(false),
+        telemetry: { ...state(false).telemetry, elapsedSeconds: 10 },
+      })
+    )
+
+    expect(result.current).toBe(false)
+    expect(renders).toBe(1)
+  })
+
+  it("uses custom equality for selector results", () => {
+    const harness = createSession()
+    let renders = 0
+    renderHook(() => {
+      renders += 1
+      return useRideSelector(
+        harness.session,
+        (s) => ({ connected: s.trainerConnected }),
+        (left, right) => left.connected === right.connected
+      )
+    })
+
+    act(() =>
+      harness.setState({
+        ...state(false),
+        telemetry: { ...state(false).telemetry, elapsedSeconds: 10 },
+      })
+    )
+
+    expect(renders).toBe(1)
+  })
+
+  it("uses the latest ride frame callback after rerender", () => {
+    const harness = createSession()
+    const first = vi.fn()
+    const second = vi.fn()
+    const { rerender } = renderHook(
+      ({ callback }) => useRideFrame(harness.session, callback),
+      { initialProps: { callback: first } }
+    )
+
+    rerender({ callback: second })
+    act(() =>
+      harness.emitFrame({
+        telemetry: null,
+        elapsedSeconds: 1,
+        distanceMeters: 2,
+        deltaMs: 100,
+      })
+    )
+
+    expect(first).not.toHaveBeenCalled()
+    expect(second).toHaveBeenCalledTimes(1)
   })
 })

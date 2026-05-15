@@ -1,5 +1,5 @@
 import { Capability } from "@ramp/ride-contracts"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { FtmsBleTrainer } from "./index"
 import type { TrainerTelemetryMessage } from "../../../types"
 import type { BleTrainerDeviceInfo } from "./device-info"
@@ -14,6 +14,15 @@ function createDevice(): BluetoothDevice {
 describe("FtmsBleTrainer", () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    vi.spyOn(console, "debug").mockImplementation(() => undefined)
+    vi.spyOn(console, "error").mockImplementation(() => undefined)
+    vi.spyOn(console, "info").mockImplementation(() => undefined)
+    vi.spyOn(console, "warn").mockImplementation(() => undefined)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
   })
 
   it("transitions through connecting to connected on success", async () => {

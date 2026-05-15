@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   Capability,
   TRAINER_COMMAND_LIMITS,
+  Subject,
   clampTargetPowerWatts,
+  commandCapability,
   isTrainerError,
   toTrainerError,
   validateTrainerCommand,
@@ -10,46 +12,104 @@ import {
 import type { TrainerCommand, TrainerError } from "./index"
 
 describe("ride-contracts", () => {
-  it("exports the canonical capability values", () => {
-    expect(Capability.TargetPower).toBe("write.targetPower")
-    expect(Capability.SimulationGrade).toBe("write.simulationGrade")
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
-  it("accepts trainer command union assignments", () => {
-    const command: TrainerCommand = {
-      type: "setSimulationGrade",
-      gradePercent: 6,
-      windSpeedMps: 2,
+  it.each([
+    [{ type: "setTargetPower", watts: 200 }, Capability.TargetPower],
+    [{ type: "setResistance", level: 20 }, Capability.Resistance],
+    [
+      { type: "setSimulationGrade", gradePercent: 3 },
+      Capability.SimulationGrade,
+    ],
+    [{ type: "requestCalibration" }, Capability.Calibration],
+    [{ type: "setMode", mode: "erg" }, null],
+    [{ type: "disconnect" }, null],
+  ] satisfies Array<[TrainerCommand, Capability | null]>)(
+    "maps %s to its required capability",
+    (command, capability) => {
+      expect(commandCapability(command)).toBe(capability)
     }
+  )
 
-    expect(command.type).toBe("setSimulationGrade")
-  })
+  it.each([
+    [{ type: "setTargetPower", watts: 0 }, { ok: true }],
+    [{ type: "setTargetPower", watts: 2500 }, { ok: true }],
+    [
+      { type: "setTargetPower", watts: -1 },
+      { ok: false, reason: "setTargetPower.watts:out-of-range" },
+    ],
+    [
+      { type: "setTargetPower", watts: 2501 },
+      { ok: false, reason: "setTargetPower.watts:out-of-range" },
+    ],
+    [
+      { type: "setTargetPower", watts: 200.5 },
+      { ok: false, reason: "setTargetPower.watts:must-be-integer" },
+    ],
+    [
+      { type: "setTargetPower", watts: Number.NaN },
+      { ok: false, reason: "setTargetPower.watts:must-be-finite" },
+    ],
+    [{ type: "setResistance", level: 0 }, { ok: true }],
+    [{ type: "setResistance", level: 100 }, { ok: true }],
+    [
+      { type: "setResistance", level: -1 },
+      { ok: false, reason: "setResistance.level:out-of-range" },
+    ],
+    [
+      { type: "setResistance", level: 101 },
+      { ok: false, reason: "setResistance.level:out-of-range" },
+    ],
+    [
+      { type: "setResistance", level: 20.5 },
+      { ok: false, reason: "setResistance.level:must-be-integer" },
+    ],
+  ] satisfies Array<[TrainerCommand, ReturnType<typeof validateTrainerCommand>]>)(
+    "validates integer command %s",
+    (command, result) => {
+      expect(validateTrainerCommand(command)).toEqual(result)
+    }
+  )
 
-  it("validates command bounds and numeric safety", () => {
-    expect(
-      validateTrainerCommand({ type: "setTargetPower", watts: 200.5 })
-    ).toEqual({
-      ok: false,
-      reason: "setTargetPower.watts:must-be-integer",
-    })
-    expect(
-      validateTrainerCommand({
-        type: "setSimulationGrade",
-        gradePercent: Number.POSITIVE_INFINITY,
-      })
-    ).toEqual({
-      ok: false,
-      reason: "setSimulationGrade.gradePercent:must-be-finite",
-    })
-    expect(
-      validateTrainerCommand({ type: "setResistance", level: 101 })
-    ).toEqual({
-      ok: false,
-      reason: "setResistance.level:out-of-range",
-    })
-    expect(
-      validateTrainerCommand({ type: "setTargetPower", watts: 250 })
-    ).toEqual({ ok: true })
+  it.each([
+    [{ gradePercent: -25 }, { ok: true }],
+    [{ gradePercent: 25 }, { ok: true }],
+    [
+      { gradePercent: -26 },
+      { ok: false, reason: "setSimulationGrade.gradePercent:out-of-range" },
+    ],
+    [
+      { gradePercent: 26 },
+      { ok: false, reason: "setSimulationGrade.gradePercent:out-of-range" },
+    ],
+    [
+      { gradePercent: Number.POSITIVE_INFINITY },
+      { ok: false, reason: "setSimulationGrade.gradePercent:must-be-finite" },
+    ],
+    [{ gradePercent: 0, windSpeedMps: undefined }, { ok: true }],
+    [{ gradePercent: 0, windSpeedMps: -20 }, { ok: true }],
+    [{ gradePercent: 0, windSpeedMps: 20 }, { ok: true }],
+    [
+      { gradePercent: 0, windSpeedMps: -21 },
+      { ok: false, reason: "setSimulationGrade.windSpeedMps:out-of-range" },
+    ],
+    [
+      { gradePercent: 0, windSpeedMps: 21 },
+      { ok: false, reason: "setSimulationGrade.windSpeedMps:out-of-range" },
+    ],
+    [
+      { gradePercent: 0, windSpeedMps: Number.NaN },
+      { ok: false, reason: "setSimulationGrade.windSpeedMps:must-be-finite" },
+    ],
+  ] satisfies Array<[
+    Omit<Extract<TrainerCommand, { type: "setSimulationGrade" }>, "type">,
+    ReturnType<typeof validateTrainerCommand>,
+  ]>)("validates simulation grade %s", (input, result) => {
+    expect(validateTrainerCommand({ type: "setSimulationGrade", ...input })).toEqual(
+      result
+    )
   })
 
   it("clamps target power to the declared shared range", () => {
@@ -64,6 +124,7 @@ describe("ride-contracts", () => {
       ok: true,
       value: TRAINER_COMMAND_LIMITS.targetPowerWatts.max,
     })
+    expect(clampTargetPowerWatts(199.6)).toEqual({ ok: true, value: 200 })
   })
 
   it("rejects non-finite values in clampTargetPowerWatts", () => {
@@ -123,12 +184,57 @@ describe("ride-contracts", () => {
     expect(isTrainerError(false)).toBe(false)
   })
 
-  it("converts unknown values to a fallback trainer error", () => {
+  it("converts unknown values to trainer errors", () => {
+    const error = new Error("boom")
+    expect(toTrainerError(error)).toEqual({
+      code: "unknown",
+      message: "boom",
+      cause: error,
+    })
+    expect(toTrainerError("boom")).toEqual({
+      code: "unknown",
+      message: "boom",
+      cause: "boom",
+    })
+
     const fallback: TrainerError = {
       code: "permission",
       message: "Selection cancelled.",
     }
 
     expect(toTrainerError(new Error("cancelled"), fallback)).toBe(fallback)
+  })
+
+  it("emits subject values in order and supports unsubscribe and clear", () => {
+    const subject = new Subject<number>()
+    const values: Array<string> = []
+    const unsubscribeA = subject.subscribe((value) => values.push(`a:${value}`))
+    subject.subscribe((value) => values.push(`b:${value}`))
+
+    subject.emit(1)
+    unsubscribeA()
+    subject.emit(2)
+    subject.clear()
+    subject.emit(3)
+
+    expect(values).toEqual(["a:1", "b:1", "b:2"])
+  })
+
+  it("continues subject emission after a listener throws", () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined)
+    const subject = new Subject<number>()
+    const listener = vi.fn()
+    subject.subscribe(() => {
+      throw new Error("listener failed")
+    })
+    subject.subscribe(listener)
+
+    subject.emit(1)
+
+    expect(console.error).toHaveBeenCalledWith(
+      "Subject listener threw",
+      expect.any(Error)
+    )
+    expect(listener).toHaveBeenCalledWith(1)
   })
 })

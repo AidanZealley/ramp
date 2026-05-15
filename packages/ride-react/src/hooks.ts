@@ -26,20 +26,24 @@ export function useRideSelector<T>(
 ): T {
   const selectorRef = useRef(selector)
   const equalsRef = useRef(equals)
+  const valueRef = useRef(selector(session.getState()))
   selectorRef.current = selector
   equalsRef.current = equals
 
   const getSnapshot = useCallback(() => {
-    return selectorRef.current(session.getState())
+    const nextValue = selectorRef.current(session.getState())
+    if (!equalsRef.current(valueRef.current, nextValue)) {
+      valueRef.current = nextValue
+    }
+    return valueRef.current
   }, [session])
 
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
-      let lastValue = selectorRef.current(session.getState())
       return session.subscribe(() => {
         const nextValue = selectorRef.current(session.getState())
-        if (!equalsRef.current(lastValue, nextValue)) {
-          lastValue = nextValue
+        if (!equalsRef.current(valueRef.current, nextValue)) {
+          valueRef.current = nextValue
           onStoreChange()
         }
       })

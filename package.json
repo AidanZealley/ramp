@@ -11,6 +11,7 @@
     "build": "pnpm --filter @ramp/ride-contracts build && pnpm --filter @ramp/ride-core build && pnpm --filter @ramp/ride-react build && pnpm --filter @ramp/trainer-io build && pnpm --filter @ramp/ride-workouts build && pnpm --filter @ramp/web build",
     "preview": "pnpm --filter @ramp/web preview",
     "test": "pnpm -r test",
+    "test:packages": "pnpm --filter './packages/**' test",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx}\"",
     "typecheck": "pnpm -r typecheck"

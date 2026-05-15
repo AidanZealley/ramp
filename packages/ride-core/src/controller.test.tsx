@@ -2,8 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { createRideSession } from "./controller"
 import { createRAFShim } from "./test-utils/raf-shim"
-import { Capability } from "./index"
-import type { RideTrainerAdapter, TrainerCommand } from "./index"
+import { Capability } from "@ramp/ride-contracts"
+import type { RideTrainerAdapter, TrainerCommand } from "./types"
 import type {
   RideTrainerConnectionState,
   RideTrainerError,
@@ -452,13 +452,6 @@ describe("ride-core", () => {
       type: "setTargetPower",
       watts: 230,
     })
-  })
-
-  it("re-exports trainer contracts through the public API", () => {
-    const command: TrainerCommand = { type: "setTargetPower", watts: 215 }
-
-    expect(Capability.TargetPower).toBe("write.targetPower")
-    expect(command.type).toBe("setTargetPower")
   })
 
   it("rejects with timeout code when connect takes too long", async () => {
