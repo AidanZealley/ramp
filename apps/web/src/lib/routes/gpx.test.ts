@@ -92,4 +92,28 @@ describe("parseRouteGpxText", () => {
     expect(result.route.previewPoints).toHaveLength(80)
     expect(result.route.elevationSamples).toHaveLength(500)
   })
+
+  it("preserves route preview aspect ratio using distance-aware coordinates", () => {
+    const result = parseRouteGpxText(
+      gpx(
+        [
+          trkpt(0, 0),
+          trkpt(0.005, 0.02),
+          trkpt(0.01, 0.04),
+        ].join("")
+      ),
+      "wide.gpx"
+    )
+
+    expect(result.kind).toBe("success")
+    if (result.kind !== "success") return
+
+    const xs = result.route.previewPoints.map((point) => point.x)
+    const ys = result.route.previewPoints.map((point) => point.y)
+    const xRange = Math.max(...xs) - Math.min(...xs)
+    const yRange = Math.max(...ys) - Math.min(...ys)
+
+    expect(xRange).toBeCloseTo(1)
+    expect(yRange).toBeCloseTo(0.25, 2)
+  })
 })

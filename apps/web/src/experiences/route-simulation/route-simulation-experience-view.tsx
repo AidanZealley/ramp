@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Confetti from "react-confetti"
 import { useNavigate } from "@tanstack/react-router"
-import { useQuery } from "convex/react"
+import { useMutation, useQuery } from "convex/react"
 import { Capability } from "@ramp/ride-core"
 import { useRideFrame, useRideSelector } from "@ramp/ride-react"
 import type { Id } from "#convex/_generated/dataModel"
@@ -23,11 +23,19 @@ import { RouteRideHud } from "./components/route-ride-hud"
 import { RouteCompleteDialog } from "./components/route-complete-dialog"
 import { RouteDisconnectedOverlay } from "./components/route-disconnected-overlay"
 import {
+  createIndoorLikePhysicsConfig,
+  createInitialPhysicsState,
+  stepPhysics,
+  type PhysicsConfig,
+  type PhysicsState,
+} from "@/experiences/physics"
+import {
   FALLBACK_SPEED_MPS,
   GRADE_DISPATCH_DELTA_PERCENT,
   GRADE_DISPATCH_INTERVAL_MS,
   smoothingLevelToMeters,
 } from "./utils"
+import type { RouteProgressMode, RouteSpeedSource } from "./types"
 
 type RouteSimulationExperienceViewProps = {
   connection?: RideExperienceConnection
@@ -64,6 +72,8 @@ export function RouteSimulationExperienceView({
     api.routes.get,
     linkedRouteId ? { id: linkedRouteId } : "skip"
   )
+  const settings = useQuery(api.settings.get)
+  const upsertSettings = useMutation(api.settings.upsert)
   const trainerConnected = useRideSelector(session, (s) => s.trainerConnected)
   const paused = useRideSelector(session, (s) => s.paused)
   const telemetryStatus = useRideSelector(
@@ -82,13 +92,18 @@ export function RouteSimulationExperienceView({
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
   const [smoothingLevel, setSmoothingLevel] = useState(5)
-  const [speedSource, setSpeedSource] = useState<"trainer" | "fallback">(
-    "fallback"
+  const [progressMode, setProgressMode] = useState<RouteProgressMode>(
+    "trainer-speed"
   )
+  const [speedSource, setSpeedSource] =
+    useState<RouteSpeedSource>("fallback")
   const [speedKph, setSpeedKph] = useState(25)
   const viewportSize = useViewportSize()
   const lastGradeDispatch = useRef({ gradePercent: NaN, atMs: 0 })
   const routeRef = useRef<ParsedRouteGpx | null>(null)
+  const physicsStateRef = useRef<PhysicsState>(createInitialPhysicsState())
+  const physicsConfigRef = useRef<PhysicsConfig | null>(null)
+  const progressModeRef = useRef<RouteProgressMode>(progressMode)
   const stateRef = useRef({
     distanceMeters: 0,
     elapsedSeconds: 0,
@@ -110,6 +125,39 @@ export function RouteSimulationExperienceView({
       smoothingLevel,
     }
   }, [distanceMeters, elapsedSeconds, isActive, isComplete, smoothingLevel])
+
+  useEffect(() => {
+    progressModeRef.current = progressMode
+  }, [progressMode])
+
+  useEffect(() => {
+    if (settings) {
+      setProgressMode(settings.routeSimulationProgressMode)
+    }
+  }, [settings])
+
+  const handleProgressModeChange = useCallback(
+    (mode: RouteProgressMode) => {
+      setProgressMode(mode)
+      void upsertSettings({ routeSimulationProgressMode: mode })
+    },
+    [upsertSettings]
+  )
+
+  const physicsConfig = useMemo(
+    () =>
+      settings
+        ? createIndoorLikePhysicsConfig({
+            riderWeightKg: settings.riderWeightKg,
+            bikeWeightKg: settings.bikeWeightKg,
+          })
+        : null,
+    [settings]
+  )
+
+  useEffect(() => {
+    physicsConfigRef.current = physicsConfig
+  }, [physicsConfig])
 
   useEffect(() => {
     setSelectedRouteId(linkedRouteId ?? null)
@@ -250,22 +298,61 @@ export function RouteSimulationExperienceView({
     const deltaSeconds = frame.deltaMs / 1000
     if (deltaSeconds <= 0 || !Number.isFinite(deltaSeconds)) return
 
-    const trainerSpeed = frame.telemetry?.speedMps
-    const speedMps =
-      trainerSpeed !== null &&
-      trainerSpeed !== undefined &&
-      Number.isFinite(trainerSpeed) &&
-      trainerSpeed > 0
-        ? trainerSpeed
-        : FALLBACK_SPEED_MPS
-    setSpeedSource(speedMps === FALLBACK_SPEED_MPS ? "fallback" : "trainer")
-    setSpeedKph(speedMps * 3.6)
+    let nextDistance = current.distanceMeters
+    let nextElapsed = current.elapsedSeconds
 
-    const nextDistance = Math.min(
-      route.stats.distanceMeters,
-      current.distanceMeters + speedMps * deltaSeconds
-    )
-    const nextElapsed = current.elapsedSeconds + deltaSeconds
+    if (progressModeRef.current === "app-physics") {
+      const config = physicsConfigRef.current
+      const powerWatts = frame.telemetry?.powerWatts
+      if (
+        !config ||
+        powerWatts === null ||
+        powerWatts === undefined ||
+        !Number.isFinite(powerWatts)
+      ) {
+        setSpeedSource("paused-power-missing")
+        setSpeedKph(0)
+        return
+      }
+
+      const currentGrade = computeRouteGradePercent(
+        route.points,
+        current.distanceMeters,
+        smoothingLevelToMeters(current.smoothingLevel)
+      )
+      const result = stepPhysics({
+        state: physicsStateRef.current,
+        powerWatts,
+        gradePercent: currentGrade,
+        deltaSeconds,
+        config,
+      })
+      physicsStateRef.current = result.state
+      setSpeedSource("physics")
+      setSpeedKph(result.speedMps * 3.6)
+      nextDistance = Math.min(
+        route.stats.distanceMeters,
+        current.distanceMeters + result.distanceDeltaMeters
+      )
+      nextElapsed = current.elapsedSeconds + deltaSeconds
+    } else {
+      const trainerSpeed = frame.telemetry?.speedMps
+      const speedMps =
+        trainerSpeed !== null &&
+        trainerSpeed !== undefined &&
+        Number.isFinite(trainerSpeed) &&
+        trainerSpeed > 0
+          ? trainerSpeed
+          : FALLBACK_SPEED_MPS
+      setSpeedSource(speedMps === FALLBACK_SPEED_MPS ? "fallback" : "trainer")
+      setSpeedKph(speedMps * 3.6)
+      nextDistance = Math.min(
+        route.stats.distanceMeters,
+        current.distanceMeters + speedMps * deltaSeconds
+      )
+      nextElapsed = current.elapsedSeconds + deltaSeconds
+    }
+
     setDistanceMeters(nextDistance)
     setElapsedSeconds(nextElapsed)
     const nextGrade = computeRouteGradePercent(
@@ -297,10 +384,37 @@ export function RouteSimulationExperienceView({
     [navigate]
   )
 
-  const handleStart = useCallback(async () => {
-    if (!parsedRoute || !trainerConnected || !supportsSimulation) return
+  const handleChangeRoute = useCallback(() => {
+    setSelectedRouteId(null)
+    setParsedRoute(null)
+    setLoadError(null)
     setDistanceMeters(0)
     setElapsedSeconds(0)
+    setIsComplete(false)
+    setCompletionDialogOpen(false)
+    physicsStateRef.current = createInitialPhysicsState()
+    void navigate({
+      search: (previous) => {
+        const nextSearch = { ...previous }
+        delete nextSearch.routeId
+        return nextSearch
+      },
+      replace: true,
+    })
+  }, [navigate])
+
+  const handleStart = useCallback(async () => {
+    if (
+      !parsedRoute ||
+      !trainerConnected ||
+      !supportsSimulation ||
+      (progressMode === "app-physics" && !physicsConfig)
+    ) {
+      return
+    }
+    setDistanceMeters(0)
+    setElapsedSeconds(0)
+    physicsStateRef.current = createInitialPhysicsState()
     setIsActive(true)
     setIsComplete(false)
     setCompletionDialogOpen(false)
@@ -322,6 +436,8 @@ export function RouteSimulationExperienceView({
   }, [
     dispatchGrade,
     parsedRoute,
+    physicsConfig,
+    progressMode,
     session,
     smoothingLevel,
     supportsSimulation,
@@ -349,6 +465,7 @@ export function RouteSimulationExperienceView({
     session.pause()
     setIsActive(false)
     setIsComplete(false)
+    physicsStateRef.current = createInitialPhysicsState()
   }, [releaseTrainer, session])
 
   const handleRouteClick = useCallback(
@@ -359,6 +476,12 @@ export function RouteSimulationExperienceView({
         position
       )
       setDistanceMeters(nextDistance)
+      if (progressMode === "app-physics") {
+        physicsStateRef.current = {
+          ...physicsStateRef.current,
+          speedMps: 0,
+        }
+      }
       const nextGrade = computeRouteGradePercent(
         parsedRoute.points,
         nextDistance,
@@ -366,7 +489,7 @@ export function RouteSimulationExperienceView({
       )
       void dispatchGrade(nextGrade, true)
     },
-    [dispatchGrade, parsedRoute, smoothingLevel]
+    [dispatchGrade, parsedRoute, progressMode, smoothingLevel]
   )
 
   const startDisabledReason = !parsedRoute
@@ -375,7 +498,9 @@ export function RouteSimulationExperienceView({
       ? "Connect a trainer before starting."
       : !supportsSimulation
         ? "Connected trainer does not support simulation grade."
-        : null
+        : progressMode === "app-physics" && !physicsConfig
+          ? "Loading physics profile."
+          : null
 
   if (!isActive && !isComplete) {
     return (
@@ -385,9 +510,13 @@ export function RouteSimulationExperienceView({
           (linkedRouteId !== undefined && routeDoc === undefined)
         }
         loadError={loadError}
+        onChangeRoute={handleChangeRoute}
+        onProgressModeChange={handleProgressModeChange}
         onSelectRoute={handleSelectRoute}
         onStart={handleStart}
+        physicsProfileReady={settings !== undefined}
         parsedRoute={parsedRoute}
+        progressMode={progressMode}
         routes={routes ?? []}
         selectedRouteId={selectedRouteId}
         startDisabledReason={startDisabledReason}

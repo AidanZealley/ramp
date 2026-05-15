@@ -67,15 +67,29 @@ function normalizePreviewPoints(
   points: Array<RoutePoint>
 ): Array<RoutePreviewPoint> {
   const sampled = downsampleEvenly(points, ROUTE_PREVIEW_POINT_LIMIT)
-  const bounds = getBounds(sampled)
-  if (!bounds) return []
+  if (sampled.length === 0) return []
 
-  const latRange = bounds.maxLat - bounds.minLat || 1
-  const lngRange = bounds.maxLng - bounds.minLng || 1
+  const averageLatRadians =
+    (sampled.reduce((total, point) => total + point.lat, 0) / sampled.length) *
+    (Math.PI / 180)
+  const lngScale = Math.max(Math.cos(averageLatRadians), 0.000001)
+  const projected = sampled.map((point) => ({
+    x: point.lng * lngScale,
+    y: point.lat,
+  }))
+  const minX = Math.min(...projected.map((point) => point.x))
+  const maxX = Math.max(...projected.map((point) => point.x))
+  const minY = Math.min(...projected.map((point) => point.y))
+  const maxY = Math.max(...projected.map((point) => point.y))
+  const xRange = maxX - minX
+  const yRange = maxY - minY
+  const scale = Math.max(xRange, yRange) || 1
+  const xOffset = (1 - xRange / scale) / 2
+  const yOffset = (1 - yRange / scale) / 2
 
-  return sampled.map((point) => ({
-    x: (point.lng - bounds.minLng) / lngRange,
-    y: 1 - (point.lat - bounds.minLat) / latRange,
+  return projected.map((point) => ({
+    x: xOffset + (point.x - minX) / scale,
+    y: 1 - (yOffset + (point.y - minY) / scale),
   }))
 }
 

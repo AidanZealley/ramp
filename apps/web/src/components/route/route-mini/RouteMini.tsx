@@ -21,13 +21,13 @@ export const RouteMini = ({
     )
   }
 
-  const viewBoxWidth = 200
-  const viewBoxHeight = 80
+  const viewBoxSize = 100
   const padding = 8
+  const drawableSize = viewBoxSize - padding * 2
   const path = previewPoints
     .map((point, index) => {
-      const x = padding + point.x * (viewBoxWidth - padding * 2)
-      const y = padding + point.y * (viewBoxHeight - padding * 2)
+      const x = padding + point.x * drawableSize
+      const y = padding + point.y * drawableSize
       return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`
     })
     .join(" ")
@@ -35,7 +35,7 @@ export const RouteMini = ({
   return (
     <svg
       aria-label={ariaLabel}
-      viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
+      viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
       preserveAspectRatio="xMidYMid meet"
       className={`w-full ${className}`}
       style={{ minHeight: 48 }}
@@ -50,8 +50,8 @@ export const RouteMini = ({
         vectorEffect="non-scaling-stroke"
       />
       <circle
-        cx={padding + previewPoints[0].x * (viewBoxWidth - padding * 2)}
-        cy={padding + previewPoints[0].y * (viewBoxHeight - padding * 2)}
+        cx={padding + previewPoints[0].x * drawableSize}
+        cy={padding + previewPoints[0].y * drawableSize}
         r={3}
         fill="var(--background)"
         stroke="var(--primary)"
@@ -60,13 +60,11 @@ export const RouteMini = ({
       <circle
         cx={
           padding +
-          previewPoints[previewPoints.length - 1].x *
-            (viewBoxWidth - padding * 2)
+          previewPoints[previewPoints.length - 1].x * drawableSize
         }
         cy={
           padding +
-          previewPoints[previewPoints.length - 1].y *
-            (viewBoxHeight - padding * 2)
+          previewPoints[previewPoints.length - 1].y * drawableSize
         }
         r={3}
         fill="var(--primary)"

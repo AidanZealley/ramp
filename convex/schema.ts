@@ -31,6 +31,10 @@ export default defineSchema({
       v.union(v.literal("absolute"), v.literal("percentage"))
     ),
     riderWeightKg: v.optional(v.number()),
+    bikeWeightKg: v.optional(v.number()),
+    routeSimulationProgressMode: v.optional(
+      v.union(v.literal("trainer-speed"), v.literal("app-physics"))
+    ),
   }),
   plans: defineTable({
     title: v.string(),

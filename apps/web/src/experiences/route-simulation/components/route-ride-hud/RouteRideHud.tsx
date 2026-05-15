@@ -3,6 +3,7 @@ import { formatElapsedTime, formatMetricDistance } from "../../utils"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
+import type { RouteSpeedSource } from "../../types"
 
 type RouteRideHudProps = {
   distanceMeters: number
@@ -15,7 +16,7 @@ type RouteRideHudProps = {
   onStop: () => void
   smoothingLevel: number
   speedKph: number
-  speedSource: "trainer" | "fallback"
+  speedSource: RouteSpeedSource
   telemetryStatus: "missing" | "fresh" | "stale"
   totalDistanceMeters: number
 }
@@ -35,14 +36,20 @@ export const RouteRideHud = ({
   telemetryStatus,
   totalDistanceMeters,
 }: RouteRideHudProps) => {
+  const speedLabel =
+    speedSource === "fallback"
+      ? "Speed fallback"
+      : speedSource === "physics"
+        ? "Virtual speed"
+        : speedSource === "paused-power-missing"
+          ? "Power missing"
+          : "Speed"
+
   return (
     <div className="absolute inset-x-3 bottom-4 mx-auto max-w-5xl rounded-lg border border-border/70 bg-card/95 p-3 shadow-xl backdrop-blur sm:bottom-5 sm:p-4">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(4,minmax(0,1fr))_180px_auto] sm:items-center">
         <Metric label="Time" value={formatElapsedTime(elapsedSeconds)} />
-        <Metric
-          label={speedSource === "fallback" ? "Speed fallback" : "Speed"}
-          value={`${speedKph.toFixed(1)} km/h`}
-        />
+        <Metric label={speedLabel} value={`${speedKph.toFixed(1)} km/h`} />
         <Metric
           label="Distance"
           value={`${formatMetricDistance(distanceMeters)} / ${formatMetricDistance(totalDistanceMeters)}`}
@@ -68,6 +75,9 @@ export const RouteRideHud = ({
         <div className="col-span-2 flex items-center justify-end gap-2 sm:col-span-1">
           {telemetryStatus === "stale" && (
             <span className="text-xs text-amber-600">Stale</span>
+          )}
+          {speedSource === "paused-power-missing" && (
+            <span className="text-xs text-amber-600">Power required</span>
           )}
           <Button
             size="icon"

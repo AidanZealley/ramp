@@ -6,6 +6,14 @@ export type RouteSimulationRoute = {
   parsed: ParsedRouteGpx
 }
 
+export type RouteProgressMode = "trainer-speed" | "app-physics"
+
+export type RouteSpeedSource =
+  | "trainer"
+  | "fallback"
+  | "physics"
+  | "paused-power-missing"
+
 export type RouteRideSnapshot = {
   distanceMeters: number
   elapsedSeconds: number
@@ -15,6 +23,6 @@ export type RouteRideSnapshot = {
   riderPosition: RoutePosition | null
   smoothingLevel: number
   speedKph: number
-  speedSource: "trainer" | "fallback"
+  speedSource: RouteSpeedSource
   telemetryStatus: "missing" | "fresh" | "stale"
 }
