@@ -9,6 +9,7 @@ const useTheme = vi.fn()
 const easeTo = vi.fn()
 const fitBounds = vi.fn()
 const resize = vi.fn()
+let mapZoom = 10
 
 vi.mock("@/components/theme-provider", () => ({
   useTheme: () => useTheme(),
@@ -20,11 +21,13 @@ vi.mock("@vis.gl/react-maplibre", () => ({
       {
         children,
         mapStyle,
+        maxPitch,
         terrain,
         sky,
         onLoad,
       }: PropsWithChildren<{
         mapStyle: string
+        maxPitch?: number
         terrain?: unknown
         sky?: unknown
         onLoad?: () => void
@@ -34,7 +37,7 @@ vi.mock("@vis.gl/react-maplibre", () => ({
       useImperativeHandle(ref, () => ({
         easeTo,
         fitBounds,
-        getZoom: () => 10,
+        getZoom: () => mapZoom,
         resize,
       }))
 
@@ -46,6 +49,7 @@ vi.mock("@vis.gl/react-maplibre", () => ({
         <div
           data-testid="map"
           data-map-style={mapStyle}
+          data-max-pitch={maxPitch}
           data-sky={JSON.stringify(sky ?? null)}
           data-terrain={JSON.stringify(terrain ?? null)}
         >
@@ -115,6 +119,7 @@ describe("RouteMap", () => {
     useTheme.mockReturnValue({ theme: "light" })
     easeTo.mockClear()
     fitBounds.mockClear()
+    mapZoom = 10
     resize.mockClear()
     vi.unstubAllEnvs()
   })
@@ -327,7 +332,7 @@ describe("RouteMap", () => {
       JSON.parse(screen.getByTestId("map").dataset.terrain ?? "null")
     ).toEqual({
       source: "route-terrain-dem",
-      exaggeration: 1.5,
+      exaggeration: 2.5,
     })
   })
 
@@ -348,12 +353,76 @@ describe("RouteMap", () => {
       expect(easeTo).toHaveBeenCalledWith(
         expect.objectContaining({
           center: [-122.42, 37.82],
+          offset: [0, 140],
           pitch: 60,
           zoom: 15.5,
         })
       )
     )
     expect(easeTo.mock.calls.at(-1)?.[0].bearing).not.toBe(0)
+    expect(screen.getByTestId("map").dataset.maxPitch).toBe("80")
+  })
+
+  it("raises perspective pitch as the route camera zooms closer", async () => {
+    const { rerender } = render(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        followPosition
+        riderPosition={{ lat: 37.82, lng: -122.42 }}
+        viewMode="perspective"
+      />
+    )
+
+    await waitFor(() =>
+      expect(easeTo).toHaveBeenCalledWith(
+        expect.objectContaining({ pitch: 60, zoom: 15.5 })
+      )
+    )
+
+    easeTo.mockClear()
+    mapZoom = 18
+    rerender(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        followPosition
+        riderPosition={{ lat: 37.83, lng: -122.43 }}
+        viewMode="perspective"
+      />
+    )
+
+    await waitFor(() =>
+      expect(easeTo).toHaveBeenCalledWith(
+        expect.objectContaining({ pitch: 80, zoom: 18 })
+      )
+    )
+  })
+
+  it("does not recenter the perspective camera when follow is disabled", async () => {
+    render(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        followPosition={false}
+        riderPosition={{ lat: 37.82, lng: -122.42 }}
+        viewMode="perspective"
+      />
+    )
+
+    await waitFor(() =>
+      expect(easeTo).toHaveBeenCalledWith(
+        expect.objectContaining({ pitch: 48 })
+      )
+    )
+    expect(easeTo.mock.calls.at(-1)?.[0]).not.toHaveProperty("center")
+    expect(easeTo.mock.calls.at(-1)?.[0]).not.toHaveProperty("zoom")
   })
 
   it("keeps top-down follow camera pitch and bearing at zero", async () => {

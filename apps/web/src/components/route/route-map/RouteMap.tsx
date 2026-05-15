@@ -21,8 +21,12 @@ type RouteMapProps = {
 }
 
 const ROUTE_PADDING_PX = 40
-const PERSPECTIVE_PITCH = 60
+const PERSPECTIVE_MIN_PITCH = 48
+const PERSPECTIVE_MAX_PITCH = 80
+const PERSPECTIVE_MIN_PITCH_ZOOM = 14
+const PERSPECTIVE_MAX_PITCH_ZOOM = 18
 const PERSPECTIVE_ZOOM_FLOOR = 15.5
+const PERSPECTIVE_FOLLOW_OFFSET_PX: [number, number] = [0, 140]
 const CAMERA_DURATION_MS = 450
 const TERRAIN_SOURCE_ID = "route-terrain-dem"
 const TERRAIN_TILE_URL =
@@ -32,6 +36,22 @@ const TERRAIN_ATTRIBUTION =
 
 const toRadians = (degrees: number) => (degrees * Math.PI) / 180
 const toDegrees = (radians: number) => (radians * 180) / Math.PI
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), max)
+
+const getPerspectivePitchForZoom = (zoom: number) => {
+  const progress = clamp(
+    (zoom - PERSPECTIVE_MIN_PITCH_ZOOM) /
+      (PERSPECTIVE_MAX_PITCH_ZOOM - PERSPECTIVE_MIN_PITCH_ZOOM),
+    0,
+    1
+  )
+
+  return (
+    PERSPECTIVE_MIN_PITCH +
+    (PERSPECTIVE_MAX_PITCH - PERSPECTIVE_MIN_PITCH) * progress
+  )
+}
 
 const getBearing = (from: RoutePosition, to: RoutePosition) => {
   const fromLat = toRadians(from.lat)
@@ -122,7 +142,10 @@ export const RouteMap = ({
       latitude: center.lat,
       longitude: center.lng,
       zoom: bounds ? 10 : 3,
-      pitch: viewMode === "perspective" ? PERSPECTIVE_PITCH : 0,
+      pitch:
+        viewMode === "perspective"
+          ? getPerspectivePitchForZoom(bounds ? 10 : 3)
+          : 0,
       bearing: 0,
     }
   }, [bounds, start, viewMode])
@@ -139,7 +162,10 @@ export const RouteMap = ({
       {
         padding: ROUTE_PADDING_PX,
         duration: 0,
-        pitch: viewMode === "perspective" ? PERSPECTIVE_PITCH : 0,
+        pitch:
+          viewMode === "perspective"
+            ? getPerspectivePitchForZoom(PERSPECTIVE_MIN_PITCH_ZOOM)
+            : 0,
         bearing: 0,
       }
     )
@@ -196,21 +222,22 @@ export const RouteMap = ({
           previousBearingRef.current)
     previousBearingRef.current = bearing
 
-    if (!riderPosition) {
+    if (!followPosition || !riderPosition) {
       mapRef.current.easeTo({
-        pitch: PERSPECTIVE_PITCH,
-        bearing: 0,
+        pitch: getPerspectivePitchForZoom(mapRef.current.getZoom()),
+        bearing,
         duration: CAMERA_DURATION_MS,
       })
       return
     }
 
+    const zoom = Math.max(mapRef.current.getZoom(), PERSPECTIVE_ZOOM_FLOOR)
+
     mapRef.current.easeTo({
       center: [riderPosition.lng, riderPosition.lat],
-      ...(previousViewMode === viewMode
-        ? { zoom: Math.max(mapRef.current.getZoom(), PERSPECTIVE_ZOOM_FLOOR) }
-        : {}),
-      pitch: PERSPECTIVE_PITCH,
+      offset: PERSPECTIVE_FOLLOW_OFFSET_PX,
+      ...(previousViewMode === viewMode ? { zoom } : {}),
+      pitch: getPerspectivePitchForZoom(zoom),
       bearing,
       duration: CAMERA_DURATION_MS,
     })
@@ -230,6 +257,7 @@ export const RouteMap = ({
         mapStyle={mapStyle}
         initialViewState={initialViewState}
         attributionControl={false}
+        maxPitch={PERSPECTIVE_MAX_PITCH}
         reuseMaps
         terrain={
           terrainEnabled
