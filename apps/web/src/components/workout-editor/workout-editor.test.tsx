@@ -1113,6 +1113,37 @@ describe("workout editor store", () => {
       expect(screen.getByTestId("is-dirty").textContent).toBe("no")
     })
   })
+
+  it("a dirty editor treats matching server snapshots as save acknowledgements", async () => {
+    const savedIntervals = baseIntervals.slice(0, 2)
+    const { rerender } = render(
+      <ControlledHarness
+        intervals={baseIntervals}
+        resetKey="workout-1:0"
+        intervalsRevision={0}
+      />
+    )
+
+    fireEvent.click(screen.getByText("commit-2"))
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("intervals")).toEqual(savedIntervals)
+      expect(screen.getByTestId("is-dirty").textContent).toBe("yes")
+    })
+
+    rerender(
+      <ControlledHarness
+        intervals={savedIntervals}
+        resetKey="workout-1:1"
+        intervalsRevision={1}
+      />
+    )
+
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("intervals")).toEqual(savedIntervals)
+      expect(screen.getByTestId("has-incoming").textContent).toBe("no")
+      expect(screen.getByTestId("is-dirty").textContent).toBe("no")
+    })
+  })
 })
 
 describe("WorkoutEditor keyboard shortcuts", () => {

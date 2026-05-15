@@ -262,6 +262,15 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
               return initializeSessionState(state, snapshot)
             }
 
+            if (areIntervalsEqual(state.intervals, snapshot.intervals)) {
+              return {
+                baselineIntervals: cloneIntervals(snapshot.intervals),
+                serverResetKey: snapshot.resetKey,
+                baselineIntervalsRevision: snapshot.intervalsRevision,
+                pendingServerSnapshot: null,
+              }
+            }
+
             return {
               pendingServerSnapshot: {
                 intervals: cloneIntervals(snapshot.intervals),
