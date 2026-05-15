@@ -4,17 +4,6 @@ import { useNavigate } from "@tanstack/react-router"
 import { useMutation, useQuery } from "convex/react"
 import { Capability } from "@ramp/ride-core"
 import { useRideFrame, useRideSelector } from "@ramp/ride-react"
-import type { Id } from "#convex/_generated/dataModel"
-import { api } from "#convex/_generated/api"
-import type { ExperienceSessionAPI } from "@/ride/experience-session"
-import type { RideExperienceConnection } from "@/ride/experience-runtime"
-import { parseRouteGpxText } from "@/lib/routes/gpx"
-import type { ParsedRouteGpx, RoutePosition } from "@/lib/routes/types"
-import {
-  computeRouteGradePercent,
-  findNearestRouteDistanceMeters,
-  interpolateRoutePointByDistance,
-} from "@/lib/routes/simulation"
 import { RouteSimulationSetup } from "./components/route-simulation-setup"
 import { RouteSimulationMap } from "./components/route-simulation-map"
 import { RouteMiniMap } from "./components/route-mini-map"
@@ -23,19 +12,33 @@ import { RouteRideHud } from "./components/route-ride-hud"
 import { RouteCompleteDialog } from "./components/route-complete-dialog"
 import { RouteDisconnectedOverlay } from "./components/route-disconnected-overlay"
 import {
-  createIndoorLikePhysicsConfig,
-  createInitialPhysicsState,
-  stepPhysics,
-  type PhysicsConfig,
-  type PhysicsState,
-} from "@/experiences/physics"
-import {
   FALLBACK_SPEED_MPS,
   GRADE_DISPATCH_DELTA_PERCENT,
   GRADE_DISPATCH_INTERVAL_MS,
+  SEEK_GRADE_DISPATCH_INTERVAL_MS,
+  SEEK_TRANSITION_DURATION_MS,
+  getPreservedSeekSpeedMps,
+  getSeekTransitionGrade,
   smoothingLevelToMeters,
 } from "./utils"
+import type { ParsedRouteGpx, RoutePosition } from "@/lib/routes/types"
+import type { RideExperienceConnection } from "@/ride/experience-runtime"
+import type { ExperienceSessionAPI } from "@/ride/experience-session"
+import type { Id } from "#convex/_generated/dataModel"
 import type { RouteProgressMode, RouteSpeedSource } from "./types"
+import type { PhysicsConfig, PhysicsState } from "@/experiences/physics"
+import {
+  createIndoorLikePhysicsConfig,
+  createInitialPhysicsState,
+  stepPhysics,
+} from "@/experiences/physics"
+import {
+  computeRouteGradePercent,
+  findNearestRouteDistanceMeters,
+  interpolateRoutePointByDistance,
+} from "@/lib/routes/simulation"
+import { parseRouteGpxText } from "@/lib/routes/gpx"
+import { api } from "#convex/_generated/api"
 
 type RouteSimulationExperienceViewProps = {
   connection?: RideExperienceConnection
@@ -43,6 +46,17 @@ type RouteSimulationExperienceViewProps = {
     routeId?: string
   }
   session: ExperienceSessionAPI
+}
+
+type SeekTransitionState = {
+  startedAtMs: number
+  durationMs: number
+  fromDistanceMeters: number
+  toDistanceMeters: number
+  fromGradePercent: number
+  toGradePercent: number
+  fromSpeedMps: number
+  initialGradeDispatched: boolean
 }
 
 function useViewportSize() {
@@ -98,12 +112,14 @@ export function RouteSimulationExperienceView({
   const [speedSource, setSpeedSource] =
     useState<RouteSpeedSource>("fallback")
   const [speedKph, setSpeedKph] = useState(25)
+  const [displayGradePercent, setDisplayGradePercent] = useState(0)
   const viewportSize = useViewportSize()
   const lastGradeDispatch = useRef({ gradePercent: NaN, atMs: 0 })
   const routeRef = useRef<ParsedRouteGpx | null>(null)
   const physicsStateRef = useRef<PhysicsState>(createInitialPhysicsState())
   const physicsConfigRef = useRef<PhysicsConfig | null>(null)
   const progressModeRef = useRef<RouteProgressMode>(progressMode)
+  const seekTransitionRef = useRef<SeekTransitionState | null>(null)
   const stateRef = useRef({
     distanceMeters: 0,
     elapsedSeconds: 0,
@@ -132,12 +148,16 @@ export function RouteSimulationExperienceView({
 
   useEffect(() => {
     if (settings) {
+      if (settings.routeSimulationProgressMode !== progressModeRef.current) {
+        seekTransitionRef.current = null
+      }
       setProgressMode(settings.routeSimulationProgressMode)
     }
   }, [settings])
 
   const handleProgressModeChange = useCallback(
     (mode: RouteProgressMode) => {
+      seekTransitionRef.current = null
       setProgressMode(mode)
       void upsertSettings({ routeSimulationProgressMode: mode })
     },
@@ -233,14 +253,27 @@ export function RouteSimulationExperienceView({
     [distanceMeters, parsedRoute, smoothingLevel]
   )
 
+  useEffect(() => {
+    if (!seekTransitionRef.current) {
+      setDisplayGradePercent(gradePercent)
+    }
+  }, [gradePercent])
+
   const dispatchGrade = useCallback(
-    async (grade: number, force = false) => {
+    async (
+      grade: number,
+      force = false,
+      options?: { intervalMs?: number; deltaPercent?: number }
+    ) => {
       const now = Date.now()
       const last = lastGradeDispatch.current
+      const intervalMs = options?.intervalMs ?? GRADE_DISPATCH_INTERVAL_MS
+      const deltaPercent =
+        options?.deltaPercent ?? GRADE_DISPATCH_DELTA_PERCENT
       if (
         !force &&
-        now - last.atMs < GRADE_DISPATCH_INTERVAL_MS &&
-        Math.abs(grade - last.gradePercent) < GRADE_DISPATCH_DELTA_PERCENT
+        now - last.atMs < intervalMs &&
+        Math.abs(grade - last.gradePercent) < deltaPercent
       ) {
         return
       }
@@ -272,6 +305,7 @@ export function RouteSimulationExperienceView({
   const completeRide = useCallback(async () => {
     const route = routeRef.current
     if (!route || stateRef.current.isComplete) return
+    seekTransitionRef.current = null
     setDistanceMeters(route.stats.distanceMeters)
     setIsComplete(true)
     setIsActive(false)
@@ -315,15 +349,37 @@ export function RouteSimulationExperienceView({
         return
       }
 
-      const currentGrade = computeRouteGradePercent(
+      const routeGrade = computeRouteGradePercent(
         route.points,
         current.distanceMeters,
         smoothingLevelToMeters(current.smoothingLevel)
       )
+      const seekTransition = seekTransitionRef.current
+      let effectiveGrade = routeGrade
+      if (seekTransition) {
+        const transitionGrade = getSeekTransitionGrade({
+          ...seekTransition,
+          nowMs: Date.now(),
+        })
+        effectiveGrade = transitionGrade.gradePercent
+        setDisplayGradePercent(effectiveGrade)
+        void dispatchGrade(
+          effectiveGrade,
+          !seekTransition.initialGradeDispatched,
+          { intervalMs: SEEK_GRADE_DISPATCH_INTERVAL_MS }
+        )
+        seekTransition.initialGradeDispatched = true
+        if (transitionGrade.progress >= 1) {
+          seekTransitionRef.current = null
+          void dispatchGrade(seekTransition.toGradePercent, true)
+        }
+      } else {
+        setDisplayGradePercent(routeGrade)
+      }
       const result = stepPhysics({
         state: physicsStateRef.current,
         powerWatts,
-        gradePercent: currentGrade,
+        gradePercent: effectiveGrade,
         deltaSeconds,
         config,
       })
@@ -360,7 +416,9 @@ export function RouteSimulationExperienceView({
       nextDistance,
       smoothingLevelToMeters(current.smoothingLevel)
     )
-    void dispatchGrade(nextGrade)
+    if (!seekTransitionRef.current) {
+      void dispatchGrade(nextGrade)
+    }
 
     if (nextDistance >= route.stats.distanceMeters) {
       void completeRide()
@@ -375,6 +433,7 @@ export function RouteSimulationExperienceView({
 
   const handleSelectRoute = useCallback(
     (routeId: Id<"routes">) => {
+      seekTransitionRef.current = null
       setSelectedRouteId(routeId)
       void navigate({
         search: (previous) => ({ ...previous, routeId }),
@@ -385,6 +444,7 @@ export function RouteSimulationExperienceView({
   )
 
   const handleChangeRoute = useCallback(() => {
+    seekTransitionRef.current = null
     setSelectedRouteId(null)
     setParsedRoute(null)
     setLoadError(null)
@@ -414,6 +474,7 @@ export function RouteSimulationExperienceView({
     }
     setDistanceMeters(0)
     setElapsedSeconds(0)
+    seekTransitionRef.current = null
     physicsStateRef.current = createInitialPhysicsState()
     setIsActive(true)
     setIsComplete(false)
@@ -445,6 +506,7 @@ export function RouteSimulationExperienceView({
   ])
 
   const handlePause = useCallback(async () => {
+    seekTransitionRef.current = null
     session.pause()
     await releaseTrainer()
   }, [releaseTrainer, session])
@@ -461,6 +523,7 @@ export function RouteSimulationExperienceView({
   }, [dispatchGrade, gradePercent, parsedRoute, session])
 
   const handleStop = useCallback(async () => {
+    seekTransitionRef.current = null
     await releaseTrainer()
     session.pause()
     setIsActive(false)
@@ -475,18 +538,48 @@ export function RouteSimulationExperienceView({
         parsedRoute.points,
         position
       )
+      const currentDistance = stateRef.current.distanceMeters
+      const currentGrade = seekTransitionRef.current
+        ? getSeekTransitionGrade({
+            ...seekTransitionRef.current,
+            nowMs: Date.now(),
+          }).gradePercent
+        : computeRouteGradePercent(
+            parsedRoute.points,
+            currentDistance,
+            smoothingLevelToMeters(smoothingLevel)
+          )
+      seekTransitionRef.current = null
       setDistanceMeters(nextDistance)
-      if (progressMode === "app-physics") {
-        physicsStateRef.current = {
-          ...physicsStateRef.current,
-          speedMps: 0,
-        }
-      }
       const nextGrade = computeRouteGradePercent(
         parsedRoute.points,
         nextDistance,
         smoothingLevelToMeters(smoothingLevel)
       )
+      if (progressMode === "app-physics") {
+        const preservedSpeedMps = getPreservedSeekSpeedMps(
+          physicsStateRef.current.speedMps
+        )
+        physicsStateRef.current = {
+          ...physicsStateRef.current,
+          speedMps: preservedSpeedMps,
+        }
+        seekTransitionRef.current = {
+          startedAtMs: Date.now(),
+          durationMs: SEEK_TRANSITION_DURATION_MS,
+          fromDistanceMeters: currentDistance,
+          toDistanceMeters: nextDistance,
+          fromGradePercent: currentGrade,
+          toGradePercent: nextGrade,
+          fromSpeedMps: preservedSpeedMps,
+          initialGradeDispatched: true,
+        }
+        setDisplayGradePercent(currentGrade)
+        void dispatchGrade(currentGrade, true, {
+          intervalMs: SEEK_GRADE_DISPATCH_INTERVAL_MS,
+        })
+        return
+      }
       void dispatchGrade(nextGrade, true)
     },
     [dispatchGrade, parsedRoute, progressMode, smoothingLevel]
@@ -563,7 +656,7 @@ export function RouteSimulationExperienceView({
       <RouteRideHud
         distanceMeters={distanceMeters}
         elapsedSeconds={elapsedSeconds}
-        gradePercent={gradePercent}
+        gradePercent={displayGradePercent}
         isPaused={paused}
         onPause={handlePause}
         onResume={handleResume}
