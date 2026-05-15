@@ -22,9 +22,9 @@ import {
   getWorkoutRemainingSeconds,
 } from "./utils"
 import type { WorkoutCompletionSummary } from "./components/workout-complete-dialog"
-import type { RideSessionController } from "@ramp/ride-core"
 import type { WorkoutSessionState } from "@ramp/ride-workouts"
 import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
+import type { ExperienceSessionAPI } from "@/ride/experience-session"
 import {
   RideDashboardMetric,
   RideHeartCadenceModule,
@@ -40,7 +40,7 @@ type LiveWorkoutDashboardProps = {
   onSeek: (elapsedSeconds: number) => void | Promise<void>
   onDifficultyChange: (difficultyPercent: number) => void | Promise<void>
   onDifficultyReset: () => void | Promise<void>
-  session: RideSessionController
+  session: ExperienceSessionAPI
   workout: ClientWorkoutDoc
   workoutState: WorkoutSessionState
 }

@@ -1,4 +1,5 @@
 import { createControllableTrainerRequestOptions } from "./uuids"
+import { isTrainerError } from "@ramp/ride-contracts"
 import type { TrainerError } from "../../../types"
 
 export type BleTrainerRequestOptions = {
@@ -110,20 +111,9 @@ function getErrorName(error: unknown): string | null {
     typeof error === "object" &&
     error !== null &&
     "name" in error &&
-    typeof (error).name === "string"
+    typeof error.name === "string"
   ) {
     return (error as { name: string }).name
   }
   return null
-}
-
-function isTrainerError(value: unknown): value is TrainerError {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "code" in value &&
-    "message" in value &&
-    typeof (value as { code: unknown }).code === "string" &&
-    typeof (value as { message: unknown }).message === "string"
-  )
 }

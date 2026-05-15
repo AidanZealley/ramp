@@ -35,6 +35,13 @@ vi.mock("@/ride/use-ride-runtime", async () => {
       const session = {
         getState: vi.fn(),
         subscribe: vi.fn(() => () => undefined),
+        subscribeFrame: vi.fn(() => () => undefined),
+        pause: vi.fn(),
+        resume: vi.fn(),
+        controls: {
+          dispatch: vi.fn(() => Promise.resolve({ ok: true as const })),
+          getCapabilities: vi.fn(() => new Set()),
+        },
       } as unknown as RideRuntimeController["session"]
       return {
         ready: true,

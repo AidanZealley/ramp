@@ -1,17 +1,17 @@
 import { Canvas } from "@react-three/fiber"
 import { Sky } from "@react-three/drei"
-import { useRideR3FFrame } from "@ramp/ride-r3f"
+import { useRideFrameRef } from "@ramp/ride-react"
 import { RideCamera } from "./camera"
 import { RideWorld } from "./world"
 import { RiderMarker } from "./rider-marker"
-import type { RideSessionController } from "@ramp/ride-core"
+import type { ExperienceSessionAPI } from "@/ride/experience-session"
 
 type RideSceneProps = {
-  session: RideSessionController
+  session: ExperienceSessionAPI
 }
 
-function RideSceneContent({ session }: { session: RideSessionController }) {
-  const frameRef = useRideR3FFrame(session)
+function RideSceneContent({ session }: { session: ExperienceSessionAPI }) {
+  const frameRef = useRideFrameRef(session)
 
   return (
     <>

@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -13,9 +14,9 @@ import { createWorkoutController } from "@ramp/ride-workouts"
 import { LiveWorkoutDashboard } from "./components/live-workout-dashboard"
 import { WorkoutDetailPanel } from "./components/workout-detail-panel"
 import { WorkoutPickerPanel } from "./components/workout-picker-panel"
-import type { RideSessionController } from "@ramp/ride-core"
 import type { RideExperienceConnection } from "@/ride/experience-runtime"
 import type {
+  WorkoutRideSession,
   WorkoutSessionController,
   WorkoutSessionState,
 } from "@ramp/ride-workouts"
@@ -27,6 +28,7 @@ import {
   InvalidWorkoutDefinitionError,
   toWorkoutDefinition,
 } from "@/ride/convex-workout-mapper"
+import type { ExperienceSessionAPI } from "@/ride/experience-session"
 
 type WorkoutDoc = ClientWorkoutDoc
 
@@ -93,7 +95,7 @@ export function LiveWorkoutExperienceView({
   search?: {
     workoutId?: string
   }
-  session: RideSessionController
+  session: ExperienceSessionAPI
 }) {
   const navigate = useNavigate({ from: "/ride/$experienceId" })
   const trainerConnected = useRideSelector(session, (s) => s.trainerConnected)
@@ -108,16 +110,28 @@ export function LiveWorkoutExperienceView({
   const lastTrainerError = useRideSelector(session, (s) => s.lastTrainerError)
   const [workoutController, setWorkoutController] =
     useState<WorkoutSessionController | null>(null)
+  const workoutSession = useMemo<WorkoutRideSession>(
+    () => ({
+      getState: session.getState,
+      subscribe: session.subscribe,
+      controls: {
+        dispatch: (command, _source, options) =>
+          session.controls.dispatch(command, "experience", options),
+        getCapabilities: session.controls.getCapabilities,
+      },
+    }),
+    [session]
+  )
 
   useEffect(() => {
-    const nextController = createWorkoutController({ session })
+    const nextController = createWorkoutController({ session: workoutSession })
     setWorkoutController(nextController)
 
     return () => {
       nextController.dispose()
       setWorkoutController(null)
     }
-  }, [session])
+  }, [workoutSession])
 
   const workoutState = useSyncExternalStore(
     workoutController?.subscribe ?? subscribeToPendingWorkout,

@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react"
-import type {
-  RideFrameData,
-  RideSessionController,
-  RideSessionState,
-} from "@ramp/ride-core"
+import type { MutableRefObject } from "react"
+import type { RideFrameData, RideSessionState } from "@ramp/ride-core"
 
-export function useRideSession(
-  session: RideSessionController
-): RideSessionState {
+export type RideStore = {
+  getState: () => RideSessionState
+  subscribe: (listener: () => void) => () => void
+}
+
+export type RideFrameSource = {
+  subscribeFrame: (listener: (frame: RideFrameData) => void) => () => void
+}
+
+export function useRideSession(session: RideStore): RideSessionState {
   return useSyncExternalStore(
     session.subscribe,
     () => session.getState(),
@@ -16,7 +20,7 @@ export function useRideSession(
 }
 
 export function useRideSelector<T>(
-  session: RideSessionController,
+  session: RideStore,
   selector: (state: RideSessionState) => T,
   equals: (a: T, b: T) => boolean = Object.is
 ): T {
@@ -47,7 +51,7 @@ export function useRideSelector<T>(
 }
 
 export function useRideThrottledSelector<T>(
-  session: RideSessionController,
+  session: RideStore,
   selector: (state: RideSessionState) => T,
   options: {
     hz: number
@@ -92,7 +96,7 @@ export function useRideThrottledSelector<T>(
 }
 
 export function useRideFrame(
-  session: RideSessionController,
+  session: RideFrameSource,
   callback: (frame: RideFrameData) => void
 ): void {
   const callbackRef = useRef(callback)
@@ -105,8 +109,22 @@ export function useRideFrame(
   }, [session])
 }
 
+export function useRideFrameRef(
+  session: RideFrameSource
+): MutableRefObject<RideFrameData | null> {
+  const frameRef = useRef<RideFrameData | null>(null)
+
+  useEffect(() => {
+    return session.subscribeFrame((frame) => {
+      frameRef.current = frame
+    })
+  }, [session])
+
+  return frameRef
+}
+
 const heartbeatCache = new WeakMap<
-  RideSessionController,
+  RideStore,
   Map<
     number,
     {
@@ -117,10 +135,7 @@ const heartbeatCache = new WeakMap<
   >
 >()
 
-export function useRideHeartbeat(
-  session: RideSessionController,
-  hz: number = 1
-): number {
+export function useRideHeartbeat(session: RideStore, hz: number = 1): number {
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
       let sessionMap = heartbeatCache.get(session)

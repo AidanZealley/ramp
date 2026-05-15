@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest"
 import {
   Capability,
   TRAINER_COMMAND_LIMITS,
-  
   clampTargetPowerWatts,
-  validateTrainerCommand
+  isTrainerError,
+  toTrainerError,
+  validateTrainerCommand,
 } from "./index"
-import type {TrainerCommand} from "./index";
+import type { TrainerCommand, TrainerError } from "./index"
 
 describe("ride-contracts", () => {
   it("exports the canonical capability values", () => {
@@ -93,5 +94,41 @@ describe("ride-contracts", () => {
       ok: false,
       reason: "setMode.mode:invalid-value",
     })
+  })
+
+  it("recognizes valid trainer error objects", () => {
+    const error: TrainerError = {
+      code: "transport",
+      message: "Transport failed.",
+    }
+
+    expect(isTrainerError(error)).toBe(true)
+    expect(toTrainerError(error)).toBe(error)
+  })
+
+  it("rejects missing trainer error fields", () => {
+    expect(isTrainerError({ code: "transport" })).toBe(false)
+    expect(isTrainerError({ message: "Transport failed." })).toBe(false)
+    expect(isTrainerError({ code: 1, message: "Transport failed." })).toBe(
+      false
+    )
+    expect(isTrainerError({ code: "transport", message: null })).toBe(false)
+  })
+
+  it("rejects null and primitive trainer error values", () => {
+    expect(isTrainerError(null)).toBe(false)
+    expect(isTrainerError(undefined)).toBe(false)
+    expect(isTrainerError("transport")).toBe(false)
+    expect(isTrainerError(1)).toBe(false)
+    expect(isTrainerError(false)).toBe(false)
+  })
+
+  it("converts unknown values to a fallback trainer error", () => {
+    const fallback: TrainerError = {
+      code: "permission",
+      message: "Selection cancelled.",
+    }
+
+    expect(toTrainerError(new Error("cancelled"), fallback)).toBe(fallback)
   })
 })

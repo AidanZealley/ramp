@@ -2,6 +2,7 @@ import {
   Capability,
   Subject,
   commandCapability,
+  isTrainerError,
   validateTrainerCommand,
 } from "@ramp/ride-contracts"
 import { GattService } from "../web-bluetooth/gatt-service"
@@ -488,7 +489,7 @@ function errorMatchesCode(error: unknown, code: TrainerError["code"]): boolean {
     typeof error === "object" &&
     error !== null &&
     "code" in error &&
-    (error).code === code
+    error.code === code
   )
 }
 
@@ -496,17 +497,10 @@ function toTrainerError(
   error: unknown,
   fallbackCode: TrainerError["code"]
 ): TrainerError {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    "message" in error &&
-    typeof (error as { code: unknown }).code === "string" &&
-    typeof (error as { message: unknown }).message === "string"
-  ) {
+  if (isTrainerError(error)) {
     return {
-      code: (error as TrainerError).code,
-      message: (error as TrainerError).message,
+      code: error.code,
+      message: error.message,
       cause: error,
     }
   }

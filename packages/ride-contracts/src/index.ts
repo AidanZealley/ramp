@@ -59,6 +59,29 @@ export type TrainerError = {
   cause?: unknown
 }
 
+export function isTrainerError(value: unknown): value is TrainerError {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "code" in value &&
+    "message" in value &&
+    typeof (value as { code: unknown }).code === "string" &&
+    typeof (value as { message: unknown }).message === "string"
+  )
+}
+
+export function toTrainerError(
+  value: unknown,
+  fallback?: TrainerError
+): TrainerError {
+  if (isTrainerError(value)) return value
+  if (fallback) return fallback
+  if (value instanceof Error) {
+    return { code: "unknown", message: value.message, cause: value }
+  }
+  return { code: "unknown", message: String(value), cause: value }
+}
+
 // ---------------------------------------------------------------------------
 // Subject — canonical reactive primitive shared across all packages
 // ---------------------------------------------------------------------------

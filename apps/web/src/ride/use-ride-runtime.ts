@@ -11,6 +11,7 @@ import {
   isWebBluetoothAvailable,
   requestBleTrainer,
 } from "@ramp/trainer-io"
+import { toTrainerError } from "@ramp/ride-contracts"
 import type {
   RideConnectionResult,
   RideSessionController,
@@ -350,19 +351,4 @@ function toRideConnectionStatus(
   if (state.telemetry.trainerStatus === "connecting") return "connecting"
   if (state.telemetry.trainerStatus === "error") return "error"
   return "disconnected"
-}
-
-function isTrainerError(value: unknown): value is TrainerError {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "code" in value &&
-    "message" in value &&
-    typeof (value as { code: unknown }).code === "string" &&
-    typeof (value as { message: unknown }).message === "string"
-  )
-}
-
-function toTrainerError(value: unknown, fallback: TrainerError): TrainerError {
-  return isTrainerError(value) ? value : fallback
 }

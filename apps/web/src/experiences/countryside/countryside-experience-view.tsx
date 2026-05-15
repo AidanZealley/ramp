@@ -3,7 +3,7 @@ import { useRideFrame } from "@ramp/ride-react"
 import { sampleRouteAtDistance } from "./procgen/generate"
 import { RideScene } from "./components/ride-scene"
 import { RIDE_WORLD } from "./world-config"
-import type { RideSessionController } from "@ramp/ride-core"
+import type { ExperienceSessionAPI } from "@/ride/experience-session"
 
 const GRADE_DEADBAND = 0.005 // 0.5%
 const MIN_DISPATCH_INTERVAL_MS = 250
@@ -11,7 +11,7 @@ const MIN_DISPATCH_INTERVAL_MS = 250
 export function CountrysideExperienceView({
   session,
 }: {
-  session: RideSessionController
+  session: ExperienceSessionAPI
 }) {
   const lastDispatchedGrade = useRef<number | null>(null)
   const lastDispatchTimeMs = useRef(0)

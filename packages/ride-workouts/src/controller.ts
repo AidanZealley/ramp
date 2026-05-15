@@ -1,7 +1,26 @@
 import { Capability } from "@ramp/ride-core"
 import { getWorkoutSegmentAtElapsed } from "./segments"
-import type { DispatchResult, RideSessionController } from "@ramp/ride-core"
+import type {
+  DispatchOptions,
+  DispatchResult,
+  RideSessionState,
+  TrainerCapabilitiesView,
+  TrainerCommand,
+} from "@ramp/ride-core"
 import type { WorkoutDefinition } from "./types"
+
+export type WorkoutRideSession = {
+  getState: () => RideSessionState
+  subscribe: (listener: () => void) => () => void
+  controls: {
+    dispatch: (
+      command: TrainerCommand,
+      source: "workout",
+      options?: DispatchOptions
+    ) => Promise<DispatchResult>
+    getCapabilities: () => TrainerCapabilitiesView
+  }
+}
 
 export type WorkoutSessionState = {
   activeWorkoutId: string | null
@@ -23,9 +42,7 @@ export interface WorkoutSessionController {
     ftpWatts: number
   ) => Promise<DispatchResult>
   seekToElapsedSeconds: (elapsedSeconds: number) => Promise<DispatchResult>
-  setDifficultyPercent: (
-    difficultyPercent: number
-  ) => Promise<DispatchResult>
+  setDifficultyPercent: (difficultyPercent: number) => Promise<DispatchResult>
   resetDifficultyPercent: () => Promise<DispatchResult>
   clearWorkout: () => void
   getState: () => WorkoutSessionState
@@ -34,7 +51,7 @@ export interface WorkoutSessionController {
 }
 
 export type CreateWorkoutControllerOptions = {
-  session: RideSessionController
+  session: WorkoutRideSession
   dispatchIntervalSeconds?: number
 }
 

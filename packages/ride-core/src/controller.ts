@@ -1,4 +1,8 @@
-import { Subject, validateTrainerCommand } from "@ramp/ride-contracts"
+import {
+  Subject,
+  toTrainerError,
+  validateTrainerCommand,
+} from "@ramp/ride-contracts"
 import { CommandArbiter } from "./arbiter"
 import { defaultPolicy, enforce } from "./policy"
 import type { ArbitrationPolicy } from "./policy"
@@ -611,14 +615,6 @@ function mapTrainerStatus(
   return "disconnected"
 }
 
-function toTrainerError(error: unknown): TrainerError {
-  if (isTrainerError(error)) return error
-  if (error instanceof Error) {
-    return { code: "unknown", message: error.message, cause: error }
-  }
-  return { code: "unknown", message: String(error), cause: error }
-}
-
 function withTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
@@ -631,15 +627,4 @@ function withTimeout<T>(
       timeoutHandle = setTimeout(() => reject(new Error(reason)), timeoutMs)
     }),
   ]).finally(() => clearTimeout(timeoutHandle!))
-}
-
-function isTrainerError(value: unknown): value is TrainerError {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "code" in value &&
-    "message" in value &&
-    typeof (value as { code: unknown }).code === "string" &&
-    typeof (value as { message: unknown }).message === "string"
-  )
 }

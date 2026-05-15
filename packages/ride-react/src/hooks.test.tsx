@@ -4,12 +4,15 @@ import { describe, expect, it, vi } from "vitest"
 import {
   RideSessionContext,
   useRideFrame,
+  useRideFrameRef,
   useRideHeartbeat,
   useRideSelector,
+  useRideSession,
   useRideSessionContext,
   useRideThrottledSelector,
 } from "./index"
 import type {
+  Capability,
   RideFrameData,
   RideSessionController,
   RideSessionState,
@@ -43,7 +46,6 @@ function createSession() {
   const frameListeners = new Set<(frame: RideFrameData) => void>()
   const session = {
     getState: () => current,
-    getLatestTelemetry: () => null,
     subscribe: (listener: () => void) => {
       listeners.add(listener)
       return () => listeners.delete(listener)
@@ -52,13 +54,7 @@ function createSession() {
       frameListeners.add(listener)
       return () => frameListeners.delete(listener)
     },
-    connectTrainer: vi.fn(),
-    disconnectTrainer: vi.fn(),
-    pause: vi.fn(),
-    resume: vi.fn(),
-    dispose: vi.fn(),
-    controls: {} as RideSessionController["controls"],
-  } satisfies RideSessionController
+  }
   return {
     session,
     setState(next: RideSessionState) {
@@ -80,15 +76,28 @@ describe("ride-react", () => {
 
   it("reads the session context", () => {
     const { session } = createSession()
+    const contextSession = {
+      ...session,
+      getLatestTelemetry: () => null,
+      connectTrainer: vi.fn(),
+      disconnectTrainer: vi.fn(),
+      pause: vi.fn(),
+      resume: vi.fn(),
+      dispose: vi.fn(),
+      controls: {
+        dispatch: vi.fn(async () => ({ ok: true as const })),
+        getCapabilities: vi.fn(() => new Set<Capability>()),
+      },
+    } satisfies RideSessionController
     const wrapper = ({ children }: { children: ReactNode }) => (
-      <RideSessionContext.Provider value={session}>
+      <RideSessionContext.Provider value={contextSession}>
         {children}
       </RideSessionContext.Provider>
     )
 
     const { result } = renderHook(() => useRideSessionContext(), { wrapper })
 
-    expect(result.current).toBe(session)
+    expect(result.current).toBe(contextSession)
   })
 
   it("updates selector results", () => {
@@ -100,6 +109,17 @@ describe("ride-react", () => {
     act(() => harness.setState(state(true)))
 
     expect(result.current).toBe(true)
+  })
+
+  it("reads session state from a minimal conforming store", () => {
+    const harness = createSession()
+    const { result } = renderHook(() => useRideSession(harness.session))
+
+    expect(result.current.trainerConnected).toBe(false)
+
+    act(() => harness.setState(state(true)))
+
+    expect(result.current.trainerConnected).toBe(true)
   })
 
   it("throttles selector updates", () => {
@@ -136,6 +156,25 @@ describe("ride-react", () => {
     act(() => harness.emitFrame(frame))
 
     expect(callback).toHaveBeenCalledWith(frame)
+  })
+
+  it("updates a ride frame ref without re-rendering", () => {
+    const harness = createSession()
+    const { result, unmount } = renderHook(() =>
+      useRideFrameRef(harness.session)
+    )
+    expect(result.current.current).toBeNull()
+
+    const frame = {
+      telemetry: null,
+      elapsedSeconds: 1,
+      distanceMeters: 2,
+      deltaMs: 100,
+    }
+    act(() => harness.emitFrame(frame))
+    expect(result.current.current).toBe(frame)
+
+    unmount()
   })
 
   it("emits heartbeat counts", () => {
