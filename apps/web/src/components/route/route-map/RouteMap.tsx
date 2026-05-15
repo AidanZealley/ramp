@@ -29,6 +29,7 @@ export const RouteMap = ({
   start,
   finish,
 }: RouteMapProps) => {
+  const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapRef>(null)
   const { theme } = useTheme()
   const colors = routeMapTheme[theme]
@@ -69,6 +70,18 @@ export const RouteMap = ({
   }, [fitRouteBounds])
 
   useEffect(() => {
+    const container = containerRef.current
+    if (!container || !window.ResizeObserver) return
+
+    const observer = new ResizeObserver(() => {
+      fitRouteBounds()
+    })
+    observer.observe(container)
+
+    return () => observer.disconnect()
+  }, [fitRouteBounds])
+
+  useEffect(() => {
     if (!followPosition || !riderPosition || !mapRef.current) return
 
     mapRef.current.easeTo({
@@ -80,6 +93,7 @@ export const RouteMap = ({
 
   return (
     <div
+      ref={containerRef}
       className={
         className ??
         "h-[420px] overflow-hidden rounded-lg border border-border/70 bg-muted"

@@ -1,23 +1,45 @@
 import { render, screen } from "@testing-library/react"
 import type { FeatureCollection, LineString } from "geojson"
+import { forwardRef, useEffect, useImperativeHandle } from "react"
 import type { PropsWithChildren } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { RouteMap } from "./RouteMap"
 
 const useTheme = vi.fn()
+const fitBounds = vi.fn()
+const resize = vi.fn()
 
 vi.mock("@/components/theme-provider", () => ({
   useTheme: () => useTheme(),
 }))
 
 vi.mock("@vis.gl/react-maplibre", () => ({
-  default: ({
-    children,
-    mapStyle,
-  }: PropsWithChildren<{ mapStyle: string }>) => (
-    <div data-testid="map" data-map-style={mapStyle}>
-      {children}
-    </div>
+  default: forwardRef(
+    (
+      {
+        children,
+        mapStyle,
+        onLoad,
+      }: PropsWithChildren<{ mapStyle: string; onLoad?: () => void }>,
+      ref
+    ) => {
+      useImperativeHandle(ref, () => ({
+        easeTo: vi.fn(),
+        fitBounds,
+        getZoom: () => 10,
+        resize,
+      }))
+
+      useEffect(() => {
+        onLoad?.()
+      }, [onLoad])
+
+      return (
+        <div data-testid="map" data-map-style={mapStyle}>
+          {children}
+        </div>
+      )
+    }
   ),
   Source: ({ children }: PropsWithChildren) => <>{children}</>,
   Layer: ({ id, paint }: { id: string; paint: unknown }) => (
@@ -46,6 +68,8 @@ const geojson = {
 describe("RouteMap", () => {
   beforeEach(() => {
     useTheme.mockReturnValue({ theme: "light" })
+    fitBounds.mockClear()
+    resize.mockClear()
     vi.unstubAllEnvs()
   })
 
@@ -157,6 +181,31 @@ describe("RouteMap", () => {
 
     expect(screen.getByTestId("map").getAttribute("data-map-style")).toBe(
       "https://example.test/map-style"
+    )
+  })
+
+  it("fits the route bounds with padding", () => {
+    render(
+      <RouteMap
+        geojson={geojson}
+        bounds={{
+          minLat: 37.8,
+          minLng: -122.5,
+          maxLat: 37.9,
+          maxLng: -122.4,
+        }}
+        start={{ lat: 37.8, lng: -122.4 }}
+        finish={{ lat: 37.9, lng: -122.5 }}
+      />
+    )
+
+    expect(resize).toHaveBeenCalled()
+    expect(fitBounds).toHaveBeenCalledWith(
+      [
+        [-122.5, 37.8],
+        [-122.4, 37.9],
+      ],
+      { padding: 40, duration: 0 }
     )
   })
 })

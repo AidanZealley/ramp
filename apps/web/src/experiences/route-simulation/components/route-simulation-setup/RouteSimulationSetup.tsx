@@ -76,7 +76,6 @@ export const RouteSimulationSetup = ({
               bounds={parsedRoute.bounds}
               finish={parsedRoute.finish}
               geojson={parsedRoute.geojson}
-              riderPosition={parsedRoute.start}
               start={parsedRoute.start}
               className="mt-4 h-[360px] overflow-hidden rounded-lg border border-border/70 bg-muted"
             />
