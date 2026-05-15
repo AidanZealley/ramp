@@ -1,9 +1,11 @@
 import type { ParsedRouteGpx, RoutePosition } from "@/lib/routes/types"
 import { RouteMap } from "@/components/route/route-map"
+import type { RouteMapPresentation } from "../../types"
 
 type RouteSimulationMapProps = {
   follow: boolean
   onRouteClick: (position: RoutePosition) => void
+  presentation: RouteMapPresentation
   riderPosition: RoutePosition | null
   route: ParsedRouteGpx
 }
@@ -11,6 +13,7 @@ type RouteSimulationMapProps = {
 export const RouteSimulationMap = ({
   follow,
   onRouteClick,
+  presentation,
   riderPosition,
   route,
 }: RouteSimulationMapProps) => {
@@ -24,6 +27,8 @@ export const RouteSimulationMap = ({
       onRouteClick={onRouteClick}
       riderPosition={riderPosition}
       start={route.start}
+      terrainEnabled={presentation.terrainEnabled}
+      viewMode={presentation.viewMode}
     />
   )
 }

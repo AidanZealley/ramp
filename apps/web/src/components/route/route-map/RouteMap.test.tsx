@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
 import type { FeatureCollection, LineString } from "geojson"
 import { forwardRef, useEffect, useImperativeHandle } from "react"
 import type { PropsWithChildren } from "react"
@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { RouteMap } from "./RouteMap"
 
 const useTheme = vi.fn()
+const easeTo = vi.fn()
 const fitBounds = vi.fn()
 const resize = vi.fn()
 
@@ -19,12 +20,19 @@ vi.mock("@vis.gl/react-maplibre", () => ({
       {
         children,
         mapStyle,
+        terrain,
+        sky,
         onLoad,
-      }: PropsWithChildren<{ mapStyle: string; onLoad?: () => void }>,
+      }: PropsWithChildren<{
+        mapStyle: string
+        terrain?: unknown
+        sky?: unknown
+        onLoad?: () => void
+      }>,
       ref
     ) => {
       useImperativeHandle(ref, () => ({
-        easeTo: vi.fn(),
+        easeTo,
         fitBounds,
         getZoom: () => 10,
         resize,
@@ -35,13 +43,38 @@ vi.mock("@vis.gl/react-maplibre", () => ({
       }, [onLoad])
 
       return (
-        <div data-testid="map" data-map-style={mapStyle}>
+        <div
+          data-testid="map"
+          data-map-style={mapStyle}
+          data-sky={JSON.stringify(sky ?? null)}
+          data-terrain={JSON.stringify(terrain ?? null)}
+        >
           {children}
         </div>
       )
     }
   ),
-  Source: ({ children }: PropsWithChildren) => <>{children}</>,
+  Source: ({
+    children,
+    id,
+    tileSize,
+    type,
+    url,
+  }: PropsWithChildren<{
+    id: string
+    tileSize?: number
+    type: string
+    url?: string
+  }>) => (
+    <div
+      data-testid={`source-${id}`}
+      data-source-type={type}
+      data-tile-size={tileSize}
+      data-url={url}
+    >
+      {children}
+    </div>
+  ),
   Layer: ({ id, paint }: { id: string; paint: unknown }) => (
     <div data-testid={id} data-paint={JSON.stringify(paint)} />
   ),
@@ -68,6 +101,7 @@ const geojson = {
 describe("RouteMap", () => {
   beforeEach(() => {
     useTheme.mockReturnValue({ theme: "light" })
+    easeTo.mockClear()
     fitBounds.mockClear()
     resize.mockClear()
     vi.unstubAllEnvs()
@@ -205,7 +239,117 @@ describe("RouteMap", () => {
         [-122.5, 37.8],
         [-122.4, 37.9],
       ],
-      { padding: 40, duration: 0 }
+      { padding: 40, duration: 0, pitch: 0, bearing: 0 }
+    )
+  })
+
+  it("defaults to a top-down flat map", () => {
+    render(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        followPosition
+        riderPosition={{ lat: 37.8, lng: -122.4 }}
+      />
+    )
+
+    expect(screen.getByTestId("map").getAttribute("data-terrain")).toBe("null")
+    expect(screen.queryByTestId("source-route-terrain-dem")).toBeNull()
+    expect(easeTo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bearing: 0,
+        pitch: 0,
+      })
+    )
+  })
+
+  it("renders terrain source and passes terrain config when enabled", () => {
+    render(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        terrainEnabled
+      />
+    )
+
+    expect(
+      screen
+        .getByTestId("source-route-terrain-dem")
+        .getAttribute("data-source-type")
+    ).toBe("raster-dem")
+    expect(
+      screen.getByTestId("source-route-terrain-dem").getAttribute("data-url")
+    ).toBe("https://demotiles.maplibre.org/terrain-tiles/tiles.json")
+    expect(
+      JSON.parse(screen.getByTestId("map").dataset.terrain ?? "null")
+    ).toEqual({
+      source: "route-terrain-dem",
+      exaggeration: 1.5,
+    })
+  })
+
+  it("uses perspective pitch and route bearing for follow camera", async () => {
+    render(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        followPosition
+        riderPosition={{ lat: 37.82, lng: -122.42 }}
+        viewMode="perspective"
+      />
+    )
+
+    await waitFor(() =>
+      expect(easeTo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          center: [-122.42, 37.82],
+          pitch: 60,
+          zoom: 15.5,
+        })
+      )
+    )
+    expect(easeTo.mock.calls.at(-1)?.[0].bearing).not.toBe(0)
+  })
+
+  it("keeps top-down follow camera pitch and bearing at zero", async () => {
+    const { rerender } = render(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        followPosition
+        riderPosition={{ lat: 37.82, lng: -122.42 }}
+        viewMode="perspective"
+      />
+    )
+    easeTo.mockClear()
+
+    rerender(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        followPosition
+        riderPosition={{ lat: 37.82, lng: -122.42 }}
+        viewMode="top-down"
+      />
+    )
+
+    await waitFor(() =>
+      expect(easeTo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          bearing: 0,
+          pitch: 0,
+        })
+      )
     )
   })
 })

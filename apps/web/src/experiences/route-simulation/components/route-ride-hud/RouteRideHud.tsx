@@ -3,7 +3,9 @@ import { formatElapsedTime, formatMetricDistance } from "../../utils"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
-import type { RouteSpeedSource } from "../../types"
+import { Switch } from "@/components/ui/switch"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import type { RouteMapViewMode, RouteSpeedSource } from "../../types"
 
 type RouteRideHudProps = {
   distanceMeters: number
@@ -14,11 +16,15 @@ type RouteRideHudProps = {
   onResume: () => void
   onSmoothingChange: (value: number) => void
   onStop: () => void
+  onTerrainEnabledChange: (enabled: boolean) => void
+  onViewModeChange: (mode: RouteMapViewMode) => void
   smoothingLevel: number
   speedKph: number
   speedSource: RouteSpeedSource
+  terrainEnabled: boolean
   telemetryStatus: "missing" | "fresh" | "stale"
   totalDistanceMeters: number
+  viewMode: RouteMapViewMode
 }
 
 export const RouteRideHud = ({
@@ -30,11 +36,15 @@ export const RouteRideHud = ({
   onResume,
   onSmoothingChange,
   onStop,
+  onTerrainEnabledChange,
+  onViewModeChange,
   smoothingLevel,
   speedKph,
   speedSource,
+  terrainEnabled,
   telemetryStatus,
   totalDistanceMeters,
+  viewMode,
 }: RouteRideHudProps) => {
   const speedLabel =
     speedSource === "fallback"
@@ -47,7 +57,7 @@ export const RouteRideHud = ({
 
   return (
     <div className="absolute inset-x-3 bottom-4 mx-auto max-w-5xl rounded-lg border border-border/70 bg-card/95 p-3 shadow-xl backdrop-blur sm:bottom-5 sm:p-4">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(4,minmax(0,1fr))_180px_auto] sm:items-center">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(4,minmax(0,1fr))_180px_auto_minmax(190px,auto)_auto] sm:items-center">
         <Metric label="Time" value={formatElapsedTime(elapsedSeconds)} />
         <Metric label={speedLabel} value={`${speedKph.toFixed(1)} km/h`} />
         <Metric
@@ -71,6 +81,41 @@ export const RouteRideHud = ({
               onSmoothingChange(Array.isArray(value) ? (value[0] ?? 0) : value)
             }
           />
+        </div>
+        <div className="col-span-2 flex flex-wrap items-center gap-3 sm:col-span-1">
+          <ToggleGroup
+            aria-label="Map view mode"
+            value={[viewMode]}
+            size="sm"
+            variant="outline"
+          >
+            <ToggleGroupItem
+              aria-label="Top-down map view"
+              value="top-down"
+              onPressedChange={(pressed) => {
+                if (pressed) onViewModeChange("top-down")
+              }}
+            >
+              Top-down
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              aria-label="Perspective map view"
+              value="perspective"
+              onPressedChange={(pressed) => {
+                if (pressed) onViewModeChange("perspective")
+              }}
+            >
+              Perspective
+            </ToggleGroupItem>
+          </ToggleGroup>
+          <Label className="flex items-center gap-2 text-xs">
+            Terrain
+            <Switch
+              size="sm"
+              checked={terrainEnabled}
+              onCheckedChange={(checked) => onTerrainEnabledChange(checked)}
+            />
+          </Label>
         </div>
         <div className="col-span-2 flex items-center justify-end gap-2 sm:col-span-1">
           {telemetryStatus === "stale" && (

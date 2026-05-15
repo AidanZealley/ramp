@@ -8,6 +8,13 @@ export type RouteSimulationRoute = {
 
 export type RouteProgressMode = "trainer-speed" | "app-physics"
 
+export type RouteMapViewMode = "top-down" | "perspective"
+
+export type RouteMapPresentation = {
+  viewMode: RouteMapViewMode
+  terrainEnabled: boolean
+}
+
 export type RouteSpeedSource =
   | "trainer"
   | "fallback"

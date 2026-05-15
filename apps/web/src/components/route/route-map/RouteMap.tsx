@@ -4,6 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css"
 import type { FeatureCollection, LineString } from "geojson"
 import { useTheme } from "@/components/theme-provider"
 import type { RouteBounds, RoutePosition } from "@/lib/routes/types"
+import type { RouteMapViewMode } from "@/experiences/route-simulation/types"
 import { routeMapStyleUrls, routeMapTheme } from "./colors"
 
 type RouteMapProps = {
@@ -14,10 +15,78 @@ type RouteMapProps = {
   onRouteClick?: (position: RoutePosition) => void
   riderPosition?: RoutePosition | null
   start: RoutePosition | null
+  terrainEnabled?: boolean
+  viewMode?: RouteMapViewMode
   finish: RoutePosition | null
 }
 
 const ROUTE_PADDING_PX = 40
+const PERSPECTIVE_PITCH = 60
+const PERSPECTIVE_ZOOM_FLOOR = 15.5
+const CAMERA_DURATION_MS = 450
+const TERRAIN_SOURCE_ID = "route-terrain-dem"
+
+const toRadians = (degrees: number) => (degrees * Math.PI) / 180
+const toDegrees = (radians: number) => (radians * 180) / Math.PI
+
+const getBearing = (from: RoutePosition, to: RoutePosition) => {
+  const fromLat = toRadians(from.lat)
+  const toLat = toRadians(to.lat)
+  const deltaLng = toRadians(to.lng - from.lng)
+  const y = Math.sin(deltaLng) * Math.cos(toLat)
+  const x =
+    Math.cos(fromLat) * Math.sin(toLat) -
+    Math.sin(fromLat) * Math.cos(toLat) * Math.cos(deltaLng)
+
+  return (toDegrees(Math.atan2(y, x)) + 360) % 360
+}
+
+const distanceSquared = (a: RoutePosition, b: RoutePosition) => {
+  const latDelta = a.lat - b.lat
+  const lngDelta = a.lng - b.lng
+  return latDelta * latDelta + lngDelta * lngDelta
+}
+
+const computeRouteBearingNearPosition = (
+  geojson: FeatureCollection<LineString>,
+  position: RoutePosition
+) => {
+  let best:
+    | {
+        distance: number
+        bearing: number
+      }
+    | null = null
+
+  for (const feature of geojson.features) {
+    const coordinates = feature.geometry.coordinates
+    for (let index = 0; index < coordinates.length - 1; index += 1) {
+      const [fromLng, fromLat] = coordinates[index] ?? []
+      const [toLng, toLat] = coordinates[index + 1] ?? []
+      if (
+        fromLat === undefined ||
+        fromLng === undefined ||
+        toLat === undefined ||
+        toLng === undefined
+      ) {
+        continue
+      }
+
+      const from = { lat: fromLat, lng: fromLng }
+      const to = { lat: toLat, lng: toLng }
+      const midpoint = {
+        lat: (from.lat + to.lat) / 2,
+        lng: (from.lng + to.lng) / 2,
+      }
+      const distance = distanceSquared(position, midpoint)
+      if (!best || distance < best.distance) {
+        best = { distance, bearing: getBearing(from, to) }
+      }
+    }
+  }
+
+  return best?.bearing ?? null
+}
 
 export const RouteMap = ({
   className,
@@ -27,10 +96,14 @@ export const RouteMap = ({
   onRouteClick,
   riderPosition,
   start,
+  terrainEnabled = false,
+  viewMode = "top-down",
   finish,
 }: RouteMapProps) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapRef>(null)
+  const previousBearingRef = useRef(0)
+  const previousViewModeRef = useRef<RouteMapViewMode>(viewMode)
   const { theme } = useTheme()
   const colors = routeMapTheme[theme]
   const mapStyle =
@@ -47,8 +120,10 @@ export const RouteMap = ({
       latitude: center.lat,
       longitude: center.lng,
       zoom: bounds ? 10 : 3,
+      pitch: viewMode === "perspective" ? PERSPECTIVE_PITCH : 0,
+      bearing: 0,
     }
-  }, [bounds, start])
+  }, [bounds, start, viewMode])
 
   const fitRouteBounds = useCallback(() => {
     if (!bounds || !mapRef.current) return
@@ -59,9 +134,14 @@ export const RouteMap = ({
         [bounds.minLng, bounds.minLat],
         [bounds.maxLng, bounds.maxLat],
       ],
-      { padding: ROUTE_PADDING_PX, duration: 0 }
+      {
+        padding: ROUTE_PADDING_PX,
+        duration: 0,
+        pitch: viewMode === "perspective" ? PERSPECTIVE_PITCH : 0,
+        bearing: 0,
+      }
     )
-  }, [bounds])
+  }, [bounds, viewMode])
 
   useEffect(() => {
     const animationFrame = window.requestAnimationFrame(fitRouteBounds)
@@ -82,14 +162,57 @@ export const RouteMap = ({
   }, [fitRouteBounds])
 
   useEffect(() => {
-    if (!followPosition || !riderPosition || !mapRef.current) return
+    if (!mapRef.current) return
+    const previousViewMode = previousViewModeRef.current
+    previousViewModeRef.current = viewMode
+
+    if (viewMode === "top-down") {
+      previousBearingRef.current = 0
+      if (previousViewMode === "top-down" && !followPosition) {
+        return
+      }
+      mapRef.current.easeTo({
+        ...(followPosition && riderPosition
+          ? {
+              center: [riderPosition.lng, riderPosition.lat] as [
+                number,
+                number,
+              ],
+            }
+          : {}),
+        pitch: 0,
+        bearing: 0,
+        duration: CAMERA_DURATION_MS,
+      })
+      return
+    }
+
+    const bearing =
+      riderPosition === null || riderPosition === undefined
+        ? previousBearingRef.current
+        : (computeRouteBearingNearPosition(geojson, riderPosition) ??
+          previousBearingRef.current)
+    previousBearingRef.current = bearing
+
+    if (!riderPosition) {
+      mapRef.current.easeTo({
+        pitch: PERSPECTIVE_PITCH,
+        bearing: 0,
+        duration: CAMERA_DURATION_MS,
+      })
+      return
+    }
 
     mapRef.current.easeTo({
       center: [riderPosition.lng, riderPosition.lat],
-      zoom: Math.max(mapRef.current.getZoom(), 15),
-      duration: 450,
+      ...(previousViewMode === viewMode
+        ? { zoom: Math.max(mapRef.current.getZoom(), PERSPECTIVE_ZOOM_FLOOR) }
+        : {}),
+      pitch: PERSPECTIVE_PITCH,
+      bearing,
+      duration: CAMERA_DURATION_MS,
     })
-  }, [followPosition, riderPosition])
+  }, [followPosition, geojson, riderPosition, viewMode])
 
   return (
     <div
@@ -106,6 +229,23 @@ export const RouteMap = ({
         initialViewState={initialViewState}
         attributionControl={false}
         reuseMaps
+        terrain={
+          terrainEnabled
+            ? { source: TERRAIN_SOURCE_ID, exaggeration: 1.5 }
+            : undefined
+        }
+        sky={
+          terrainEnabled || viewMode === "perspective"
+            ? {
+                "sky-color": "#8ab4f8",
+                "sky-horizon-blend": 0.35,
+                "horizon-color": "#f8fafc",
+                "horizon-fog-blend": 0.55,
+                "fog-color": "#f8fafc",
+                "fog-ground-blend": 0.35,
+              }
+            : undefined
+        }
         onLoad={fitRouteBounds}
         onClick={(event) => {
           onRouteClick?.({
@@ -114,6 +254,14 @@ export const RouteMap = ({
           })
         }}
       >
+        {terrainEnabled && (
+          <Source
+            id={TERRAIN_SOURCE_ID}
+            type="raster-dem"
+            url="https://demotiles.maplibre.org/terrain-tiles/tiles.json"
+            tileSize={256}
+          />
+        )}
         <Source id="route-line" type="geojson" data={geojson}>
           <Layer
             id="route-line-shadow"

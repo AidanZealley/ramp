@@ -25,7 +25,11 @@ import type { ParsedRouteGpx, RoutePosition } from "@/lib/routes/types"
 import type { RideExperienceConnection } from "@/ride/experience-runtime"
 import type { ExperienceSessionAPI } from "@/ride/experience-session"
 import type { Id } from "#convex/_generated/dataModel"
-import type { RouteProgressMode, RouteSpeedSource } from "./types"
+import type {
+  RouteMapPresentation,
+  RouteProgressMode,
+  RouteSpeedSource,
+} from "./types"
 import type { PhysicsConfig, PhysicsState } from "@/experiences/physics"
 import {
   createIndoorLikePhysicsConfig,
@@ -109,6 +113,11 @@ export function RouteSimulationExperienceView({
   const [progressMode, setProgressMode] = useState<RouteProgressMode>(
     "trainer-speed"
   )
+  const [mapPresentation, setMapPresentation] =
+    useState<RouteMapPresentation>({
+      viewMode: "perspective",
+      terrainEnabled: false,
+    })
   const [speedSource, setSpeedSource] =
     useState<RouteSpeedSource>("fallback")
   const [speedKph, setSpeedKph] = useState(25)
@@ -640,6 +649,7 @@ export function RouteSimulationExperienceView({
       <RouteSimulationMap
         follow={isActive && !paused}
         onRouteClick={handleRouteClick}
+        presentation={mapPresentation}
         riderPosition={riderPosition}
         route={parsedRoute}
       />
@@ -662,11 +672,19 @@ export function RouteSimulationExperienceView({
         onResume={handleResume}
         onSmoothingChange={setSmoothingLevel}
         onStop={handleStop}
+        onTerrainEnabledChange={(terrainEnabled) =>
+          setMapPresentation((current) => ({ ...current, terrainEnabled }))
+        }
+        onViewModeChange={(viewMode) =>
+          setMapPresentation((current) => ({ ...current, viewMode }))
+        }
         smoothingLevel={smoothingLevel}
         speedKph={speedKph}
         speedSource={speedSource}
+        terrainEnabled={mapPresentation.terrainEnabled}
         telemetryStatus={telemetryStatus}
         totalDistanceMeters={parsedRoute.stats.distanceMeters}
+        viewMode={mapPresentation.viewMode}
       />
       <RouteCompleteDialog
         distanceMeters={parsedRoute.stats.distanceMeters}

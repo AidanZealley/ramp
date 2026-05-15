@@ -1,6 +1,9 @@
-import { render, screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { fireEvent, render, screen } from "@testing-library/react"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { RouteRideHud } from "./RouteRideHud"
+
+const onTerrainEnabledChange = vi.fn()
+const onViewModeChange = vi.fn()
 
 const defaultProps = {
   distanceMeters: 1000,
@@ -11,13 +14,22 @@ const defaultProps = {
   onResume: vi.fn(),
   onSmoothingChange: vi.fn(),
   onStop: vi.fn(),
+  onTerrainEnabledChange,
+  onViewModeChange,
   smoothingLevel: 5,
   speedKph: 18.4,
   telemetryStatus: "fresh" as const,
   totalDistanceMeters: 5000,
+  terrainEnabled: false,
+  viewMode: "top-down" as const,
 }
 
 describe("RouteRideHud", () => {
+  beforeEach(() => {
+    onTerrainEnabledChange.mockClear()
+    onViewModeChange.mockClear()
+  })
+
   it("labels app physics speed as virtual speed", () => {
     render(<RouteRideHud {...defaultProps} speedSource="physics" />)
 
@@ -36,5 +48,46 @@ describe("RouteRideHud", () => {
 
     expect(screen.getByText("Power missing")).toBeTruthy()
     expect(screen.getByText("Power required")).toBeTruthy()
+  })
+
+  it("renders view mode controls", () => {
+    render(<RouteRideHud {...defaultProps} speedSource="trainer" />)
+
+    expect(screen.getByRole("group", { name: "Map view mode" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Top-down map view" })).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "Perspective map view" })
+    ).toBeTruthy()
+    expect(screen.getByText("Terrain")).toBeTruthy()
+  })
+
+  it("selecting perspective changes view mode", () => {
+    render(<RouteRideHud {...defaultProps} speedSource="trainer" />)
+
+    fireEvent.click(screen.getByRole("button", { name: "Perspective map view" }))
+
+    expect(onViewModeChange).toHaveBeenCalledWith("perspective")
+  })
+
+  it("selecting top-down changes view mode", () => {
+    render(
+      <RouteRideHud
+        {...defaultProps}
+        speedSource="trainer"
+        viewMode="perspective"
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Top-down map view" }))
+
+    expect(onViewModeChange).toHaveBeenCalledWith("top-down")
+  })
+
+  it("toggling terrain calls terrain change handler", () => {
+    render(<RouteRideHud {...defaultProps} speedSource="trainer" />)
+
+    fireEvent.click(screen.getByRole("switch"))
+
+    expect(onTerrainEnabledChange).toHaveBeenCalledWith(true)
   })
 })
