@@ -55,21 +55,33 @@ vi.mock("@vis.gl/react-maplibre", () => ({
     }
   ),
   Source: ({
+    attribution,
     children,
+    encoding,
     id,
+    maxzoom,
     tileSize,
+    tiles,
     type,
     url,
   }: PropsWithChildren<{
+    attribution?: string
+    encoding?: string
     id: string
+    maxzoom?: number
     tileSize?: number
+    tiles?: Array<string>
     type: string
     url?: string
   }>) => (
     <div
       data-testid={`source-${id}`}
+      data-attribution={attribution}
+      data-encoding={encoding}
+      data-maxzoom={maxzoom}
       data-source-type={type}
       data-tile-size={tileSize}
+      data-tiles={JSON.stringify(tiles ?? null)}
       data-url={url}
     >
       {children}
@@ -282,8 +294,35 @@ describe("RouteMap", () => {
         .getAttribute("data-source-type")
     ).toBe("raster-dem")
     expect(
-      screen.getByTestId("source-route-terrain-dem").getAttribute("data-url")
-    ).toBe("https://demotiles.maplibre.org/terrain-tiles/tiles.json")
+      JSON.parse(
+        screen.getByTestId("source-route-terrain-dem").dataset.tiles ?? "null"
+      )
+    ).toEqual([
+      "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
+    ])
+    expect(
+      screen
+        .getByTestId("source-route-terrain-dem")
+        .getAttribute("data-encoding")
+    ).toBe("terrarium")
+    expect(
+      screen
+        .getByTestId("source-route-terrain-dem")
+        .getAttribute("data-maxzoom")
+    ).toBe("15")
+    expect(screen.getByTestId("route-terrain-hillshade")).toBeTruthy()
+    expect(
+      JSON.parse(
+        screen
+          .getByTestId("route-terrain-hillshade")
+          .getAttribute("data-paint") ?? "{}"
+      )
+    ).toEqual({
+      "hillshade-shadow-color": "#64748b",
+      "hillshade-highlight-color": "#ffffff",
+      "hillshade-accent-color": "#94a3b8",
+      "hillshade-exaggeration": 0.45,
+    })
     expect(
       JSON.parse(screen.getByTestId("map").dataset.terrain ?? "null")
     ).toEqual({

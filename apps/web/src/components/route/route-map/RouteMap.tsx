@@ -25,6 +25,10 @@ const PERSPECTIVE_PITCH = 60
 const PERSPECTIVE_ZOOM_FLOOR = 15.5
 const CAMERA_DURATION_MS = 450
 const TERRAIN_SOURCE_ID = "route-terrain-dem"
+const TERRAIN_TILE_URL =
+  "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
+const TERRAIN_ATTRIBUTION =
+  '<a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">Terrain data</a>'
 
 const toRadians = (degrees: number) => (degrees * Math.PI) / 180
 const toDegrees = (radians: number) => (radians * 180) / Math.PI
@@ -51,12 +55,10 @@ const computeRouteBearingNearPosition = (
   geojson: FeatureCollection<LineString>,
   position: RoutePosition
 ) => {
-  let best:
-    | {
-        distance: number
-        bearing: number
-      }
-    | null = null
+  let best: {
+    distance: number
+    bearing: number
+  } | null = null
 
   for (const feature of geojson.features) {
     const coordinates = feature.geometry.coordinates
@@ -231,7 +233,7 @@ export const RouteMap = ({
         reuseMaps
         terrain={
           terrainEnabled
-            ? { source: TERRAIN_SOURCE_ID, exaggeration: 1.5 }
+            ? { source: TERRAIN_SOURCE_ID, exaggeration: 2.5 }
             : undefined
         }
         sky={
@@ -258,9 +260,23 @@ export const RouteMap = ({
           <Source
             id={TERRAIN_SOURCE_ID}
             type="raster-dem"
-            url="https://demotiles.maplibre.org/terrain-tiles/tiles.json"
+            tiles={[TERRAIN_TILE_URL]}
             tileSize={256}
-          />
+            maxzoom={15}
+            encoding="terrarium"
+            attribution={TERRAIN_ATTRIBUTION}
+          >
+            <Layer
+              id="route-terrain-hillshade"
+              type="hillshade"
+              paint={{
+                "hillshade-shadow-color": colors.terrainShadow,
+                "hillshade-highlight-color": colors.terrainHighlight,
+                "hillshade-accent-color": colors.terrainAccent,
+                "hillshade-exaggeration": 0.45,
+              }}
+            />
+          </Source>
         )}
         <Source id="route-line" type="geojson" data={geojson}>
           <Layer

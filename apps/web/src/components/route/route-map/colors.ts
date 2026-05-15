@@ -9,11 +9,17 @@ export const routeMapTheme = {
     routeLineShadow: "rgba(0,0,0,0.24)",
     startPoint: "#65a30d",
     finishPoint: "#dc2626",
+    terrainShadow: "#64748b",
+    terrainHighlight: "#ffffff",
+    terrainAccent: "#94a3b8",
   },
   dark: {
     routeLine: "#818cf8",
     routeLineShadow: "rgba(0,0,0,0.65)",
     startPoint: "#84cc16",
     finishPoint: "#f87171",
+    terrainShadow: "#020617",
+    terrainHighlight: "#475569",
+    terrainAccent: "#1e293b",
   },
 } as const
