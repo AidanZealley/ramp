@@ -7,6 +7,7 @@ export const routeMapTheme = {
   light: {
     routeLine: "#4f46e5",
     routeLineShadow: "rgba(0,0,0,0.24)",
+    riderHalo: "rgba(255,255,255,0.92)",
     startPoint: "#65a30d",
     finishPoint: "#dc2626",
     terrainShadow: "#64748b",
@@ -16,6 +17,7 @@ export const routeMapTheme = {
   dark: {
     routeLine: "#818cf8",
     routeLineShadow: "rgba(0,0,0,0.65)",
+    riderHalo: "rgba(15,23,42,0.9)",
     startPoint: "#84cc16",
     finishPoint: "#f87171",
     terrainShadow: "#020617",

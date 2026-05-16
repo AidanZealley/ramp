@@ -14,6 +14,7 @@ const resize = vi.fn()
 const setTerrain = vi.fn()
 const setTransformElevation = vi.fn()
 const triggerRepaint = vi.fn()
+const setRiderData = vi.fn()
 const sourceIds = new Set<string>()
 let mapZoom = 10
 
@@ -52,7 +53,13 @@ vi.mock("@vis.gl/react-maplibre", () => ({
         fitBounds,
         getMap: () => ({
           _elevationFreeze: true,
-          getSource: (id: string) => sourceIds.has(id),
+          getSource: (id: string) => {
+            if (id === "route-rider" && sourceIds.has(id)) {
+              return { setData: setRiderData }
+            }
+
+            return sourceIds.has(id)
+          },
           setTerrain,
           transform: {
             setElevation: setTransformElevation,
@@ -90,6 +97,7 @@ vi.mock("@vis.gl/react-maplibre", () => ({
     encoding,
     id,
     maxzoom,
+    data,
     tileSize,
     tiles,
     type,
@@ -99,6 +107,7 @@ vi.mock("@vis.gl/react-maplibre", () => ({
     encoding?: string
     id: string
     maxzoom?: number
+    data?: unknown
     tileSize?: number
     tiles?: Array<string>
     type: string
@@ -112,6 +121,7 @@ vi.mock("@vis.gl/react-maplibre", () => ({
         data-encoding={encoding}
         data-maxzoom={maxzoom}
         data-source-type={type}
+        data-source-data={JSON.stringify(data ?? null)}
         data-tile-size={tileSize}
         data-tiles={JSON.stringify(tiles ?? null)}
         data-url={url}
@@ -120,8 +130,20 @@ vi.mock("@vis.gl/react-maplibre", () => ({
       </div>
     )
   },
-  Layer: ({ id, paint }: { id: string; paint: unknown }) => (
-    <div data-testid={id} data-paint={JSON.stringify(paint)} />
+  Layer: ({
+    id,
+    paint,
+    type,
+  }: {
+    id: string
+    paint: unknown
+    type: string
+  }) => (
+    <div
+      data-testid={id}
+      data-layer-type={type}
+      data-paint={JSON.stringify(paint)}
+    />
   ),
   Marker: ({ children }: PropsWithChildren) => <>{children}</>,
 }))
@@ -155,6 +177,7 @@ describe("RouteMap", () => {
     resize.mockClear()
     setTerrain.mockClear()
     setTransformElevation.mockClear()
+    setRiderData.mockClear()
     triggerRepaint.mockClear()
     sourceIds.clear()
     vi.unstubAllEnvs()
@@ -248,6 +271,162 @@ describe("RouteMap", () => {
     })
     expect(document.querySelector('[style*="rgb(132, 204, 22)"]')).toBeTruthy()
     expect(document.querySelector('[style*="rgb(248, 113, 113)"]')).toBeTruthy()
+  })
+
+  it("renders the rider as a GeoJSON source and map-aligned circle layers", () => {
+    render(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        riderPosition={{ lat: 37.82, lng: -122.42 }}
+      />
+    )
+
+    expect(screen.getByTestId("source-route-rider")).toBeTruthy()
+    expect(
+      JSON.parse(
+        screen.getByTestId("source-route-rider").dataset.sourceData ?? "{}"
+      )
+    ).toEqual({
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: {},
+          geometry: {
+            type: "Point",
+            coordinates: [-122.42, 37.82],
+          },
+        },
+      ],
+    })
+    expect(screen.getByTestId("route-rider-halo").dataset.layerType).toBe(
+      "circle"
+    )
+    expect(
+      JSON.parse(
+        screen.getByTestId("route-rider-halo").getAttribute("data-paint") ??
+          "{}"
+      )
+    ).toEqual({
+      "circle-color": "rgba(255,255,255,0.92)",
+      "circle-radius": 14,
+      "circle-opacity": 0.9,
+      "circle-stroke-color": "rgba(0,0,0,0.24)",
+      "circle-stroke-width": 2,
+      "circle-pitch-alignment": "map",
+    })
+    expect(
+      JSON.parse(
+        screen.getByTestId("route-rider-dot").getAttribute("data-paint") ?? "{}"
+      )
+    ).toEqual({
+      "circle-color": "#4f46e5",
+      "circle-radius": 5,
+      "circle-pitch-alignment": "map",
+    })
+  })
+
+  it("omits the rider feature when rider position is null", () => {
+    render(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        riderPosition={null}
+      />
+    )
+
+    expect(
+      JSON.parse(
+        screen.getByTestId("source-route-rider").dataset.sourceData ?? "{}"
+      )
+    ).toEqual({
+      type: "FeatureCollection",
+      features: [],
+    })
+  })
+
+  it("updates rider position through the GeoJSON source instead of a DOM marker", async () => {
+    const { rerender } = render(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        riderPosition={{ lat: 37.82, lng: -122.42 }}
+      />
+    )
+
+    setRiderData.mockClear()
+
+    rerender(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        riderPosition={{ lat: 37.83, lng: -122.43 }}
+      />
+    )
+
+    await waitFor(() => expect(setRiderData).toHaveBeenCalled())
+    expect(setRiderData.mock.calls.at(-1)?.[0]).toEqual({
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: {},
+          geometry: {
+            type: "Point",
+            coordinates: [-122.43, 37.83],
+          },
+        },
+      ],
+    })
+    expect(document.querySelector(".size-7")).toBeNull()
+  })
+
+  it("snaps rider source updates for large position jumps", async () => {
+    const { rerender } = render(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        riderPosition={{ lat: 37.82, lng: -122.42 }}
+      />
+    )
+
+    setRiderData.mockClear()
+
+    rerender(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        riderPosition={{ lat: 37.83, lng: -122.43 }}
+      />
+    )
+
+    await waitFor(() => expect(setRiderData).toHaveBeenCalled())
+    expect(setRiderData).toHaveBeenCalledWith({
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: {},
+          geometry: {
+            type: "Point",
+            coordinates: [-122.43, 37.83],
+          },
+        },
+      ],
+    })
   })
 
   it("uses the shared env style override for both themes", () => {
@@ -405,9 +584,7 @@ describe("RouteMap", () => {
     expect(queryTerrainElevation).toHaveBeenCalledWith([-122.42, 37.82])
     expect(setTransformElevation).toHaveBeenCalledWith(240)
     expect(triggerRepaint).toHaveBeenCalled()
-    expect(screen.getByTestId("map").dataset.centerClampedToGround).toBe(
-      "true"
-    )
+    expect(screen.getByTestId("map").dataset.centerClampedToGround).toBe("true")
     expect(screen.getByTestId("map").dataset.maxPitch).toBe("80")
   })
 
@@ -592,6 +769,38 @@ describe("RouteMap", () => {
         center: [-122.42005, 37.82005],
       })
     )
+  })
+
+  it("updates rider source for sub-threshold movement without restarting the follow camera", async () => {
+    const { rerender } = render(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        followPosition
+        riderPosition={{ lat: 37.82, lng: -122.42 }}
+        viewMode="perspective"
+      />
+    )
+
+    await waitFor(() => expect(flyTo).toHaveBeenCalledTimes(1))
+    setRiderData.mockClear()
+
+    rerender(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        followPosition
+        riderPosition={{ lat: 37.820001, lng: -122.420001 }}
+        viewMode="perspective"
+      />
+    )
+
+    expect(flyTo).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(setRiderData).toHaveBeenCalled())
   })
 
   it("does not recenter the perspective camera when follow is disabled", async () => {

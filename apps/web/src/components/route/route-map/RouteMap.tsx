@@ -7,7 +7,8 @@ import {
 } from "./constants"
 import { routeMapStyleUrls, routeMapTheme } from "./colors"
 import type { MapRef } from "@vis.gl/react-maplibre"
-import type { FeatureCollection, LineString } from "geojson"
+import type { FeatureCollection, LineString, Point } from "geojson"
+import type { GeoJSONSource } from "maplibre-gl"
 import type { RouteBounds, RoutePosition } from "@/lib/routes/types"
 import type { RouteMapViewMode } from "@/experiences/route-simulation/types"
 import { useTheme } from "@/components/theme-provider"
@@ -48,6 +49,12 @@ const CAMERA_MOVE_THRESHOLD_METERS = 2
 const CAMERA_BEARING_THRESHOLD_DEGREES = 2
 const CAMERA_PITCH_THRESHOLD_DEGREES = 1
 const TERRAIN_SOURCE_ID = "route-terrain-dem"
+const RIDER_SOURCE_ID = "route-rider"
+const RIDER_HALO_LAYER_ID = "route-rider-halo"
+const RIDER_DOT_LAYER_ID = "route-rider-dot"
+const RIDER_ANIMATION_DURATION_MS = 450
+const RIDER_ANIMATION_MAX_GAP_MS = 1000
+const RIDER_ANIMATION_MAX_DISTANCE_METERS = 25
 const TERRAIN_TILE_URL =
   "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
 const TERRAIN_ATTRIBUTION =
@@ -155,6 +162,33 @@ type CameraTarget = {
   viewMode: RouteMapViewMode
 }
 
+type RiderAnimationState = {
+  animationFrame: number | null
+  from: RoutePosition | null
+  lastRendered: RoutePosition | null
+  lastUpdateTimestamp: number | null
+  startedAt: number
+  target: RoutePosition | null
+}
+
+const buildRiderGeojson = (
+  position: RoutePosition | null | undefined
+): FeatureCollection<Point> => ({
+  type: "FeatureCollection",
+  features: position
+    ? [
+        {
+          type: "Feature",
+          properties: {},
+          geometry: {
+            type: "Point",
+            coordinates: [position.lng, position.lat],
+          },
+        },
+      ]
+    : [],
+})
+
 const buildRouteBearingSegments = (
   geojson: FeatureCollection<LineString>
 ): Array<RouteBearingSegment> => {
@@ -251,6 +285,14 @@ export const RouteMap = ({
   const previousViewModeRef = useRef<RouteMapViewMode>(viewMode)
   const lastCameraTargetRef = useRef<CameraTarget | null>(null)
   const appliedTerrainEnabledRef = useRef<boolean | null>(null)
+  const riderAnimationRef = useRef<RiderAnimationState>({
+    animationFrame: null,
+    from: null,
+    lastRendered: riderPosition ?? null,
+    lastUpdateTimestamp: null,
+    startedAt: 0,
+    target: riderPosition ?? null,
+  })
   const { theme } = useTheme()
   const colors = routeMapTheme[theme]
   const mapStyle =
@@ -274,6 +316,31 @@ export const RouteMap = ({
   const routeBearingSegments = useMemo(
     () => buildRouteBearingSegments(geojson),
     [geojson]
+  )
+  const initialRiderGeojsonRef = useRef(buildRiderGeojson(riderPosition))
+
+  const cancelRiderAnimation = useCallback(() => {
+    const animationFrame = riderAnimationRef.current.animationFrame
+    if (animationFrame !== null) {
+      window.cancelAnimationFrame(animationFrame)
+      riderAnimationRef.current.animationFrame = null
+    }
+  }, [])
+
+  const setRiderSourcePosition = useCallback(
+    (position: RoutePosition | null | undefined) => {
+      const source = mapRef.current?.getMap().getSource(RIDER_SOURCE_ID) as
+        | GeoJSONSource
+        | undefined
+
+      if (!source?.setData) return false
+
+      source.setData(buildRiderGeojson(position))
+      riderAnimationRef.current.lastRendered = position ?? null
+      riderAnimationRef.current.lastUpdateTimestamp = performance.now()
+      return true
+    },
+    []
   )
 
   const fitRouteBounds = useCallback(() => {
@@ -387,7 +454,80 @@ export const RouteMap = ({
 
   useEffect(() => {
     appliedTerrainEnabledRef.current = null
-  }, [mapStyle])
+    cancelRiderAnimation()
+  }, [cancelRiderAnimation, mapStyle])
+
+  useEffect(() => {
+    const animationState = riderAnimationRef.current
+    animationState.target = riderPosition ?? null
+
+    const map = mapRef.current?.getMap()
+    const source = map?.getSource(RIDER_SOURCE_ID) as GeoJSONSource | undefined
+    if (!source?.setData) return
+
+    cancelRiderAnimation()
+
+    if (!riderPosition) {
+      setRiderSourcePosition(null)
+      animationState.from = null
+      return
+    }
+
+    const now = performance.now()
+    const previousPosition = animationState.lastRendered
+    const previousUpdateTimestamp = animationState.lastUpdateTimestamp
+    const shouldSnap =
+      !previousPosition ||
+      !previousUpdateTimestamp ||
+      now - previousUpdateTimestamp > RIDER_ANIMATION_MAX_GAP_MS ||
+      distanceMeters(previousPosition, riderPosition) >
+        RIDER_ANIMATION_MAX_DISTANCE_METERS
+
+    if (shouldSnap) {
+      setRiderSourcePosition(riderPosition)
+      animationState.from = riderPosition
+      return
+    }
+
+    animationState.from = previousPosition
+    animationState.startedAt = now
+
+    const animate = (timestamp: number) => {
+      const from = animationState.from
+      const target = animationState.target
+      if (!from || !target) {
+        setRiderSourcePosition(target)
+        animationState.animationFrame = null
+        return
+      }
+
+      const progress = clamp(
+        (timestamp - animationState.startedAt) / RIDER_ANIMATION_DURATION_MS,
+        0,
+        1
+      )
+      const nextPosition = {
+        lat: from.lat + (target.lat - from.lat) * progress,
+        lng: from.lng + (target.lng - from.lng) * progress,
+      }
+
+      setRiderSourcePosition(nextPosition)
+
+      if (progress < 1) {
+        animationState.animationFrame = window.requestAnimationFrame(animate)
+        return
+      }
+
+      animationState.from = target
+      animationState.animationFrame = null
+    }
+
+    animationState.animationFrame = window.requestAnimationFrame(animate)
+
+    return cancelRiderAnimation
+  }, [cancelRiderAnimation, mapStyle, riderPosition, setRiderSourcePosition])
+
+  useEffect(() => cancelRiderAnimation, [cancelRiderAnimation])
 
   useEffect(() => {
     const container = containerRef.current
@@ -601,6 +741,33 @@ export const RouteMap = ({
             }}
           />
         </Source>
+        <Source
+          id={RIDER_SOURCE_ID}
+          type="geojson"
+          data={initialRiderGeojsonRef.current}
+        >
+          <Layer
+            id={RIDER_HALO_LAYER_ID}
+            type="circle"
+            paint={{
+              "circle-color": colors.riderHalo,
+              "circle-radius": 14,
+              "circle-opacity": 0.9,
+              "circle-stroke-color": colors.routeLineShadow,
+              "circle-stroke-width": 2,
+              "circle-pitch-alignment": "map",
+            }}
+          />
+          <Layer
+            id={RIDER_DOT_LAYER_ID}
+            type="circle"
+            paint={{
+              "circle-color": colors.routeLine,
+              "circle-radius": 5,
+              "circle-pitch-alignment": "map",
+            }}
+          />
+        </Source>
         {start && (
           <Marker latitude={start.lat} longitude={start.lng} anchor="center">
             <div
@@ -615,17 +782,6 @@ export const RouteMap = ({
               className="size-3 rounded-full border-2 border-background shadow"
               style={{ backgroundColor: colors.finishPoint }}
             />
-          </Marker>
-        )}
-        {riderPosition && (
-          <Marker
-            latitude={riderPosition.lat}
-            longitude={riderPosition.lng}
-            anchor="center"
-          >
-            <div className="grid size-7 place-items-center rounded-full bg-background/90 shadow-lg ring-2 ring-primary">
-              <div className="size-3 rounded-full bg-primary" />
-            </div>
           </Marker>
         )}
       </Map>
