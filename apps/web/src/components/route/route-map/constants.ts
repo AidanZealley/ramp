@@ -1,0 +1,2 @@
+export const DEFAULT_ROUTE_TERRAIN_ENABLED = false
+export const ROUTE_TERRAIN_EXAGGERATION = 2

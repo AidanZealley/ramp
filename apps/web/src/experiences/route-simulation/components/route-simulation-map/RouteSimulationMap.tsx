@@ -1,12 +1,17 @@
-import type { ParsedRouteGpx, RoutePosition } from "@/lib/routes/types"
-import { RouteMap } from "@/components/route/route-map"
+import type {
+  ParsedRouteGpx,
+  RoutePoint,
+  RoutePosition,
+} from "@/lib/routes/types"
 import type { RouteMapPresentation } from "../../types"
+import { RouteMap } from "@/components/route/route-map"
 
 type RouteSimulationMapProps = {
   follow: boolean
   onRouteClick: (position: RoutePosition) => void
   presentation: RouteMapPresentation
-  riderPosition: RoutePosition | null
+  riderGradePercent: number
+  riderPosition: RoutePoint | null
   route: ParsedRouteGpx
 }
 
@@ -14,6 +19,7 @@ export const RouteSimulationMap = ({
   follow,
   onRouteClick,
   presentation,
+  riderGradePercent,
   riderPosition,
   route,
 }: RouteSimulationMapProps) => {
@@ -25,6 +31,8 @@ export const RouteSimulationMap = ({
       followPosition={follow}
       geojson={route.geojson}
       onRouteClick={onRouteClick}
+      riderElevationMeters={riderPosition?.elevationMeters}
+      riderGradePercent={riderGradePercent}
       riderPosition={riderPosition}
       start={route.start}
       terrainEnabled={presentation.terrainEnabled}

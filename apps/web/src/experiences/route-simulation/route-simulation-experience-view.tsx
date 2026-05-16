@@ -1,48 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import Confetti from "react-confetti"
+import { useCallback } from "react"
 import { useNavigate } from "@tanstack/react-router"
-import { useMutation, useQuery } from "convex/react"
 import { Capability } from "@ramp/ride-core"
-import { useRideFrame, useRideSelector } from "@ramp/ride-react"
+import { useRideSelector } from "@ramp/ride-react"
+import { RouteSimulationLiveView } from "./components/route-simulation-live-view"
 import { RouteSimulationSetup } from "./components/route-simulation-setup"
-import { RouteSimulationMap } from "./components/route-simulation-map"
-import { RouteMiniMap } from "./components/route-mini-map"
-import { RouteElevationMinimap } from "./components/route-elevation-minimap"
-import { RouteRideHud } from "./components/route-ride-hud"
-import { RouteCompleteDialog } from "./components/route-complete-dialog"
-import { RouteDisconnectedOverlay } from "./components/route-disconnected-overlay"
-import {
-  FALLBACK_SPEED_MPS,
-  GRADE_DISPATCH_DELTA_PERCENT,
-  GRADE_DISPATCH_INTERVAL_MS,
-  SEEK_GRADE_DISPATCH_INTERVAL_MS,
-  SEEK_TRANSITION_DURATION_MS,
-  getPreservedSeekSpeedMps,
-  getSeekTransitionGrade,
-  smoothingLevelToMeters,
-} from "./utils"
-import type { ParsedRouteGpx, RoutePosition } from "@/lib/routes/types"
+import { useRouteSimulationRide } from "./hooks/use-route-simulation-ride"
+import { useRouteSimulationRoute } from "./hooks/use-route-simulation-route"
+import { useRouteSimulationSettings } from "./hooks/use-route-simulation-settings"
 import type { RideExperienceConnection } from "@/ride/experience-runtime"
 import type { ExperienceSessionAPI } from "@/ride/experience-session"
 import type { Id } from "#convex/_generated/dataModel"
-import type {
-  RouteMapPresentation,
-  RouteProgressMode,
-  RouteSpeedSource,
-} from "./types"
-import type { PhysicsConfig, PhysicsState } from "@/experiences/physics"
-import {
-  createIndoorLikePhysicsConfig,
-  createInitialPhysicsState,
-  stepPhysics,
-} from "@/experiences/physics"
-import {
-  computeRouteGradePercent,
-  findNearestRouteDistanceMeters,
-  interpolateRoutePointByDistance,
-} from "@/lib/routes/simulation"
-import { parseRouteGpxText } from "@/lib/routes/gpx"
-import { api } from "#convex/_generated/api"
+import type { RouteProgressMode } from "./types"
 
 type RouteSimulationExperienceViewProps = {
   connection?: RideExperienceConnection
@@ -52,105 +20,6 @@ type RouteSimulationExperienceViewProps = {
   session: ExperienceSessionAPI
 }
 
-type SeekTransitionState = {
-  startedAtMs: number
-  durationMs: number
-  fromDistanceMeters: number
-  toDistanceMeters: number
-  fromGradePercent: number
-  toGradePercent: number
-  fromSpeedMps: number
-  initialGradeDispatched: boolean
-}
-
-const MIN_RIDER_SMOOTHING_MS = 120
-const MAX_RIDER_SMOOTHING_MS = 750
-const RIDER_SMOOTHING_SEEK_THRESHOLD_METERS = 100
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(Math.max(value, min), max)
-
-function useViewportSize() {
-  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
-
-  useEffect(() => {
-    const updateViewportSize = () => {
-      setViewportSize({ width: window.innerWidth, height: window.innerHeight })
-    }
-    updateViewportSize()
-    window.addEventListener("resize", updateViewportSize)
-    return () => window.removeEventListener("resize", updateViewportSize)
-  }, [])
-
-  return viewportSize
-}
-
-function useSmoothedRouteDistance(distanceMeters: number) {
-  const [displayDistanceMeters, setDisplayDistanceMeters] =
-    useState(distanceMeters)
-  const animationFrameRef = useRef<number | null>(null)
-  const displayDistanceRef = useRef(distanceMeters)
-  const lastTargetAtMsRef = useRef<number | null>(null)
-
-  useEffect(() => {
-    displayDistanceRef.current = displayDistanceMeters
-  }, [displayDistanceMeters])
-
-  useEffect(() => {
-    if (animationFrameRef.current !== null) {
-      window.cancelAnimationFrame(animationFrameRef.current)
-      animationFrameRef.current = null
-    }
-
-    const now = performance.now()
-    const previousTargetAtMs = lastTargetAtMsRef.current
-    lastTargetAtMsRef.current = now
-
-    const fromDistanceMeters = displayDistanceRef.current
-    const distanceDeltaMeters = Math.abs(distanceMeters - fromDistanceMeters)
-
-    if (
-      previousTargetAtMs === null ||
-      distanceDeltaMeters >= RIDER_SMOOTHING_SEEK_THRESHOLD_METERS
-    ) {
-      displayDistanceRef.current = distanceMeters
-      setDisplayDistanceMeters(distanceMeters)
-      return
-    }
-
-    const durationMs = clamp(
-      now - previousTargetAtMs,
-      MIN_RIDER_SMOOTHING_MS,
-      MAX_RIDER_SMOOTHING_MS
-    )
-
-    const tick = () => {
-      const progress = clamp((performance.now() - now) / durationMs, 0, 1)
-      const nextDistanceMeters =
-        fromDistanceMeters +
-        (distanceMeters - fromDistanceMeters) * progress
-      displayDistanceRef.current = nextDistanceMeters
-      setDisplayDistanceMeters(nextDistanceMeters)
-
-      if (progress < 1) {
-        animationFrameRef.current = window.requestAnimationFrame(tick)
-      } else {
-        animationFrameRef.current = null
-      }
-    }
-
-    animationFrameRef.current = window.requestAnimationFrame(tick)
-
-    return () => {
-      if (animationFrameRef.current !== null) {
-        window.cancelAnimationFrame(animationFrameRef.current)
-        animationFrameRef.current = null
-      }
-    }
-  }, [distanceMeters])
-
-  return displayDistanceMeters
-}
-
 export function RouteSimulationExperienceView({
   connection,
   search,
@@ -158,626 +27,74 @@ export function RouteSimulationExperienceView({
 }: RouteSimulationExperienceViewProps) {
   const navigate = useNavigate({ from: "/ride/$experienceId" })
   const linkedRouteId = search?.routeId as Id<"routes"> | undefined
-  const routes = useQuery(api.routes.list)
-  const routeDoc = useQuery(
-    api.routes.get,
-    linkedRouteId ? { id: linkedRouteId } : "skip"
-  )
-  const settings = useQuery(api.settings.get)
-  const upsertSettings = useMutation(api.settings.upsert)
   const trainerConnected = useRideSelector(session, (s) => s.trainerConnected)
-  const paused = useRideSelector(session, (s) => s.paused)
-  const telemetryStatus = useRideSelector(
-    session,
-    (s) => s.telemetry.telemetryStatus
-  )
-  const [selectedRouteId, setSelectedRouteId] = useState<Id<"routes"> | null>(
-    linkedRouteId ?? null
-  )
-  const [parsedRoute, setParsedRoute] = useState<ParsedRouteGpx | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [distanceMeters, setDistanceMeters] = useState(0)
-  const [elapsedSeconds, setElapsedSeconds] = useState(0)
-  const [isActive, setIsActive] = useState(false)
-  const [isComplete, setIsComplete] = useState(false)
-  const [completionDialogOpen, setCompletionDialogOpen] = useState(false)
-  const [showConfetti, setShowConfetti] = useState(false)
-  const [smoothingLevel, setSmoothingLevel] = useState(5)
-  const [progressMode, setProgressMode] = useState<RouteProgressMode>(
-    "trainer-speed"
-  )
-  const [mapPresentation, setMapPresentation] =
-    useState<RouteMapPresentation>({
-      viewMode: "perspective",
-      terrainEnabled: false,
-    })
-  const [speedSource, setSpeedSource] =
-    useState<RouteSpeedSource>("fallback")
-  const [speedKph, setSpeedKph] = useState(25)
-  const [displayGradePercent, setDisplayGradePercent] = useState(0)
-  const viewportSize = useViewportSize()
-  const lastGradeDispatch = useRef({ gradePercent: NaN, atMs: 0 })
-  const routeRef = useRef<ParsedRouteGpx | null>(null)
-  const physicsStateRef = useRef<PhysicsState>(createInitialPhysicsState())
-  const physicsConfigRef = useRef<PhysicsConfig | null>(null)
-  const progressModeRef = useRef<RouteProgressMode>(progressMode)
-  const seekTransitionRef = useRef<SeekTransitionState | null>(null)
-  const stateRef = useRef({
-    distanceMeters: 0,
-    elapsedSeconds: 0,
-    isActive: false,
-    isComplete: false,
-    smoothingLevel: 5,
-  })
-
-  useEffect(() => {
-    routeRef.current = parsedRoute
-  }, [parsedRoute])
-
-  useEffect(() => {
-    stateRef.current = {
-      distanceMeters,
-      elapsedSeconds,
-      isActive,
-      isComplete,
-      smoothingLevel,
-    }
-  }, [distanceMeters, elapsedSeconds, isActive, isComplete, smoothingLevel])
-
-  useEffect(() => {
-    progressModeRef.current = progressMode
-  }, [progressMode])
-
-  useEffect(() => {
-    if (settings) {
-      if (settings.routeSimulationProgressMode !== progressModeRef.current) {
-        seekTransitionRef.current = null
-      }
-      setProgressMode(settings.routeSimulationProgressMode)
-    }
-  }, [settings])
-
-  const handleProgressModeChange = useCallback(
-    (mode: RouteProgressMode) => {
-      seekTransitionRef.current = null
-      setProgressMode(mode)
-      void upsertSettings({ routeSimulationProgressMode: mode })
-    },
-    [upsertSettings]
-  )
-
-  const physicsConfig = useMemo(
-    () =>
-      settings
-        ? createIndoorLikePhysicsConfig({
-            riderWeightKg: settings.riderWeightKg,
-            bikeWeightKg: settings.bikeWeightKg,
-          })
-        : null,
-    [settings]
-  )
-
-  useEffect(() => {
-    physicsConfigRef.current = physicsConfig
-  }, [physicsConfig])
-
-  useEffect(() => {
-    setSelectedRouteId(linkedRouteId ?? null)
-  }, [linkedRouteId])
-
-  useEffect(() => {
-    let cancelled = false
-    setParsedRoute(null)
-    setLoadError(null)
-
-    if (!routeDoc) {
-      if (routeDoc === null && linkedRouteId) {
-        setLoadError("Route not found. Pick another route.")
-      }
-      return
-    }
-
-    if (!routeDoc.fileUrl) {
-      setLoadError("Route GPX file is unavailable. Pick another route.")
-      return
-    }
-
-    void fetch(routeDoc.fileUrl)
-      .then((response) => {
-        if (!response.ok) throw new Error("Couldn't load GPX file")
-        return response.text()
-      })
-      .then((text) => {
-        if (cancelled) return
-        const result = parseRouteGpxText(text, routeDoc.originalFileName)
-        if (result.kind === "error") {
-          setLoadError(result.message)
-          return
-        }
-        setParsedRoute(result.route)
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return
-        setLoadError(
-          error instanceof Error ? error.message : "Couldn't load GPX file"
-        )
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [linkedRouteId, routeDoc])
-
-  const selectedRouteDoc = useMemo(
-    () => routes?.find((route) => route._id === selectedRouteId) ?? null,
-    [routes, selectedRouteId]
-  )
-  const activeRouteTitle = routeDoc?.title ?? selectedRouteDoc?.title ?? null
   const supportsSimulation = session.controls
     .getCapabilities()
     .has(Capability.SimulationGrade)
-  const displayDistanceMeters = useSmoothedRouteDistance(distanceMeters)
-  const riderPosition = useMemo(
-    () =>
-      parsedRoute
-        ? interpolateRoutePointByDistance(
-            parsedRoute.points,
-            displayDistanceMeters
-          )
-        : null,
-    [displayDistanceMeters, parsedRoute]
-  )
-  const gradePercent = useMemo(
-    () =>
-      parsedRoute
-        ? computeRouteGradePercent(
-            parsedRoute.points,
-            distanceMeters,
-            smoothingLevelToMeters(smoothingLevel)
-          )
-        : 0,
-    [distanceMeters, parsedRoute, smoothingLevel]
-  )
 
-  useEffect(() => {
-    if (!seekTransitionRef.current) {
-      setDisplayGradePercent(gradePercent)
-    }
-  }, [gradePercent])
-
-  const dispatchGrade = useCallback(
-    async (
-      grade: number,
-      force = false,
-      options?: { intervalMs?: number; deltaPercent?: number }
-    ) => {
-      const now = Date.now()
-      const last = lastGradeDispatch.current
-      const intervalMs = options?.intervalMs ?? GRADE_DISPATCH_INTERVAL_MS
-      const deltaPercent =
-        options?.deltaPercent ?? GRADE_DISPATCH_DELTA_PERCENT
-      if (
-        !force &&
-        now - last.atMs < intervalMs &&
-        Math.abs(grade - last.gradePercent) < deltaPercent
-      ) {
-        return
-      }
-      lastGradeDispatch.current = { gradePercent: grade, atMs: now }
-      await session.controls.dispatch(
-        { type: "setSimulationGrade", gradePercent: grade },
-        "experience",
-        { delivery: "acknowledged" }
-      )
-    },
-    [session]
-  )
-
-  const releaseTrainer = useCallback(async () => {
-    await session.controls.dispatch(
-      { type: "setSimulationGrade", gradePercent: 0 },
-      "experience",
-      { delivery: "acknowledged" }
-    )
-    await session.controls.dispatch(
-      { type: "setMode", mode: "free" },
-      "experience",
-      {
-        delivery: "acknowledged",
-      }
-    )
-  }, [session])
-
-  const completeRide = useCallback(async () => {
-    const route = routeRef.current
-    if (!route || stateRef.current.isComplete) return
-    seekTransitionRef.current = null
-    setDistanceMeters(route.stats.distanceMeters)
-    setIsComplete(true)
-    setIsActive(false)
-    await releaseTrainer()
-    session.pause()
-    setCompletionDialogOpen(true)
-    setShowConfetti(true)
-  }, [releaseTrainer, session])
-
-  useRideFrame(session, (frame) => {
-    const route = routeRef.current
-    const current = stateRef.current
-    if (
-      !route ||
-      !current.isActive ||
-      current.isComplete ||
-      session.getState().paused ||
-      !session.getState().trainerConnected ||
-      session.getState().telemetry.telemetryStatus === "stale"
-    ) {
-      return
-    }
-
-    const deltaSeconds = frame.deltaMs / 1000
-    if (deltaSeconds <= 0 || !Number.isFinite(deltaSeconds)) return
-
-    let nextDistance = current.distanceMeters
-    let nextElapsed = current.elapsedSeconds
-
-    if (progressModeRef.current === "app-physics") {
-      const config = physicsConfigRef.current
-      const powerWatts = frame.telemetry?.powerWatts
-      if (
-        !config ||
-        powerWatts === null ||
-        powerWatts === undefined ||
-        !Number.isFinite(powerWatts)
-      ) {
-        setSpeedSource("paused-power-missing")
-        setSpeedKph(0)
-        return
-      }
-
-      const routeGrade = computeRouteGradePercent(
-        route.points,
-        current.distanceMeters,
-        smoothingLevelToMeters(current.smoothingLevel)
-      )
-      const seekTransition = seekTransitionRef.current
-      let effectiveGrade = routeGrade
-      if (seekTransition) {
-        const transitionGrade = getSeekTransitionGrade({
-          ...seekTransition,
-          nowMs: Date.now(),
-        })
-        effectiveGrade = transitionGrade.gradePercent
-        setDisplayGradePercent(effectiveGrade)
-        void dispatchGrade(
-          effectiveGrade,
-          !seekTransition.initialGradeDispatched,
-          { intervalMs: SEEK_GRADE_DISPATCH_INTERVAL_MS }
-        )
-        seekTransition.initialGradeDispatched = true
-        if (transitionGrade.progress >= 1) {
-          seekTransitionRef.current = null
-          void dispatchGrade(seekTransition.toGradePercent, true)
-        }
-      } else {
-        setDisplayGradePercent(routeGrade)
-      }
-      const result = stepPhysics({
-        state: physicsStateRef.current,
-        powerWatts,
-        gradePercent: effectiveGrade,
-        deltaSeconds,
-        config,
-      })
-      physicsStateRef.current = result.state
-      setSpeedSource("physics")
-      setSpeedKph(result.speedMps * 3.6)
-      nextDistance = Math.min(
-        route.stats.distanceMeters,
-        current.distanceMeters + result.distanceDeltaMeters
-      )
-      nextElapsed = current.elapsedSeconds + deltaSeconds
-    } else {
-      const trainerSpeed = frame.telemetry?.speedMps
-      const speedMps =
-        trainerSpeed !== null &&
-        trainerSpeed !== undefined &&
-        Number.isFinite(trainerSpeed) &&
-        trainerSpeed > 0
-          ? trainerSpeed
-          : FALLBACK_SPEED_MPS
-      setSpeedSource(speedMps === FALLBACK_SPEED_MPS ? "fallback" : "trainer")
-      setSpeedKph(speedMps * 3.6)
-      nextDistance = Math.min(
-        route.stats.distanceMeters,
-        current.distanceMeters + speedMps * deltaSeconds
-      )
-      nextElapsed = current.elapsedSeconds + deltaSeconds
-    }
-
-    setDistanceMeters(nextDistance)
-    setElapsedSeconds(nextElapsed)
-    const nextGrade = computeRouteGradePercent(
-      route.points,
-      nextDistance,
-      smoothingLevelToMeters(current.smoothingLevel)
-    )
-    if (!seekTransitionRef.current) {
-      void dispatchGrade(nextGrade)
-    }
-
-    if (nextDistance >= route.stats.distanceMeters) {
-      void completeRide()
-    }
+  const route = useRouteSimulationRoute({ linkedRouteId, navigate })
+  const settings = useRouteSimulationSettings()
+  const ride = useRouteSimulationRide({
+    parsedRoute: route.parsedRoute,
+    physicsConfig: settings.physicsConfig,
+    progressMode: settings.progressMode,
+    session,
+    supportsSimulation,
+    trainerConnected,
   })
-
-  useEffect(() => {
-    if (!trainerConnected && isActive && !paused) {
-      session.pause()
-    }
-  }, [isActive, paused, session, trainerConnected])
 
   const handleSelectRoute = useCallback(
     (routeId: Id<"routes">) => {
-      seekTransitionRef.current = null
-      setSelectedRouteId(routeId)
-      void navigate({
-        search: (previous) => ({ ...previous, routeId }),
-        replace: true,
-      })
+      ride.resetRideStateForRouteChange()
+      route.handleSelectRoute(routeId)
     },
-    [navigate]
+    [ride, route]
   )
 
   const handleChangeRoute = useCallback(() => {
-    seekTransitionRef.current = null
-    setSelectedRouteId(null)
-    setParsedRoute(null)
-    setLoadError(null)
-    setDistanceMeters(0)
-    setElapsedSeconds(0)
-    setIsComplete(false)
-    setCompletionDialogOpen(false)
-    physicsStateRef.current = createInitialPhysicsState()
-    void navigate({
-      search: (previous) => {
-        const nextSearch = { ...previous }
-        delete nextSearch.routeId
-        return nextSearch
-      },
-      replace: true,
-    })
-  }, [navigate])
+    ride.resetRideStateForRouteChange()
+    route.handleChangeRoute()
+  }, [ride, route])
 
-  const handleStart = useCallback(async () => {
-    if (
-      !parsedRoute ||
-      !trainerConnected ||
-      !supportsSimulation ||
-      (progressMode === "app-physics" && !physicsConfig)
-    ) {
-      return
-    }
-    setDistanceMeters(0)
-    setElapsedSeconds(0)
-    seekTransitionRef.current = null
-    physicsStateRef.current = createInitialPhysicsState()
-    setIsActive(true)
-    setIsComplete(false)
-    setCompletionDialogOpen(false)
-    lastGradeDispatch.current = { gradePercent: NaN, atMs: 0 }
-    await session.controls.dispatch(
-      { type: "setMode", mode: "simulation" },
-      "experience",
-      { delivery: "acknowledged" }
-    )
-    await dispatchGrade(
-      computeRouteGradePercent(
-        parsedRoute.points,
-        0,
-        smoothingLevelToMeters(smoothingLevel)
-      ),
-      true
-    )
-    session.resume()
-  }, [
-    dispatchGrade,
-    parsedRoute,
-    physicsConfig,
-    progressMode,
-    session,
-    smoothingLevel,
-    supportsSimulation,
-    trainerConnected,
-  ])
-
-  const handlePause = useCallback(async () => {
-    seekTransitionRef.current = null
-    session.pause()
-    await releaseTrainer()
-  }, [releaseTrainer, session])
-
-  const handleResume = useCallback(async () => {
-    if (!parsedRoute) return
-    await session.controls.dispatch(
-      { type: "setMode", mode: "simulation" },
-      "experience",
-      { delivery: "acknowledged" }
-    )
-    await dispatchGrade(gradePercent, true)
-    session.resume()
-  }, [dispatchGrade, gradePercent, parsedRoute, session])
-
-  const handleStop = useCallback(async () => {
-    seekTransitionRef.current = null
-    await releaseTrainer()
-    session.pause()
-    setIsActive(false)
-    setIsComplete(false)
-    physicsStateRef.current = createInitialPhysicsState()
-  }, [releaseTrainer, session])
-
-  const handleRouteClick = useCallback(
-    (position: RoutePosition) => {
-      if (!parsedRoute) return
-      const nextDistance = findNearestRouteDistanceMeters(
-        parsedRoute.points,
-        position
-      )
-      const currentDistance = stateRef.current.distanceMeters
-      const currentGrade = seekTransitionRef.current
-        ? getSeekTransitionGrade({
-            ...seekTransitionRef.current,
-            nowMs: Date.now(),
-          }).gradePercent
-        : computeRouteGradePercent(
-            parsedRoute.points,
-            currentDistance,
-            smoothingLevelToMeters(smoothingLevel)
-          )
-      seekTransitionRef.current = null
-      setDistanceMeters(nextDistance)
-      const nextGrade = computeRouteGradePercent(
-        parsedRoute.points,
-        nextDistance,
-        smoothingLevelToMeters(smoothingLevel)
-      )
-      if (progressMode === "app-physics") {
-        const preservedSpeedMps = getPreservedSeekSpeedMps(
-          physicsStateRef.current.speedMps
-        )
-        physicsStateRef.current = {
-          ...physicsStateRef.current,
-          speedMps: preservedSpeedMps,
-        }
-        seekTransitionRef.current = {
-          startedAtMs: Date.now(),
-          durationMs: SEEK_TRANSITION_DURATION_MS,
-          fromDistanceMeters: currentDistance,
-          toDistanceMeters: nextDistance,
-          fromGradePercent: currentGrade,
-          toGradePercent: nextGrade,
-          fromSpeedMps: preservedSpeedMps,
-          initialGradeDispatched: true,
-        }
-        setDisplayGradePercent(currentGrade)
-        void dispatchGrade(currentGrade, true, {
-          intervalMs: SEEK_GRADE_DISPATCH_INTERVAL_MS,
-        })
-        return
-      }
-      void dispatchGrade(nextGrade, true)
+  const handleProgressModeChange = useCallback(
+    (mode: RouteProgressMode) => {
+      ride.resetSeekTransition()
+      settings.handleProgressModeChange(mode)
     },
-    [dispatchGrade, parsedRoute, progressMode, smoothingLevel]
+    [ride, settings]
   )
 
-  const startDisabledReason = !parsedRoute
+  const startDisabledReason = !route.parsedRoute
     ? "Choose a valid GPX route."
     : !trainerConnected
       ? "Connect a trainer before starting."
       : !supportsSimulation
         ? "Connected trainer does not support simulation grade."
-        : progressMode === "app-physics" && !physicsConfig
+        : settings.progressMode === "app-physics" && !settings.physicsConfig
           ? "Loading physics profile."
           : null
 
-  if (!isActive && !isComplete) {
+  if (!ride.isActive && !ride.isComplete) {
     return (
       <RouteSimulationSetup
-        isLoading={
-          routes === undefined ||
-          (linkedRouteId !== undefined && routeDoc === undefined)
-        }
-        loadError={loadError}
         onChangeRoute={handleChangeRoute}
         onProgressModeChange={handleProgressModeChange}
         onSelectRoute={handleSelectRoute}
-        onStart={handleStart}
-        physicsProfileReady={settings !== undefined}
-        parsedRoute={parsedRoute}
-        progressMode={progressMode}
-        routes={routes ?? []}
-        selectedRouteId={selectedRouteId}
+        onStart={ride.handleStart}
+        route={route}
+        settings={settings}
         startDisabledReason={startDisabledReason}
-        title={activeRouteTitle}
       />
     )
   }
 
-  return parsedRoute ? (
-    <div className="absolute inset-0 overflow-hidden bg-background">
-      {showConfetti && (
-        <Confetti
-          width={viewportSize.width}
-          height={viewportSize.height}
-          recycle={false}
-          numberOfPieces={240}
-          gravity={0.25}
-          tweenDuration={5000}
-          onConfettiComplete={() => setShowConfetti(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            pointerEvents: "none",
-            zIndex: 60,
-          }}
-        />
-      )}
-      <RouteSimulationMap
-        follow={isActive && !paused}
-        onRouteClick={handleRouteClick}
-        presentation={mapPresentation}
-        riderPosition={riderPosition}
-        route={parsedRoute}
-      />
-      <RouteMiniMap
-        onRouteClick={handleRouteClick}
-        riderPosition={riderPosition}
-        route={parsedRoute}
-      />
-      <RouteElevationMinimap
-        distanceMeters={distanceMeters}
-        samples={parsedRoute.elevationSamples}
-        totalDistanceMeters={parsedRoute.stats.distanceMeters}
-      />
-      <RouteRideHud
-        distanceMeters={distanceMeters}
-        elapsedSeconds={elapsedSeconds}
-        gradePercent={displayGradePercent}
-        isPaused={paused}
-        onPause={handlePause}
-        onResume={handleResume}
-        onSmoothingChange={setSmoothingLevel}
-        onStop={handleStop}
-        onTerrainEnabledChange={(terrainEnabled) =>
-          setMapPresentation((current) => ({ ...current, terrainEnabled }))
-        }
-        onViewModeChange={(viewMode) =>
-          setMapPresentation((current) => ({ ...current, viewMode }))
-        }
-        smoothingLevel={smoothingLevel}
-        speedKph={speedKph}
-        speedSource={speedSource}
-        terrainEnabled={mapPresentation.terrainEnabled}
-        telemetryStatus={telemetryStatus}
-        totalDistanceMeters={parsedRoute.stats.distanceMeters}
-        viewMode={mapPresentation.viewMode}
-      />
-      <RouteCompleteDialog
-        distanceMeters={parsedRoute.stats.distanceMeters}
-        elapsedSeconds={elapsedSeconds}
-        onOpenChange={setCompletionDialogOpen}
-        open={completionDialogOpen}
-        routeTitle={activeRouteTitle ?? parsedRoute.title}
-      />
-      {!trainerConnected && isActive && (
-        <RouteDisconnectedOverlay
-          onReconnect={connection?.reconnect}
-          onStop={() => {
-            void handleStop()
-          }}
-        />
-      )}
-    </div>
+  return route.parsedRoute ? (
+    <RouteSimulationLiveView
+      activeRouteTitle={route.activeRouteTitle}
+      connection={connection}
+      ride={ride}
+      route={route.parsedRoute}
+      session={session}
+    />
   ) : null
 }

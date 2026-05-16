@@ -22,6 +22,8 @@ export const RouteMiniMap = ({
         onRouteClick={onRouteClick}
         riderPosition={riderPosition}
         start={route.start}
+        terrainEnabled={false}
+        viewMode="top-down"
       />
     </div>
   )

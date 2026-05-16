@@ -5,46 +5,58 @@ import {
   Play,
   RouteIcon,
 } from "lucide-react"
-import type { Doc, Id } from "#convex/_generated/dataModel"
 import { formatMetricDistance } from "../../utils"
+import type { Id } from "#convex/_generated/dataModel"
+import type {
+  RouteProgressMode,
+  RouteSimulationRouteState,
+  RouteSimulationSettingsState,
+} from "../../types"
 import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { RouteMap } from "@/components/route/route-map"
 import { RouteMini } from "@/components/route/route-mini"
-import type { ParsedRouteGpx } from "@/lib/routes/types"
-import type { RouteProgressMode } from "../../types"
 
 type RouteSimulationSetupProps = {
-  isLoading: boolean
-  loadError: string | null
-  onSelectRoute: (routeId: Id<"routes">) => void
   onChangeRoute: () => void
   onProgressModeChange: (mode: RouteProgressMode) => void
+  onSelectRoute: (routeId: Id<"routes">) => void
   onStart: () => void
-  physicsProfileReady: boolean
-  progressMode: RouteProgressMode
-  routes: Array<Doc<"routes">>
-  parsedRoute: ParsedRouteGpx | null
-  selectedRouteId: Id<"routes"> | null
+  route: Pick<
+    RouteSimulationRouteState,
+    | "activeRouteTitle"
+    | "isLoading"
+    | "loadError"
+    | "parsedRoute"
+    | "routes"
+    | "selectedRouteId"
+  >
+  settings: Pick<
+    RouteSimulationSettingsState,
+    "physicsProfileReady" | "progressMode"
+  >
   startDisabledReason: string | null
-  title: string | null
 }
 
 export const RouteSimulationSetup = ({
-  isLoading,
-  loadError,
   onChangeRoute,
   onProgressModeChange,
   onSelectRoute,
   onStart,
-  physicsProfileReady,
-  progressMode,
-  parsedRoute,
-  routes,
-  selectedRouteId,
+  route,
+  settings,
   startDisabledReason,
-  title,
 }: RouteSimulationSetupProps) => {
+  const {
+    activeRouteTitle,
+    isLoading,
+    loadError,
+    parsedRoute,
+    routes,
+    selectedRouteId,
+  } = route
+  const { physicsProfileReady, progressMode } = settings
+
   return (
     <div className="absolute inset-0 overflow-y-auto bg-background px-4 pt-16 pb-8 sm:px-8 sm:pt-20">
       <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -53,7 +65,7 @@ export const RouteSimulationSetup = ({
             <div className="flex min-w-0 items-center gap-2">
               <RouteIcon className="size-5 shrink-0 text-primary" />
               <h2 className="truncate font-heading text-xl font-semibold">
-                {title ?? "Choose a route"}
+                {activeRouteTitle ?? "Choose a route"}
               </h2>
             </div>
             <Button
@@ -77,6 +89,7 @@ export const RouteSimulationSetup = ({
               finish={parsedRoute.finish}
               geojson={parsedRoute.geojson}
               start={parsedRoute.start}
+              terrainEnabled={false}
               className="mt-4 h-[360px] overflow-hidden rounded-lg border border-border/70 bg-muted"
             />
           )}
@@ -91,23 +104,23 @@ export const RouteSimulationSetup = ({
                 No saved GPX routes yet.
               </div>
             ) : (
-              routes.map((route) => (
+              routes.map((routeOption) => (
                 <button
-                  key={route._id}
+                  key={routeOption._id}
                   type="button"
-                  onClick={() => onSelectRoute(route._id)}
+                  onClick={() => onSelectRoute(routeOption._id)}
                   className="rounded-lg border border-border/70 bg-background p-3 text-left transition hover:border-primary/60 data-selected:border-primary data-selected:ring-2 data-selected:ring-primary/20"
-                  data-selected={route._id === selectedRouteId}
+                  data-selected={routeOption._id === selectedRouteId}
                 >
                   <RouteMini
-                    previewPoints={route.previewPoints}
+                    previewPoints={routeOption.previewPoints}
                     className="mb-3 h-16"
                   />
                   <div className="truncate font-heading text-sm font-semibold">
-                    {route.title}
+                    {routeOption.title}
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {formatMetricDistance(route.stats.distanceMeters)}
+                    {formatMetricDistance(routeOption.stats.distanceMeters)}
                   </div>
                 </button>
               ))

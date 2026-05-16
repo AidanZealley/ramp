@@ -2,10 +2,10 @@ import { useEffect, useState } from "react"
 import { Link } from "@tanstack/react-router"
 import { useQuery } from "convex/react"
 import { ArrowLeft, Bike } from "lucide-react"
-import { api } from "#convex/_generated/api"
 import type { Id } from "#convex/_generated/dataModel"
-import { parseRouteGpxText } from "@/lib/routes/gpx"
 import type { ParsedRouteGpx } from "@/lib/routes/types"
+import { api } from "#convex/_generated/api"
+import { parseRouteGpxText } from "@/lib/routes/gpx"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ElevationChart } from "@/components/route/elevation-chart"
@@ -137,6 +137,7 @@ export const RouteDetail = ({ routeId }: RouteDetailProps) => {
             bounds={routeDoc.bounds}
             start={routeDoc.start}
             finish={routeDoc.finish}
+            terrainEnabled={false}
           />
           <ElevationChart samples={parsedRoute.elevationSamples} />
         </>
