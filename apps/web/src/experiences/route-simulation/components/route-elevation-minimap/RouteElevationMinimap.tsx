@@ -2,19 +2,40 @@ import type { ElevationSample } from "@/lib/routes/types"
 
 type RouteElevationMinimapProps = {
   distanceMeters: number
+  riderElevationMeters?: number | null
   samples: Array<ElevationSample>
   totalDistanceMeters: number
 }
 
+const formatCurrentElevation = (elevationMeters: number | null | undefined) => {
+  if (
+    elevationMeters === null ||
+    elevationMeters === undefined ||
+    !Number.isFinite(elevationMeters)
+  ) {
+    return "--"
+  }
+
+  return `${Math.round(elevationMeters).toLocaleString()} m`
+}
+
 export const RouteElevationMinimap = ({
   distanceMeters,
+  riderElevationMeters,
   samples,
   totalDistanceMeters,
 }: RouteElevationMinimapProps) => {
+  const currentElevation = formatCurrentElevation(riderElevationMeters)
+
   if (samples.length < 2) {
     return (
-      <div className="absolute top-16 right-3 flex h-24 w-48 items-center justify-center rounded-lg border border-border/70 bg-card/95 p-3 text-xs text-muted-foreground shadow-lg sm:top-20 sm:right-5">
-        Elevation unavailable
+      <div className="absolute top-16 right-3 grid h-28 w-48 place-items-center rounded-lg border border-border/70 bg-card/95 p-3 text-xs shadow-lg sm:top-20 sm:right-5">
+        <div className="text-center">
+          <div className="font-medium text-foreground tabular-nums">
+            {currentElevation}
+          </div>
+          <div className="text-muted-foreground">Elevation unavailable</div>
+        </div>
       </div>
     )
   }
@@ -35,10 +56,10 @@ export const RouteElevationMinimap = ({
   )
 
   return (
-    <div className="absolute top-16 right-3 h-24 w-48 rounded-lg border border-border/70 bg-card/95 p-2 shadow-lg sm:top-20 sm:right-5 sm:w-64">
+    <div className="absolute top-16 right-3 h-28 w-48 rounded-lg border border-border/70 bg-card/95 p-2 shadow-lg sm:top-20 sm:right-5 sm:w-64">
       <svg
         viewBox="0 0 100 100"
-        className="h-full w-full"
+        className="h-20 w-full"
         preserveAspectRatio="none"
       >
         <polyline
@@ -58,6 +79,12 @@ export const RouteElevationMinimap = ({
           vectorEffect="non-scaling-stroke"
         />
       </svg>
+      <div className="mt-1 flex items-center justify-between border-t border-border/50 pt-1 text-[10px] leading-none">
+        <span className="text-muted-foreground">Elevation</span>
+        <span className="font-medium text-foreground tabular-nums">
+          {currentElevation}
+        </span>
+      </div>
     </div>
   )
 }

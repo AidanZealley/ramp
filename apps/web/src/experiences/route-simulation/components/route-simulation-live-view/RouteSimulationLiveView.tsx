@@ -69,6 +69,7 @@ export const RouteSimulationLiveView = ({
       />
       <RouteElevationMinimap
         distanceMeters={ride.distanceMeters}
+        riderElevationMeters={ride.riderPosition?.elevationMeters ?? null}
         samples={route.elevationSamples}
         totalDistanceMeters={route.stats.distanceMeters}
       />

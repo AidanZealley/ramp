@@ -7,10 +7,13 @@ import type { FeatureCollection, LineString } from "geojson"
 
 const useTheme = vi.fn()
 const easeTo = vi.fn()
+const flyTo = vi.fn()
 const fitBounds = vi.fn()
 const queryTerrainElevation = vi.fn()
 const resize = vi.fn()
 const setTerrain = vi.fn()
+const setTransformElevation = vi.fn()
+const triggerRepaint = vi.fn()
 const sourceIds = new Set<string>()
 let mapZoom = 10
 
@@ -23,28 +26,38 @@ vi.mock("@vis.gl/react-maplibre", () => ({
     (
       {
         children,
+        centerClampedToGround,
         mapStyle,
         maxPitch,
         sky,
         onIdle,
         onLoad,
+        onMoveEnd,
         onSourceData,
       }: PropsWithChildren<{
+        centerClampedToGround?: boolean
         mapStyle: string
         maxPitch?: number
         sky?: unknown
         onIdle?: () => void
         onLoad?: () => void
+        onMoveEnd?: () => void
         onSourceData?: (event: { sourceId: string }) => void
       }>,
       ref
     ) => {
       useImperativeHandle(ref, () => ({
         easeTo,
+        flyTo,
         fitBounds,
         getMap: () => ({
+          _elevationFreeze: true,
           getSource: (id: string) => sourceIds.has(id),
           setTerrain,
+          transform: {
+            setElevation: setTransformElevation,
+          },
+          triggerRepaint,
         }),
         getZoom: () => mapZoom,
         queryTerrainElevation,
@@ -54,12 +67,14 @@ vi.mock("@vis.gl/react-maplibre", () => ({
       useEffect(() => {
         onLoad?.()
         onSourceData?.({ sourceId: "route-terrain-dem" })
+        onMoveEnd?.()
         onIdle?.()
-      }, [onIdle, onLoad, onSourceData])
+      }, [onIdle, onLoad, onMoveEnd, onSourceData])
 
       return (
         <div
           data-testid="map"
+          data-center-clamped-to-ground={String(centerClampedToGround)}
           data-map-style={mapStyle}
           data-max-pitch={maxPitch}
           data-sky={JSON.stringify(sky ?? null)}
@@ -132,12 +147,15 @@ describe("RouteMap", () => {
   beforeEach(() => {
     useTheme.mockReturnValue({ theme: "light" })
     easeTo.mockClear()
+    flyTo.mockClear()
     fitBounds.mockClear()
     queryTerrainElevation.mockReset()
     queryTerrainElevation.mockReturnValue(null)
     mapZoom = 10
     resize.mockClear()
     setTerrain.mockClear()
+    setTransformElevation.mockClear()
+    triggerRepaint.mockClear()
     sourceIds.clear()
     vi.unstubAllEnvs()
   })
@@ -353,6 +371,8 @@ describe("RouteMap", () => {
   })
 
   it("uses perspective pitch and route bearing for follow camera", async () => {
+    queryTerrainElevation.mockReturnValue(240)
+
     render(
       <RouteMap
         geojson={geojson}
@@ -360,7 +380,6 @@ describe("RouteMap", () => {
         start={null}
         finish={null}
         followPosition
-        riderElevationMeters={120}
         riderPosition={{ lat: 37.82, lng: -122.42 }}
         terrainEnabled
         viewMode="perspective"
@@ -368,22 +387,32 @@ describe("RouteMap", () => {
     )
 
     await waitFor(() =>
-      expect(easeTo).toHaveBeenCalledWith(
+      expect(flyTo).toHaveBeenCalledWith(
         expect.objectContaining({
           center: [-122.42, 37.82],
           elevation: 240,
           offset: [0, 140],
           pitch: 60,
           zoom: 15.5,
+          duration: 450,
+          curve: 1.2,
+          maxDuration: 450,
+          freezeElevation: false,
         })
       )
     )
-    expect(easeTo.mock.calls.at(-1)?.[0].bearing).not.toBe(0)
+    expect(flyTo.mock.calls.at(-1)?.[0].bearing).not.toBe(0)
+    expect(queryTerrainElevation).toHaveBeenCalledWith([-122.42, 37.82])
+    expect(setTransformElevation).toHaveBeenCalledWith(240)
+    expect(triggerRepaint).toHaveBeenCalled()
+    expect(screen.getByTestId("map").dataset.centerClampedToGround).toBe(
+      "true"
+    )
     expect(screen.getByTestId("map").dataset.maxPitch).toBe("80")
   })
 
-  it("uses loaded terrain elevation when it is higher than route elevation", async () => {
-    queryTerrainElevation.mockReturnValue(800)
+  it("omits perspective follow elevation until terrain tiles are available", async () => {
+    queryTerrainElevation.mockReturnValue(null)
 
     render(
       <RouteMap
@@ -392,7 +421,6 @@ describe("RouteMap", () => {
         start={null}
         finish={null}
         followPosition
-        riderElevationMeters={120}
         riderPosition={{ lat: 37.82, lng: -122.42 }}
         terrainEnabled
         viewMode="perspective"
@@ -400,12 +428,58 @@ describe("RouteMap", () => {
     )
 
     await waitFor(() =>
-      expect(easeTo).toHaveBeenCalledWith(
+      expect(flyTo).toHaveBeenCalledWith(
         expect.objectContaining({
-          elevation: 800,
+          center: [-122.42, 37.82],
+          freezeElevation: false,
         })
       )
     )
+    expect(flyTo.mock.calls.at(-1)?.[0]).not.toHaveProperty("elevation")
+    expect(setTransformElevation).not.toHaveBeenCalled()
+  })
+
+  it("reruns perspective follow camera when terrain is enabled", async () => {
+    queryTerrainElevation.mockReturnValue(240)
+
+    const { rerender } = render(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        followPosition
+        riderPosition={{ lat: 37.82, lng: -122.42 }}
+        terrainEnabled={false}
+        viewMode="perspective"
+      />
+    )
+
+    await waitFor(() => expect(flyTo).toHaveBeenCalledTimes(1))
+
+    rerender(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        followPosition
+        riderPosition={{ lat: 37.82, lng: -122.42 }}
+        terrainEnabled
+        viewMode="perspective"
+      />
+    )
+
+    await waitFor(() => expect(flyTo).toHaveBeenCalledTimes(2))
+    expect(flyTo.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        center: [-122.42, 37.82],
+        elevation: 240,
+        freezeElevation: false,
+      })
+    )
+    expect(queryTerrainElevation).toHaveBeenCalledWith([-122.42, 37.82])
+    expect(setTransformElevation).toHaveBeenCalledWith(240)
   })
 
   it("adjusts perspective pitch with route grade", async () => {
@@ -423,7 +497,7 @@ describe("RouteMap", () => {
     )
 
     await waitFor(() =>
-      expect(easeTo).toHaveBeenCalledWith(
+      expect(flyTo).toHaveBeenCalledWith(
         expect.objectContaining({
           pitch: 68,
         })
@@ -445,12 +519,12 @@ describe("RouteMap", () => {
     )
 
     await waitFor(() =>
-      expect(easeTo).toHaveBeenCalledWith(
+      expect(flyTo).toHaveBeenCalledWith(
         expect.objectContaining({ pitch: 60, zoom: 15.5 })
       )
     )
 
-    easeTo.mockClear()
+    flyTo.mockClear()
     mapZoom = 18
     rerender(
       <RouteMap
@@ -465,7 +539,7 @@ describe("RouteMap", () => {
     )
 
     await waitFor(() =>
-      expect(easeTo).toHaveBeenCalledWith(
+      expect(flyTo).toHaveBeenCalledWith(
         expect.objectContaining({ pitch: 80, zoom: 18 })
       )
     )
@@ -484,7 +558,7 @@ describe("RouteMap", () => {
       />
     )
 
-    await waitFor(() => expect(easeTo).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(flyTo).toHaveBeenCalledTimes(1))
 
     rerender(
       <RouteMap
@@ -498,7 +572,7 @@ describe("RouteMap", () => {
       />
     )
 
-    expect(easeTo).toHaveBeenCalledTimes(1)
+    expect(flyTo).toHaveBeenCalledTimes(1)
 
     rerender(
       <RouteMap
@@ -512,8 +586,8 @@ describe("RouteMap", () => {
       />
     )
 
-    await waitFor(() => expect(easeTo).toHaveBeenCalledTimes(2))
-    expect(easeTo.mock.calls.at(-1)?.[0]).toEqual(
+    await waitFor(() => expect(flyTo).toHaveBeenCalledTimes(2))
+    expect(flyTo.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         center: [-122.42005, 37.82005],
       })

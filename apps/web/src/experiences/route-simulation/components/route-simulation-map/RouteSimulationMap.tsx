@@ -31,7 +31,6 @@ export const RouteSimulationMap = ({
       followPosition={follow}
       geojson={route.geojson}
       onRouteClick={onRouteClick}
-      riderElevationMeters={riderPosition?.elevationMeters}
       riderGradePercent={riderGradePercent}
       riderPosition={riderPosition}
       start={route.start}

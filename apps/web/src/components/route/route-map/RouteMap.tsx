@@ -12,13 +12,20 @@ import type { RouteBounds, RoutePosition } from "@/lib/routes/types"
 import type { RouteMapViewMode } from "@/experiences/route-simulation/types"
 import { useTheme } from "@/components/theme-provider"
 
+type MutableMapElevation = {
+  _elevationFreeze?: boolean
+  transform?: {
+    setElevation?: (elevation: number) => void
+  }
+  triggerRepaint?: () => void
+}
+
 type RouteMapProps = {
   geojson: FeatureCollection<LineString>
   bounds: RouteBounds | null
   className?: string
   followPosition?: boolean
   onRouteClick?: (position: RoutePosition) => void
-  riderElevationMeters?: number | null
   riderGradePercent?: number
   riderPosition?: RoutePosition | null
   start: RoutePosition | null
@@ -121,6 +128,19 @@ const bearingDeltaDegrees = (a: number, b: number) => {
   return delta > 180 ? 360 - delta : delta
 }
 
+const forceMapCenterElevation = (
+  map: MutableMapElevation | undefined,
+  elevation: number
+) => {
+  if (!map?.transform?.setElevation) return
+
+  // MapLibre 5.24.0 can leave center elevation frozen during overlapping
+  // follow flights, so perspective follow updates the active transform directly.
+  map._elevationFreeze = false
+  map.transform.setElevation(elevation)
+  map.triggerRepaint?.()
+}
+
 type RouteBearingSegment = {
   midpoint: RoutePosition
   bearing: number
@@ -131,6 +151,7 @@ type CameraTarget = {
   center?: [number, number]
   followPosition: boolean
   pitch: number
+  terrainEnabled: boolean
   viewMode: RouteMapViewMode
 }
 
@@ -186,6 +207,7 @@ const shouldUpdateCamera = (
   if (!previousTarget) return true
   if (previousTarget.viewMode !== nextTarget.viewMode) return true
   if (previousTarget.followPosition !== nextTarget.followPosition) return true
+  if (previousTarget.terrainEnabled !== nextTarget.terrainEnabled) return true
   if (
     bearingDeltaDegrees(previousTarget.bearing, nextTarget.bearing) >=
     CAMERA_BEARING_THRESHOLD_DEGREES
@@ -216,7 +238,6 @@ export const RouteMap = ({
   geojson,
   bounds,
   onRouteClick,
-  riderElevationMeters,
   riderGradePercent,
   riderPosition,
   start,
@@ -295,34 +316,67 @@ export const RouteMap = ({
     appliedTerrainEnabledRef.current = true
   }, [terrainEnabled])
 
-  const getPerspectiveTargetElevation = useCallback(
-    (position: RoutePosition, routeElevationMeters?: number | null) => {
-      if (
-        !terrainEnabled ||
-        viewMode !== "perspective" ||
-        !followPosition
-      ) {
-        return undefined
-      }
+  const getPerspectiveTerrainElevation = useCallback(
+    (position: RoutePosition) => {
+      if (!terrainEnabled) return undefined
 
       const terrainElevation =
         mapRef.current?.queryTerrainElevation([position.lng, position.lat]) ??
         null
-      const routeElevation =
-        routeElevationMeters !== null &&
-        routeElevationMeters !== undefined &&
-        Number.isFinite(routeElevationMeters)
-          ? routeElevationMeters * ROUTE_TERRAIN_EXAGGERATION
-          : null
-      const groundElevation = Math.max(
-        terrainElevation ?? Number.NEGATIVE_INFINITY,
-        routeElevation ?? Number.NEGATIVE_INFINITY,
-        0
-      )
 
-      return groundElevation
+      return terrainElevation !== null && Number.isFinite(terrainElevation)
+        ? terrainElevation
+        : undefined
     },
-    [followPosition, terrainEnabled, viewMode]
+    [terrainEnabled]
+  )
+
+  const syncPerspectiveCameraElevation = useCallback(() => {
+    if (
+      viewMode !== "perspective" ||
+      !followPosition ||
+      !terrainEnabled ||
+      !riderPosition
+    ) {
+      return
+    }
+
+    const elevation = getPerspectiveTerrainElevation(riderPosition)
+    if (elevation === undefined) return
+
+    const map = mapRef.current?.getMap() as MutableMapElevation | undefined
+    forceMapCenterElevation(map, elevation)
+  }, [
+    followPosition,
+    getPerspectiveTerrainElevation,
+    riderPosition,
+    terrainEnabled,
+    viewMode,
+  ])
+
+  const handleCameraStateChange = useCallback(() => {
+    syncPerspectiveCameraElevation()
+  }, [syncPerspectiveCameraElevation])
+
+  const handleMapIdle = useCallback(() => {
+    applyTerrain()
+    handleCameraStateChange()
+  }, [applyTerrain, handleCameraStateChange])
+
+  const handleMapLoad = useCallback(() => {
+    fitRouteBounds()
+    window.requestAnimationFrame(applyTerrain)
+    window.requestAnimationFrame(handleCameraStateChange)
+  }, [applyTerrain, fitRouteBounds, handleCameraStateChange])
+
+  const handleSourceData = useCallback(
+    (event: { sourceId: string }) => {
+      if (event.sourceId !== TERRAIN_SOURCE_ID) return
+
+      applyTerrain()
+      handleCameraStateChange()
+    },
+    [applyTerrain, handleCameraStateChange]
   )
 
   useEffect(() => {
@@ -370,6 +424,7 @@ export const RouteMap = ({
         bearing: 0,
         followPosition,
         pitch: 0,
+        terrainEnabled,
         viewMode,
       }
       if (!shouldUpdateCamera(lastCameraTargetRef.current, target)) {
@@ -410,6 +465,7 @@ export const RouteMap = ({
         bearing,
         followPosition,
         pitch,
+        terrainEnabled,
         viewMode,
       }
       if (!shouldUpdateCamera(lastCameraTargetRef.current, target)) {
@@ -431,32 +487,36 @@ export const RouteMap = ({
       center: [riderPosition.lng, riderPosition.lat],
       followPosition,
       pitch,
+      terrainEnabled,
       viewMode,
     }
     if (!shouldUpdateCamera(lastCameraTargetRef.current, target)) {
       return
     }
     lastCameraTargetRef.current = target
+    const elevation = getPerspectiveTerrainElevation(riderPosition)
 
-    mapRef.current.easeTo({
+    mapRef.current.flyTo({
       center: [riderPosition.lng, riderPosition.lat],
-      elevation: getPerspectiveTargetElevation(
-        riderPosition,
-        riderElevationMeters
-      ),
+      ...(elevation !== undefined ? { elevation } : {}),
       offset: PERSPECTIVE_FOLLOW_OFFSET_PX,
       zoom,
       pitch,
       bearing,
       duration: CAMERA_DURATION_MS,
+      curve: 1.2,
+      maxDuration: CAMERA_DURATION_MS,
+      freezeElevation: false,
     })
+    syncPerspectiveCameraElevation()
   }, [
     followPosition,
-    getPerspectiveTargetElevation,
-    riderElevationMeters,
+    getPerspectiveTerrainElevation,
     riderGradePercent,
     riderPosition,
     routeBearingSegments,
+    syncPerspectiveCameraElevation,
+    terrainEnabled,
     viewMode,
   ])
 
@@ -474,6 +534,7 @@ export const RouteMap = ({
         mapStyle={mapStyle}
         initialViewState={initialViewState}
         attributionControl={false}
+        centerClampedToGround={true}
         maxPitch={PERSPECTIVE_MAX_PITCH}
         reuseMaps
         sky={
@@ -488,16 +549,10 @@ export const RouteMap = ({
               }
             : undefined
         }
-        onIdle={applyTerrain}
-        onLoad={() => {
-          fitRouteBounds()
-          window.requestAnimationFrame(applyTerrain)
-        }}
-        onSourceData={(event) => {
-          if (event.sourceId === TERRAIN_SOURCE_ID) {
-            applyTerrain()
-          }
-        }}
+        onIdle={handleMapIdle}
+        onLoad={handleMapLoad}
+        onMoveEnd={handleCameraStateChange}
+        onSourceData={handleSourceData}
         onClick={(event) => {
           onRouteClick?.({
             lat: event.lngLat.lat,
