@@ -10,6 +10,7 @@ type RouteSimulationMapProps = {
   follow: boolean
   onRouteClick: (position: RoutePosition) => void
   presentation: RouteMapPresentation
+  riderDistanceMeters: number
   riderGradePercent: number
   riderPosition: RoutePoint | null
   route: ParsedRouteGpx
@@ -19,6 +20,7 @@ export const RouteSimulationMap = ({
   follow,
   onRouteClick,
   presentation,
+  riderDistanceMeters,
   riderGradePercent,
   riderPosition,
   route,
@@ -31,8 +33,10 @@ export const RouteSimulationMap = ({
       followPosition={follow}
       geojson={route.geojson}
       onRouteClick={onRouteClick}
+      riderDistanceMeters={riderDistanceMeters}
       riderGradePercent={riderGradePercent}
       riderPosition={riderPosition}
+      riderRoutePoints={route.points}
       start={route.start}
       terrainEnabled={presentation.terrainEnabled}
       viewMode={presentation.viewMode}

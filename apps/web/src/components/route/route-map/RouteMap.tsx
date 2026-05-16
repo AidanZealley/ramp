@@ -9,9 +9,10 @@ import { routeMapStyleUrls, routeMapTheme } from "./colors"
 import type { MapRef } from "@vis.gl/react-maplibre"
 import type { FeatureCollection, LineString, Point } from "geojson"
 import type { GeoJSONSource } from "maplibre-gl"
-import type { RouteBounds, RoutePosition } from "@/lib/routes/types"
+import type { RouteBounds, RoutePoint, RoutePosition } from "@/lib/routes/types"
 import type { RouteMapViewMode } from "@/experiences/route-simulation/types"
 import { useTheme } from "@/components/theme-provider"
+import { interpolateRoutePointByDistance } from "@/lib/routes/simulation"
 
 type MutableMapElevation = {
   _elevationFreeze?: boolean
@@ -27,8 +28,10 @@ type RouteMapProps = {
   className?: string
   followPosition?: boolean
   onRouteClick?: (position: RoutePosition) => void
+  riderDistanceMeters?: number | null
   riderGradePercent?: number
   riderPosition?: RoutePosition | null
+  riderRoutePoints?: Array<RoutePoint>
   start: RoutePosition | null
   terrainEnabled?: boolean
   viewMode?: RouteMapViewMode
@@ -52,9 +55,11 @@ const TERRAIN_SOURCE_ID = "route-terrain-dem"
 const RIDER_SOURCE_ID = "route-rider"
 const RIDER_HALO_LAYER_ID = "route-rider-halo"
 const RIDER_DOT_LAYER_ID = "route-rider-dot"
-const RIDER_ANIMATION_DURATION_MS = 450
-const RIDER_ANIMATION_MAX_GAP_MS = 1000
-const RIDER_ANIMATION_MAX_DISTANCE_METERS = 25
+const RIDER_DISTANCE_MAX_GAP_MS = 1000
+const RIDER_DISTANCE_SEEK_THRESHOLD_METERS = 25
+const RIDER_DISTANCE_MIN_SPEED_MPS = 0.1
+const RIDER_DISTANCE_MAX_SPEED_MPS = 30
+const RIDER_DISTANCE_ARRIVAL_EPSILON_METERS = 0.05
 const TERRAIN_TILE_URL =
   "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
 const TERRAIN_ATTRIBUTION =
@@ -162,13 +167,14 @@ type CameraTarget = {
   viewMode: RouteMapViewMode
 }
 
-type RiderAnimationState = {
+type RiderDistanceAnimationState = {
   animationFrame: number | null
-  from: RoutePosition | null
-  lastRendered: RoutePosition | null
-  lastUpdateTimestamp: number | null
-  startedAt: number
-  target: RoutePosition | null
+  lastFrameTimestamp: number | null
+  lastTargetDistanceMeters: number | null
+  lastTargetTimestamp: number | null
+  renderedDistanceMeters: number | null
+  speedMetersPerSecond: number
+  targetDistanceMeters: number | null
 }
 
 const buildRiderGeojson = (
@@ -188,6 +194,22 @@ const buildRiderGeojson = (
       ]
     : [],
 })
+
+const clampDistanceToRoute = (
+  routePoints: Array<RoutePoint>,
+  distanceMeters: number
+) => {
+  const start = routePoints[0]?.distanceMeters ?? 0
+  const end = routePoints.at(-1)?.distanceMeters ?? start
+  return clamp(distanceMeters, start, end)
+}
+
+const getRoutePositionAtDistance = (
+  routePoints: Array<RoutePoint>,
+  distanceMeters: number
+): RoutePosition | null => {
+  return interpolateRoutePointByDistance(routePoints, distanceMeters)
+}
 
 const buildRouteBearingSegments = (
   geojson: FeatureCollection<LineString>
@@ -272,8 +294,10 @@ export const RouteMap = ({
   geojson,
   bounds,
   onRouteClick,
+  riderDistanceMeters,
   riderGradePercent,
   riderPosition,
+  riderRoutePoints,
   start,
   terrainEnabled = DEFAULT_ROUTE_TERRAIN_ENABLED,
   viewMode = "top-down",
@@ -285,13 +309,14 @@ export const RouteMap = ({
   const previousViewModeRef = useRef<RouteMapViewMode>(viewMode)
   const lastCameraTargetRef = useRef<CameraTarget | null>(null)
   const appliedTerrainEnabledRef = useRef<boolean | null>(null)
-  const riderAnimationRef = useRef<RiderAnimationState>({
+  const riderDistanceAnimationRef = useRef<RiderDistanceAnimationState>({
     animationFrame: null,
-    from: null,
-    lastRendered: riderPosition ?? null,
-    lastUpdateTimestamp: null,
-    startedAt: 0,
-    target: riderPosition ?? null,
+    lastFrameTimestamp: null,
+    lastTargetDistanceMeters: null,
+    lastTargetTimestamp: null,
+    renderedDistanceMeters: null,
+    speedMetersPerSecond: RIDER_DISTANCE_MIN_SPEED_MPS,
+    targetDistanceMeters: null,
   })
   const { theme } = useTheme()
   const colors = routeMapTheme[theme]
@@ -318,13 +343,25 @@ export const RouteMap = ({
     [geojson]
   )
   const initialRiderGeojsonRef = useRef(buildRiderGeojson(riderPosition))
+  const isRiderDistanceModeActive =
+    riderRoutePoints !== undefined && riderDistanceMeters !== undefined
 
   const cancelRiderAnimation = useCallback(() => {
-    const animationFrame = riderAnimationRef.current.animationFrame
+    const animationFrame = riderDistanceAnimationRef.current.animationFrame
     if (animationFrame !== null) {
       window.cancelAnimationFrame(animationFrame)
-      riderAnimationRef.current.animationFrame = null
+      riderDistanceAnimationRef.current.animationFrame = null
     }
+  }, [])
+
+  const resetRiderDistanceAnimation = useCallback(() => {
+    const animationState = riderDistanceAnimationRef.current
+    animationState.lastFrameTimestamp = null
+    animationState.lastTargetDistanceMeters = null
+    animationState.lastTargetTimestamp = null
+    animationState.renderedDistanceMeters = null
+    animationState.speedMetersPerSecond = RIDER_DISTANCE_MIN_SPEED_MPS
+    animationState.targetDistanceMeters = null
   }, [])
 
   const setRiderSourcePosition = useCallback(
@@ -336,8 +373,6 @@ export const RouteMap = ({
       if (!source?.setData) return false
 
       source.setData(buildRiderGeojson(position))
-      riderAnimationRef.current.lastRendered = position ?? null
-      riderAnimationRef.current.lastUpdateTimestamp = performance.now()
       return true
     },
     []
@@ -458,74 +493,131 @@ export const RouteMap = ({
   }, [cancelRiderAnimation, mapStyle])
 
   useEffect(() => {
-    const animationState = riderAnimationRef.current
-    animationState.target = riderPosition ?? null
+    if (isRiderDistanceModeActive) return
 
+    cancelRiderAnimation()
+    resetRiderDistanceAnimation()
+    setRiderSourcePosition(riderPosition)
+  }, [
+    cancelRiderAnimation,
+    isRiderDistanceModeActive,
+    mapStyle,
+    resetRiderDistanceAnimation,
+    riderPosition,
+    setRiderSourcePosition,
+  ])
+
+  useEffect(() => {
+    if (!isRiderDistanceModeActive) return
+
+    const routePoints = riderRoutePoints ?? []
     const map = mapRef.current?.getMap()
     const source = map?.getSource(RIDER_SOURCE_ID) as GeoJSONSource | undefined
     if (!source?.setData) return
 
-    cancelRiderAnimation()
-
-    if (!riderPosition) {
+    if (riderDistanceMeters === null || routePoints.length < 1) {
+      cancelRiderAnimation()
       setRiderSourcePosition(null)
-      animationState.from = null
+      resetRiderDistanceAnimation()
       return
     }
 
+    const animationState = riderDistanceAnimationRef.current
+    const targetDistance = clampDistanceToRoute(
+      routePoints,
+      riderDistanceMeters
+    )
     const now = performance.now()
-    const previousPosition = animationState.lastRendered
-    const previousUpdateTimestamp = animationState.lastUpdateTimestamp
+    const previousTargetDistance = animationState.lastTargetDistanceMeters
+    const previousTargetTimestamp = animationState.lastTargetTimestamp
+    const renderedDistance = animationState.renderedDistanceMeters
     const shouldSnap =
-      !previousPosition ||
-      !previousUpdateTimestamp ||
-      now - previousUpdateTimestamp > RIDER_ANIMATION_MAX_GAP_MS ||
-      distanceMeters(previousPosition, riderPosition) >
-        RIDER_ANIMATION_MAX_DISTANCE_METERS
+      previousTargetTimestamp === null ||
+      previousTargetDistance === null ||
+      renderedDistance === null ||
+      now - previousTargetTimestamp > RIDER_DISTANCE_MAX_GAP_MS ||
+      Math.abs(targetDistance - renderedDistance) >
+        RIDER_DISTANCE_SEEK_THRESHOLD_METERS
 
     if (shouldSnap) {
-      setRiderSourcePosition(riderPosition)
-      animationState.from = riderPosition
+      cancelRiderAnimation()
+      animationState.renderedDistanceMeters = targetDistance
+      animationState.targetDistanceMeters = targetDistance
+      animationState.lastTargetDistanceMeters = targetDistance
+      animationState.lastTargetTimestamp = now
+      animationState.lastFrameTimestamp = null
+      setRiderSourcePosition(
+        getRoutePositionAtDistance(routePoints, targetDistance)
+      )
       return
     }
 
-    animationState.from = previousPosition
-    animationState.startedAt = now
+    const intervalSeconds = Math.max(
+      (now - previousTargetTimestamp) / 1000,
+      0.001
+    )
+    const distanceDelta = targetDistance - previousTargetDistance
+    animationState.targetDistanceMeters = targetDistance
+    animationState.lastTargetDistanceMeters = targetDistance
+    animationState.lastTargetTimestamp = now
+    animationState.lastFrameTimestamp = now
+    animationState.speedMetersPerSecond = clamp(
+      Math.abs(distanceDelta) / intervalSeconds,
+      RIDER_DISTANCE_MIN_SPEED_MPS,
+      RIDER_DISTANCE_MAX_SPEED_MPS
+    )
+
+    if (animationState.animationFrame !== null) return
 
     const animate = (timestamp: number) => {
-      const from = animationState.from
-      const target = animationState.target
-      if (!from || !target) {
-        setRiderSourcePosition(target)
+      const target = animationState.targetDistanceMeters
+      const rendered = animationState.renderedDistanceMeters
+      if (routePoints.length < 1 || target === null || rendered === null) {
         animationState.animationFrame = null
+        animationState.lastFrameTimestamp = null
         return
       }
 
-      const progress = clamp(
-        (timestamp - animationState.startedAt) / RIDER_ANIMATION_DURATION_MS,
-        0,
-        1
+      const deltaSeconds =
+        animationState.lastFrameTimestamp === null
+          ? 0
+          : Math.max((timestamp - animationState.lastFrameTimestamp) / 1000, 0)
+      animationState.lastFrameTimestamp = timestamp
+
+      const remaining = target - rendered
+      const direction = Math.sign(remaining)
+      const step = animationState.speedMetersPerSecond * deltaSeconds
+      const nextDistance =
+        Math.abs(remaining) <=
+        Math.max(step, RIDER_DISTANCE_ARRIVAL_EPSILON_METERS)
+          ? target
+          : rendered + direction * step
+
+      animationState.renderedDistanceMeters = nextDistance
+      setRiderSourcePosition(
+        getRoutePositionAtDistance(routePoints, nextDistance)
       )
-      const nextPosition = {
-        lat: from.lat + (target.lat - from.lat) * progress,
-        lng: from.lng + (target.lng - from.lng) * progress,
-      }
 
-      setRiderSourcePosition(nextPosition)
-
-      if (progress < 1) {
+      if (nextDistance === target) {
+        animationState.animationFrame = null
+        animationState.lastFrameTimestamp = null
+      } else {
         animationState.animationFrame = window.requestAnimationFrame(animate)
-        return
       }
-
-      animationState.from = target
-      animationState.animationFrame = null
     }
 
     animationState.animationFrame = window.requestAnimationFrame(animate)
 
     return cancelRiderAnimation
-  }, [cancelRiderAnimation, mapStyle, riderPosition, setRiderSourcePosition])
+  }, [
+    cancelRiderAnimation,
+    isRiderDistanceModeActive,
+    mapStyle,
+    resetRiderDistanceAnimation,
+    riderDistanceMeters,
+    riderRoutePoints,
+    setRiderSourcePosition,
+  ])
 
   useEffect(() => cancelRiderAnimation, [cancelRiderAnimation])
 

@@ -58,12 +58,14 @@ export const RouteSimulationLiveView = ({
         follow={ride.isActive && !paused}
         onRouteClick={ride.handleRouteClick}
         presentation={ride.mapPresentation}
+        riderDistanceMeters={ride.distanceMeters}
         riderGradePercent={ride.displayGradePercent}
         riderPosition={ride.riderPosition}
         route={route}
       />
       <RouteMiniMap
         onRouteClick={ride.handleRouteClick}
+        riderDistanceMeters={ride.distanceMeters}
         riderPosition={ride.riderPosition}
         route={route}
       />

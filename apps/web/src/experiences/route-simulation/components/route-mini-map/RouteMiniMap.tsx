@@ -3,12 +3,14 @@ import { RouteMap } from "@/components/route/route-map"
 
 type RouteMiniMapProps = {
   onRouteClick: (position: RoutePosition) => void
+  riderDistanceMeters: number
   riderPosition: RoutePosition | null
   route: ParsedRouteGpx
 }
 
 export const RouteMiniMap = ({
   onRouteClick,
+  riderDistanceMeters,
   riderPosition,
   route,
 }: RouteMiniMapProps) => {
@@ -20,7 +22,9 @@ export const RouteMiniMap = ({
         finish={route.finish}
         geojson={route.geojson}
         onRouteClick={onRouteClick}
+        riderDistanceMeters={riderDistanceMeters}
         riderPosition={riderPosition}
+        riderRoutePoints={route.points}
         start={route.start}
         terrainEnabled={false}
         viewMode="top-down"

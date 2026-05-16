@@ -32,7 +32,14 @@ const geojson = {
 
 const route: ParsedRouteGpx = {
   title: "Test route",
-  points: [],
+  points: [
+    {
+      lat: 37.8,
+      lng: -122.4,
+      elevationMeters: 10,
+      distanceMeters: 0,
+    },
+  ],
   geojson,
   stats: {
     distanceMeters: 1000,
@@ -56,6 +63,7 @@ describe("RouteSimulationMap", () => {
         follow
         onRouteClick={vi.fn()}
         presentation={{ terrainEnabled: true, viewMode: "perspective" }}
+        riderDistanceMeters={500}
         riderGradePercent={4}
         riderPosition={{
           lat: 37.85,
@@ -71,6 +79,14 @@ describe("RouteSimulationMap", () => {
       expect.objectContaining({
         terrainEnabled: true,
         viewMode: "perspective",
+        riderDistanceMeters: 500,
+        riderRoutePoints: route.points,
+        riderPosition: {
+          lat: 37.85,
+          lng: -122.45,
+          elevationMeters: 80,
+          distanceMeters: 500,
+        },
       })
     )
   })

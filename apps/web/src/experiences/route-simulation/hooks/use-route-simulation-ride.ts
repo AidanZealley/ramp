@@ -11,7 +11,6 @@ import {
   getSeekTransitionGrade,
   smoothingLevelToMeters,
 } from "../utils"
-import { useSmoothedRouteDistance } from "./use-smoothed-route-distance"
 import type { ParsedRouteGpx, RoutePosition } from "@/lib/routes/types"
 import type { ExperienceSessionAPI } from "@/ride/experience-session"
 import type { PhysicsConfig, PhysicsState } from "@/experiences/physics"
@@ -22,10 +21,7 @@ import type {
   RouteSpeedSource,
   SeekTransitionState,
 } from "../types"
-import {
-  createInitialPhysicsState,
-  stepPhysics,
-} from "@/experiences/physics"
+import { createInitialPhysicsState, stepPhysics } from "@/experiences/physics"
 import {
   computeRouteGradePercent,
   findNearestRouteDistanceMeters,
@@ -99,16 +95,12 @@ export function useRouteSimulationRide({
     physicsConfigRef.current = physicsConfig
   }, [physicsConfig])
 
-  const displayDistanceMeters = useSmoothedRouteDistance(distanceMeters)
   const riderPosition = useMemo(
     () =>
       parsedRoute
-        ? interpolateRoutePointByDistance(
-            parsedRoute.points,
-            displayDistanceMeters
-          )
+        ? interpolateRoutePointByDistance(parsedRoute.points, distanceMeters)
         : null,
-    [displayDistanceMeters, parsedRoute]
+    [distanceMeters, parsedRoute]
   )
   const gradePercent = useMemo(
     () =>

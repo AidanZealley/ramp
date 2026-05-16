@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { act, render, screen, waitFor } from "@testing-library/react"
 import { forwardRef, useEffect, useImperativeHandle } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { RouteMap } from "./RouteMap"
@@ -164,6 +164,15 @@ const geojson = {
     },
   ],
 } as FeatureCollection<LineString>
+
+const routePoints = [
+  { lat: 0, lng: 0, elevationMeters: null, distanceMeters: 0 },
+  { lat: 0, lng: 1, elevationMeters: null, distanceMeters: 100 },
+  { lat: 1, lng: 1, elevationMeters: null, distanceMeters: 200 },
+]
+
+const lastRiderCoordinates = () =>
+  setRiderData.mock.calls.at(-1)?.[0].features[0]?.geometry.coordinates
 
 describe("RouteMap", () => {
   beforeEach(() => {
@@ -390,14 +399,31 @@ describe("RouteMap", () => {
     expect(document.querySelector(".size-7")).toBeNull()
   })
 
-  it("snaps rider source updates for large position jumps", async () => {
+  it("renders distance mode at an interpolated route point", async () => {
+    render(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        riderDistanceMeters={50}
+        riderRoutePoints={routePoints}
+      />
+    )
+
+    await waitFor(() => expect(setRiderData).toHaveBeenCalled())
+    expect(lastRiderCoordinates()).toEqual([0.5, 0])
+  })
+
+  it("distance mode follows route geometry instead of straight-line lat/lng", async () => {
     const { rerender } = render(
       <RouteMap
         geojson={geojson}
         bounds={null}
         start={null}
         finish={null}
-        riderPosition={{ lat: 37.82, lng: -122.42 }}
+        riderDistanceMeters={100}
+        riderRoutePoints={routePoints}
       />
     )
 
@@ -409,7 +435,90 @@ describe("RouteMap", () => {
         bounds={null}
         start={null}
         finish={null}
-        riderPosition={{ lat: 37.83, lng: -122.43 }}
+        riderDistanceMeters={150}
+        riderRoutePoints={routePoints}
+      />
+    )
+
+    await waitFor(() => expect(setRiderData).toHaveBeenCalled())
+    expect(lastRiderCoordinates()).toEqual([1, 0.5])
+  })
+
+  it("animates small distance updates at observed speed", async () => {
+    let now = 0
+    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => now)
+    const rafCallbacks: Array<FrameRequestCallback> = []
+    const rafSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback) => {
+        rafCallbacks.push(callback)
+        return rafCallbacks.length
+      })
+    const cancelRafSpy = vi
+      .spyOn(window, "cancelAnimationFrame")
+      .mockImplementation(() => {})
+
+    const { rerender } = render(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        riderDistanceMeters={0}
+        riderRoutePoints={routePoints}
+      />
+    )
+
+    await waitFor(() => expect(setRiderData).toHaveBeenCalled())
+    setRiderData.mockClear()
+    rafCallbacks.length = 0
+    now = 1000
+
+    rerender(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        riderDistanceMeters={10}
+        riderRoutePoints={routePoints}
+      />
+    )
+
+    expect(rafCallbacks).toHaveLength(1)
+    act(() => rafCallbacks[0]?.(1500))
+    expect(lastRiderCoordinates()?.[0]).toBeCloseTo(0.05)
+    act(() => rafCallbacks[1]?.(2000))
+    expect(lastRiderCoordinates()).toEqual([0.1, 0])
+
+    nowSpy.mockRestore()
+    rafSpy.mockRestore()
+    cancelRafSpy.mockRestore()
+  })
+
+  it("snaps distance mode for large jumps", async () => {
+    const { rerender } = render(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        riderDistanceMeters={0}
+        riderRoutePoints={routePoints}
+      />
+    )
+
+    await waitFor(() => expect(setRiderData).toHaveBeenCalled())
+    setRiderData.mockClear()
+
+    rerender(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        riderDistanceMeters={100}
+        riderRoutePoints={routePoints}
       />
     )
 
@@ -422,10 +531,77 @@ describe("RouteMap", () => {
           properties: {},
           geometry: {
             type: "Point",
-            coordinates: [-122.43, 37.83],
+            coordinates: [1, 0],
           },
         },
       ],
+    })
+  })
+
+  it("snaps distance mode after a stale target gap", async () => {
+    let now = 0
+    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => now)
+    const { rerender } = render(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        riderDistanceMeters={0}
+        riderRoutePoints={routePoints}
+      />
+    )
+
+    await waitFor(() => expect(setRiderData).toHaveBeenCalled())
+    setRiderData.mockClear()
+    now = 1001
+
+    rerender(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        riderDistanceMeters={10}
+        riderRoutePoints={routePoints}
+      />
+    )
+
+    await waitFor(() => expect(setRiderData).toHaveBeenCalled())
+    expect(lastRiderCoordinates()).toEqual([0.1, 0])
+    nowSpy.mockRestore()
+  })
+
+  it("clears the rider source when distance mode has no target", async () => {
+    const { rerender } = render(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        riderDistanceMeters={0}
+        riderRoutePoints={routePoints}
+      />
+    )
+
+    await waitFor(() => expect(setRiderData).toHaveBeenCalled())
+    setRiderData.mockClear()
+
+    rerender(
+      <RouteMap
+        geojson={geojson}
+        bounds={null}
+        start={null}
+        finish={null}
+        riderDistanceMeters={null}
+        riderRoutePoints={routePoints}
+      />
+    )
+
+    await waitFor(() => expect(setRiderData).toHaveBeenCalled())
+    expect(setRiderData).toHaveBeenCalledWith({
+      type: "FeatureCollection",
+      features: [],
     })
   })
 
