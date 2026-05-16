@@ -14,7 +14,7 @@ import type {
 } from "../../types"
 import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { RouteMap } from "@/components/route/route-map"
+import { RoutePreviewMap } from "@/components/route/route-preview-map"
 import { RouteMini } from "@/components/route/route-mini"
 
 type RouteSimulationSetupProps = {
@@ -84,12 +84,11 @@ export const RouteSimulationSetup = ({
             </div>
           )}
           {parsedRoute && (
-            <RouteMap
+            <RoutePreviewMap
               bounds={parsedRoute.bounds}
               finish={parsedRoute.finish}
               geojson={parsedRoute.geojson}
               start={parsedRoute.start}
-              terrainEnabled={false}
               className="mt-4 h-[360px] overflow-hidden rounded-lg border border-border/70 bg-muted"
             />
           )}
@@ -146,7 +145,10 @@ export const RouteSimulationSetup = ({
               <ToggleGroupItem value="trainer-speed">
                 Trainer speed
               </ToggleGroupItem>
-              <ToggleGroupItem value="app-physics" disabled={!physicsProfileReady}>
+              <ToggleGroupItem
+                value="app-physics"
+                disabled={!physicsProfileReady}
+              >
                 App physics
               </ToggleGroupItem>
             </ToggleGroup>

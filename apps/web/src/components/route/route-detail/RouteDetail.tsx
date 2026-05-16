@@ -9,7 +9,7 @@ import { parseRouteGpxText } from "@/lib/routes/gpx"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ElevationChart } from "@/components/route/elevation-chart"
-import { RouteMap } from "@/components/route/route-map"
+import { RoutePreviewMap } from "@/components/route/route-preview-map"
 import { RouteStats } from "@/components/route/route-stats"
 
 type RouteDetailProps = {
@@ -132,12 +132,11 @@ export const RouteDetail = ({ routeId }: RouteDetailProps) => {
         </div>
       ) : parsedRoute ? (
         <>
-          <RouteMap
+          <RoutePreviewMap
             geojson={parsedRoute.geojson}
             bounds={routeDoc.bounds}
             start={routeDoc.start}
             finish={routeDoc.finish}
-            terrainEnabled={false}
           />
           <ElevationChart samples={parsedRoute.elevationSamples} />
         </>
