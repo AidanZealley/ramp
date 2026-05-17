@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef } from "react"
-import Map, { Layer, Marker, Source } from "@vis.gl/react-maplibre"
+import Map from "@vis.gl/react-maplibre"
 import "maplibre-gl/dist/maplibre-gl.css"
 import type { MapRef } from "@vis.gl/react-maplibre"
-import type { FeatureCollection, Point } from "geojson"
 import type { ParsedRouteGpx, RoutePosition } from "@/lib/routes/types"
-import {
-  routeMapStyleUrls,
-  routeMapTheme,
-} from "@/components/route/route-map/colors"
-import { useTheme } from "@/components/theme-provider"
+import { RouteEndpointMarkers } from "@/components/route/route-map/components/route-endpoint-markers"
+import { RouteLineSource } from "@/components/route/route-map/components/route-line-source"
+import { RouteRiderSource } from "@/components/route/route-map/components/route-rider-source"
+import { useRouteMapStyle } from "@/components/route/route-map/hooks/use-route-map-style"
+import { buildRiderGeojson } from "@/components/route/route-map/utils"
 import { interpolateRoutePointByDistance } from "@/lib/routes/simulation"
 
 type RouteMiniMapProps = {
@@ -20,24 +19,6 @@ type RouteMiniMapProps = {
 
 const ROUTE_PADDING_PX = 24
 
-const buildRiderGeojson = (
-  position: RoutePosition | null | undefined
-): FeatureCollection<Point> => ({
-  type: "FeatureCollection",
-  features: position
-    ? [
-        {
-          type: "Feature",
-          properties: {},
-          geometry: {
-            type: "Point",
-            coordinates: [position.lng, position.lat],
-          },
-        },
-      ]
-    : [],
-})
-
 export const RouteMiniMap = ({
   onRouteClick,
   riderDistanceMeters,
@@ -46,16 +27,7 @@ export const RouteMiniMap = ({
 }: RouteMiniMapProps) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapRef>(null)
-  const { theme } = useTheme()
-  const colors = routeMapTheme[theme]
-  const mapStyle =
-    theme === "dark"
-      ? import.meta.env.VITE_ROUTE_MAP_DARK_STYLE_URL ||
-        import.meta.env.VITE_ROUTE_MAP_STYLE_URL ||
-        routeMapStyleUrls.dark
-      : import.meta.env.VITE_ROUTE_MAP_LIGHT_STYLE_URL ||
-        import.meta.env.VITE_ROUTE_MAP_STYLE_URL ||
-        routeMapStyleUrls.light
+  const { colors, mapStyle } = useRouteMapStyle()
   const displayedRiderPosition = useMemo(
     () =>
       interpolateRoutePointByDistance(route.points, riderDistanceMeters) ??
@@ -134,72 +106,13 @@ export const RouteMiniMap = ({
           })
         }}
       >
-        <Source id="route-line" type="geojson" data={route.geojson}>
-          <Layer
-            id="route-line-shadow"
-            type="line"
-            paint={{
-              "line-color": colors.routeLineShadow,
-              "line-width": 7,
-              "line-opacity": 0.5,
-            }}
-          />
-          <Layer
-            id="route-line-primary"
-            type="line"
-            paint={{
-              "line-color": colors.routeLine,
-              "line-width": 4,
-            }}
-          />
-        </Source>
-        <Source id="route-rider" type="geojson" data={riderGeojson}>
-          <Layer
-            id="route-rider-halo"
-            type="circle"
-            paint={{
-              "circle-color": colors.riderHalo,
-              "circle-radius": 14,
-              "circle-opacity": 0.9,
-              "circle-stroke-color": colors.routeLineShadow,
-              "circle-stroke-width": 2,
-              "circle-pitch-alignment": "map",
-            }}
-          />
-          <Layer
-            id="route-rider-dot"
-            type="circle"
-            paint={{
-              "circle-color": colors.routeLine,
-              "circle-radius": 5,
-              "circle-pitch-alignment": "map",
-            }}
-          />
-        </Source>
-        {route.start && (
-          <Marker
-            latitude={route.start.lat}
-            longitude={route.start.lng}
-            anchor="center"
-          >
-            <div
-              className="size-3 rounded-full border-2 border-background shadow"
-              style={{ backgroundColor: colors.startPoint }}
-            />
-          </Marker>
-        )}
-        {route.finish && (
-          <Marker
-            latitude={route.finish.lat}
-            longitude={route.finish.lng}
-            anchor="center"
-          >
-            <div
-              className="size-3 rounded-full border-2 border-background shadow"
-              style={{ backgroundColor: colors.finishPoint }}
-            />
-          </Marker>
-        )}
+        <RouteLineSource colors={colors} geojson={route.geojson} />
+        <RouteRiderSource colors={colors} data={riderGeojson} />
+        <RouteEndpointMarkers
+          colors={colors}
+          start={route.start}
+          finish={route.finish}
+        />
       </Map>
     </div>
   )

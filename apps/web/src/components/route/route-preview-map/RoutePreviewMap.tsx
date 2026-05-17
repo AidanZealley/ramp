@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef } from "react"
-import Map, { Layer, Marker, Source } from "@vis.gl/react-maplibre"
+import Map from "@vis.gl/react-maplibre"
 import "maplibre-gl/dist/maplibre-gl.css"
 import type { MapRef } from "@vis.gl/react-maplibre"
 import type { FeatureCollection, LineString } from "geojson"
 import type { RouteBounds, RoutePosition } from "@/lib/routes/types"
-import {
-  routeMapStyleUrls,
-  routeMapTheme,
-} from "@/components/route/route-map/colors"
-import { useTheme } from "@/components/theme-provider"
+import { RouteEndpointMarkers } from "@/components/route/route-map/components/route-endpoint-markers"
+import { RouteLineSource } from "@/components/route/route-map/components/route-line-source"
+import { useRouteMapStyle } from "@/components/route/route-map/hooks/use-route-map-style"
 
 type RoutePreviewMapProps = {
   geojson: FeatureCollection<LineString>
@@ -29,16 +27,7 @@ export const RoutePreviewMap = ({
 }: RoutePreviewMapProps) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapRef>(null)
-  const { theme } = useTheme()
-  const colors = routeMapTheme[theme]
-  const mapStyle =
-    theme === "dark"
-      ? import.meta.env.VITE_ROUTE_MAP_DARK_STYLE_URL ||
-        import.meta.env.VITE_ROUTE_MAP_STYLE_URL ||
-        routeMapStyleUrls.dark
-      : import.meta.env.VITE_ROUTE_MAP_LIGHT_STYLE_URL ||
-        import.meta.env.VITE_ROUTE_MAP_STYLE_URL ||
-        routeMapStyleUrls.light
+  const { colors, mapStyle } = useRouteMapStyle()
   const initialViewState = useMemo(() => {
     const center = start ?? { lat: 39.5, lng: -98.35 }
     return {
@@ -104,41 +93,8 @@ export const RoutePreviewMap = ({
         reuseMaps
         onLoad={fitRouteBounds}
       >
-        <Source id="route-line" type="geojson" data={geojson}>
-          <Layer
-            id="route-line-shadow"
-            type="line"
-            paint={{
-              "line-color": colors.routeLineShadow,
-              "line-width": 7,
-              "line-opacity": 0.5,
-            }}
-          />
-          <Layer
-            id="route-line-primary"
-            type="line"
-            paint={{
-              "line-color": colors.routeLine,
-              "line-width": 4,
-            }}
-          />
-        </Source>
-        {start && (
-          <Marker latitude={start.lat} longitude={start.lng} anchor="center">
-            <div
-              className="size-3 rounded-full border-2 border-background shadow"
-              style={{ backgroundColor: colors.startPoint }}
-            />
-          </Marker>
-        )}
-        {finish && (
-          <Marker latitude={finish.lat} longitude={finish.lng} anchor="center">
-            <div
-              className="size-3 rounded-full border-2 border-background shadow"
-              style={{ backgroundColor: colors.finishPoint }}
-            />
-          </Marker>
-        )}
+        <RouteLineSource colors={colors} geojson={geojson} />
+        <RouteEndpointMarkers colors={colors} start={start} finish={finish} />
       </Map>
     </div>
   )

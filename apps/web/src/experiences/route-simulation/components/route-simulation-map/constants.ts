@@ -1,0 +1,28 @@
+export const ROUTE_PADDING_PX = 40
+
+export const CAMERA_DURATION_MS = 450
+export const CAMERA_MOVE_THRESHOLD_METERS = 2
+export const CAMERA_BEARING_THRESHOLD_DEGREES = 2
+export const CAMERA_PITCH_THRESHOLD_DEGREES = 1
+
+export const PERSPECTIVE_MIN_PITCH = 48
+export const PERSPECTIVE_MAX_PITCH = 80
+export const PERSPECTIVE_MIN_PITCH_ZOOM = 14
+export const PERSPECTIVE_MAX_PITCH_ZOOM = 18
+export const PERSPECTIVE_ZOOM_FLOOR = 15.5
+export const PERSPECTIVE_FOLLOW_OFFSET_PX: [number, number] = [0, 140]
+export const PERSPECTIVE_GRADE_PITCH_MULTIPLIER = 0.8
+export const PERSPECTIVE_GRADE_PITCH_RANGE = 10
+
+export const TERRAIN_SOURCE_ID = "route-terrain-dem"
+export const TERRAIN_TILE_URL =
+  "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
+export const TERRAIN_ATTRIBUTION =
+  '<a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">Terrain data</a>'
+
+export const RIDER_SOURCE_ID = "route-rider"
+export const RIDER_DISTANCE_MAX_GAP_MS = 1000
+export const RIDER_DISTANCE_SEEK_THRESHOLD_METERS = 25
+export const RIDER_DISTANCE_MIN_SPEED_MPS = 0.1
+export const RIDER_DISTANCE_MAX_SPEED_MPS = 30
+export const RIDER_DISTANCE_ARRIVAL_EPSILON_METERS = 0.05
