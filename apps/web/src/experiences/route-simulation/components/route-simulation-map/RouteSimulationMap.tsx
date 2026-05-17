@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react"
+import { useCallback, useRef, useState } from "react"
 import Map from "@vis.gl/react-maplibre"
 import "maplibre-gl/dist/maplibre-gl.css"
 import type { MapRef } from "@vis.gl/react-maplibre"
@@ -11,10 +11,11 @@ import type { RouteMapPresentation } from "@/experiences/route-simulation/types"
 import type { ParsedRouteGpx, RoutePosition } from "@/lib/routes/types"
 import { RouteTerrainSource } from "./components/route-terrain-source"
 import { PERSPECTIVE_MAX_PITCH, ROUTE_PADDING_PX } from "./constants"
-import { useRiderSourceAnimation } from "./hooks/use-rider-source-animation"
+import { useRenderedRiderPosition } from "./hooks/use-rendered-rider-position"
 import { useRouteCamera } from "./hooks/use-route-camera"
 import { useRouteMapBounds } from "./hooks/use-route-map-bounds"
 import { useRouteMapTerrain } from "./hooks/use-route-map-terrain"
+import type { RiderRenderedPositionSnapshot } from "./types"
 
 type RouteSimulationMapProps = {
   follow: boolean
@@ -38,9 +39,13 @@ export const RouteSimulationMap = ({
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapRef>(null)
   const initialRiderGeojsonRef = useRef(buildRiderGeojson(riderPosition))
+  const [renderedRiderSnapshot, setRenderedRiderSnapshot] =
+    useState<RiderRenderedPositionSnapshot | null>(null)
   const followPosition = follow
   const terrainEnabled = presentation.terrainEnabled
   const viewMode = presentation.viewMode
+  const effectiveRiderPosition =
+    renderedRiderSnapshot?.position ?? riderPosition
   const { colors, mapStyle } = useRouteMapStyle()
   const { fitRouteBounds, initialViewState } = useRouteMapBounds({
     bounds: route.bounds,
@@ -58,14 +63,15 @@ export const RouteSimulationMap = ({
     followPosition,
     mapRef,
     mapStyle,
-    riderPosition,
+    riderPosition: effectiveRiderPosition,
     terrainEnabled,
     viewMode,
   })
 
-  useRiderSourceAnimation({
+  useRenderedRiderPosition({
     mapRef,
     mapStyle,
+    onRenderedPositionChange: setRenderedRiderSnapshot,
     riderDistanceMeters,
     routePoints: route.points,
   })
@@ -75,7 +81,8 @@ export const RouteSimulationMap = ({
     getPerspectiveTerrainElevation,
     mapRef,
     riderGradePercent,
-    riderPosition,
+    rawRiderPosition: riderPosition,
+    renderedRiderPosition: renderedRiderSnapshot?.position ?? null,
     syncPerspectiveCameraElevation,
     terrainEnabled,
     viewMode,

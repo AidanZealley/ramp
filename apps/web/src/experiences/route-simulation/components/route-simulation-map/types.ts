@@ -1,5 +1,5 @@
 import type { RouteMapViewMode } from "@/experiences/route-simulation/types"
-import type { RoutePosition } from "@/lib/routes/types"
+import type { RoutePoint, RoutePosition } from "@/lib/routes/types"
 
 export type MutableMapElevation = {
   _elevationFreeze?: boolean
@@ -23,12 +23,25 @@ export type CameraTarget = {
   viewMode: RouteMapViewMode
 }
 
-export type RiderDistanceAnimationState = {
-  animationFrame: number | null
-  lastFrameTimestamp: number | null
-  lastTargetDistanceMeters: number | null
-  lastTargetTimestamp: number | null
-  renderedDistanceMeters: number | null
+export type RouteDistanceCursor = {
+  segmentIndex: number
+}
+
+export type RiderRenderedPositionSnapshot = {
+  distanceMeters: number
+  position: RoutePosition | null
+  snapped: boolean
+  timestampMs: number
+}
+
+export type RiderDistanceSample = {
+  distanceMeters: number
+  timestampMs: number
   speedMetersPerSecond: number
-  targetDistanceMeters: number | null
+}
+
+export type RouteDistanceInterpolationArgs = {
+  routePoints: Array<RoutePoint>
+  distanceMeters: number
+  cursor: RouteDistanceCursor
 }

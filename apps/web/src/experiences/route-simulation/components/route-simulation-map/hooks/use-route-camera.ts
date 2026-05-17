@@ -7,7 +7,9 @@ import type {
 } from "@/experiences/route-simulation/types"
 import type { RoutePosition } from "@/lib/routes/types"
 import {
+  CAMERA_FOLLOW_EASE_DURATION_MS,
   CAMERA_DURATION_MS,
+  CAMERA_MODE_TRANSITION_DURATION_MS,
   PERSPECTIVE_FOLLOW_OFFSET_PX,
   PERSPECTIVE_ZOOM_FLOOR,
 } from "../constants"
@@ -27,7 +29,8 @@ type UseRouteCameraArgs = {
   ) => number | undefined
   mapRef: RefObject<MapRef | null>
   riderGradePercent: number
-  riderPosition: RoutePosition | null
+  rawRiderPosition: RoutePosition | null
+  renderedRiderPosition: RoutePosition | null
   syncPerspectiveCameraElevation: () => void
   terrainEnabled: boolean
   viewMode: RouteMapViewMode
@@ -40,8 +43,10 @@ const buildTopDownCameraTarget = ({
   viewMode,
 }: Pick<
   UseRouteCameraArgs,
-  "followPosition" | "riderPosition" | "terrainEnabled" | "viewMode"
->): CameraTarget => ({
+  "followPosition" | "terrainEnabled" | "viewMode"
+> & {
+  riderPosition: RoutePosition | null
+}): CameraTarget => ({
   ...(followPosition && riderPosition
     ? { center: [riderPosition.lng, riderPosition.lat] as [number, number] }
     : {}),
@@ -78,9 +83,11 @@ const buildPerspectiveCameraTarget = ({
 const applyTopDownCamera = (
   mapRef: RefObject<MapRef | null>,
   followPosition: boolean,
-  riderPosition: RoutePosition | null
+  riderPosition: RoutePosition | null,
+  duration: number,
+  useFlyTo: boolean
 ) => {
-  mapRef.current?.easeTo({
+  const options = {
     ...(followPosition && riderPosition
       ? {
           center: [riderPosition.lng, riderPosition.lat] as [number, number],
@@ -88,8 +95,14 @@ const applyTopDownCamera = (
       : {}),
     pitch: 0,
     bearing: 0,
-    duration: CAMERA_DURATION_MS,
-  })
+    duration,
+  }
+
+  if (useFlyTo) {
+    mapRef.current?.flyTo(options)
+  } else {
+    mapRef.current?.easeTo(options)
+  }
 }
 
 const applyPerspectiveCamera = ({
@@ -100,6 +113,8 @@ const applyPerspectiveCamera = ({
   riderPosition,
   syncPerspectiveCameraElevation,
   zoom,
+  duration,
+  useFlyTo,
 }: {
   bearing: number
   getPerspectiveTerrainElevation: (position: RoutePosition) => number | undefined
@@ -108,21 +123,33 @@ const applyPerspectiveCamera = ({
   riderPosition: RoutePosition
   syncPerspectiveCameraElevation: () => void
   zoom: number
+  duration: number
+  useFlyTo: boolean
 }) => {
   const elevation = getPerspectiveTerrainElevation(riderPosition)
 
-  mapRef.current?.flyTo({
-    center: [riderPosition.lng, riderPosition.lat],
+  const options = {
+    center: [riderPosition.lng, riderPosition.lat] as [number, number],
     ...(elevation !== undefined ? { elevation } : {}),
     offset: PERSPECTIVE_FOLLOW_OFFSET_PX,
     zoom,
     pitch,
     bearing,
-    duration: CAMERA_DURATION_MS,
-    curve: 1.2,
-    maxDuration: CAMERA_DURATION_MS,
+    duration,
+    ...(useFlyTo
+      ? {
+          curve: 1.2,
+          maxDuration: duration,
+        }
+      : {}),
     freezeElevation: false,
-  })
+  }
+
+  if (useFlyTo) {
+    mapRef.current?.flyTo(options)
+  } else {
+    mapRef.current?.easeTo(options)
+  }
   syncPerspectiveCameraElevation()
 }
 
@@ -132,7 +159,8 @@ export const useRouteCamera = ({
   getPerspectiveTerrainElevation,
   mapRef,
   riderGradePercent,
-  riderPosition,
+  rawRiderPosition,
+  renderedRiderPosition,
   syncPerspectiveCameraElevation,
   terrainEnabled,
   viewMode,
@@ -148,7 +176,9 @@ export const useRouteCamera = ({
   useEffect(() => {
     if (!mapRef.current) return
     const previousViewMode = previousViewModeRef.current
+    const isModeTransition = previousViewMode !== viewMode
     previousViewModeRef.current = viewMode
+    const riderPosition = renderedRiderPosition ?? rawRiderPosition
 
     if (viewMode === "top-down") {
       previousBearingRef.current = 0
@@ -165,7 +195,15 @@ export const useRouteCamera = ({
       if (!shouldUpdateCamera(lastCameraTargetRef.current, target)) return
 
       lastCameraTargetRef.current = target
-      applyTopDownCamera(mapRef, followPosition, riderPosition)
+      applyTopDownCamera(
+        mapRef,
+        followPosition,
+        riderPosition,
+        isModeTransition
+          ? CAMERA_MODE_TRANSITION_DURATION_MS
+          : CAMERA_DURATION_MS,
+        isModeTransition
+      )
       return
     }
 
@@ -196,7 +234,9 @@ export const useRouteCamera = ({
       mapRef.current.easeTo({
         pitch,
         bearing,
-        duration: CAMERA_DURATION_MS,
+        duration: isModeTransition
+          ? CAMERA_MODE_TRANSITION_DURATION_MS
+          : CAMERA_DURATION_MS,
       })
       return
     }
@@ -222,13 +262,18 @@ export const useRouteCamera = ({
       riderPosition,
       syncPerspectiveCameraElevation,
       zoom,
+      duration: isModeTransition
+        ? CAMERA_MODE_TRANSITION_DURATION_MS
+        : CAMERA_FOLLOW_EASE_DURATION_MS,
+      useFlyTo: isModeTransition,
     })
   }, [
     followPosition,
     getPerspectiveTerrainElevation,
     mapRef,
+    rawRiderPosition,
+    renderedRiderPosition,
     riderGradePercent,
-    riderPosition,
     routeBearingSegments,
     syncPerspectiveCameraElevation,
     terrainEnabled,

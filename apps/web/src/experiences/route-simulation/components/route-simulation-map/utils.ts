@@ -1,6 +1,5 @@
 import type { FeatureCollection, LineString } from "geojson"
 import type { RoutePoint, RoutePosition } from "@/lib/routes/types"
-import { interpolateRoutePointByDistance } from "@/lib/routes/simulation"
 import {
   CAMERA_BEARING_THRESHOLD_DEGREES,
   CAMERA_MOVE_THRESHOLD_METERS,
@@ -12,7 +11,11 @@ import {
   PERSPECTIVE_MIN_PITCH,
   PERSPECTIVE_MIN_PITCH_ZOOM,
 } from "./constants"
-import type { CameraTarget, RouteBearingSegment } from "./types"
+import type {
+  CameraTarget,
+  RouteBearingSegment,
+  RouteDistanceInterpolationArgs,
+} from "./types"
 
 const toRadians = (degrees: number) => (degrees * Math.PI) / 180
 const toDegrees = (radians: number) => (radians * 180) / Math.PI
@@ -103,7 +106,103 @@ export const getRoutePositionAtDistance = (
   routePoints: Array<RoutePoint>,
   targetDistanceMeters: number
 ): RoutePosition | null => {
-  return interpolateRoutePointByDistance(routePoints, targetDistanceMeters)
+  return getRoutePositionAtDistanceWithCursor({
+    routePoints,
+    distanceMeters: targetDistanceMeters,
+    cursor: { segmentIndex: 0 },
+  })
+}
+
+const findRouteSegmentIndexByDistance = (
+  routePoints: Array<RoutePoint>,
+  distanceMeters: number
+) => {
+  if (routePoints.length < 2) return -1
+
+  let low = 0
+  let high = routePoints.length - 2
+
+  while (low <= high) {
+    const midpoint = Math.floor((low + high) / 2)
+    const start = routePoints[midpoint]
+    const end = routePoints[midpoint + 1]
+
+    if (distanceMeters < start.distanceMeters) {
+      high = midpoint - 1
+    } else if (distanceMeters > end.distanceMeters) {
+      low = midpoint + 1
+    } else {
+      return midpoint
+    }
+  }
+
+  return clamp(low, 0, routePoints.length - 2)
+}
+
+const isDistanceInSegment = (
+  routePoints: Array<RoutePoint>,
+  segmentIndex: number,
+  distanceMeters: number
+) => {
+  const start = routePoints[segmentIndex]
+  const end = routePoints[segmentIndex + 1]
+  return (
+    start !== undefined &&
+    end !== undefined &&
+    start.distanceMeters <= distanceMeters &&
+    end.distanceMeters >= distanceMeters
+  )
+}
+
+export const getRoutePositionAtDistanceWithCursor = ({
+  routePoints,
+  distanceMeters: targetDistanceMeters,
+  cursor,
+}: RouteDistanceInterpolationArgs): RoutePosition | null => {
+  if (routePoints.length === 0) return null
+  if (routePoints.length === 1) return routePoints[0]
+
+  const distanceMeters = clampDistanceToRoute(routePoints, targetDistanceMeters)
+  let segmentIndex = Math.trunc(cursor.segmentIndex)
+
+  if (
+    !Number.isFinite(segmentIndex) ||
+    segmentIndex < 0 ||
+    segmentIndex >= routePoints.length - 1
+  ) {
+    segmentIndex = findRouteSegmentIndexByDistance(routePoints, distanceMeters)
+  } else if (!isDistanceInSegment(routePoints, segmentIndex, distanceMeters)) {
+    if (distanceMeters >= routePoints[segmentIndex + 1].distanceMeters) {
+      while (
+        segmentIndex < routePoints.length - 2 &&
+        distanceMeters > routePoints[segmentIndex + 1].distanceMeters
+      ) {
+        segmentIndex += 1
+      }
+    }
+
+    if (!isDistanceInSegment(routePoints, segmentIndex, distanceMeters)) {
+      segmentIndex = findRouteSegmentIndexByDistance(routePoints, distanceMeters)
+    }
+  }
+
+  cursor.segmentIndex = segmentIndex
+  const start = routePoints[segmentIndex]
+  const end = routePoints[segmentIndex + 1]
+  const segmentDistance = end.distanceMeters - start.distanceMeters
+  if (segmentDistance <= 0) {
+    return { lat: start.lat, lng: start.lng }
+  }
+
+  const progress = clamp(
+    (distanceMeters - start.distanceMeters) / segmentDistance,
+    0,
+    1
+  )
+  return {
+    lat: start.lat + (end.lat - start.lat) * progress,
+    lng: start.lng + (end.lng - start.lng) * progress,
+  }
 }
 
 export const buildRouteBearingSegments = (

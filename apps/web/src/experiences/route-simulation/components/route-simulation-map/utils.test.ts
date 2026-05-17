@@ -6,6 +6,7 @@ import {
   clampDistanceToRoute,
   computeRouteBearingNearPosition,
   getPerspectivePitch,
+  getRoutePositionAtDistanceWithCursor,
   shouldUpdateCamera,
 } from "./utils"
 
@@ -83,5 +84,59 @@ describe("route simulation map utils", () => {
     expect(clampDistanceToRoute(points, -20)).toBe(10)
     expect(clampDistanceToRoute(points, 60)).toBe(60)
     expect(clampDistanceToRoute(points, 120)).toBe(100)
+  })
+
+  it("interpolates route positions with a forward cursor", () => {
+    const points = [
+      { lat: 0, lng: 0, elevationMeters: 0, distanceMeters: 0 },
+      { lat: 0, lng: 1, elevationMeters: 10, distanceMeters: 100 },
+      { lat: 1, lng: 1, elevationMeters: 20, distanceMeters: 200 },
+    ] as Array<RoutePoint>
+    const cursor = { segmentIndex: 0 }
+
+    expect(
+      getRoutePositionAtDistanceWithCursor({
+        routePoints: points,
+        distanceMeters: 50,
+        cursor,
+      })
+    ).toEqual({
+      lat: 0,
+      lng: 0.5,
+    })
+    expect(cursor.segmentIndex).toBe(0)
+
+    expect(
+      getRoutePositionAtDistanceWithCursor({
+        routePoints: points,
+        distanceMeters: 150,
+        cursor,
+      })
+    ).toEqual({
+      lat: 0.5,
+      lng: 1,
+    })
+    expect(cursor.segmentIndex).toBe(1)
+  })
+
+  it("falls back to binary segment lookup for backwards movement", () => {
+    const points = [
+      { lat: 0, lng: 0, elevationMeters: null, distanceMeters: 0 },
+      { lat: 0, lng: 1, elevationMeters: null, distanceMeters: 100 },
+      { lat: 1, lng: 1, elevationMeters: null, distanceMeters: 200 },
+    ] as Array<RoutePoint>
+    const cursor = { segmentIndex: 1 }
+
+    expect(
+      getRoutePositionAtDistanceWithCursor({
+        routePoints: points,
+        distanceMeters: 25,
+        cursor,
+      })
+    ).toEqual({
+      lat: 0,
+      lng: 0.25,
+    })
+    expect(cursor.segmentIndex).toBe(0)
   })
 })

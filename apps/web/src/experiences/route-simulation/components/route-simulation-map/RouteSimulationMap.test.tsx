@@ -197,7 +197,7 @@ describe("RouteSimulationMap", () => {
     )
 
     await waitFor(() => {
-      expect(flyTo).toHaveBeenCalledWith(
+      expect(easeTo).toHaveBeenCalledWith(
         expect.objectContaining({
           center: [-122.45, 37.85],
           bearing: expect.any(Number),
@@ -206,6 +206,152 @@ describe("RouteSimulationMap", () => {
         })
       )
     })
+    expect(flyTo).not.toHaveBeenCalled()
+  })
+
+  it("uses the rendered rider position for perspective follow movement", async () => {
+    const { rerender } = render(
+      <RouteSimulationMap
+        follow
+        onRouteClick={vi.fn()}
+        presentation={{ terrainEnabled: false, viewMode: "perspective" }}
+        riderDistanceMeters={0}
+        riderGradePercent={0}
+        riderPosition={{ lat: 37.8, lng: -122.4 }}
+        route={route}
+      />
+    )
+
+    await waitFor(() => {
+      expect(setRiderData).toHaveBeenCalled()
+    })
+    easeTo.mockClear()
+    flyTo.mockClear()
+
+    rerender(
+      <RouteSimulationMap
+        follow
+        onRouteClick={vi.fn()}
+        presentation={{ terrainEnabled: false, viewMode: "perspective" }}
+        riderDistanceMeters={20}
+        riderGradePercent={0}
+        riderPosition={{ lat: 37.802, lng: -122.402 }}
+        route={route}
+      />
+    )
+
+    await waitFor(() => {
+      const riderCoordinates =
+        setRiderData.mock.calls.at(-1)?.[0].features[0].geometry.coordinates
+      const cameraCenter = easeTo.mock.calls.at(-1)?.[0].center
+
+      expect(riderCoordinates).toBeDefined()
+      expect(cameraCenter).toEqual(riderCoordinates)
+      expect(cameraCenter).not.toEqual([-122.402, 37.802])
+    })
+    expect(flyTo).not.toHaveBeenCalled()
+  })
+
+  it("uses flyTo for view mode transitions and easeTo after the transition", async () => {
+    const { rerender } = render(
+      <RouteSimulationMap
+        follow
+        onRouteClick={vi.fn()}
+        presentation={{ terrainEnabled: false, viewMode: "top-down" }}
+        riderDistanceMeters={0}
+        riderGradePercent={0}
+        riderPosition={{ lat: 37.8, lng: -122.4 }}
+        route={route}
+      />
+    )
+
+    await waitFor(() => {
+      expect(easeTo).toHaveBeenCalled()
+    })
+    easeTo.mockClear()
+    flyTo.mockClear()
+
+    rerender(
+      <RouteSimulationMap
+        follow
+        onRouteClick={vi.fn()}
+        presentation={{ terrainEnabled: false, viewMode: "perspective" }}
+        riderDistanceMeters={0}
+        riderGradePercent={0}
+        riderPosition={{ lat: 37.8, lng: -122.4 }}
+        route={route}
+      />
+    )
+
+    await waitFor(() => {
+      expect(flyTo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          center: [-122.4, 37.8],
+          offset: [0, 140],
+          pitch: expect.any(Number),
+        })
+      )
+    })
+    easeTo.mockClear()
+    flyTo.mockClear()
+
+    rerender(
+      <RouteSimulationMap
+        follow
+        onRouteClick={vi.fn()}
+        presentation={{ terrainEnabled: false, viewMode: "perspective" }}
+        riderDistanceMeters={10}
+        riderGradePercent={0}
+        riderPosition={{ lat: 37.801, lng: -122.401 }}
+        route={route}
+      />
+    )
+
+    await waitFor(() => {
+      expect(easeTo).toHaveBeenCalled()
+    })
+    expect(flyTo).not.toHaveBeenCalled()
+  })
+
+  it("snaps marker and camera together on large seeks", async () => {
+    const { rerender } = render(
+      <RouteSimulationMap
+        follow
+        onRouteClick={vi.fn()}
+        presentation={{ terrainEnabled: false, viewMode: "perspective" }}
+        riderDistanceMeters={0}
+        riderGradePercent={0}
+        riderPosition={{ lat: 37.8, lng: -122.4 }}
+        route={route}
+      />
+    )
+
+    await waitFor(() => {
+      expect(setRiderData).toHaveBeenCalled()
+    })
+    easeTo.mockClear()
+    flyTo.mockClear()
+
+    rerender(
+      <RouteSimulationMap
+        follow
+        onRouteClick={vi.fn()}
+        presentation={{ terrainEnabled: false, viewMode: "perspective" }}
+        riderDistanceMeters={100}
+        riderGradePercent={0}
+        riderPosition={{ lat: 37.81, lng: -122.41 }}
+        route={route}
+      />
+    )
+
+    await waitFor(() => {
+      const riderCoordinates =
+        setRiderData.mock.calls.at(-1)?.[0].features[0].geometry.coordinates
+      expect(riderCoordinates[0]).toBeCloseTo(-122.41)
+      expect(riderCoordinates[1]).toBeCloseTo(37.81)
+      expect(easeTo.mock.calls.at(-1)?.[0].center).toEqual(riderCoordinates)
+    })
+    expect(flyTo).not.toHaveBeenCalled()
   })
 
   it("interpolates rider distance and wires route clicks", async () => {
