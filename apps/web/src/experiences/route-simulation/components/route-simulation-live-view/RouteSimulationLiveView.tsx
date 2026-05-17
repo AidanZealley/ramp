@@ -55,7 +55,7 @@ export const RouteSimulationLiveView = ({
         />
       )}
       <RouteSimulationMap
-        follow={ride.isActive && !paused}
+        followPosition={ride.isActive && !paused}
         onRouteClick={ride.handleRouteClick}
         presentation={ride.mapPresentation}
         riderDistanceMeters={ride.distanceMeters}

@@ -19,7 +19,7 @@ import { useRouteRiderAnchoredZoom } from "./hooks/use-route-rider-anchored-zoom
 import type { RiderRenderedPositionSnapshot } from "./types"
 
 type RouteSimulationMapProps = {
-  follow: boolean
+  followPosition: boolean
   onRouteClick?: (position: RoutePosition) => void
   presentation: RouteMapPresentation
   riderDistanceMeters: number
@@ -29,7 +29,7 @@ type RouteSimulationMapProps = {
 }
 
 export const RouteSimulationMap = ({
-  follow,
+  followPosition,
   onRouteClick,
   presentation,
   riderDistanceMeters,
@@ -37,17 +37,20 @@ export const RouteSimulationMap = ({
   riderPosition,
   route,
 }: RouteSimulationMapProps) => {
+  const { terrainEnabled, viewMode } = presentation
+
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapRef>(null)
   const initialRiderGeojsonRef = useRef(buildRiderGeojson(riderPosition))
+
   const [renderedRiderSnapshot, setRenderedRiderSnapshot] =
     useState<RiderRenderedPositionSnapshot | null>(null)
-  const followPosition = follow
-  const terrainEnabled = presentation.terrainEnabled
-  const viewMode = presentation.viewMode
+
   const effectiveRiderPosition =
     renderedRiderSnapshot?.position ?? riderPosition
+
   const { colors, mapStyle } = useRouteMapStyle()
+
   const { fitRouteBounds, initialViewState } = useRouteMapBounds({
     bounds: route.bounds,
     containerRef,
@@ -55,6 +58,7 @@ export const RouteSimulationMap = ({
     padding: ROUTE_PADDING_PX,
     start: route.start,
   })
+
   const {
     applyTerrain,
     getPerspectiveTerrainElevation,
