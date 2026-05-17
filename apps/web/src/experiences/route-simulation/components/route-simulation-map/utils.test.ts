@@ -7,6 +7,8 @@ import {
   computeRouteBearingNearPosition,
   getPerspectivePitch,
   getRoutePositionAtDistanceWithCursor,
+  getRoutePositionSnapshotAtDistanceWithCursor,
+  lerpBearingDegrees,
   shouldUpdateCamera,
 } from "./utils"
 
@@ -74,6 +76,12 @@ describe("route simulation map utils", () => {
     ).toBe(true)
   })
 
+  it("interpolates bearings across the shortest turn", () => {
+    expect(lerpBearingDegrees(350, 10, 0.5)).toBeCloseTo(0)
+    expect(lerpBearingDegrees(10, 350, 0.5)).toBeCloseTo(0)
+    expect(lerpBearingDegrees(90, 180, 0.25)).toBeCloseTo(112.5)
+  })
+
   it("clamps rider distance to the available route distance range", () => {
     const points = [
       { distanceMeters: 10 },
@@ -117,6 +125,83 @@ describe("route simulation map utils", () => {
       lng: 1,
     })
     expect(cursor.segmentIndex).toBe(1)
+  })
+
+  it("returns route-distance snapshots with active segment and bearing", () => {
+    const points = [
+      { lat: 0, lng: 0, elevationMeters: 0, distanceMeters: 0 },
+      { lat: 0, lng: 1, elevationMeters: 10, distanceMeters: 100 },
+      { lat: 1, lng: 1, elevationMeters: 20, distanceMeters: 200 },
+    ] as Array<RoutePoint>
+    const cursor = { segmentIndex: 0 }
+
+    expect(
+      getRoutePositionSnapshotAtDistanceWithCursor({
+        routePoints: points,
+        distanceMeters: 150,
+        cursor,
+      })
+    ).toEqual({
+      position: { lat: 0.5, lng: 1 },
+      segmentIndex: 1,
+      bearing: expect.any(Number),
+    })
+    expect(
+      getRoutePositionSnapshotAtDistanceWithCursor({
+        routePoints: points,
+        distanceMeters: 150,
+        cursor: { segmentIndex: 0 },
+      }).bearing
+    ).toBeCloseTo(0)
+  })
+
+  it("advances the route-distance cursor monotonically as distance increases", () => {
+    const points = [
+      { lat: 0, lng: 0, elevationMeters: 0, distanceMeters: 0 },
+      { lat: 0, lng: 1, elevationMeters: 0, distanceMeters: 100 },
+      { lat: 0, lng: 2, elevationMeters: 0, distanceMeters: 200 },
+      { lat: 0, lng: 3, elevationMeters: 0, distanceMeters: 300 },
+    ] as Array<RoutePoint>
+    const cursor = { segmentIndex: 0 }
+
+    getRoutePositionSnapshotAtDistanceWithCursor({
+      routePoints: points,
+      distanceMeters: 50,
+      cursor,
+    })
+    expect(cursor.segmentIndex).toBe(0)
+    getRoutePositionSnapshotAtDistanceWithCursor({
+      routePoints: points,
+      distanceMeters: 175,
+      cursor,
+    })
+    expect(cursor.segmentIndex).toBe(1)
+    getRoutePositionSnapshotAtDistanceWithCursor({
+      routePoints: points,
+      distanceMeters: 275,
+      cursor,
+    })
+    expect(cursor.segmentIndex).toBe(2)
+  })
+
+  it("returns null bearing for zero-length route-distance segments", () => {
+    const points = [
+      { lat: 0, lng: 0, elevationMeters: 0, distanceMeters: 0 },
+      { lat: 0, lng: 0, elevationMeters: 0, distanceMeters: 0 },
+      { lat: 1, lng: 0, elevationMeters: 0, distanceMeters: 100 },
+    ] as Array<RoutePoint>
+
+    expect(
+      getRoutePositionSnapshotAtDistanceWithCursor({
+        routePoints: points,
+        distanceMeters: 0,
+        cursor: { segmentIndex: 0 },
+      })
+    ).toEqual({
+      position: { lat: 0, lng: 0 },
+      segmentIndex: 0,
+      bearing: null,
+    })
   })
 
   it("falls back to binary segment lookup for backwards movement", () => {

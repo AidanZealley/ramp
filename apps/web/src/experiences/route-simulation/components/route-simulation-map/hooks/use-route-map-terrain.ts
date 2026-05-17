@@ -76,17 +76,18 @@ export const useRouteMapTerrain = ({
     [mapRef, terrainEnabled]
   )
 
-  const syncPerspectiveCameraElevation = useCallback(() => {
+  const syncPerspectiveCameraElevation = useCallback((positionOverride?: RoutePosition | null) => {
+    const position = positionOverride ?? riderPosition
     if (
       viewMode !== "perspective" ||
       !followPosition ||
       !terrainEnabled ||
-      !riderPosition
+      !position
     ) {
       return
     }
 
-    const elevation = getPerspectiveTerrainElevation(riderPosition)
+    const elevation = getPerspectiveTerrainElevation(position)
     if (elevation === undefined) return
 
     const map = mapRef.current?.getMap() as MutableMapElevation | undefined

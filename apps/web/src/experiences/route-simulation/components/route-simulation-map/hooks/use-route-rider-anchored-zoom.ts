@@ -1,34 +1,31 @@
-import { useCallback, useEffect, useMemo, useRef } from "react"
+import { useCallback, useEffect, useRef } from "react"
 import type { RefObject } from "react"
 import type { MapRef } from "@vis.gl/react-maplibre"
-import type { FeatureCollection, LineString } from "geojson"
 import type { RouteMapViewMode } from "@/experiences/route-simulation/types"
 import type { RoutePosition } from "@/lib/routes/types"
 import {
-  CAMERA_WHEEL_ZOOM_DURATION_MS,
   PERSPECTIVE_FOLLOW_OFFSET_PX,
   PERSPECTIVE_ZOOM_FLOOR,
   ROUTE_MAX_ZOOM,
   ROUTE_MIN_ZOOM,
   ROUTE_WHEEL_ZOOM_SCALE,
 } from "../constants"
-import {
-  buildRouteBearingSegments,
-  clamp,
-  computeRouteBearingNearPosition,
-  getPerspectivePitch,
-} from "../utils"
+import type { RiderRenderedPositionSnapshot } from "../types"
+import { clamp, getPerspectivePitch } from "../utils"
 
 type UseRouteRiderAnchoredZoomArgs = {
   followPosition: boolean
-  geojson: FeatureCollection<LineString>
+  getCurrentCameraBearing: () => number
+  getLatestRenderedRiderSnapshot: () => RiderRenderedPositionSnapshot | null
   getPerspectiveTerrainElevation: (
     position: RoutePosition
   ) => number | undefined
   mapRef: RefObject<MapRef | null>
   riderGradePercent: number
   riderPosition: RoutePosition | null
-  syncPerspectiveCameraElevation: () => void
+  syncPerspectiveCameraElevation: (
+    positionOverride?: RoutePosition | null
+  ) => void
   viewMode: RouteMapViewMode
 }
 
@@ -63,7 +60,8 @@ const getWheelListenerMap = (mapRef: MapRef) =>
 
 export const useRouteRiderAnchoredZoom = ({
   followPosition,
-  geojson,
+  getCurrentCameraBearing,
+  getLatestRenderedRiderSnapshot,
   getPerspectiveTerrainElevation,
   mapRef,
   riderGradePercent,
@@ -72,15 +70,18 @@ export const useRouteRiderAnchoredZoom = ({
   viewMode,
 }: UseRouteRiderAnchoredZoomArgs) => {
   const previousBearingRef = useRef(0)
-  const routeBearingSegments = useMemo(
-    () => buildRouteBearingSegments(geojson),
-    [geojson]
-  )
 
   const handleWheel = useCallback(
     (event: WheelEvent) => {
       const map = mapRef.current
-      if (!map || !followPosition || !riderPosition || !isZoomWheelEvent(event)) {
+      const anchorPosition =
+        getLatestRenderedRiderSnapshot()?.position ?? riderPosition
+      if (
+        !map ||
+        !followPosition ||
+        !anchorPosition ||
+        !isZoomWheelEvent(event)
+      ) {
         return
       }
 
@@ -97,7 +98,7 @@ export const useRouteRiderAnchoredZoom = ({
       if (viewMode === "top-down") {
         previousBearingRef.current = 0
         map.jumpTo({
-          center: [riderPosition.lng, riderPosition.lat],
+          center: [anchorPosition.lng, anchorPosition.lat],
           zoom: nextZoom,
           pitch: 0,
           bearing: 0,
@@ -105,34 +106,33 @@ export const useRouteRiderAnchoredZoom = ({
         return
       }
 
-      const bearing =
-        computeRouteBearingNearPosition(routeBearingSegments, riderPosition) ??
-        previousBearingRef.current
+      const bearing = getCurrentCameraBearing()
       previousBearingRef.current = bearing
 
       const perspectiveZoom = Math.max(nextZoom, PERSPECTIVE_ZOOM_FLOOR)
       const pitch = getPerspectivePitch(perspectiveZoom, riderGradePercent)
-      const elevation = getPerspectiveTerrainElevation(riderPosition)
+      const elevation = getPerspectiveTerrainElevation(anchorPosition)
 
-      map.easeTo({
-        center: [riderPosition.lng, riderPosition.lat],
+      const options = {
+        center: [anchorPosition.lng, anchorPosition.lat],
         ...(elevation !== undefined ? { elevation } : {}),
         offset: PERSPECTIVE_FOLLOW_OFFSET_PX,
         zoom: perspectiveZoom,
         pitch,
         bearing,
-        duration: CAMERA_WHEEL_ZOOM_DURATION_MS,
         freezeElevation: false,
-      })
-      syncPerspectiveCameraElevation()
+      }
+      map.jumpTo(options as unknown as Parameters<typeof map.jumpTo>[0])
+      syncPerspectiveCameraElevation(anchorPosition)
     },
     [
       followPosition,
+      getCurrentCameraBearing,
+      getLatestRenderedRiderSnapshot,
       getPerspectiveTerrainElevation,
       mapRef,
       riderGradePercent,
       riderPosition,
-      routeBearingSegments,
       syncPerspectiveCameraElevation,
       viewMode,
     ]

@@ -6,7 +6,6 @@ import { buildRiderGeojson } from "@/components/route/route-map/utils"
 import type { RoutePoint, RoutePosition } from "@/lib/routes/types"
 import {
   RIDER_RENDER_ARRIVAL_EPSILON_METERS,
-  RIDER_RENDER_EXTRAPOLATION_MAX_MS,
   RIDER_RENDER_MAX_GAP_MS,
   RIDER_RENDER_MAX_SPEED_MPS,
   RIDER_RENDER_MIN_SPEED_MPS,
@@ -21,7 +20,7 @@ import type {
 import {
   clamp,
   clampDistanceToRoute,
-  getRoutePositionAtDistanceWithCursor,
+  getRoutePositionSnapshotAtDistanceWithCursor,
 } from "../utils"
 
 type UseRenderedRiderPositionArgs = {
@@ -30,7 +29,8 @@ type UseRenderedRiderPositionArgs = {
   riderDistanceMeters: number
   routePoints: Array<RoutePoint>
   paused?: boolean
-  onRenderedPositionChange: (snapshot: RiderRenderedPositionSnapshot) => void
+  onRenderedPositionChange?: (snapshot: RiderRenderedPositionSnapshot) => void
+  onRenderedFrame?: (snapshot: RiderRenderedPositionSnapshot) => void
 }
 
 type RenderState = {
@@ -49,8 +49,10 @@ export const useRenderedRiderPosition = ({
   routePoints,
   paused = false,
   onRenderedPositionChange,
+  onRenderedFrame,
 }: UseRenderedRiderPositionArgs) => {
   const onRenderedPositionChangeRef = useRef(onRenderedPositionChange)
+  const onRenderedFrameRef = useRef(onRenderedFrame)
   const renderStateRef = useRef<RenderState>({
     animationFrame: null,
     lastFrameTimestamp: null,
@@ -63,6 +65,10 @@ export const useRenderedRiderPosition = ({
   useEffect(() => {
     onRenderedPositionChangeRef.current = onRenderedPositionChange
   }, [onRenderedPositionChange])
+
+  useEffect(() => {
+    onRenderedFrameRef.current = onRenderedFrame
+  }, [onRenderedFrame])
 
   const cancelFrame = useCallback(() => {
     const frame = renderStateRef.current.animationFrame
@@ -98,20 +104,25 @@ export const useRenderedRiderPosition = ({
   const publishRenderedDistance = useCallback(
     (distanceMeters: number, snapped: boolean, timestampMs: number) => {
       const state = renderStateRef.current
-      const position = getRoutePositionAtDistanceWithCursor({
+      const routeSnapshot = getRoutePositionSnapshotAtDistanceWithCursor({
         routePoints,
         distanceMeters,
         cursor: state.cursor,
       })
+      const { position } = routeSnapshot
 
       state.renderedDistanceMeters = distanceMeters
       setRiderSourcePosition(position)
-      onRenderedPositionChangeRef.current({
+      const snapshot = {
         distanceMeters,
         position,
         snapped,
         timestampMs,
-      })
+        segmentIndex: routeSnapshot.segmentIndex,
+        bearing: routeSnapshot.bearing,
+      }
+      onRenderedFrameRef.current?.(snapshot)
+      onRenderedPositionChangeRef.current?.(snapshot)
     },
     [routePoints, setRiderSourcePosition]
   )
@@ -119,12 +130,16 @@ export const useRenderedRiderPosition = ({
   useEffect(() => {
     cancelFrame()
     resetState()
-    onRenderedPositionChangeRef.current({
+    const resetSnapshot = {
       distanceMeters: 0,
       position: null,
       snapped: true,
       timestampMs: performance.now(),
-    })
+      segmentIndex: null,
+      bearing: null,
+    }
+    onRenderedFrameRef.current?.(resetSnapshot)
+    onRenderedPositionChangeRef.current?.(resetSnapshot)
   }, [cancelFrame, mapStyle, resetState, routePoints])
 
   useEffect(() => {
@@ -136,7 +151,10 @@ export const useRenderedRiderPosition = ({
     }
 
     const state = renderStateRef.current
-    const distanceMeters = clampDistanceToRoute(routePoints, riderDistanceMeters)
+    const distanceMeters = clampDistanceToRoute(
+      routePoints,
+      riderDistanceMeters
+    )
     const timestampMs = performance.now()
     const previousSample = state.latestSample
     const renderedDistance = state.renderedDistanceMeters
@@ -206,15 +224,10 @@ export const useRenderedRiderPosition = ({
           ? 0
           : Math.max((timestampMs - state.lastFrameTimestamp) / 1000, 0)
       state.lastFrameTimestamp = timestampMs
-      const ageMs = timestampMs - sample.timestampMs
-      const extrapolationMs = clamp(ageMs, 0, RIDER_RENDER_EXTRAPOLATION_MAX_MS)
-      const desiredDistance =
-        renderedDistance + RIDER_RENDER_ARRIVAL_EPSILON_METERS <
+      const targetDistance = clampDistanceToRoute(
+        routePoints,
         sample.distanceMeters
-          ? sample.distanceMeters
-          : sample.distanceMeters +
-            (sample.speedMetersPerSecond * extrapolationMs) / 1000
-      const targetDistance = clampDistanceToRoute(routePoints, desiredDistance)
+      )
       const stepMeters = sample.speedMetersPerSecond * deltaSeconds
       const nextDistance =
         Math.abs(targetDistance - renderedDistance) <=

@@ -4,6 +4,7 @@ export const CAMERA_DURATION_MS = 450
 export const CAMERA_MODE_TRANSITION_DURATION_MS = 900
 export const CAMERA_FOLLOW_EASE_DURATION_MS = 120
 export const CAMERA_WHEEL_ZOOM_DURATION_MS = 0
+export const CAMERA_BEARING_SMOOTHING_MS = 350
 export const CAMERA_MOVE_THRESHOLD_METERS = 2
 export const CAMERA_BEARING_THRESHOLD_DEGREES = 2
 export const CAMERA_PITCH_THRESHOLD_DEGREES = 1
@@ -28,7 +29,6 @@ export const TERRAIN_ATTRIBUTION =
   '<a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">Terrain data</a>'
 
 export const RIDER_SOURCE_ID = "route-rider"
-export const RIDER_RENDER_EXTRAPOLATION_MAX_MS = 350
 export const RIDER_RENDER_SEEK_THRESHOLD_METERS = 25
 export const RIDER_RENDER_MAX_GAP_MS = 1000
 export const RIDER_RENDER_MIN_SPEED_MPS = 0.1

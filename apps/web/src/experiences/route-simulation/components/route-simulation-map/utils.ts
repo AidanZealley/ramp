@@ -15,6 +15,7 @@ import type {
   CameraTarget,
   RouteBearingSegment,
   RouteDistanceInterpolationArgs,
+  RoutePositionAtDistanceResult,
 } from "./types"
 
 const toRadians = (degrees: number) => (degrees * Math.PI) / 180
@@ -93,6 +94,15 @@ export const bearingDeltaDegrees = (a: number, b: number) => {
   return delta > 180 ? 360 - delta : delta
 }
 
+export const lerpBearingDegrees = (
+  from: number,
+  to: number,
+  progress: number
+) => {
+  const delta = ((((to - from) % 360) + 540) % 360) - 180
+  return (from + delta * clamp(progress, 0, 1) + 360) % 360
+}
+
 export const clampDistanceToRoute = (
   routePoints: Array<RoutePoint>,
   targetDistanceMeters: number
@@ -106,11 +116,11 @@ export const getRoutePositionAtDistance = (
   routePoints: Array<RoutePoint>,
   targetDistanceMeters: number
 ): RoutePosition | null => {
-  return getRoutePositionAtDistanceWithCursor({
+  return getRoutePositionSnapshotAtDistanceWithCursor({
     routePoints,
     distanceMeters: targetDistanceMeters,
     cursor: { segmentIndex: 0 },
-  })
+  }).position
 }
 
 const findRouteSegmentIndexByDistance = (
@@ -154,13 +164,17 @@ const isDistanceInSegment = (
   )
 }
 
-export const getRoutePositionAtDistanceWithCursor = ({
+export const getRoutePositionSnapshotAtDistanceWithCursor = ({
   routePoints,
   distanceMeters: targetDistanceMeters,
   cursor,
-}: RouteDistanceInterpolationArgs): RoutePosition | null => {
-  if (routePoints.length === 0) return null
-  if (routePoints.length === 1) return routePoints[0]
+}: RouteDistanceInterpolationArgs): RoutePositionAtDistanceResult => {
+  if (routePoints.length === 0) {
+    return { position: null, segmentIndex: null, bearing: null }
+  }
+  if (routePoints.length === 1) {
+    return { position: routePoints[0], segmentIndex: null, bearing: null }
+  }
 
   const distanceMeters = clampDistanceToRoute(routePoints, targetDistanceMeters)
   let segmentIndex = Math.trunc(cursor.segmentIndex)
@@ -191,7 +205,11 @@ export const getRoutePositionAtDistanceWithCursor = ({
   const end = routePoints[segmentIndex + 1]
   const segmentDistance = end.distanceMeters - start.distanceMeters
   if (segmentDistance <= 0) {
-    return { lat: start.lat, lng: start.lng }
+    return {
+      position: { lat: start.lat, lng: start.lng },
+      segmentIndex,
+      bearing: null,
+    }
   }
 
   const progress = clamp(
@@ -200,9 +218,19 @@ export const getRoutePositionAtDistanceWithCursor = ({
     1
   )
   return {
-    lat: start.lat + (end.lat - start.lat) * progress,
-    lng: start.lng + (end.lng - start.lng) * progress,
+    position: {
+      lat: start.lat + (end.lat - start.lat) * progress,
+      lng: start.lng + (end.lng - start.lng) * progress,
+    },
+    segmentIndex,
+    bearing: getBearing(start, end),
   }
+}
+
+export const getRoutePositionAtDistanceWithCursor = (
+  args: RouteDistanceInterpolationArgs
+): RoutePosition | null => {
+  return getRoutePositionSnapshotAtDistanceWithCursor(args).position
 }
 
 export const buildRouteBearingSegments = (

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useRef } from "react"
 import Map from "@vis.gl/react-maplibre"
 import "maplibre-gl/dist/maplibre-gl.css"
 import type { MapRef } from "@vis.gl/react-maplibre"
@@ -19,7 +19,7 @@ import { useRouteRiderAnchoredZoom } from "./hooks/use-route-rider-anchored-zoom
 import type { RiderRenderedPositionSnapshot } from "./types"
 
 type RouteSimulationMapProps = {
-  followPosition: boolean
+  follow?: boolean
   onRouteClick?: (position: RoutePosition) => void
   presentation: RouteMapPresentation
   riderDistanceMeters: number
@@ -29,7 +29,7 @@ type RouteSimulationMapProps = {
 }
 
 export const RouteSimulationMap = ({
-  followPosition,
+  follow,
   onRouteClick,
   presentation,
   riderDistanceMeters,
@@ -38,16 +38,17 @@ export const RouteSimulationMap = ({
   route,
 }: RouteSimulationMapProps) => {
   const { terrainEnabled, viewMode } = presentation
+  const shouldFollowPosition = follow ?? false
 
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapRef>(null)
   const initialRiderGeojsonRef = useRef(buildRiderGeojson(riderPosition))
-
-  const [renderedRiderSnapshot, setRenderedRiderSnapshot] =
-    useState<RiderRenderedPositionSnapshot | null>(null)
-
-  const effectiveRiderPosition =
-    renderedRiderSnapshot?.position ?? riderPosition
+  const latestRenderedRiderSnapshotRef =
+    useRef<RiderRenderedPositionSnapshot | null>(null)
+  const getLatestRenderedRiderSnapshot = useCallback(
+    () => latestRenderedRiderSnapshotRef.current,
+    []
+  )
 
   const { colors, mapStyle } = useRouteMapStyle()
 
@@ -65,10 +66,23 @@ export const RouteSimulationMap = ({
     handleTerrainSourceData,
     syncPerspectiveCameraElevation,
   } = useRouteMapTerrain({
-    followPosition,
+    followPosition: shouldFollowPosition,
     mapRef,
     mapStyle,
-    riderPosition: effectiveRiderPosition,
+    riderPosition,
+    terrainEnabled,
+    viewMode,
+  })
+
+  const { getCurrentCameraBearing, syncRenderedRiderFrame } = useRouteCamera({
+    followPosition: shouldFollowPosition,
+    geojson: route.geojson,
+    getPerspectiveTerrainElevation,
+    mapRef,
+    riderGradePercent,
+    rawRiderPosition: riderPosition,
+    renderedRiderPosition: null,
+    syncPerspectiveCameraElevation,
     terrainEnabled,
     viewMode,
   })
@@ -76,29 +90,21 @@ export const RouteSimulationMap = ({
   useRenderedRiderPosition({
     mapRef,
     mapStyle,
-    onRenderedPositionChange: setRenderedRiderSnapshot,
+    onRenderedFrame: (snapshot) => {
+      latestRenderedRiderSnapshotRef.current = snapshot
+      syncRenderedRiderFrame(snapshot)
+    },
     riderDistanceMeters,
     routePoints: route.points,
   })
-  useRouteCamera({
-    followPosition,
-    geojson: route.geojson,
-    getPerspectiveTerrainElevation,
-    mapRef,
-    riderGradePercent,
-    rawRiderPosition: riderPosition,
-    renderedRiderPosition: renderedRiderSnapshot?.position ?? null,
-    syncPerspectiveCameraElevation,
-    terrainEnabled,
-    viewMode,
-  })
   useRouteRiderAnchoredZoom({
-    followPosition,
-    geojson: route.geojson,
+    followPosition: shouldFollowPosition,
+    getCurrentCameraBearing,
+    getLatestRenderedRiderSnapshot,
     getPerspectiveTerrainElevation,
     mapRef,
     riderGradePercent,
-    riderPosition: effectiveRiderPosition,
+    riderPosition,
     syncPerspectiveCameraElevation,
     viewMode,
   })
@@ -129,7 +135,7 @@ export const RouteSimulationMap = ({
         centerClampedToGround={true}
         maxPitch={PERSPECTIVE_MAX_PITCH}
         reuseMaps
-        scrollZoom={!followPosition}
+        scrollZoom={!shouldFollowPosition}
         sky={
           terrainEnabled || viewMode === "perspective"
             ? {

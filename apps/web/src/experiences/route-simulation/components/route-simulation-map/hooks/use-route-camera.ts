@@ -1,23 +1,23 @@
-import { useEffect, useMemo, useRef } from "react"
+import { useCallback, useEffect, useMemo, useRef } from "react"
 import type { RefObject } from "react"
 import type { MapRef } from "@vis.gl/react-maplibre"
 import type { FeatureCollection, LineString } from "geojson"
-import type {
-  RouteMapViewMode,
-} from "@/experiences/route-simulation/types"
+import type { RouteMapViewMode } from "@/experiences/route-simulation/types"
 import type { RoutePosition } from "@/lib/routes/types"
 import {
+  CAMERA_BEARING_SMOOTHING_MS,
   CAMERA_FOLLOW_EASE_DURATION_MS,
   CAMERA_DURATION_MS,
   CAMERA_MODE_TRANSITION_DURATION_MS,
   PERSPECTIVE_FOLLOW_OFFSET_PX,
   PERSPECTIVE_ZOOM_FLOOR,
 } from "../constants"
-import type { CameraTarget } from "../types"
+import type { CameraTarget, RiderRenderedPositionSnapshot } from "../types"
 import {
   buildRouteBearingSegments,
   computeRouteBearingNearPosition,
   getPerspectivePitch,
+  lerpBearingDegrees,
   shouldUpdateCamera,
 } from "../utils"
 
@@ -31,7 +31,9 @@ type UseRouteCameraArgs = {
   riderGradePercent: number
   rawRiderPosition: RoutePosition | null
   renderedRiderPosition: RoutePosition | null
-  syncPerspectiveCameraElevation: () => void
+  syncPerspectiveCameraElevation: (
+    positionOverride?: RoutePosition | null
+  ) => void
   terrainEnabled: boolean
   viewMode: RouteMapViewMode
 }
@@ -117,11 +119,15 @@ const applyPerspectiveCamera = ({
   useFlyTo,
 }: {
   bearing: number
-  getPerspectiveTerrainElevation: (position: RoutePosition) => number | undefined
+  getPerspectiveTerrainElevation: (
+    position: RoutePosition
+  ) => number | undefined
   mapRef: RefObject<MapRef | null>
   pitch: number
   riderPosition: RoutePosition
-  syncPerspectiveCameraElevation: () => void
+  syncPerspectiveCameraElevation: (
+    positionOverride?: RoutePosition | null
+  ) => void
   zoom: number
   duration: number
   useFlyTo: boolean
@@ -150,7 +156,7 @@ const applyPerspectiveCamera = ({
   } else {
     mapRef.current?.easeTo(options)
   }
-  syncPerspectiveCameraElevation()
+  syncPerspectiveCameraElevation(riderPosition)
 }
 
 export const useRouteCamera = ({
@@ -166,11 +172,103 @@ export const useRouteCamera = ({
   viewMode,
 }: UseRouteCameraArgs) => {
   const previousBearingRef = useRef(0)
+  const smoothedBearingRef = useRef<number | null>(null)
+  const previousBearingFrameTimestampRef = useRef<number | null>(null)
   const previousViewModeRef = useRef<RouteMapViewMode>(viewMode)
   const lastCameraTargetRef = useRef<CameraTarget | null>(null)
   const routeBearingSegments = useMemo(
     () => buildRouteBearingSegments(geojson),
     [geojson]
+  )
+
+  const getCurrentCameraBearing = useCallback(() => {
+    if (viewMode === "top-down") return 0
+    return smoothedBearingRef.current ?? previousBearingRef.current
+  }, [viewMode])
+
+  const syncRenderedRiderFrame = useCallback(
+    (snapshot: RiderRenderedPositionSnapshot) => {
+      const map = mapRef.current
+      const riderPosition = snapshot.position
+      if (!map || !followPosition || !riderPosition) return
+
+      if (viewMode === "top-down") {
+        previousBearingRef.current = 0
+        smoothedBearingRef.current = null
+        previousBearingFrameTimestampRef.current = null
+        const target = buildTopDownCameraTarget({
+          followPosition,
+          riderPosition,
+          terrainEnabled,
+          viewMode,
+        })
+        lastCameraTargetRef.current = target
+        map.jumpTo({
+          center: [riderPosition.lng, riderPosition.lat],
+          pitch: 0,
+          bearing: 0,
+        })
+        return
+      }
+
+      const targetBearing = snapshot.bearing ?? previousBearingRef.current
+      const previousSmoothedBearing = smoothedBearingRef.current
+      const previousTimestamp = previousBearingFrameTimestampRef.current
+      const deltaMs =
+        previousTimestamp === null
+          ? 0
+          : Math.max(snapshot.timestampMs - previousTimestamp, 0)
+      const smoothingProgress =
+        CAMERA_BEARING_SMOOTHING_MS <= 0
+          ? 1
+          : 1 - Math.exp(-deltaMs / CAMERA_BEARING_SMOOTHING_MS)
+      const bearing =
+        snapshot.snapped || previousSmoothedBearing === null
+          ? targetBearing
+          : lerpBearingDegrees(
+              previousSmoothedBearing,
+              targetBearing,
+              smoothingProgress
+            )
+      previousBearingRef.current = bearing
+      smoothedBearingRef.current = bearing
+      previousBearingFrameTimestampRef.current = snapshot.timestampMs
+
+      const zoom = Math.max(map.getZoom(), PERSPECTIVE_ZOOM_FLOOR)
+      const pitch = getPerspectivePitch(zoom, riderGradePercent)
+      const center = [riderPosition.lng, riderPosition.lat] as [number, number]
+      const target = buildPerspectiveCameraTarget({
+        bearing,
+        center,
+        followPosition,
+        pitch,
+        terrainEnabled,
+        viewMode,
+      })
+      lastCameraTargetRef.current = target
+      const elevation = getPerspectiveTerrainElevation(riderPosition)
+
+      const options = {
+        center,
+        ...(elevation !== undefined ? { elevation } : {}),
+        offset: PERSPECTIVE_FOLLOW_OFFSET_PX,
+        zoom,
+        pitch,
+        bearing,
+        freezeElevation: false,
+      }
+      map.jumpTo(options as unknown as Parameters<typeof map.jumpTo>[0])
+      syncPerspectiveCameraElevation(riderPosition)
+    },
+    [
+      followPosition,
+      getPerspectiveTerrainElevation,
+      mapRef,
+      riderGradePercent,
+      syncPerspectiveCameraElevation,
+      terrainEnabled,
+      viewMode,
+    ]
   )
 
   useEffect(() => {
@@ -182,6 +280,8 @@ export const useRouteCamera = ({
 
     if (viewMode === "top-down") {
       previousBearingRef.current = 0
+      smoothedBearingRef.current = null
+      previousBearingFrameTimestampRef.current = null
       if (previousViewMode === "top-down" && !followPosition) {
         return
       }
@@ -207,6 +307,10 @@ export const useRouteCamera = ({
       return
     }
 
+    if (followPosition && riderPosition && !isModeTransition) {
+      return
+    }
+
     const bearing =
       riderPosition === null
         ? previousBearingRef.current
@@ -215,6 +319,8 @@ export const useRouteCamera = ({
             riderPosition
           ) ?? previousBearingRef.current)
     previousBearingRef.current = bearing
+    smoothedBearingRef.current = bearing
+    previousBearingFrameTimestampRef.current = null
 
     if (!followPosition || !riderPosition) {
       const pitch = getPerspectivePitch(
@@ -279,4 +385,6 @@ export const useRouteCamera = ({
     terrainEnabled,
     viewMode,
   ])
+
+  return { getCurrentCameraBearing, syncRenderedRiderFrame }
 }

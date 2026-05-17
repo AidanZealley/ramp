@@ -32,6 +32,8 @@ export type RiderRenderedPositionSnapshot = {
   position: RoutePosition | null
   snapped: boolean
   timestampMs: number
+  segmentIndex: number | null
+  bearing: number | null
 }
 
 export type RiderDistanceSample = {
@@ -44,4 +46,10 @@ export type RouteDistanceInterpolationArgs = {
   routePoints: Array<RoutePoint>
   distanceMeters: number
   cursor: RouteDistanceCursor
+}
+
+export type RoutePositionAtDistanceResult = {
+  position: RoutePosition | null
+  segmentIndex: number | null
+  bearing: number | null
 }

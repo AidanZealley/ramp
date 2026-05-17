@@ -15,6 +15,7 @@ const queryTerrainElevation = vi.fn()
 const resize = vi.fn()
 const scrollZoomDisable = vi.fn()
 const scrollZoomEnable = vi.fn()
+const setElevation = vi.fn()
 const setTerrain = vi.fn()
 const setRiderData = vi.fn()
 const sourceIds = new Set<string>()
@@ -67,6 +68,10 @@ vi.mock("@vis.gl/react-maplibre", () => ({
             enable: scrollZoomEnable,
           },
           setTerrain,
+          transform: {
+            setElevation,
+          },
+          triggerRepaint: vi.fn(),
         }),
         getZoom: () => 16,
         queryTerrainElevation,
@@ -161,6 +166,32 @@ const route: ParsedRouteGpx = {
   previewPoints: [],
 }
 
+const makeRoute = (points: ParsedRouteGpx["points"]): ParsedRouteGpx => ({
+  ...route,
+  points,
+  geojson: {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "LineString",
+          coordinates: points.map((point) => [point.lng, point.lat]),
+        },
+      },
+    ],
+  } as FeatureCollection<LineString>,
+  bounds: {
+    minLat: Math.min(...points.map((point) => point.lat)),
+    minLng: Math.min(...points.map((point) => point.lng)),
+    maxLat: Math.max(...points.map((point) => point.lat)),
+    maxLng: Math.max(...points.map((point) => point.lng)),
+  },
+  start: points[0],
+  finish: points.at(-1) ?? points[0],
+})
+
 describe("RouteSimulationMap", () => {
   beforeEach(() => {
     useTheme.mockReturnValue({ theme: "light" })
@@ -173,6 +204,7 @@ describe("RouteSimulationMap", () => {
     resize.mockClear()
     scrollZoomDisable.mockClear()
     scrollZoomEnable.mockClear()
+    setElevation.mockClear()
     setTerrain.mockClear()
     setRiderData.mockClear()
     sourceIds.clear()
@@ -219,9 +251,9 @@ describe("RouteSimulationMap", () => {
     )
 
     await waitFor(() => {
-      expect(easeTo).toHaveBeenCalledWith(
+      expect(jumpTo).toHaveBeenCalledWith(
         expect.objectContaining({
-          center: [-122.45, 37.85],
+          center: [expect.closeTo(-122.45), expect.closeTo(37.85)],
           bearing: expect.any(Number),
           pitch: expect.any(Number),
           freezeElevation: false,
@@ -229,6 +261,9 @@ describe("RouteSimulationMap", () => {
       )
     })
     expect(flyTo).not.toHaveBeenCalled()
+    expect(easeTo).not.toHaveBeenCalledWith(
+      expect.objectContaining({ duration: 0 })
+    )
   })
 
   it("keeps top-down wheel zoom anchored on the rider while following", async () => {
@@ -260,7 +295,7 @@ describe("RouteSimulationMap", () => {
     expect(jumpTo).toHaveBeenCalledWith(
       expect.objectContaining({
         center: riderCoordinates,
-        zoom: 20,
+        zoom: 16.5,
         pitch: 0,
         bearing: 0,
       })
@@ -291,18 +326,101 @@ describe("RouteSimulationMap", () => {
 
     const riderCoordinates =
       setRiderData.mock.calls.at(-1)?.[0].features[0].geometry.coordinates
-    expect(easeTo).toHaveBeenCalledWith(
+    expect(jumpTo).toHaveBeenCalledWith(
       expect.objectContaining({
         center: riderCoordinates,
         offset: [0, 140],
-        zoom: 18.5,
+        zoom: 16.25,
         pitch: expect.any(Number),
         bearing: expect.any(Number),
-        duration: 0,
         freezeElevation: false,
       })
     )
-    expect(jumpTo).not.toHaveBeenCalled()
+    expect(easeTo).not.toHaveBeenCalled()
+  })
+
+  it("preserves the current smoothed camera bearing during perspective wheel zoom", async () => {
+    let currentTimeMs = 0
+    let nextFrameId = 1
+    const frameCallbacks = new Map<number, FrameRequestCallback>()
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback) => {
+        const frameId = nextFrameId
+        nextFrameId += 1
+        frameCallbacks.set(frameId, callback)
+        return frameId
+      })
+    const cancelAnimationFrameSpy = vi
+      .spyOn(window, "cancelAnimationFrame")
+      .mockImplementation((frameId) => {
+        frameCallbacks.delete(frameId)
+      })
+    const performanceNowSpy = vi
+      .spyOn(performance, "now")
+      .mockImplementation(() => currentTimeMs)
+    const flushAnimationFrame = (timestampMs: number) => {
+      currentTimeMs = timestampMs
+      const callbacks = Array.from(frameCallbacks.entries())
+      frameCallbacks.clear()
+      callbacks.forEach(([, callback]) => callback(timestampMs))
+    }
+    const turningRoute = makeRoute([
+      { lat: 0, lng: 0, elevationMeters: 0, distanceMeters: 0 },
+      { lat: 0, lng: 1, elevationMeters: 0, distanceMeters: 100 },
+      { lat: 1, lng: 1, elevationMeters: 0, distanceMeters: 200 },
+    ])
+
+    try {
+      const { rerender } = render(
+        <RouteSimulationMap
+          follow
+          onRouteClick={vi.fn()}
+          presentation={{ terrainEnabled: false, viewMode: "perspective" }}
+          riderDistanceMeters={90}
+          riderGradePercent={0}
+          riderPosition={{ lat: 0, lng: 0.9 }}
+          route={turningRoute}
+        />
+      )
+
+      flushAnimationFrame(0)
+      await waitFor(() => {
+        expect(jumpTo.mock.calls.at(-1)?.[0].bearing).toBeCloseTo(90)
+      })
+
+      currentTimeMs = 100
+      rerender(
+        <RouteSimulationMap
+          follow
+          onRouteClick={vi.fn()}
+          presentation={{ terrainEnabled: false, viewMode: "perspective" }}
+          riderDistanceMeters={110}
+          riderGradePercent={0}
+          riderPosition={{ lat: 0.1, lng: 1 }}
+          route={turningRoute}
+        />
+      )
+
+      flushAnimationFrame(116)
+      flushAnimationFrame(232)
+      flushAnimationFrame(348)
+
+      const currentCameraBearing = jumpTo.mock.calls.at(-1)?.[0].bearing
+      expect(currentCameraBearing).toBeGreaterThan(0)
+      expect(currentCameraBearing).toBeLessThan(90)
+
+      jumpTo.mockClear()
+      fireEvent.wheel(screen.getByTestId("map"), { deltaY: -25 })
+
+      expect(jumpTo.mock.calls.at(-1)?.[0].bearing).toBeCloseTo(
+        currentCameraBearing
+      )
+    } finally {
+      requestAnimationFrameSpy.mockRestore()
+      cancelAnimationFrameSpy.mockRestore()
+      performanceNowSpy.mockRestore()
+    }
   })
 
   it("leaves MapLibre scroll zoom enabled when follow is disabled", async () => {
@@ -352,6 +470,7 @@ describe("RouteSimulationMap", () => {
     })
     easeTo.mockClear()
     flyTo.mockClear()
+    jumpTo.mockClear()
 
     rerender(
       <RouteSimulationMap
@@ -368,16 +487,22 @@ describe("RouteSimulationMap", () => {
     await waitFor(() => {
       const riderCoordinates =
         setRiderData.mock.calls.at(-1)?.[0].features[0].geometry.coordinates
-      const cameraCenter = easeTo.mock.calls.at(-1)?.[0].center
+      const cameraCenter = jumpTo.mock.calls.at(-1)?.[0].center
 
       expect(riderCoordinates).toBeDefined()
       expect(cameraCenter).toEqual(riderCoordinates)
       expect(cameraCenter).not.toEqual([-122.402, 37.802])
     })
     expect(flyTo).not.toHaveBeenCalled()
+    expect(easeTo.mock.calls.some(([options]) => options.duration !== 0)).toBe(
+      false
+    )
+    expect(easeTo.mock.calls.some(([options]) => options.duration === 0)).toBe(
+      false
+    )
   })
 
-  it("uses flyTo for view mode transitions and easeTo after the transition", async () => {
+  it("uses flyTo for view mode transitions and immediate follow after the transition", async () => {
     const { rerender } = render(
       <RouteSimulationMap
         follow
@@ -395,6 +520,7 @@ describe("RouteSimulationMap", () => {
     })
     easeTo.mockClear()
     flyTo.mockClear()
+    jumpTo.mockClear()
 
     rerender(
       <RouteSimulationMap
@@ -433,9 +559,20 @@ describe("RouteSimulationMap", () => {
     )
 
     await waitFor(() => {
-      expect(easeTo).toHaveBeenCalled()
+      expect(jumpTo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          center: expect.any(Array),
+          freezeElevation: false,
+        })
+      )
     })
     expect(flyTo).not.toHaveBeenCalled()
+    expect(easeTo.mock.calls.some(([options]) => options.duration !== 0)).toBe(
+      false
+    )
+    expect(easeTo.mock.calls.some(([options]) => options.duration === 0)).toBe(
+      false
+    )
   })
 
   it("snaps marker and camera together on large seeks", async () => {
@@ -456,6 +593,7 @@ describe("RouteSimulationMap", () => {
     })
     easeTo.mockClear()
     flyTo.mockClear()
+    jumpTo.mockClear()
 
     rerender(
       <RouteSimulationMap
@@ -474,9 +612,160 @@ describe("RouteSimulationMap", () => {
         setRiderData.mock.calls.at(-1)?.[0].features[0].geometry.coordinates
       expect(riderCoordinates[0]).toBeCloseTo(-122.41)
       expect(riderCoordinates[1]).toBeCloseTo(37.81)
-      expect(easeTo.mock.calls.at(-1)?.[0].center).toEqual(riderCoordinates)
+      expect(jumpTo.mock.calls.at(-1)?.[0].center).toEqual(riderCoordinates)
     })
     expect(flyTo).not.toHaveBeenCalled()
+    expect(easeTo.mock.calls.some(([options]) => options.duration !== 0)).toBe(
+      false
+    )
+    expect(easeTo.mock.calls.some(([options]) => options.duration === 0)).toBe(
+      false
+    )
+  })
+
+  it("does not render the rider ahead of the latest distance sample", async () => {
+    let currentTimeMs = 0
+    let nextFrameId = 1
+    const frameCallbacks = new Map<number, FrameRequestCallback>()
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback) => {
+        const frameId = nextFrameId
+        nextFrameId += 1
+        frameCallbacks.set(frameId, callback)
+        return frameId
+      })
+    const cancelAnimationFrameSpy = vi
+      .spyOn(window, "cancelAnimationFrame")
+      .mockImplementation((frameId) => {
+        frameCallbacks.delete(frameId)
+      })
+    const performanceNowSpy = vi
+      .spyOn(performance, "now")
+      .mockImplementation(() => currentTimeMs)
+    const flushAnimationFrame = (timestampMs: number) => {
+      currentTimeMs = timestampMs
+      const callbacks = Array.from(frameCallbacks.entries())
+      frameCallbacks.clear()
+      callbacks.forEach(([, callback]) => callback(timestampMs))
+    }
+    const linearRoute = makeRoute([
+      { lat: 0, lng: 0, elevationMeters: 0, distanceMeters: 0 },
+      { lat: 0, lng: 1, elevationMeters: 0, distanceMeters: 100 },
+    ])
+
+    try {
+      const { rerender } = render(
+        <RouteSimulationMap
+          follow
+          onRouteClick={vi.fn()}
+          presentation={{ terrainEnabled: false, viewMode: "perspective" }}
+          riderDistanceMeters={0}
+          riderGradePercent={0}
+          riderPosition={{ lat: 0, lng: 0 }}
+          route={linearRoute}
+        />
+      )
+
+      flushAnimationFrame(0)
+      currentTimeMs = 1000
+      rerender(
+        <RouteSimulationMap
+          follow
+          onRouteClick={vi.fn()}
+          presentation={{ terrainEnabled: false, viewMode: "perspective" }}
+          riderDistanceMeters={10}
+          riderGradePercent={0}
+          riderPosition={{ lat: 0, lng: 0.1 }}
+          route={linearRoute}
+        />
+      )
+
+      flushAnimationFrame(2000)
+
+      const riderLng =
+        setRiderData.mock.calls.at(-1)?.[0].features[0].geometry.coordinates[0]
+      expect(riderLng).toBeLessThanOrEqual(0.1)
+      expect(jumpTo.mock.calls.at(-1)?.[0].center[0]).toBeLessThanOrEqual(0.1)
+    } finally {
+      requestAnimationFrameSpy.mockRestore()
+      cancelAnimationFrameSpy.mockRestore()
+      performanceNowSpy.mockRestore()
+    }
+  })
+
+  it("uses route-distance bearing instead of nearest segment for perspective follow", async () => {
+    const overlappingRoute: ParsedRouteGpx = {
+      ...route,
+      points: [
+        { lat: 0, lng: 0, elevationMeters: 0, distanceMeters: 0 },
+        { lat: 0, lng: 1, elevationMeters: 0, distanceMeters: 100 },
+        { lat: 1, lng: 1, elevationMeters: 0, distanceMeters: 200 },
+      ],
+      geojson: {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            properties: {},
+            geometry: {
+              type: "LineString",
+              coordinates: [
+                [0, 0],
+                [1, 0],
+                [1, 1],
+              ],
+            },
+          },
+        ],
+      } as FeatureCollection<LineString>,
+      start: { lat: 0, lng: 0 },
+      finish: { lat: 1, lng: 1 },
+    }
+
+    render(
+      <RouteSimulationMap
+        follow
+        onRouteClick={vi.fn()}
+        presentation={{ terrainEnabled: false, viewMode: "perspective" }}
+        riderDistanceMeters={150}
+        riderGradePercent={0}
+        riderPosition={{ lat: 0.5, lng: 1 }}
+        route={overlappingRoute}
+      />
+    )
+
+    await waitFor(() => {
+      expect(jumpTo.mock.calls.at(-1)?.[0].bearing).toBeCloseTo(0)
+    })
+  })
+
+  it("syncs perspective terrain elevation from the current rendered rider frame", async () => {
+    queryTerrainElevation.mockImplementation(([lng, lat]: [number, number]) =>
+      lng < -122.405 && lat > 37.805 ? 222 : 111
+    )
+
+    render(
+      <RouteSimulationMap
+        follow
+        onRouteClick={vi.fn()}
+        presentation={{ terrainEnabled: true, viewMode: "perspective" }}
+        riderDistanceMeters={100}
+        riderGradePercent={0}
+        riderPosition={{ lat: 37.81, lng: -122.41 }}
+        route={route}
+      />
+    )
+
+    await waitFor(() => {
+      expect(jumpTo.mock.calls.at(-1)?.[0]).toEqual(
+        expect.objectContaining({
+          center: [expect.closeTo(-122.41), expect.closeTo(37.81)],
+          elevation: 222,
+        })
+      )
+      expect(setElevation).toHaveBeenLastCalledWith(222)
+    })
   })
 
   it("interpolates rider distance and wires route clicks", async () => {
