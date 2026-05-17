@@ -1,5 +1,5 @@
-import { act, render, screen, waitFor } from "@testing-library/react"
-import { forwardRef, useEffect, useImperativeHandle } from "react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { RouteSimulationMap } from "./RouteSimulationMap"
 import type { PropsWithChildren } from "react"
@@ -10,8 +10,11 @@ const useTheme = vi.fn()
 const easeTo = vi.fn()
 const flyTo = vi.fn()
 const fitBounds = vi.fn()
+const jumpTo = vi.fn()
 const queryTerrainElevation = vi.fn()
 const resize = vi.fn()
+const scrollZoomDisable = vi.fn()
+const scrollZoomEnable = vi.fn()
 const setTerrain = vi.fn()
 const setRiderData = vi.fn()
 const sourceIds = new Set<string>()
@@ -31,26 +34,37 @@ vi.mock("@vis.gl/react-maplibre", () => ({
         onClick,
         onLoad,
         onSourceData,
+        scrollZoom,
         sky,
       }: PropsWithChildren<{
         onClick?: (event: { lngLat: { lat: number; lng: number } }) => void
         onLoad?: () => void
         onSourceData?: (event: { sourceId: string }) => void
+        scrollZoom?: boolean
         sky?: unknown
       }>,
       ref
     ) => {
+      const mapElementRef = useRef<HTMLDivElement>(null)
       clickHandler = onClick ?? (() => {})
       useImperativeHandle(ref, () => ({
         easeTo,
         flyTo,
         fitBounds,
+        jumpTo,
+        getMaxZoom: () => 20,
+        getMinZoom: () => 2,
         getMap: () => ({
+          getCanvasContainer: () => mapElementRef.current,
           getSource: (id: string) => {
             if (id === "route-rider" && sourceIds.has(id)) {
               return { setData: setRiderData }
             }
             return sourceIds.has(id)
+          },
+          scrollZoom: {
+            disable: scrollZoomDisable,
+            enable: scrollZoomEnable,
           },
           setTerrain,
         }),
@@ -65,7 +79,12 @@ vi.mock("@vis.gl/react-maplibre", () => ({
       }, [onLoad, onSourceData])
 
       return (
-        <div data-testid="map" data-sky={JSON.stringify(sky ?? null)}>
+        <div
+          ref={mapElementRef}
+          data-testid="map"
+          data-scroll-zoom={String(scrollZoom)}
+          data-sky={JSON.stringify(sky ?? null)}
+        >
           {children}
         </div>
       )
@@ -148,9 +167,12 @@ describe("RouteSimulationMap", () => {
     easeTo.mockClear()
     flyTo.mockClear()
     fitBounds.mockClear()
+    jumpTo.mockClear()
     queryTerrainElevation.mockReset()
     queryTerrainElevation.mockReturnValue(null)
     resize.mockClear()
+    scrollZoomDisable.mockClear()
+    scrollZoomEnable.mockClear()
     setTerrain.mockClear()
     setRiderData.mockClear()
     sourceIds.clear()
@@ -207,6 +229,109 @@ describe("RouteSimulationMap", () => {
       )
     })
     expect(flyTo).not.toHaveBeenCalled()
+  })
+
+  it("keeps top-down wheel zoom anchored on the rider while following", async () => {
+    render(
+      <RouteSimulationMap
+        follow
+        onRouteClick={vi.fn()}
+        presentation={{ terrainEnabled: false, viewMode: "top-down" }}
+        riderDistanceMeters={500}
+        riderGradePercent={0}
+        riderPosition={{ lat: 37.85, lng: -122.45 }}
+        route={route}
+      />
+    )
+
+    await waitFor(() => {
+      expect(scrollZoomDisable).toHaveBeenCalled()
+    })
+    easeTo.mockClear()
+    jumpTo.mockClear()
+
+    fireEvent.wheel(screen.getByTestId("map"), { deltaY: -50 })
+
+    const riderCoordinates =
+      setRiderData.mock.calls.at(-1)?.[0].features[0].geometry.coordinates
+    expect(screen.getByTestId("map").getAttribute("data-scroll-zoom")).toBe(
+      "false"
+    )
+    expect(jumpTo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        center: riderCoordinates,
+        zoom: 20,
+        pitch: 0,
+        bearing: 0,
+      })
+    )
+    expect(easeTo).not.toHaveBeenCalled()
+  })
+
+  it("keeps perspective wheel zoom anchored on the rendered rider while following", async () => {
+    render(
+      <RouteSimulationMap
+        follow
+        onRouteClick={vi.fn()}
+        presentation={{ terrainEnabled: false, viewMode: "perspective" }}
+        riderDistanceMeters={500}
+        riderGradePercent={4}
+        riderPosition={{ lat: 37.8, lng: -122.4 }}
+        route={route}
+      />
+    )
+
+    await waitFor(() => {
+      expect(setRiderData).toHaveBeenCalled()
+    })
+    easeTo.mockClear()
+    jumpTo.mockClear()
+
+    fireEvent.wheel(screen.getByTestId("map"), { deltaY: -25 })
+
+    const riderCoordinates =
+      setRiderData.mock.calls.at(-1)?.[0].features[0].geometry.coordinates
+    expect(easeTo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        center: riderCoordinates,
+        offset: [0, 140],
+        zoom: 18.5,
+        pitch: expect.any(Number),
+        bearing: expect.any(Number),
+        duration: 0,
+        freezeElevation: false,
+      })
+    )
+    expect(jumpTo).not.toHaveBeenCalled()
+  })
+
+  it("leaves MapLibre scroll zoom enabled when follow is disabled", async () => {
+    render(
+      <RouteSimulationMap
+        follow={false}
+        onRouteClick={vi.fn()}
+        presentation={{ terrainEnabled: false, viewMode: "top-down" }}
+        riderDistanceMeters={500}
+        riderGradePercent={0}
+        riderPosition={{ lat: 37.85, lng: -122.45 }}
+        route={route}
+      />
+    )
+
+    await waitFor(() => {
+      expect(scrollZoomEnable).toHaveBeenCalled()
+    })
+    easeTo.mockClear()
+    jumpTo.mockClear()
+
+    fireEvent.wheel(screen.getByTestId("map"), { deltaY: -50 })
+
+    expect(screen.getByTestId("map").getAttribute("data-scroll-zoom")).toBe(
+      "true"
+    )
+    expect(scrollZoomDisable).not.toHaveBeenCalled()
+    expect(easeTo).not.toHaveBeenCalled()
+    expect(jumpTo).not.toHaveBeenCalled()
   })
 
   it("uses the rendered rider position for perspective follow movement", async () => {

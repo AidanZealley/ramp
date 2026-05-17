@@ -15,6 +15,7 @@ import { useRenderedRiderPosition } from "./hooks/use-rendered-rider-position"
 import { useRouteCamera } from "./hooks/use-route-camera"
 import { useRouteMapBounds } from "./hooks/use-route-map-bounds"
 import { useRouteMapTerrain } from "./hooks/use-route-map-terrain"
+import { useRouteRiderAnchoredZoom } from "./hooks/use-route-rider-anchored-zoom"
 import type { RiderRenderedPositionSnapshot } from "./types"
 
 type RouteSimulationMapProps = {
@@ -87,6 +88,16 @@ export const RouteSimulationMap = ({
     terrainEnabled,
     viewMode,
   })
+  useRouteRiderAnchoredZoom({
+    followPosition,
+    geojson: route.geojson,
+    getPerspectiveTerrainElevation,
+    mapRef,
+    riderGradePercent,
+    riderPosition: effectiveRiderPosition,
+    syncPerspectiveCameraElevation,
+    viewMode,
+  })
 
   const handleCameraStateChange = useCallback(() => {
     syncPerspectiveCameraElevation()
@@ -114,6 +125,7 @@ export const RouteSimulationMap = ({
         centerClampedToGround={true}
         maxPitch={PERSPECTIVE_MAX_PITCH}
         reuseMaps
+        scrollZoom={!followPosition}
         sky={
           terrainEnabled || viewMode === "perspective"
             ? {
