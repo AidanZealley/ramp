@@ -20,6 +20,7 @@ import { Route as RouteIndexRouteImport } from './routes/route/index'
 import { Route as RideIndexRouteImport } from './routes/ride/index'
 import { Route as PlanIndexRouteImport } from './routes/plan/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AccountIndexRouteImport } from './routes/account/index'
 import { Route as WorkoutIdRouteImport } from './routes/workout/$id'
 import { Route as RouteIdRouteImport } from './routes/route/$id'
 import { Route as RideExperienceIdRouteImport } from './routes/ride/$experienceId'
@@ -81,6 +82,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AccountIndexRoute = AccountIndexRouteImport.update({
+  id: '/account/',
+  path: '/account/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WorkoutIdRoute = WorkoutIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -119,6 +125,7 @@ export interface FileRoutesByFullPath {
   '/ride/$experienceId': typeof RideExperienceIdRoute
   '/route/$id': typeof RouteIdRoute
   '/workout/$id': typeof WorkoutIdRoute
+  '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
   '/plan/': typeof PlanIndexRoute
   '/ride/': typeof RideIndexRoute
@@ -132,6 +139,7 @@ export interface FileRoutesByTo {
   '/ride/$experienceId': typeof RideExperienceIdRoute
   '/route/$id': typeof RouteIdRoute
   '/workout/$id': typeof WorkoutIdRoute
+  '/account': typeof AccountIndexRoute
   '/admin': typeof AdminIndexRoute
   '/plan': typeof PlanIndexRoute
   '/ride': typeof RideIndexRoute
@@ -151,6 +159,7 @@ export interface FileRoutesById {
   '/ride/$experienceId': typeof RideExperienceIdRoute
   '/route/$id': typeof RouteIdRoute
   '/workout/$id': typeof WorkoutIdRoute
+  '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
   '/plan/': typeof PlanIndexRoute
   '/ride/': typeof RideIndexRoute
@@ -171,6 +180,7 @@ export interface FileRouteTypes {
     | '/ride/$experienceId'
     | '/route/$id'
     | '/workout/$id'
+    | '/account/'
     | '/admin/'
     | '/plan/'
     | '/ride/'
@@ -184,6 +194,7 @@ export interface FileRouteTypes {
     | '/ride/$experienceId'
     | '/route/$id'
     | '/workout/$id'
+    | '/account'
     | '/admin'
     | '/plan'
     | '/ride'
@@ -202,6 +213,7 @@ export interface FileRouteTypes {
     | '/ride/$experienceId'
     | '/route/$id'
     | '/workout/$id'
+    | '/account/'
     | '/admin/'
     | '/plan/'
     | '/ride/'
@@ -216,6 +228,7 @@ export interface RootRouteChildren {
   RideRouteRoute: typeof RideRouteRouteWithChildren
   RouteRouteRoute: typeof RouteRouteRouteWithChildren
   WorkoutRouteRoute: typeof WorkoutRouteRouteWithChildren
+  AccountIndexRoute: typeof AccountIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -296,6 +309,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRouteRoute
+    }
+    '/account/': {
+      id: '/account/'
+      path: '/account'
+      fullPath: '/account/'
+      preLoaderRoute: typeof AccountIndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/workout/$id': {
       id: '/workout/$id'
@@ -412,6 +432,7 @@ const rootRouteChildren: RootRouteChildren = {
   RideRouteRoute: RideRouteRouteWithChildren,
   RouteRouteRoute: RouteRouteRouteWithChildren,
   WorkoutRouteRoute: WorkoutRouteRouteWithChildren,
+  AccountIndexRoute: AccountIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

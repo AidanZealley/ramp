@@ -146,35 +146,39 @@ export function createColumns({
           <div className="flex justify-end gap-1">
             {row.original.status === "pending" ? (
               <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    disabled={pendingRevokeId === row.original._id}
-                    onClick={() => onRevoke(row.original._id)}
-                    aria-label="Revoke"
-                  >
-                    <X />
-                  </Button>
-                </TooltipTrigger>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      disabled={pendingRevokeId === row.original._id}
+                      onClick={() => onRevoke(row.original._id)}
+                      aria-label="Revoke"
+                    >
+                      <X />
+                    </Button>
+                  }
+                />
                 <TooltipContent>Revoke</TooltipContent>
               </Tooltip>
             ) : null}
             <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled={pendingDeleteId === row.original._id}
-                  onClick={() => onDelete(row.original._id)}
-                  className="text-destructive hover:text-destructive"
-                  aria-label="Delete"
-                >
-                  <Trash2 />
-                </Button>
-              </TooltipTrigger>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={pendingDeleteId === row.original._id}
+                    onClick={() => onDelete(row.original._id)}
+                    className="text-destructive hover:text-destructive"
+                    aria-label="Delete"
+                  >
+                    <Trash2 />
+                  </Button>
+                }
+              />
               <TooltipContent>Delete</TooltipContent>
             </Tooltip>
           </div>

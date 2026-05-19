@@ -1,12 +1,8 @@
 import { Link, Outlet } from "@tanstack/react-router"
-import { useAuthActions } from "@convex-dev/auth/react"
-import { useQuery } from "convex/react"
-import { LogOut, TriangleRight } from "lucide-react"
-import { api } from "#convex/_generated/api"
+import { TriangleRight } from "lucide-react"
 import { AppNav } from "@/components/app-nav"
 import { ModeToggle } from "@/components/mode-toggle"
-import { SettingsDialog } from "@/components/settings-dialog"
-import { Button } from "@/components/ui/button"
+import { AccountDropdown } from "@/components/account-dropdown"
 import { Toaster } from "@/components/ui/sonner"
 
 type AuthenticatedAppShellProps = {
@@ -24,10 +20,6 @@ export const AuthenticatedAppShell = ({
   routeActive,
   rideActive,
 }: AuthenticatedAppShellProps) => {
-  const currentUser = useQuery(api.auth.currentUser)
-  const { signOut } = useAuthActions()
-  const userLabel = currentUser?.email ?? currentUser?.name ?? null
-
   return (
     <div className="flex min-h-svh flex-col">
       {!rideImmersive && (
@@ -53,22 +45,8 @@ export const AuthenticatedAppShell = ({
             </div>
 
             <div className="flex items-center gap-3">
-              {userLabel ? (
-                <span className="hidden max-w-48 truncate text-sm text-muted-foreground sm:block">
-                  {userLabel}
-                </span>
-              ) : null}
               <ModeToggle />
-              <SettingsDialog />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Sign out"
-                onClick={() => void signOut()}
-              >
-                <LogOut />
-              </Button>
+              <AccountDropdown />
             </div>
           </div>
         </header>
