@@ -3,6 +3,7 @@ import { useAuthActions } from "@convex-dev/auth/react"
 import { useQuery } from "convex/react"
 import { LogOut, TriangleRight } from "lucide-react"
 import { api } from "#convex/_generated/api"
+import { AppNav } from "@/components/app-nav"
 import { ModeToggle } from "@/components/mode-toggle"
 import { SettingsDialog } from "@/components/settings-dialog"
 import { Button } from "@/components/ui/button"
@@ -43,48 +44,12 @@ export const AuthenticatedAppShell = ({
                 </span>
               </Link>
 
-              <nav className="flex items-center gap-4 text-sm">
-                <Link
-                  to="/workout"
-                  className={
-                    workoutsActive
-                      ? "font-medium text-foreground"
-                      : "text-muted-foreground transition-colors hover:text-foreground"
-                  }
-                >
-                  Workouts
-                </Link>
-                <Link
-                  to="/plan"
-                  className={
-                    plansActive
-                      ? "font-medium text-foreground"
-                      : "text-muted-foreground transition-colors hover:text-foreground"
-                  }
-                >
-                  Plans
-                </Link>
-                <Link
-                  to="/route"
-                  className={
-                    routeActive
-                      ? "font-medium text-foreground"
-                      : "text-muted-foreground transition-colors hover:text-foreground"
-                  }
-                >
-                  Routes
-                </Link>
-                <Link
-                  to="/ride"
-                  className={
-                    rideActive
-                      ? "font-medium text-foreground"
-                      : "text-muted-foreground transition-colors hover:text-foreground"
-                  }
-                >
-                  Ride
-                </Link>
-              </nav>
+              <AppNav
+                workoutsActive={workoutsActive}
+                plansActive={plansActive}
+                routeActive={routeActive}
+                rideActive={rideActive}
+              />
             </div>
 
             <div className="flex items-center gap-3">

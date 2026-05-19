@@ -1,6 +1,7 @@
 import * as React from "react"
 import { useMutation, useQuery } from "convex/react"
-import { Copy, Plus } from "lucide-react"
+import { useNavigate } from "@tanstack/react-router"
+import { ArrowLeft, Copy, Plus } from "lucide-react"
 import type { Id } from "#convex/_generated/dataModel"
 import { api } from "#convex/_generated/api"
 import { Button } from "@/components/ui/button"
@@ -10,6 +11,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { InvitesTable } from "./components/invites-table"
 
 export const AdminInvites = () => {
+  const navigate = useNavigate()
   const invites = useQuery(api.invites.list, {})
   const createInvite = useMutation(api.invites.create)
   const revokeInvite = useMutation(api.invites.revoke)
@@ -80,13 +82,22 @@ export const AdminInvites = () => {
 
   return (
     <section className="mx-auto max-w-5xl space-y-6">
-      <div>
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">
-          Invites
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Create email-bound invite codes for private beta signups.
-        </p>
+      <div className="flex flex-col gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => void navigate({ to: "/admin" })}
+        >
+          <ArrowLeft className="size-4" />
+        </Button>
+        <div>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">
+            Invites
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Create email-bound invite codes for private beta signups.
+          </p>
+        </div>
       </div>
 
       <form className="flex flex-col gap-3 sm:flex-row" onSubmit={handleCreate}>
