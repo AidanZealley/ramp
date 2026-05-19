@@ -4,6 +4,7 @@ import {
   getPreservedSeekSpeedMps,
   getSeekTransitionGrade,
   interpolateNumber,
+  smoothingLevelToMeters,
   smoothstep,
 } from "./utils"
 
@@ -50,5 +51,18 @@ describe("route simulation seek transition utilities", () => {
       gradePercent: 10,
       progress: 1,
     })
+  })
+
+  it("maps smoothing level 0 to off", () => {
+    expect(smoothingLevelToMeters(0)).toBe(0)
+  })
+
+  it("maps max smoothing level to 50m", () => {
+    expect(smoothingLevelToMeters(6)).toBe(50)
+  })
+
+  it("clamps invalid smoothing levels to the supported range", () => {
+    expect(smoothingLevelToMeters(-10)).toBe(0)
+    expect(smoothingLevelToMeters(999)).toBe(50)
   })
 })

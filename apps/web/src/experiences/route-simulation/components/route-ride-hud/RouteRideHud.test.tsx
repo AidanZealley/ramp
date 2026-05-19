@@ -8,8 +8,20 @@ const onViewModeChange = vi.fn()
 const defaultProps = {
   distanceMeters: 1000,
   elapsedSeconds: 120,
+  gradeDiagnostics: {
+    distanceMeters: 1000,
+    smoothingMeters: 0,
+    rawGradePercent: 4.2,
+    smoothedGradePercent: 4.2,
+    elevationMeters: 120,
+  },
   gradePercent: 4.2,
   isPaused: false,
+  lastGradeDispatch: {
+    gradePercent: 4.2,
+    distanceMeters: 950,
+    atMs: 1000,
+  },
   onPause: vi.fn(),
   onResume: vi.fn(),
   onSmoothingChange: vi.fn(),
@@ -17,6 +29,12 @@ const defaultProps = {
   onTerrainEnabledChange,
   onViewModeChange,
   powerWatts: 212,
+  riderPosition: {
+    lat: 51.5,
+    lng: -0.12,
+    elevationMeters: 120,
+    distanceMeters: 1000,
+  },
   smoothingLevel: 5,
   speedKph: 18.4,
   telemetryStatus: "fresh" as const,
@@ -78,6 +96,31 @@ describe("RouteRideHud", () => {
       screen.getByRole("button", { name: "Perspective map view" })
     ).toBeTruthy()
     expect(screen.getByText("Terrain")).toBeTruthy()
+  })
+
+  it("shows smoothing as off at level 0 and meters for other levels", () => {
+    const { rerender } = render(
+      <RouteRideHud {...defaultProps} speedSource="trainer" smoothingLevel={0} />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Route settings" }))
+    expect(screen.getByText("Off")).toBeTruthy()
+
+    rerender(
+      <RouteRideHud {...defaultProps} speedSource="trainer" smoothingLevel={3} />
+    )
+
+    expect(screen.getByText("20 m")).toBeTruthy()
+  })
+
+  it("renders route grade debug in dev", () => {
+    render(<RouteRideHud {...defaultProps} speedSource="trainer" />)
+
+    fireEvent.click(screen.getByRole("button", { name: "Route grade debug" }))
+
+    expect(screen.getByText("Route distance")).toBeTruthy()
+    expect(screen.getByText("Raw grade")).toBeTruthy()
+    expect(screen.getByText("Trainer grade")).toBeTruthy()
   })
 
   it("selecting perspective changes view mode", () => {

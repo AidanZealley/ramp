@@ -4,6 +4,14 @@ const MIN_GRADE_PERCENT = -25
 const MAX_GRADE_PERCENT = 25
 const EARTH_RADIUS_METERS = 6371000
 
+export type RouteGradeDiagnostics = {
+  distanceMeters: number
+  smoothingMeters: number
+  rawGradePercent: number
+  smoothedGradePercent: number
+  elevationMeters: number | null
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max)
 }
@@ -102,6 +110,18 @@ export function computeRouteGradePercent(
   distanceMeters: number,
   smoothingMeters: number
 ): number {
+  return computeRouteGradeDiagnostics(
+    points,
+    distanceMeters,
+    smoothingMeters
+  ).smoothedGradePercent
+}
+
+function computeGradePercent(
+  points: Array<RoutePoint>,
+  distanceMeters: number,
+  smoothingMeters: number
+): number {
   if (points.length < 2 || !hasElevationData(points)) return 0
 
   if (smoothingMeters <= 0) {
@@ -143,6 +163,29 @@ export function computeRouteGradePercent(
     MIN_GRADE_PERCENT,
     MAX_GRADE_PERCENT
   )
+}
+
+export function computeRouteGradeDiagnostics(
+  points: Array<RoutePoint>,
+  distanceMeters: number,
+  smoothingMeters: number
+): RouteGradeDiagnostics {
+  const safeSmoothingMeters =
+    Number.isFinite(smoothingMeters) && smoothingMeters > 0
+      ? smoothingMeters
+      : 0
+
+  return {
+    distanceMeters,
+    smoothingMeters: safeSmoothingMeters,
+    rawGradePercent: computeGradePercent(points, distanceMeters, 0),
+    smoothedGradePercent: computeGradePercent(
+      points,
+      distanceMeters,
+      safeSmoothingMeters
+    ),
+    elevationMeters: elevationAtDistance(points, distanceMeters),
+  }
 }
 
 function projectPointToSegmentDistance(

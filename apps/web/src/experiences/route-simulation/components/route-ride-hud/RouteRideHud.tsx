@@ -1,14 +1,23 @@
 import { Pause, Play, Square } from "lucide-react"
 import { formatElapsedTime, formatMetricDistance } from "../../utils"
+import { RouteDebugPopover } from "./components/route-debug-popover"
 import { RouteSettingsPopover } from "./components/route-settings-popover"
-import type { RouteMapViewMode, RouteSpeedSource } from "../../types"
+import type {
+  LastGradeDispatch,
+  RouteMapViewMode,
+  RouteSpeedSource,
+} from "../../types"
+import type { RouteGradeDiagnostics } from "@/lib/routes/simulation"
+import type { RoutePoint } from "@/lib/routes/types"
 import { Button } from "@/components/ui/button"
 
 type RouteRideHudProps = {
   distanceMeters: number
   elapsedSeconds: number
+  gradeDiagnostics: RouteGradeDiagnostics | null
   gradePercent: number
   isPaused: boolean
+  lastGradeDispatch: LastGradeDispatch | null
   onPause: () => void
   onResume: () => void
   onSmoothingChange: (value: number) => void
@@ -17,6 +26,7 @@ type RouteRideHudProps = {
   onViewModeChange: (mode: RouteMapViewMode) => void
   smoothingLevel: number
   powerWatts: number | null
+  riderPosition: RoutePoint | null
   speedKph: number
   speedSource: RouteSpeedSource
   terrainEnabled: boolean
@@ -28,8 +38,10 @@ type RouteRideHudProps = {
 export const RouteRideHud = ({
   distanceMeters,
   elapsedSeconds,
+  gradeDiagnostics,
   gradePercent,
   isPaused,
+  lastGradeDispatch,
   onPause,
   onResume,
   onSmoothingChange,
@@ -38,6 +50,7 @@ export const RouteRideHud = ({
   onViewModeChange,
   smoothingLevel,
   powerWatts,
+  riderPosition,
   speedKph,
   speedSource,
   terrainEnabled,
@@ -126,6 +139,17 @@ export const RouteRideHud = ({
             terrainEnabled={terrainEnabled}
             viewMode={viewMode}
           />
+          {import.meta.env.DEV && (
+            <RouteDebugPopover
+              diagnostics={gradeDiagnostics}
+              displayedGradePercent={gradePercent}
+              lastGradeDispatch={lastGradeDispatch}
+              riderPosition={riderPosition}
+              smoothingLevel={smoothingLevel}
+              speedSource={speedSource}
+              telemetryStatus={telemetryStatus}
+            />
+          )}
         </div>
       </div>
     </div>

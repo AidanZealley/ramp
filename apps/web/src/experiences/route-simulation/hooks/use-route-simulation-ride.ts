@@ -20,10 +20,12 @@ import type {
   RouteSimulationRideController,
   RouteSpeedSource,
   SeekTransitionState,
+  LastGradeDispatch,
 } from "../types"
 import { createInitialPhysicsState, stepPhysics } from "@/experiences/physics"
 import {
   computeRouteGradePercent,
+  computeRouteGradeDiagnostics,
   findNearestRouteDistanceMeters,
   interpolateRoutePointByDistance,
 } from "@/lib/routes/simulation"
@@ -51,7 +53,7 @@ export function useRouteSimulationRide({
   const [isComplete, setIsComplete] = useState(false)
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
-  const [smoothingLevel, setSmoothingLevel] = useState(5)
+  const [smoothingLevel, setSmoothingLevel] = useState(0)
   const [mapPresentation, setMapPresentation] = useState<RouteMapPresentation>({
     viewMode: "perspective",
     terrainEnabled: false,
@@ -59,7 +61,13 @@ export function useRouteSimulationRide({
   const [speedSource, setSpeedSource] = useState<RouteSpeedSource>("fallback")
   const [speedKph, setSpeedKph] = useState(25)
   const [displayGradePercent, setDisplayGradePercent] = useState(0)
-  const lastGradeDispatch = useRef({ gradePercent: NaN, atMs: 0 })
+  const [lastGradeDispatchState, setLastGradeDispatchState] =
+    useState<LastGradeDispatch | null>(null)
+  const lastGradeDispatch = useRef<LastGradeDispatch>({
+    gradePercent: NaN,
+    distanceMeters: 0,
+    atMs: 0,
+  })
   const routeRef = useRef<ParsedRouteGpx | null>(null)
   const physicsStateRef = useRef<PhysicsState>(createInitialPhysicsState())
   const physicsConfigRef = useRef<PhysicsConfig | null>(null)
@@ -70,7 +78,7 @@ export function useRouteSimulationRide({
     elapsedSeconds: 0,
     isActive: false,
     isComplete: false,
-    smoothingLevel: 5,
+    smoothingLevel: 0,
   })
 
   useEffect(() => {
@@ -113,6 +121,17 @@ export function useRouteSimulationRide({
         : 0,
     [distanceMeters, parsedRoute, smoothingLevel]
   )
+  const gradeDiagnostics = useMemo(
+    () =>
+      parsedRoute
+        ? computeRouteGradeDiagnostics(
+            parsedRoute.points,
+            distanceMeters,
+            smoothingLevelToMeters(smoothingLevel)
+          )
+        : null,
+    [distanceMeters, parsedRoute, smoothingLevel]
+  )
 
   useEffect(() => {
     if (!seekTransitionRef.current) {
@@ -122,6 +141,16 @@ export function useRouteSimulationRide({
 
   const resetSeekTransition = useCallback(() => {
     seekTransitionRef.current = null
+  }, [])
+
+  const recordGradeDispatch = useCallback((grade: number, atMs: number) => {
+    const nextDispatch = {
+      gradePercent: grade,
+      distanceMeters: stateRef.current.distanceMeters,
+      atMs,
+    }
+    lastGradeDispatch.current = nextDispatch
+    setLastGradeDispatchState(nextDispatch)
   }, [])
 
   const resetRideStateForRouteChange = useCallback(() => {
@@ -153,17 +182,18 @@ export function useRouteSimulationRide({
       ) {
         return
       }
-      lastGradeDispatch.current = { gradePercent: grade, atMs: now }
+      recordGradeDispatch(grade, now)
       await session.controls.dispatch(
         { type: "setSimulationGrade", gradePercent: grade },
         "experience",
         { delivery: "acknowledged" }
       )
     },
-    [session]
+    [recordGradeDispatch, session]
   )
 
   const releaseTrainer = useCallback(async () => {
+    recordGradeDispatch(0, Date.now())
     await session.controls.dispatch(
       { type: "setSimulationGrade", gradePercent: 0 },
       "experience",
@@ -176,7 +206,7 @@ export function useRouteSimulationRide({
         delivery: "acknowledged",
       }
     )
-  }, [session])
+  }, [recordGradeDispatch, session])
 
   const completeRide = useCallback(async () => {
     const route = routeRef.current
@@ -323,7 +353,12 @@ export function useRouteSimulationRide({
     setIsActive(true)
     setIsComplete(false)
     setCompletionDialogOpen(false)
-    lastGradeDispatch.current = { gradePercent: NaN, atMs: 0 }
+    lastGradeDispatch.current = {
+      gradePercent: NaN,
+      distanceMeters: 0,
+      atMs: 0,
+    }
+    setLastGradeDispatchState(null)
     await session.controls.dispatch(
       { type: "setMode", mode: "simulation" },
       "experience",
@@ -431,6 +466,10 @@ export function useRouteSimulationRide({
 
   return {
     completionDialogOpen,
+    debug: {
+      gradeDiagnostics,
+      lastGradeDispatch: lastGradeDispatchState,
+    },
     distanceMeters,
     displayGradePercent,
     elapsedSeconds,

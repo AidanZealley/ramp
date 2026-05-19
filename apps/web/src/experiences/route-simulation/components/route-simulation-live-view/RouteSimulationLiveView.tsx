@@ -79,8 +79,10 @@ export const RouteSimulationLiveView = ({
       <RouteRideHud
         distanceMeters={ride.distanceMeters}
         elapsedSeconds={ride.elapsedSeconds}
+        gradeDiagnostics={ride.debug.gradeDiagnostics}
         gradePercent={ride.displayGradePercent}
         isPaused={paused}
+        lastGradeDispatch={ride.debug.lastGradeDispatch}
         onPause={ride.handlePause}
         onResume={ride.handleResume}
         onSmoothingChange={ride.setSmoothingLevel}
@@ -92,6 +94,7 @@ export const RouteSimulationLiveView = ({
           ride.setMapPresentation((current) => ({ ...current, viewMode }))
         }
         powerWatts={powerWatts}
+        riderPosition={ride.riderPosition}
         smoothingLevel={ride.smoothingLevel}
         speedKph={ride.speedKph}
         speedSource={ride.speedSource}

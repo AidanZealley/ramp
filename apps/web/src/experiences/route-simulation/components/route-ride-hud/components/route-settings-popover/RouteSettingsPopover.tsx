@@ -1,5 +1,6 @@
 import { Settings } from "lucide-react"
-import type { RouteMapViewMode } from "@/experiences/route-simulation/types"
+import { smoothingLevelToMeters } from "../../../../utils"
+import type { RouteMapViewMode } from "../../../../types"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import {
@@ -86,12 +87,14 @@ export const RouteSettingsPopover = ({
           <div className="flex items-center justify-between gap-2">
             <Label className="text-xs">Smoothing</Label>
             <span className="text-xs text-muted-foreground">
-              {smoothingLevel}
+              {smoothingLevelToMeters(smoothingLevel) === 0
+                ? "Off"
+                : `${smoothingLevelToMeters(smoothingLevel)} m`}
             </span>
           </div>
           <Slider
             min={0}
-            max={10}
+            max={6}
             step={1}
             value={[smoothingLevel]}
             onValueChange={(value) =>

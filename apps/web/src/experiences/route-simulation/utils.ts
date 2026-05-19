@@ -30,7 +30,12 @@ export function formatElapsedTime(seconds: number): string {
 }
 
 export function smoothingLevelToMeters(level: number): number {
-  return Math.max(0, Math.min(10, Math.round(level))) * 50
+  const SMOOTHING_LEVEL_METERS = [0, 5, 10, 20, 30, 40, 50] as const
+  const index = Math.max(
+    0,
+    Math.min(SMOOTHING_LEVEL_METERS.length - 1, Math.round(level))
+  )
+  return SMOOTHING_LEVEL_METERS[index]
 }
 
 export function smoothstep(value: number): number {

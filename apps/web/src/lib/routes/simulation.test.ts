@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   computeRouteGradePercent,
+  computeRouteGradeDiagnostics,
   findNearestRouteDistanceMeters,
   interpolateRoutePointByDistance,
 } from "./simulation"
@@ -30,6 +31,25 @@ describe("route simulation utilities", () => {
     expect(computeRouteGradePercent(points, 100, 200)).toBeCloseTo(-5)
   })
 
+  it("returns separate raw and smoothed grade diagnostics", () => {
+    const diagnostics = computeRouteGradeDiagnostics(points, 100, 200)
+
+    expect(diagnostics.distanceMeters).toBe(100)
+    expect(diagnostics.smoothingMeters).toBe(200)
+    expect(diagnostics.rawGradePercent).toBeCloseTo(10)
+    expect(diagnostics.smoothedGradePercent).toBeCloseTo(-5)
+    expect(diagnostics.elevationMeters).toBeCloseTo(110)
+  })
+
+  it("returns matching raw and smoothed diagnostics when smoothing is off", () => {
+    const diagnostics = computeRouteGradeDiagnostics(points, 150, 0)
+
+    expect(diagnostics.rawGradePercent).toBeCloseTo(-20)
+    expect(diagnostics.smoothedGradePercent).toBeCloseTo(
+      diagnostics.rawGradePercent
+    )
+  })
+
   it("clamps grade to trainer command limits", () => {
     const steep: Array<RoutePoint> = [
       { lat: 0, lng: 0, elevationMeters: 0, distanceMeters: 0 },
@@ -47,6 +67,18 @@ describe("route simulation utilities", () => {
         0
       )
     ).toBe(0)
+  })
+
+  it("returns empty grade diagnostics for missing elevation", () => {
+    const diagnostics = computeRouteGradeDiagnostics(
+      points.map((point) => ({ ...point, elevationMeters: null })),
+      50,
+      20
+    )
+
+    expect(diagnostics.rawGradePercent).toBe(0)
+    expect(diagnostics.smoothedGradePercent).toBe(0)
+    expect(diagnostics.elevationMeters).toBeNull()
   })
 
   it("finds nearest route distance from a clicked lat/lng", () => {

@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react"
 import type { Doc, Id } from "#convex/_generated/dataModel"
 import type { ParsedRouteGpx, RoutePoint, RoutePosition } from "@/lib/routes/types"
+import type { RouteGradeDiagnostics } from "@/lib/routes/simulation"
 import type { PhysicsConfig } from "@/experiences/physics"
 
 export type RouteSimulationRoute = {
@@ -34,6 +35,12 @@ export type SeekTransitionState = {
   initialGradeDispatched: boolean
 }
 
+export type LastGradeDispatch = {
+  gradePercent: number
+  distanceMeters: number
+  atMs: number
+}
+
 export type RouteSimulationRouteState = {
   activeRouteTitle: string | null
   handleChangeRoute: () => void
@@ -55,6 +62,10 @@ export type RouteSimulationSettingsState = {
 
 export type RouteSimulationRideController = {
   completionDialogOpen: boolean
+  debug: {
+    gradeDiagnostics: RouteGradeDiagnostics | null
+    lastGradeDispatch: LastGradeDispatch | null
+  }
   distanceMeters: number
   displayGradePercent: number
   elapsedSeconds: number
