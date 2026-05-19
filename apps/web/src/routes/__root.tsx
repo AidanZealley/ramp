@@ -12,6 +12,7 @@ import type { QueryClient } from "@tanstack/react-query"
 import { AuthenticatedAppShell } from "@/components/authenticated-app-shell"
 import { AuthScreen } from "@/components/auth-screen"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Spinner } from "@/components/ui/spinner"
 import { getThemeServerFn } from "@/lib/theme"
 
 export const Route = createRootRouteWithContext<{
@@ -64,8 +65,8 @@ function RootLayout() {
     <ThemeProvider theme={theme}>
       <RootDocument theme={theme}>
         <AuthLoading>
-          <main className="flex min-h-svh items-center justify-center text-sm text-muted-foreground">
-            Loading...
+          <main className="flex min-h-svh items-center justify-center">
+            <Spinner className="size-5 text-muted-foreground" />
           </main>
         </AuthLoading>
         <Unauthenticated>

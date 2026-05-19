@@ -125,7 +125,7 @@ export const getRoutePositionAtDistance = (
 
 const findRouteSegmentIndexByDistance = (
   routePoints: Array<RoutePoint>,
-  distanceMeters: number
+  targetDistanceMeters: number
 ) => {
   if (routePoints.length < 2) return -1
 
@@ -137,9 +137,9 @@ const findRouteSegmentIndexByDistance = (
     const start = routePoints[midpoint]
     const end = routePoints[midpoint + 1]
 
-    if (distanceMeters < start.distanceMeters) {
+    if (targetDistanceMeters < start.distanceMeters) {
       high = midpoint - 1
-    } else if (distanceMeters > end.distanceMeters) {
+    } else if (targetDistanceMeters > end.distanceMeters) {
       low = midpoint + 1
     } else {
       return midpoint
@@ -152,15 +152,13 @@ const findRouteSegmentIndexByDistance = (
 const isDistanceInSegment = (
   routePoints: Array<RoutePoint>,
   segmentIndex: number,
-  distanceMeters: number
+  targetDistanceMeters: number
 ) => {
   const start = routePoints[segmentIndex]
   const end = routePoints[segmentIndex + 1]
   return (
-    start !== undefined &&
-    end !== undefined &&
-    start.distanceMeters <= distanceMeters &&
-    end.distanceMeters >= distanceMeters
+    start.distanceMeters <= targetDistanceMeters &&
+    end.distanceMeters >= targetDistanceMeters
   )
 }
 
@@ -176,7 +174,10 @@ export const getRoutePositionSnapshotAtDistanceWithCursor = ({
     return { position: routePoints[0], segmentIndex: null, bearing: null }
   }
 
-  const distanceMeters = clampDistanceToRoute(routePoints, targetDistanceMeters)
+  const clampedDistanceMeters = clampDistanceToRoute(
+    routePoints,
+    targetDistanceMeters
+  )
   let segmentIndex = Math.trunc(cursor.segmentIndex)
 
   if (
@@ -184,19 +185,29 @@ export const getRoutePositionSnapshotAtDistanceWithCursor = ({
     segmentIndex < 0 ||
     segmentIndex >= routePoints.length - 1
   ) {
-    segmentIndex = findRouteSegmentIndexByDistance(routePoints, distanceMeters)
-  } else if (!isDistanceInSegment(routePoints, segmentIndex, distanceMeters)) {
-    if (distanceMeters >= routePoints[segmentIndex + 1].distanceMeters) {
+    segmentIndex = findRouteSegmentIndexByDistance(
+      routePoints,
+      clampedDistanceMeters
+    )
+  } else if (
+    !isDistanceInSegment(routePoints, segmentIndex, clampedDistanceMeters)
+  ) {
+    if (clampedDistanceMeters >= routePoints[segmentIndex + 1].distanceMeters) {
       while (
         segmentIndex < routePoints.length - 2 &&
-        distanceMeters > routePoints[segmentIndex + 1].distanceMeters
+        clampedDistanceMeters > routePoints[segmentIndex + 1].distanceMeters
       ) {
         segmentIndex += 1
       }
     }
 
-    if (!isDistanceInSegment(routePoints, segmentIndex, distanceMeters)) {
-      segmentIndex = findRouteSegmentIndexByDistance(routePoints, distanceMeters)
+    if (
+      !isDistanceInSegment(routePoints, segmentIndex, clampedDistanceMeters)
+    ) {
+      segmentIndex = findRouteSegmentIndexByDistance(
+        routePoints,
+        clampedDistanceMeters
+      )
     }
   }
 
@@ -213,7 +224,7 @@ export const getRoutePositionSnapshotAtDistanceWithCursor = ({
   }
 
   const progress = clamp(
-    (distanceMeters - start.distanceMeters) / segmentDistance,
+    (clampedDistanceMeters - start.distanceMeters) / segmentDistance,
     0,
     1
   )

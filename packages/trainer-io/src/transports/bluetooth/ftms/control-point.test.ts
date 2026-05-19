@@ -131,8 +131,9 @@ describe("FtmsControlPointClient", () => {
   it("resolves when the response arrives immediately after write initiation", async () => {
     vi.spyOn(console, "info").mockImplementation(() => undefined)
     const harness = createGattCharacteristicHarness({
-      writeValue: async () => {
+      writeValue: () => {
         harness.emit(new DataView(Uint8Array.of(0x80, 0x00, 0x01).buffer))
+        return Promise.resolve()
       },
     })
     const client = new FtmsControlPointClient(harness.characteristic, 1000)

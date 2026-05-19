@@ -13,6 +13,7 @@ import { Route as WorkoutRouteRouteImport } from './routes/workout/route'
 import { Route as RouteRouteRouteImport } from './routes/route/route'
 import { Route as RideRouteRouteImport } from './routes/ride/route'
 import { Route as PlanRouteRouteImport } from './routes/plan/route'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WorkoutIndexRouteImport } from './routes/workout/index'
 import { Route as RouteIndexRouteImport } from './routes/route/index'
@@ -22,6 +23,7 @@ import { Route as WorkoutIdRouteImport } from './routes/workout/$id'
 import { Route as RouteIdRouteImport } from './routes/route/$id'
 import { Route as RideExperienceIdRouteImport } from './routes/ride/$experienceId'
 import { Route as PlanIdRouteImport } from './routes/plan/$id'
+import { Route as AdminInvitesRouteImport } from './routes/admin/invites'
 
 const WorkoutRouteRoute = WorkoutRouteRouteImport.update({
   id: '/workout',
@@ -41,6 +43,11 @@ const RideRouteRoute = RideRouteRouteImport.update({
 const PlanRouteRoute = PlanRouteRouteImport.update({
   id: '/plan',
   path: '/plan',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRouteRoute = AdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -88,13 +95,20 @@ const PlanIdRoute = PlanIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => PlanRouteRoute,
 } as any)
+const AdminInvitesRoute = AdminInvitesRouteImport.update({
+  id: '/invites',
+  path: '/invites',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/plan': typeof PlanRouteRouteWithChildren
   '/ride': typeof RideRouteRouteWithChildren
   '/route': typeof RouteRouteRouteWithChildren
   '/workout': typeof WorkoutRouteRouteWithChildren
+  '/admin/invites': typeof AdminInvitesRoute
   '/plan/$id': typeof PlanIdRoute
   '/ride/$experienceId': typeof RideExperienceIdRoute
   '/route/$id': typeof RouteIdRoute
@@ -106,6 +120,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
+  '/admin/invites': typeof AdminInvitesRoute
   '/plan/$id': typeof PlanIdRoute
   '/ride/$experienceId': typeof RideExperienceIdRoute
   '/route/$id': typeof RouteIdRoute
@@ -118,10 +134,12 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/plan': typeof PlanRouteRouteWithChildren
   '/ride': typeof RideRouteRouteWithChildren
   '/route': typeof RouteRouteRouteWithChildren
   '/workout': typeof WorkoutRouteRouteWithChildren
+  '/admin/invites': typeof AdminInvitesRoute
   '/plan/$id': typeof PlanIdRoute
   '/ride/$experienceId': typeof RideExperienceIdRoute
   '/route/$id': typeof RouteIdRoute
@@ -135,10 +153,12 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/plan'
     | '/ride'
     | '/route'
     | '/workout'
+    | '/admin/invites'
     | '/plan/$id'
     | '/ride/$experienceId'
     | '/route/$id'
@@ -150,6 +170,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
+    | '/admin/invites'
     | '/plan/$id'
     | '/ride/$experienceId'
     | '/route/$id'
@@ -161,10 +183,12 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/plan'
     | '/ride'
     | '/route'
     | '/workout'
+    | '/admin/invites'
     | '/plan/$id'
     | '/ride/$experienceId'
     | '/route/$id'
@@ -177,6 +201,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
   PlanRouteRoute: typeof PlanRouteRouteWithChildren
   RideRouteRoute: typeof RideRouteRouteWithChildren
   RouteRouteRoute: typeof RouteRouteRouteWithChildren
@@ -211,6 +236,13 @@ declare module '@tanstack/react-router' {
       path: '/plan'
       fullPath: '/plan'
       preLoaderRoute: typeof PlanRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -276,8 +308,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlanIdRouteImport
       parentRoute: typeof PlanRouteRoute
     }
+    '/admin/invites': {
+      id: '/admin/invites'
+      path: '/invites'
+      fullPath: '/admin/invites'
+      preLoaderRoute: typeof AdminInvitesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
   }
 }
+
+interface AdminRouteRouteChildren {
+  AdminInvitesRoute: typeof AdminInvitesRoute
+}
+
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminInvitesRoute: AdminInvitesRoute,
+}
+
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
 
 interface PlanRouteRouteChildren {
   PlanIdRoute: typeof PlanIdRoute
@@ -337,6 +388,7 @@ const WorkoutRouteRouteWithChildren = WorkoutRouteRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
   PlanRouteRoute: PlanRouteRouteWithChildren,
   RideRouteRoute: RideRouteRouteWithChildren,
   RouteRouteRoute: RouteRouteRouteWithChildren,

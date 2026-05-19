@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { RouteLibrary } from "./RouteLibrary"
+import type * as TanstackReactRouter from "@tanstack/react-router"
 
 const useQuery = vi.fn<(reference: unknown) => unknown>()
 const useMutation = vi.fn<(reference: unknown) => unknown>(() => vi.fn())
@@ -12,9 +13,8 @@ vi.mock("convex/react", () => ({
 }))
 
 vi.mock("@tanstack/react-router", async () => {
-  const actual = await vi.importActual<typeof import("@tanstack/react-router")>(
-    "@tanstack/react-router"
-  )
+  const actual =
+    await vi.importActual<typeof TanstackReactRouter>("@tanstack/react-router")
   return {
     ...actual,
     useNavigate: (options?: unknown) => useNavigate(options),

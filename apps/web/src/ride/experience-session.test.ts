@@ -40,7 +40,7 @@ function createSession() {
     resume: vi.fn(),
     dispose: vi.fn(),
     controls: {
-      dispatch: vi.fn(async () => ({ ok: true as const })),
+      dispatch: vi.fn(() => Promise.resolve({ ok: true as const })),
       getCapabilities: vi.fn(() => capabilities),
     },
   } satisfies RideSessionController

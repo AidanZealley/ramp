@@ -2,8 +2,6 @@ import { useCallback, useEffect, useRef } from "react"
 import {
   PERSPECTIVE_FOLLOW_OFFSET_PX,
   PERSPECTIVE_ZOOM_FLOOR,
-  ROUTE_MAX_ZOOM,
-  ROUTE_MIN_ZOOM,
   ROUTE_WHEEL_ZOOM_SCALE,
 } from "../constants"
 import { clamp, getPerspectivePitch } from "../utils"
@@ -30,8 +28,8 @@ type UseRouteRiderAnchoredZoomArgs = {
 }
 
 type MapZoomBounds = {
-  getMaxZoom?: () => number
-  getMinZoom?: () => number
+  getMaxZoom: () => number
+  getMinZoom: () => number
 }
 
 type ScrollZoomHandler = {
@@ -48,10 +46,10 @@ const isZoomWheelEvent = (event: WheelEvent) =>
   Number.isFinite(event.deltaY) && event.deltaY !== 0
 
 const getMapZoomBounds = (map: MapRef) => {
-  const zoomBounds = map
+  const zoomBounds: MapZoomBounds = map
   return {
-    minZoom: zoomBounds.getMinZoom?.() ?? ROUTE_MIN_ZOOM,
-    maxZoom: zoomBounds.getMaxZoom?.() ?? ROUTE_MAX_ZOOM,
+    minZoom: zoomBounds.getMinZoom(),
+    maxZoom: zoomBounds.getMaxZoom(),
   }
 }
 

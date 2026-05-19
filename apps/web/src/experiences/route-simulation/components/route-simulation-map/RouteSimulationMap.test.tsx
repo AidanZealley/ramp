@@ -623,7 +623,7 @@ describe("RouteSimulationMap", () => {
     )
   })
 
-  it("does not render the rider ahead of the latest distance sample", async () => {
+  it("does not render the rider ahead of the latest distance sample", () => {
     let currentTimeMs = 0
     let nextFrameId = 1
     const frameCallbacks = new Map<number, FrameRequestCallback>()

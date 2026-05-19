@@ -219,9 +219,7 @@ export const useRouteCamera = ({
           ? 0
           : Math.max(snapshot.timestampMs - previousTimestamp, 0)
       const smoothingProgress =
-        CAMERA_BEARING_SMOOTHING_MS <= 0
-          ? 1
-          : 1 - Math.exp(-deltaMs / CAMERA_BEARING_SMOOTHING_MS)
+        1 - Math.exp(-deltaMs / CAMERA_BEARING_SMOOTHING_MS)
       const bearing =
         snapshot.snapped || previousSmoothedBearing === null
           ? targetBearing

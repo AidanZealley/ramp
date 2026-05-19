@@ -30,7 +30,7 @@ export const AuthScreen = () => {
       setError(
         flow === "signIn"
           ? "Could not sign in with those credentials."
-          : "Could not create an account with those credentials."
+          : "Could not create an account. Check your email, password, and invite code."
       )
     } finally {
       setIsSubmitting(false)
@@ -90,6 +90,18 @@ export const AuthScreen = () => {
               required
             />
           </div>
+          {flow === "signUp" ? (
+            <div className="space-y-2">
+              <Label htmlFor="auth-invite-code">Invite code</Label>
+              <Input
+                id="auth-invite-code"
+                name="inviteCode"
+                type="text"
+                autoComplete="one-time-code"
+                required
+              />
+            </div>
+          ) : null}
 
           {error ? (
             <p

@@ -12,6 +12,33 @@ export async function requireAuthUserId(ctx: Ctx): Promise<Id<"users">> {
   return userId
 }
 
+export function isBootstrapAdminEmail(email: string | undefined): boolean {
+  if (!email) {
+    return false
+  }
+
+  const bootstrapEmails = process.env.BOOTSTRAP_ADMIN_EMAILS ?? ""
+  const normalizedEmail = email.trim().toLowerCase()
+  return bootstrapEmails
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean)
+    .includes(normalizedEmail)
+}
+
+export function isAdminUser(user: Pick<Doc<"users">, "email" | "role">) {
+  return user.role === "admin" || isBootstrapAdminEmail(user.email)
+}
+
+export async function requireAdminUserId(ctx: Ctx): Promise<Id<"users">> {
+  const userId = await requireAuthUserId(ctx)
+  const user = await ctx.db.get(userId)
+  if (!user || !isAdminUser(user)) {
+    throw new Error("Unauthorized")
+  }
+  return userId
+}
+
 export function assertOwned(
   doc: { ownerId: Id<"users"> },
   userId: Id<"users">

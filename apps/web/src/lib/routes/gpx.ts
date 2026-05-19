@@ -105,11 +105,14 @@ function buildElevationSamples(points: Array<RoutePoint>): Array<ElevationSample
   return downsampleEvenly(samples, ELEVATION_SAMPLE_LIMIT)
 }
 
-function getTitle(parsed: ReturnType<typeof parseGPX>[0], fallbackTitle: string) {
+function getTitle(
+  parsed: NonNullable<ReturnType<typeof parseGPX>[0]>,
+  fallbackTitle: string
+) {
   return (
-    parsed?.metadata?.name ||
-    parsed?.tracks?.find((track) => track.name)?.name ||
-    parsed?.routes?.find((route) => route.name)?.name ||
+    parsed.metadata.name ||
+    parsed.tracks.find((track) => track.name)?.name ||
+    parsed.routes.find((route) => route.name)?.name ||
     fallbackTitle
   )
 }
@@ -139,7 +142,7 @@ export function parseRouteGpxText(
   }
 
   const [parsed, error] = parseGPX(text)
-  if (error || !parsed) {
+  if (error) {
     return { kind: "error", message: "Invalid GPX XML" }
   }
 

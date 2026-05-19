@@ -6,8 +6,9 @@ import type { RideTrainerAdapter, TrainerCommand } from "./types"
 
 function createTrainerAdapterHarness() {
   const commands: Array<TrainerCommand> = []
-  const sendCommand = vi.fn(async (command: TrainerCommand) => {
+  const sendCommand = vi.fn((command: TrainerCommand) => {
     commands.push(command)
+    return Promise.resolve()
   })
   const adapter: RideTrainerAdapter = {
     capabilities: new Set(Object.values(Capability)),

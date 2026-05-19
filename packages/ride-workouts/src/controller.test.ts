@@ -13,7 +13,7 @@ function createSessionHarness(options?: {
 }) {
   const dispatch =
     options?.dispatchImpl ??
-    vi.fn(async () => ({ ok: true }) satisfies DispatchResult)
+    vi.fn(() => Promise.resolve({ ok: true } satisfies DispatchResult))
   const harness = createWorkoutSessionHarness({
     telemetryStatus: options?.telemetryStatus,
     trainerConnected: options?.trainerConnected,

@@ -57,7 +57,7 @@ describe("package app boundary", () => {
     const violations = packageSourceFiles().flatMap((file) => {
       const contents = readFileSync(file, "utf8")
       const imports = [...contents.matchAll(forbiddenImportPattern)].map(
-        (match) => match[1] ?? match[2] ?? match[3] ?? match[4] ?? ""
+        (match) => match.slice(1).find(Boolean) ?? ""
       )
       return imports
         .filter(isForbiddenImport)

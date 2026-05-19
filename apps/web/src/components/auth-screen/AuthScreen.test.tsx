@@ -56,6 +56,9 @@ describe("AuthScreen", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Sign up" }))
     fillCredentials("new-rider@example.com", "new-secret123")
+    fireEvent.change(screen.getByLabelText("Invite code"), {
+      target: { value: "ABCD-EFGH" },
+    })
     clickSubmitButton("Create account")
 
     await waitFor(() => expect(mockSignIn).toHaveBeenCalledTimes(1))
@@ -64,6 +67,17 @@ describe("AuthScreen", () => {
     expect(formData.get("flow")).toBe("signUp")
     expect(formData.get("email")).toBe("new-rider@example.com")
     expect(formData.get("password")).toBe("new-secret123")
+    expect(formData.get("inviteCode")).toBe("ABCD-EFGH")
+  })
+
+  it("only shows the invite code field during sign-up", () => {
+    render(<AuthScreen />)
+
+    expect(screen.queryByLabelText("Invite code")).toBeNull()
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign up" }))
+
+    expect(screen.getByLabelText("Invite code")).toBeTruthy()
   })
 
   it("shows a sign-in error when sign-in is rejected", async () => {
@@ -84,11 +98,14 @@ describe("AuthScreen", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Sign up" }))
     fillCredentials()
+    fireEvent.change(screen.getByLabelText("Invite code"), {
+      target: { value: "ABCD-EFGH" },
+    })
     clickSubmitButton("Create account")
 
     expect(
       await screen.findByText(
-        "Could not create an account with those credentials."
+        "Could not create an account. Check your email, password, and invite code."
       )
     ).toBeTruthy()
   })

@@ -28,10 +28,23 @@ export default defineSchema({
     phone: v.optional(v.string()),
     phoneVerificationTime: v.optional(v.number()),
     isAnonymous: v.optional(v.boolean()),
+    role: v.optional(v.union(v.literal("admin"), v.literal("user"))),
     ...appSettingsFields,
   })
     .index("email", ["email"])
     .index("phone", ["phone"]),
+  inviteCodes: defineTable({
+    email: v.string(),
+    codeHash: v.string(),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    usedBy: v.optional(v.id("users")),
+    usedAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_email", ["email"])
+    .index("by_codeHash", ["codeHash"])
+    .index("by_createdBy", ["createdBy"]),
   workouts: defineTable({
     ownerId: v.id("users"),
     title: v.string(),
