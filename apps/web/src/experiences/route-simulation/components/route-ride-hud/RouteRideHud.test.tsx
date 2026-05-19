@@ -53,6 +53,10 @@ describe("RouteRideHud", () => {
   it("renders view mode controls", () => {
     render(<RouteRideHud {...defaultProps} speedSource="trainer" />)
 
+    expect(screen.queryByRole("group", { name: "Map view mode" })).toBeNull()
+
+    fireEvent.click(screen.getByRole("button", { name: "Route settings" }))
+
     expect(screen.getByRole("group", { name: "Map view mode" })).toBeTruthy()
     expect(screen.getByRole("button", { name: "Top-down map view" })).toBeTruthy()
     expect(
@@ -64,6 +68,7 @@ describe("RouteRideHud", () => {
   it("selecting perspective changes view mode", () => {
     render(<RouteRideHud {...defaultProps} speedSource="trainer" />)
 
+    fireEvent.click(screen.getByRole("button", { name: "Route settings" }))
     fireEvent.click(screen.getByRole("button", { name: "Perspective map view" }))
 
     expect(onViewModeChange).toHaveBeenCalledWith("perspective")
@@ -78,6 +83,7 @@ describe("RouteRideHud", () => {
       />
     )
 
+    fireEvent.click(screen.getByRole("button", { name: "Route settings" }))
     fireEvent.click(screen.getByRole("button", { name: "Top-down map view" }))
 
     expect(onViewModeChange).toHaveBeenCalledWith("top-down")
@@ -86,6 +92,7 @@ describe("RouteRideHud", () => {
   it("toggling terrain calls terrain change handler", () => {
     render(<RouteRideHud {...defaultProps} speedSource="trainer" />)
 
+    fireEvent.click(screen.getByRole("button", { name: "Route settings" }))
     fireEvent.click(screen.getByRole("switch"))
 
     expect(onTerrainEnabledChange).toHaveBeenCalledWith(true)
