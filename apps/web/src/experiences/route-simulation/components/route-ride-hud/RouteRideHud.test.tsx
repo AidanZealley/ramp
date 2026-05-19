@@ -16,6 +16,7 @@ const defaultProps = {
   onStop: vi.fn(),
   onTerrainEnabledChange,
   onViewModeChange,
+  powerWatts: 212,
   smoothingLevel: 5,
   speedKph: 18.4,
   telemetryStatus: "fresh" as const,
@@ -33,8 +34,22 @@ describe("RouteRideHud", () => {
   it("labels app physics speed as virtual speed", () => {
     render(<RouteRideHud {...defaultProps} speedSource="physics" />)
 
+    expect(screen.getByText("Power")).toBeTruthy()
+    expect(screen.getByText("212 W")).toBeTruthy()
     expect(screen.getByText("Virtual speed")).toBeTruthy()
     expect(screen.getByText("18.4 km/h")).toBeTruthy()
+  })
+
+  it("shows missing power when current power is unavailable", () => {
+    render(
+      <RouteRideHud
+        {...defaultProps}
+        powerWatts={null}
+        speedSource="trainer"
+      />
+    )
+
+    expect(screen.getByText("-- W")).toBeTruthy()
   })
 
   it("shows power missing status when app physics is waiting for power", () => {

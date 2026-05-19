@@ -32,6 +32,7 @@ export const RouteSimulationLiveView = ({
     session,
     (s) => s.telemetry.telemetryStatus
   )
+  const powerWatts = useRideSelector(session, (s) => s.telemetry.powerWatts)
   const trainerConnected = useRideSelector(session, (s) => s.trainerConnected)
   const viewportSize = useViewportSize()
 
@@ -90,6 +91,7 @@ export const RouteSimulationLiveView = ({
         onViewModeChange={(viewMode) =>
           ride.setMapPresentation((current) => ({ ...current, viewMode }))
         }
+        powerWatts={powerWatts}
         smoothingLevel={ride.smoothingLevel}
         speedKph={ride.speedKph}
         speedSource={ride.speedSource}
