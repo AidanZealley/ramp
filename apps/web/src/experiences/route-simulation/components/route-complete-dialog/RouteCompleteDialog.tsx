@@ -1,3 +1,4 @@
+import { formatElapsedTime, formatMetricDistance } from "../../utils"
 import {
   Dialog,
   DialogContent,
@@ -6,7 +7,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { formatElapsedTime, formatMetricDistance } from "../../utils"
 
 type RouteCompleteDialogProps = {
   distanceMeters: number

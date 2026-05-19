@@ -1,6 +1,6 @@
 import { Mountain, RouteIcon, Waypoints } from "lucide-react"
-import { formatRouteDistance, formatRouteElevation } from "@/lib/routes/format"
 import type { RouteStatsSnapshot } from "@/lib/routes/types"
+import { formatRouteDistance, formatRouteElevation } from "@/lib/routes/format"
 
 type RouteStatsProps = {
   stats: RouteStatsSnapshot

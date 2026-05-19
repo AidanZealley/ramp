@@ -1,8 +1,4 @@
 import { useCallback, useEffect, useRef } from "react"
-import type { RefObject } from "react"
-import type { MapRef } from "@vis.gl/react-maplibre"
-import type { RouteMapViewMode } from "@/experiences/route-simulation/types"
-import type { RoutePosition } from "@/lib/routes/types"
 import {
   PERSPECTIVE_FOLLOW_OFFSET_PX,
   PERSPECTIVE_ZOOM_FLOOR,
@@ -10,8 +6,12 @@ import {
   ROUTE_MIN_ZOOM,
   ROUTE_WHEEL_ZOOM_SCALE,
 } from "../constants"
-import type { RiderRenderedPositionSnapshot } from "../types"
 import { clamp, getPerspectivePitch } from "../utils"
+import type { RefObject } from "react"
+import type { MapRef } from "@vis.gl/react-maplibre"
+import type { RouteMapViewMode } from "@/experiences/route-simulation/types"
+import type { RoutePosition } from "@/lib/routes/types"
+import type { RiderRenderedPositionSnapshot } from "../types"
 
 type UseRouteRiderAnchoredZoomArgs = {
   followPosition: boolean
@@ -48,7 +48,7 @@ const isZoomWheelEvent = (event: WheelEvent) =>
   Number.isFinite(event.deltaY) && event.deltaY !== 0
 
 const getMapZoomBounds = (map: MapRef) => {
-  const zoomBounds = map as MapRef & MapZoomBounds
+  const zoomBounds = map
   return {
     minZoom: zoomBounds.getMinZoom?.() ?? ROUTE_MIN_ZOOM,
     maxZoom: zoomBounds.getMaxZoom?.() ?? ROUTE_MAX_ZOOM,

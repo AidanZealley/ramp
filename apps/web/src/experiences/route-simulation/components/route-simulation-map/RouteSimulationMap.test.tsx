@@ -181,7 +181,7 @@ const makeRoute = (points: ParsedRouteGpx["points"]): ParsedRouteGpx => ({
         },
       },
     ],
-  } as FeatureCollection<LineString>,
+  },
   bounds: {
     minLat: Math.min(...points.map((point) => point.lat)),
     minLng: Math.min(...points.map((point) => point.lng)),
@@ -718,7 +718,7 @@ describe("RouteSimulationMap", () => {
             },
           },
         ],
-      } as FeatureCollection<LineString>,
+      },
       start: { lat: 0, lng: 0 },
       finish: { lat: 1, lng: 1 },
     }

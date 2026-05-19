@@ -1,11 +1,11 @@
 import { Pause, Play, Square } from "lucide-react"
 import { formatElapsedTime, formatMetricDistance } from "../../utils"
+import type { RouteMapViewMode, RouteSpeedSource } from "../../types"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import type { RouteMapViewMode, RouteSpeedSource } from "../../types"
 
 type RouteRideHudProps = {
   distanceMeters: number

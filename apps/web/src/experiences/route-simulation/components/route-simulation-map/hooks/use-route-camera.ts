@@ -1,18 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef } from "react"
-import type { RefObject } from "react"
-import type { MapRef } from "@vis.gl/react-maplibre"
-import type { FeatureCollection, LineString } from "geojson"
-import type { RouteMapViewMode } from "@/experiences/route-simulation/types"
-import type { RoutePosition } from "@/lib/routes/types"
 import {
   CAMERA_BEARING_SMOOTHING_MS,
-  CAMERA_FOLLOW_EASE_DURATION_MS,
   CAMERA_DURATION_MS,
+  CAMERA_FOLLOW_EASE_DURATION_MS,
   CAMERA_MODE_TRANSITION_DURATION_MS,
   PERSPECTIVE_FOLLOW_OFFSET_PX,
   PERSPECTIVE_ZOOM_FLOOR,
 } from "../constants"
-import type { CameraTarget, RiderRenderedPositionSnapshot } from "../types"
 import {
   buildRouteBearingSegments,
   computeRouteBearingNearPosition,
@@ -20,6 +14,12 @@ import {
   lerpBearingDegrees,
   shouldUpdateCamera,
 } from "../utils"
+import type { RefObject } from "react"
+import type { MapRef } from "@vis.gl/react-maplibre"
+import type { FeatureCollection, LineString } from "geojson"
+import type { RouteMapViewMode } from "@/experiences/route-simulation/types"
+import type { RoutePosition } from "@/lib/routes/types"
+import type { CameraTarget, RiderRenderedPositionSnapshot } from "../types"
 
 type UseRouteCameraArgs = {
   followPosition: boolean
@@ -257,7 +257,7 @@ export const useRouteCamera = ({
         bearing,
         freezeElevation: false,
       }
-      map.jumpTo(options as unknown as Parameters<typeof map.jumpTo>[0])
+      map.jumpTo(options)
       syncPerspectiveCameraElevation(riderPosition)
     },
     [

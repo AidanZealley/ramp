@@ -17,6 +17,7 @@ describe("workouts helpers", () => {
     const workout = sanitizeWorkoutForClient({
       _id: "workout-1",
       _creationTime: 0,
+      ownerId: "user-1",
       title: "Threshold Builder",
       intervals: [{ startPower: 100, endPower: 100, durationSeconds: 60 }],
       summary: { totalDurationSeconds: 60, stressScore: 12 },

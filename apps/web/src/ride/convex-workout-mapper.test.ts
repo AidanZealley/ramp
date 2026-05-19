@@ -11,6 +11,7 @@ describe("toWorkoutDefinition", () => {
       toWorkoutDefinition({
         _id: "w1" as Id<"workouts">,
         _creationTime: 1,
+        ownerId: "user-1" as Id<"users">,
         title: "Ramp",
         intervals: [{ startPower: 110, endPower: 110, durationSeconds: 60 }],
         intervalsRevision: 0,
@@ -23,6 +24,7 @@ describe("toWorkoutDefinition", () => {
       toWorkoutDefinition({
         _id: "w1" as Id<"workouts">,
         _creationTime: 1,
+        ownerId: "user-1" as Id<"users">,
         title: "  ",
         intervals: [{ startPower: 110, endPower: 110, durationSeconds: 60 }],
         intervalsRevision: 0,

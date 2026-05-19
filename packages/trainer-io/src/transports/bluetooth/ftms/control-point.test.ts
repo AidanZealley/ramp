@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { GattCharacteristic as WebBluetoothGattCharacteristic } from "../web-bluetooth/gatt-characteristic"
 import {
   FtmsControlPointClient,
   decodeControlPointResponse,
@@ -8,7 +9,6 @@ import {
   encodeSetTargetPower,
 } from "./control-point"
 import type { GattCharacteristic } from "../web-bluetooth/gatt-characteristic"
-import { GattCharacteristic as WebBluetoothGattCharacteristic } from "../web-bluetooth/gatt-characteristic"
 
 function createGattCharacteristicHarness(options?: {
   writeValue?: (value: BufferSource) => Promise<void>
@@ -58,7 +58,7 @@ function createGattCharacteristicHarness(options?: {
     },
     characteristic: new WebBluetoothGattCharacteristic(
       bluetoothCharacteristic as unknown as BluetoothRemoteGATTCharacteristic
-    ) as GattCharacteristic,
+    ),
   }
 }
 

@@ -27,6 +27,8 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@auth/core": "0.37.0",
+    "@convex-dev/auth": "^0.0.92",
     "convex": "^1.36.0"
   },
   "pnpm": {

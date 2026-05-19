@@ -1,8 +1,39 @@
 import { defineSchema, defineTable } from "convex/server"
+import { authTables } from "@convex-dev/auth/server"
 import { v } from "convex/values"
 
+const { users: _users, ...authTablesWithoutUsers } = authTables
+
+const appSettingsFields = {
+  ftp: v.optional(v.number()),
+  powerDisplayMode: v.optional(
+    v.union(v.literal("absolute"), v.literal("percentage"))
+  ),
+  riderWeightKg: v.optional(v.number()),
+  bikeWeightKg: v.optional(v.number()),
+  routeSimulationProgressMode: v.optional(
+    v.union(v.literal("trainer-speed"), v.literal("app-physics"))
+  ),
+}
+
 export default defineSchema({
+  ...authTablesWithoutUsers,
+  // This intentionally mirrors @convex-dev/auth's authTables.users schema and
+  // indexes, with stable app settings added to keep one profile row per user.
+  users: defineTable({
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
+    phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.number()),
+    isAnonymous: v.optional(v.boolean()),
+    ...appSettingsFields,
+  })
+    .index("email", ["email"])
+    .index("phone", ["phone"]),
   workouts: defineTable({
+    ownerId: v.id("users"),
     title: v.string(),
     summary: v.optional(
       v.object({
@@ -24,22 +55,13 @@ export default defineSchema({
         comment: v.optional(v.string()),
       })
     ),
-  }),
-  userSettings: defineTable({
-    ftp: v.number(),
-    powerDisplayMode: v.optional(
-      v.union(v.literal("absolute"), v.literal("percentage"))
-    ),
-    riderWeightKg: v.optional(v.number()),
-    bikeWeightKg: v.optional(v.number()),
-    routeSimulationProgressMode: v.optional(
-      v.union(v.literal("trainer-speed"), v.literal("app-physics"))
-    ),
-  }),
+  }).index("by_ownerId", ["ownerId"]),
   plans: defineTable({
+    ownerId: v.id("users"),
     title: v.string(),
-  }),
+  }).index("by_ownerId", ["ownerId"]),
   routes: defineTable({
+    ownerId: v.id("users"),
     title: v.string(),
     source: v.literal("gpx"),
     fileStorageId: v.id("_storage"),
@@ -67,7 +89,9 @@ export default defineSchema({
     finish: v.union(v.object({ lat: v.number(), lng: v.number() }), v.null()),
     previewPoints: v.array(v.object({ x: v.number(), y: v.number() })),
     tags: v.optional(v.array(v.string())),
-  }).index("by_source", ["source"]),
+  })
+    .index("by_source", ["source"])
+    .index("by_ownerId", ["ownerId"]),
   planWeeks: defineTable({
     planId: v.id("plans"),
     orderIndex: v.number(),

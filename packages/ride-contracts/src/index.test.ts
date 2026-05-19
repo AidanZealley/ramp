@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   Capability,
-  TRAINER_COMMAND_LIMITS,
   Subject,
+  TRAINER_COMMAND_LIMITS,
   clampTargetPowerWatts,
   commandCapability,
   isTrainerError,

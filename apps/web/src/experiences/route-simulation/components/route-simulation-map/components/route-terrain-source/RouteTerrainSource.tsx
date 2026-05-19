@@ -1,10 +1,10 @@
 import { Layer, Source } from "@vis.gl/react-maplibre"
-import type { RouteMapColors } from "@/components/route/route-map/types"
 import {
   TERRAIN_ATTRIBUTION,
   TERRAIN_SOURCE_ID,
   TERRAIN_TILE_URL,
 } from "../../constants"
+import type { RouteMapColors } from "@/components/route/route-map/types"
 
 type RouteTerrainSourceProps = {
   colors: RouteMapColors

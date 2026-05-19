@@ -22,13 +22,13 @@ import type {
 } from "@ramp/ride-workouts"
 import type { Id } from "#convex/_generated/dataModel"
 import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
+import type { ExperienceSessionAPI } from "@/ride/experience-session"
 import { api } from "#convex/_generated/api"
 import { DEFAULT_FTP } from "@/lib/workout-utils"
 import {
   InvalidWorkoutDefinitionError,
   toWorkoutDefinition,
 } from "@/ride/convex-workout-mapper"
-import type { ExperienceSessionAPI } from "@/ride/experience-session"
 
 type WorkoutDoc = ClientWorkoutDoc
 

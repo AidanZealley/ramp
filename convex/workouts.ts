@@ -1,9 +1,10 @@
 import { ConvexError, v } from "convex/values"
 import { internal } from "./_generated/api"
 import { internalMutation, mutation, query } from "./_generated/server"
+import { requireAuthUserId, requireOwnedWorkout } from "./authHelpers"
 import { computeWorkoutSummary } from "./workoutSummary"
 import type { MutationCtx } from "./_generated/server"
-import type { Doc } from "./_generated/dataModel"
+import type { Doc, Id } from "./_generated/dataModel"
 
 const intervalValidator = v.object({
   startPower: v.number(),
@@ -18,6 +19,7 @@ const MAX_WORKOUT_POWER_PERCENT = 300
 const LEGACY_POWER_MODE_BATCH_SIZE = 200
 const WORKOUT_SUMMARY_BACKFILL_BATCH_SIZE = 200
 const INTERVALS_REVISION_BACKFILL_BATCH_SIZE = 200
+const WORKOUT_REFERENCE_CLEANUP_BATCH_SIZE = 200
 
 type WorkoutDoc = Doc<"workouts">
 
@@ -53,6 +55,52 @@ export function normalizeWorkoutTitle(title: string): string {
     throw new Error("Workout title must not be empty")
   }
   return normalized
+}
+
+async function clearOwnedWorkoutReferences(
+  ctx: MutationCtx,
+  workoutId: Id<"workouts">,
+  ownerId: Id<"users">
+) {
+  const referencedSlots = await ctx.db
+    .query("planWeekWorkouts")
+    .withIndex("by_workout", (q) => q.eq("workoutId", workoutId))
+    .take(WORKOUT_REFERENCE_CLEANUP_BATCH_SIZE + 1)
+
+  if (referencedSlots.length === 0) {
+    return
+  }
+
+  const batch = referencedSlots.slice(0, WORKOUT_REFERENCE_CLEANUP_BATCH_SIZE)
+  let clearedCount = 0
+
+  await Promise.all(
+    batch.map(async (slot) => {
+      const week = await ctx.db.get(slot.weekId)
+      if (!week) {
+        return
+      }
+
+      const plan = await ctx.db.get(week.planId)
+      if (!plan || plan.ownerId !== ownerId) {
+        return
+      }
+
+      clearedCount += 1
+      await ctx.db.patch(slot._id, { workoutId: null })
+    })
+  )
+
+  if (
+    clearedCount > 0 &&
+    referencedSlots.length > WORKOUT_REFERENCE_CLEANUP_BATCH_SIZE
+  ) {
+    await ctx.scheduler.runAfter(
+      0,
+      internal.workouts.continueRemoveWorkoutReferences,
+      { workoutId, ownerId }
+    )
+  }
 }
 
 function normalizeIntervalComment(comment: string): string {
@@ -142,7 +190,11 @@ export function createIntervalsConflictErrorData(
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const workouts = await ctx.db.query("workouts").collect()
+    const ownerId = await requireAuthUserId(ctx)
+    const workouts = await ctx.db
+      .query("workouts")
+      .withIndex("by_ownerId", (q) => q.eq("ownerId", ownerId))
+      .collect()
     return workouts.map(sanitizeWorkoutForClient)
   },
 })
@@ -150,8 +202,12 @@ export const list = query({
 export const get = query({
   args: { id: v.id("workouts") },
   handler: async (ctx, args) => {
+    const ownerId = await requireAuthUserId(ctx)
     const workout = await ctx.db.get(args.id)
-    return workout ? sanitizeWorkoutForClient(workout) : null
+    if (!workout || workout.ownerId !== ownerId) {
+      return null
+    }
+    return sanitizeWorkoutForClient(workout)
   },
 })
 
@@ -161,9 +217,11 @@ export const create = mutation({
     intervals: v.array(intervalValidator),
   },
   handler: async (ctx, args) => {
+    const ownerId = await requireAuthUserId(ctx)
     const title = normalizeWorkoutTitle(args.title)
     const intervals = normalizeIntervalsForStorage(args.intervals)
     return await ctx.db.insert("workouts", {
+      ownerId,
       title,
       intervals,
       intervalsRevision: 0,
@@ -180,10 +238,7 @@ export const updateIntervals = mutation({
     force: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const workout = await ctx.db.get(args.id)
-    if (!workout) {
-      throw new Error("Workout not found")
-    }
+    const workout = await requireOwnedWorkout(ctx, args.id)
 
     const currentIntervalsRevision = resolveIntervalsRevision(workout)
     if (
@@ -211,6 +266,7 @@ export const updateTitle = mutation({
     title: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireOwnedWorkout(ctx, args.id)
     await ctx.db.patch(args.id, { title: normalizeWorkoutTitle(args.title) })
   },
 })
@@ -221,13 +277,11 @@ export const duplicateWorkout = mutation({
     title: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const workout = await ctx.db.get(args.id)
-    if (!workout) {
-      throw new Error("Workout not found")
-    }
+    const workout = await requireOwnedWorkout(ctx, args.id)
 
     const title = normalizeWorkoutTitle(args.title ?? `${workout.title} (copy)`)
     return await ctx.db.insert("workouts", {
+      ownerId: workout.ownerId,
       title,
       intervals: workout.intervals,
       intervalsRevision: 0,
@@ -239,68 +293,30 @@ export const duplicateWorkout = mutation({
 export const remove = mutation({
   args: { id: v.id("workouts") },
   handler: async (ctx, args) => {
+    const workout = await requireOwnedWorkout(ctx, args.id)
     await ctx.db.delete(args.id)
-    const referencedSlots = await ctx.db
-      .query("planWeekWorkouts")
-      .withIndex("by_workout", (q) => q.eq("workoutId", args.id))
-      .take(201)
-
-    if (referencedSlots.length === 0) {
-      return
-    }
-
-    const firstBatch = referencedSlots.slice(0, 200)
-    await Promise.all(
-      firstBatch.map((slot) => ctx.db.patch(slot._id, { workoutId: null }))
-    )
-
-    if (referencedSlots.length > 200) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal.workouts.continueRemoveWorkoutReferences,
-        { workoutId: args.id }
-      )
-    }
+    await clearOwnedWorkoutReferences(ctx, args.id, workout.ownerId)
   },
 })
 
 export const continueRemoveWorkoutReferences = internalMutation({
-  args: { workoutId: v.id("workouts") },
+  args: { workoutId: v.id("workouts"), ownerId: v.id("users") },
   handler: async (ctx, args) => {
-    const referencedSlots = await ctx.db
-      .query("planWeekWorkouts")
-      .withIndex("by_workout", (q) => q.eq("workoutId", args.workoutId))
-      .take(201)
-
-    if (referencedSlots.length === 0) {
-      return
-    }
-
-    const batch = referencedSlots.slice(0, 200)
-    await Promise.all(
-      batch.map((slot) => ctx.db.patch(slot._id, { workoutId: null }))
-    )
-
-    if (referencedSlots.length > 200) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal.workouts.continueRemoveWorkoutReferences,
-        { workoutId: args.workoutId }
-      )
-    }
+    await clearOwnedWorkoutReferences(ctx, args.workoutId, args.ownerId)
   },
 })
 
 export const migrateAbsoluteWorkoutsToPercentage = mutation({
   args: {},
   handler: async (ctx) => {
-    const status = await runWorkoutPowerMigrationBatch(ctx)
+    const ownerId = await requireAuthUserId(ctx)
+    const status = await runWorkoutPowerMigrationBatch(ctx, ownerId)
 
     if (status.hasMore) {
       await ctx.scheduler.runAfter(
         0,
         internal.workouts.continueMigrateAbsoluteWorkoutsToPercentage,
-        {}
+        { ownerId }
       )
     }
 
@@ -309,15 +325,15 @@ export const migrateAbsoluteWorkoutsToPercentage = mutation({
 })
 
 export const continueMigrateAbsoluteWorkoutsToPercentage = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    const status = await runWorkoutPowerMigrationBatch(ctx)
+  args: { ownerId: v.id("users") },
+  handler: async (ctx, args) => {
+    const status = await runWorkoutPowerMigrationBatch(ctx, args.ownerId)
 
     if (status.hasMore) {
       await ctx.scheduler.runAfter(
         0,
         internal.workouts.continueMigrateAbsoluteWorkoutsToPercentage,
-        {}
+        { ownerId: args.ownerId }
       )
     }
 
@@ -328,13 +344,14 @@ export const continueMigrateAbsoluteWorkoutsToPercentage = internalMutation({
 export const backfillWorkoutSummaries = mutation({
   args: {},
   handler: async (ctx) => {
-    const status = await runWorkoutSummaryBackfillBatch(ctx, null)
+    const ownerId = await requireAuthUserId(ctx)
+    const status = await runWorkoutSummaryBackfillBatch(ctx, ownerId, null)
 
     if (status.hasMore) {
       await ctx.scheduler.runAfter(
         0,
         internal.workouts.continueBackfillWorkoutSummaries,
-        { cursor: status.continueCursor }
+        { ownerId, cursor: status.continueCursor }
       )
     }
 
@@ -345,13 +362,18 @@ export const backfillWorkoutSummaries = mutation({
 export const backfillWorkoutIntervalsRevision = mutation({
   args: {},
   handler: async (ctx) => {
-    const status = await runWorkoutIntervalsRevisionBackfillBatch(ctx, null)
+    const ownerId = await requireAuthUserId(ctx)
+    const status = await runWorkoutIntervalsRevisionBackfillBatch(
+      ctx,
+      ownerId,
+      null
+    )
 
     if (status.hasMore) {
       await ctx.scheduler.runAfter(
         0,
         internal.workouts.continueBackfillWorkoutIntervalsRevision,
-        { cursor: status.continueCursor }
+        { ownerId, cursor: status.continueCursor }
       )
     }
 
@@ -360,10 +382,11 @@ export const backfillWorkoutIntervalsRevision = mutation({
 })
 
 export const continueBackfillWorkoutIntervalsRevision = internalMutation({
-  args: { cursor: v.union(v.string(), v.null()) },
+  args: { ownerId: v.id("users"), cursor: v.union(v.string(), v.null()) },
   handler: async (ctx, args) => {
     const status = await runWorkoutIntervalsRevisionBackfillBatch(
       ctx,
+      args.ownerId,
       args.cursor
     )
 
@@ -371,7 +394,7 @@ export const continueBackfillWorkoutIntervalsRevision = internalMutation({
       await ctx.scheduler.runAfter(
         0,
         internal.workouts.continueBackfillWorkoutIntervalsRevision,
-        { cursor: status.continueCursor }
+        { ownerId: args.ownerId, cursor: status.continueCursor }
       )
     }
 
@@ -380,15 +403,19 @@ export const continueBackfillWorkoutIntervalsRevision = internalMutation({
 })
 
 export const continueBackfillWorkoutSummaries = internalMutation({
-  args: { cursor: v.union(v.string(), v.null()) },
+  args: { ownerId: v.id("users"), cursor: v.union(v.string(), v.null()) },
   handler: async (ctx, args) => {
-    const status = await runWorkoutSummaryBackfillBatch(ctx, args.cursor)
+    const status = await runWorkoutSummaryBackfillBatch(
+      ctx,
+      args.ownerId,
+      args.cursor
+    )
 
     if (status.hasMore) {
       await ctx.scheduler.runAfter(
         0,
         internal.workouts.continueBackfillWorkoutSummaries,
-        { cursor: status.continueCursor }
+        { ownerId: args.ownerId, cursor: status.continueCursor }
       )
     }
 
@@ -396,12 +423,16 @@ export const continueBackfillWorkoutSummaries = internalMutation({
   },
 })
 
-async function runWorkoutPowerMigrationBatch(ctx: MutationCtx) {
-  const settings = await ctx.db.query("userSettings").first()
-  const ftp = settings?.ftp ?? 150
+async function runWorkoutPowerMigrationBatch(
+  ctx: MutationCtx,
+  ownerId: Id<"users">
+) {
+  const user = await ctx.db.get(ownerId)
+  const ftp = user?.ftp ?? 150
 
   const absoluteWorkouts = await ctx.db
     .query("workouts")
+    .withIndex("by_ownerId", (q) => q.eq("ownerId", ownerId))
     .filter((q) => q.eq(q.field("powerMode"), "absolute"))
     .take(LEGACY_POWER_MODE_BATCH_SIZE + 1)
 
@@ -416,6 +447,7 @@ async function runWorkoutPowerMigrationBatch(ctx: MutationCtx) {
       }))
 
       return ctx.db.replace(workout._id, {
+        ownerId,
         title: workout.title,
         intervalsRevision: resolveIntervalsRevision(workout),
         intervals,
@@ -429,6 +461,7 @@ async function runWorkoutPowerMigrationBatch(ctx: MutationCtx) {
       ? []
       : await ctx.db
           .query("workouts")
+          .withIndex("by_ownerId", (q) => q.eq("ownerId", ownerId))
           .filter((q) => q.eq(q.field("powerMode"), "percentage"))
           .take(LEGACY_POWER_MODE_BATCH_SIZE + 1)
 
@@ -440,6 +473,7 @@ async function runWorkoutPowerMigrationBatch(ctx: MutationCtx) {
   await Promise.all(
     percentageBatch.map((workout) =>
       ctx.db.replace(workout._id, {
+        ownerId,
         title: workout.title,
         intervalsRevision: resolveIntervalsRevision(workout),
         intervals: workout.intervals,
@@ -459,12 +493,17 @@ async function runWorkoutPowerMigrationBatch(ctx: MutationCtx) {
 
 async function runWorkoutSummaryBackfillBatch(
   ctx: MutationCtx,
+  ownerId: Id<"users">,
   cursor: string | null
 ) {
-  const page = await ctx.db.query("workouts").order("asc").paginate({
-    cursor,
-    numItems: WORKOUT_SUMMARY_BACKFILL_BATCH_SIZE,
-  })
+  const page = await ctx.db
+    .query("workouts")
+    .withIndex("by_ownerId", (q) => q.eq("ownerId", ownerId))
+    .order("asc")
+    .paginate({
+      cursor,
+      numItems: WORKOUT_SUMMARY_BACKFILL_BATCH_SIZE,
+    })
 
   const workoutsToPatch = page.page.filter(
     (workout) => workout.summary === undefined
@@ -488,12 +527,17 @@ async function runWorkoutSummaryBackfillBatch(
 
 async function runWorkoutIntervalsRevisionBackfillBatch(
   ctx: MutationCtx,
+  ownerId: Id<"users">,
   cursor: string | null
 ) {
-  const page = await ctx.db.query("workouts").order("asc").paginate({
-    cursor,
-    numItems: INTERVALS_REVISION_BACKFILL_BATCH_SIZE,
-  })
+  const page = await ctx.db
+    .query("workouts")
+    .withIndex("by_ownerId", (q) => q.eq("ownerId", ownerId))
+    .order("asc")
+    .paginate({
+      cursor,
+      numItems: INTERVALS_REVISION_BACKFILL_BATCH_SIZE,
+    })
 
   const workoutsToPatch = page.page.filter(
     (workout) => workout.intervalsRevision === undefined

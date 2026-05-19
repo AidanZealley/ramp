@@ -1,5 +1,6 @@
 import { v } from "convex/values"
 import { mutation, query } from "./_generated/server"
+import { requireAuthUserId } from "./authHelpers"
 
 const powerDisplayModeValidator = v.union(
   v.literal("absolute"),
@@ -95,21 +96,9 @@ export function resolveSettingsValues(
 export const get = query({
   args: {},
   handler: async (ctx) => {
-    const settings = await ctx.db.query("userSettings").first()
-    return {
-      ftp: settings?.ftp ?? 150,
-      powerDisplayMode: settings?.powerDisplayMode ?? "percentage",
-      riderWeightKg:
-        settings?.riderWeightKg === undefined
-          ? DEFAULT_RIDER_WEIGHT_KG
-          : validateRiderWeightKg(settings.riderWeightKg),
-      bikeWeightKg:
-        settings?.bikeWeightKg === undefined
-          ? DEFAULT_BIKE_WEIGHT_KG
-          : validateBikeWeightKg(settings.bikeWeightKg),
-      routeSimulationProgressMode:
-        settings?.routeSimulationProgressMode ?? "trainer-speed",
-    }
+    const userId = await requireAuthUserId(ctx)
+    const user = await ctx.db.get(userId)
+    return resolveSettingsValues({}, user)
   },
 })
 
@@ -124,25 +113,19 @@ export const upsert = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const existing = await ctx.db.query("userSettings").first()
-    const next = resolveSettingsValues(args, existing)
-
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        ftp: next.ftp,
-        powerDisplayMode: next.powerDisplayMode,
-        riderWeightKg: next.riderWeightKg,
-        bikeWeightKg: next.bikeWeightKg,
-        routeSimulationProgressMode: next.routeSimulationProgressMode,
-      })
-    } else {
-      await ctx.db.insert("userSettings", {
-        ftp: next.ftp,
-        powerDisplayMode: next.powerDisplayMode,
-        riderWeightKg: next.riderWeightKg,
-        bikeWeightKg: next.bikeWeightKg,
-        routeSimulationProgressMode: next.routeSimulationProgressMode,
-      })
+    const userId = await requireAuthUserId(ctx)
+    const user = await ctx.db.get(userId)
+    if (!user) {
+      throw new Error("User not found")
     }
+    const next = resolveSettingsValues(args, user)
+
+    await ctx.db.patch(userId, {
+      ftp: next.ftp,
+      powerDisplayMode: next.powerDisplayMode,
+      riderWeightKg: next.riderWeightKg,
+      bikeWeightKg: next.bikeWeightKg,
+      routeSimulationProgressMode: next.routeSimulationProgressMode,
+    })
   },
 })

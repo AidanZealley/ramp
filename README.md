@@ -84,9 +84,12 @@ Convex currently stores:
 - `plans`
 - `planWeeks`
 - `planWeekWorkouts`
-- `userSettings`
+- `users` with auth-managed profile fields plus per-user settings
 
-That covers the core editing loop without adding auth or collaboration complexity yet.
+Ramp uses Convex Auth with password sign-in. Password sign-up is intentionally
+open for now, so anyone with the deployed app can create an account. Auth error
+messages stay generic and do not disclose whether an email address already
+exists.
 
 ## Import / Export
 

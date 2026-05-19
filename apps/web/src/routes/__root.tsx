@@ -1,20 +1,17 @@
 import {
   HeadContent,
-  Link,
-  Outlet,
   Scripts,
   createRootRouteWithContext,
   useRouterState,
 } from "@tanstack/react-router"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
-import { TriangleRight } from "lucide-react"
+import { AuthLoading, Authenticated, Unauthenticated } from "convex/react"
 import appCss from "../styles.css?url"
 import type { QueryClient } from "@tanstack/react-query"
-import { SettingsDialog } from "@/components/settings-dialog"
-import { ModeToggle } from "@/components/mode-toggle"
+import { AuthenticatedAppShell } from "@/components/authenticated-app-shell"
+import { AuthScreen } from "@/components/auth-screen"
 import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "@/components/ui/sonner"
 import { getThemeServerFn } from "@/lib/theme"
 
 export const Route = createRootRouteWithContext<{
@@ -66,81 +63,23 @@ function RootLayout() {
   return (
     <ThemeProvider theme={theme}>
       <RootDocument theme={theme}>
-        <div className="flex min-h-svh flex-col">
-          {!rideImmersive && (
-            <header className="sticky top-0 z-40 border-b border-border/50 bg-background/50 px-4 backdrop-blur-lg">
-              <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-6">
-                <div className="flex items-center gap-6">
-                  <Link
-                    to="/"
-                    className="flex items-center gap-0.5 transition-opacity hover:opacity-80"
-                  >
-                    <TriangleRight className="-mt-1 size-4" strokeWidth={4} />
-                    <span className="font-heading text-lg font-semibold tracking-tight">
-                      Ramp
-                    </span>
-                  </Link>
-
-                  <nav className="flex items-center gap-4 text-sm">
-                    <Link
-                      to="/workout"
-                      className={
-                        workoutsActive
-                          ? "font-medium text-foreground"
-                          : "text-muted-foreground transition-colors hover:text-foreground"
-                      }
-                    >
-                      Workouts
-                    </Link>
-                    <Link
-                      to="/plan"
-                      className={
-                        plansActive
-                          ? "font-medium text-foreground"
-                          : "text-muted-foreground transition-colors hover:text-foreground"
-                      }
-                    >
-                      Plans
-                    </Link>
-                    <Link
-                      to="/route"
-                      className={
-                        routeActive
-                          ? "font-medium text-foreground"
-                          : "text-muted-foreground transition-colors hover:text-foreground"
-                      }
-                    >
-                      Routes
-                    </Link>
-                    <Link
-                      to="/ride"
-                      className={
-                        rideActive
-                          ? "font-medium text-foreground"
-                          : "text-muted-foreground transition-colors hover:text-foreground"
-                      }
-                    >
-                      Ride
-                    </Link>
-                  </nav>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <ModeToggle />
-                  <SettingsDialog />
-                </div>
-              </div>
-            </header>
-          )}
-          <main
-            className={
-              rideImmersive ? "w-full flex-1" : "w-full flex-1 px-4 py-6"
-            }
-          >
-            <Outlet />
+        <AuthLoading>
+          <main className="flex min-h-svh items-center justify-center text-sm text-muted-foreground">
+            Loading...
           </main>
-          <Toaster />
-        </div>
+        </AuthLoading>
+        <Unauthenticated>
+          <AuthScreen />
+        </Unauthenticated>
+        <Authenticated>
+          <AuthenticatedAppShell
+            rideImmersive={rideImmersive}
+            workoutsActive={workoutsActive}
+            plansActive={plansActive}
+            routeActive={routeActive}
+            rideActive={rideActive}
+          />
+        </Authenticated>
       </RootDocument>
     </ThemeProvider>
   )

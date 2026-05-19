@@ -1,16 +1,17 @@
 import { parseGPX } from "@we-gold/gpxjs"
-import type { FeatureCollection, LineString } from "geojson"
 import {
   ELEVATION_SAMPLE_LIMIT,
+  
   MAX_GPX_FILE_SIZE_BYTES,
-  ROUTE_PREVIEW_POINT_LIMIT,
-  type ElevationSample,
-  type ParseRouteGpxResult,
-  type ParsedRouteGpx,
-  type RouteBounds,
-  type RoutePoint,
-  type RoutePreviewPoint,
+  
+  
+  ROUTE_PREVIEW_POINT_LIMIT
+  
+  
+  
 } from "./types"
+import type {ElevationSample, ParseRouteGpxResult, ParsedRouteGpx, RouteBounds, RoutePoint, RoutePreviewPoint} from "./types";
+import type { FeatureCollection, LineString } from "geojson"
 
 type GpxPoint = {
   latitude: number

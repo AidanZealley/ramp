@@ -1,5 +1,5 @@
-import { createControllableTrainerRequestOptions } from "./uuids"
 import { isTrainerError } from "@ramp/ride-contracts"
+import { createControllableTrainerRequestOptions } from "./uuids"
 import type { TrainerError } from "../../../types"
 
 export type BleTrainerRequestOptions = {

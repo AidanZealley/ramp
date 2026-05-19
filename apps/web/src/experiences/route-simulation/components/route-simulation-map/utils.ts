@@ -1,5 +1,3 @@
-import type { FeatureCollection, LineString } from "geojson"
-import type { RoutePoint, RoutePosition } from "@/lib/routes/types"
 import {
   CAMERA_BEARING_THRESHOLD_DEGREES,
   CAMERA_MOVE_THRESHOLD_METERS,
@@ -11,6 +9,8 @@ import {
   PERSPECTIVE_MIN_PITCH,
   PERSPECTIVE_MIN_PITCH_ZOOM,
 } from "./constants"
+import type { FeatureCollection, LineString } from "geojson"
+import type { RoutePoint, RoutePosition } from "@/lib/routes/types"
 import type {
   CameraTarget,
   RouteBearingSegment,

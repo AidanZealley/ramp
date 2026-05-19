@@ -1,9 +1,4 @@
 import { useCallback, useEffect, useRef } from "react"
-import type { RefObject } from "react"
-import type { MapRef } from "@vis.gl/react-maplibre"
-import type { GeoJSONSource } from "maplibre-gl"
-import { buildRiderGeojson } from "@/components/route/route-map/utils"
-import type { RoutePoint, RoutePosition } from "@/lib/routes/types"
 import {
   RIDER_RENDER_ARRIVAL_EPSILON_METERS,
   RIDER_RENDER_MAX_GAP_MS,
@@ -12,16 +7,21 @@ import {
   RIDER_RENDER_SEEK_THRESHOLD_METERS,
   RIDER_SOURCE_ID,
 } from "../constants"
-import type {
-  RiderDistanceSample,
-  RiderRenderedPositionSnapshot,
-  RouteDistanceCursor,
-} from "../types"
 import {
   clamp,
   clampDistanceToRoute,
   getRoutePositionSnapshotAtDistanceWithCursor,
 } from "../utils"
+import type { RefObject } from "react"
+import type { MapRef } from "@vis.gl/react-maplibre"
+import type { GeoJSONSource } from "maplibre-gl"
+import type { RoutePoint, RoutePosition } from "@/lib/routes/types"
+import type {
+  RiderDistanceSample,
+  RiderRenderedPositionSnapshot,
+  RouteDistanceCursor,
+} from "../types"
+import { buildRiderGeojson } from "@/components/route/route-map/utils"
 
 type UseRenderedRiderPositionArgs = {
   mapRef: RefObject<MapRef | null>

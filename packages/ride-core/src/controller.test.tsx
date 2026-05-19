@@ -1,14 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { Capability } from "@ramp/ride-contracts"
 import { createRideSession } from "./controller"
 import { createRAFShim } from "./test-utils/raf-shim"
-import { Capability } from "@ramp/ride-contracts"
-import type { RideTrainerAdapter, TrainerCommand } from "./types"
-import type {
-  RideTrainerConnectionState,
+import type { RideTrainerAdapter, RideTrainerConnectionState,
   RideTrainerError,
   RideTrainerTelemetry,
-} from "./types"
+  TrainerCommand } from "./types"
 
 class TestTrainer implements RideTrainerAdapter {
   readonly capabilities: RideTrainerAdapter["capabilities"]

@@ -1,5 +1,6 @@
 import { v } from "convex/values"
 import { mutation, query } from "./_generated/server"
+import { requireAuthUserId, requireOwnedRoute } from "./authHelpers"
 
 const routeStatsValidator = v.object({
   distanceMeters: v.number(),
@@ -65,6 +66,7 @@ export function validatePreviewPoints(
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAuthUserId(ctx)
     return await ctx.storage.generateUploadUrl()
   },
 })
@@ -84,10 +86,12 @@ export const createFromGpxUpload = mutation({
     tags: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
+    const ownerId = await requireAuthUserId(ctx)
     const title = normalizeRouteTitle(args.title)
     validatePreviewPoints(args.previewPoints)
 
     return await ctx.db.insert("routes", {
+      ownerId,
       title,
       source: "gpx",
       fileStorageId: args.fileStorageId,
@@ -107,7 +111,11 @@ export const createFromGpxUpload = mutation({
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const routes = await ctx.db.query("routes").collect()
+    const ownerId = await requireAuthUserId(ctx)
+    const routes = await ctx.db
+      .query("routes")
+      .withIndex("by_ownerId", (q) => q.eq("ownerId", ownerId))
+      .collect()
     return routes.sort((a, b) => b._creationTime - a._creationTime)
   },
 })
@@ -115,8 +123,9 @@ export const list = query({
 export const get = query({
   args: { id: v.id("routes") },
   handler: async (ctx, args) => {
+    const ownerId = await requireAuthUserId(ctx)
     const routeDoc = await ctx.db.get(args.id)
-    if (!routeDoc) return null
+    if (!routeDoc || routeDoc.ownerId !== ownerId) return null
 
     return {
       ...routeDoc,
@@ -128,8 +137,7 @@ export const get = query({
 export const remove = mutation({
   args: { id: v.id("routes") },
   handler: async (ctx, args) => {
-    const routeDoc = await ctx.db.get(args.id)
-    if (!routeDoc) return
+    const routeDoc = await requireOwnedRoute(ctx, args.id)
 
     await ctx.storage.delete(routeDoc.fileStorageId)
     await ctx.db.delete(args.id)
@@ -142,10 +150,7 @@ export const updateTitle = mutation({
     title: v.string(),
   },
   handler: async (ctx, args) => {
-    const routeDoc = await ctx.db.get(args.id)
-    if (!routeDoc) {
-      throw new Error("Route not found")
-    }
+    await requireOwnedRoute(ctx, args.id)
 
     await ctx.db.patch(args.id, {
       title: normalizeRouteTitle(args.title),

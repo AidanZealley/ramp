@@ -5,13 +5,13 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
+import type { ElevationSample } from "@/lib/routes/types"
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
 import { metersToFeet, metersToMiles } from "@/lib/routes/format"
-import type { ElevationSample } from "@/lib/routes/types"
 
 type ElevationChartProps = {
   samples: Array<ElevationSample>

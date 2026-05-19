@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef } from "react"
+import { TERRAIN_SOURCE_ID } from "../constants"
 import type { RefObject } from "react"
 import type { MapRef } from "@vis.gl/react-maplibre"
-import { ROUTE_TERRAIN_EXAGGERATION } from "@/components/route/route-map/constants"
 import type { RouteMapViewMode } from "@/experiences/route-simulation/types"
 import type { RoutePosition } from "@/lib/routes/types"
-import { TERRAIN_SOURCE_ID } from "../constants"
 import type { MutableMapElevation } from "../types"
+import { ROUTE_TERRAIN_EXAGGERATION } from "@/components/route/route-map/constants"
 
 const forceMapCenterElevation = (
   map: MutableMapElevation | undefined,

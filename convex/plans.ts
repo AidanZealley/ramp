@@ -1,11 +1,12 @@
 import { v } from "convex/values"
+import { mutation, query } from "./_generated/server"
 import {
-  
-  
-  mutation,
-  query
-} from "./_generated/server"
-import type {MutationCtx, QueryCtx} from "./_generated/server";
+  requireAuthUserId,
+  requireOwnedPlan,
+  requireOwnedWeek,
+  requireOwnedWorkout,
+} from "./authHelpers"
+import type { MutationCtx, QueryCtx } from "./_generated/server"
 import type { Doc, Id } from "./_generated/dataModel"
 
 type PlanDoc = Doc<"plans">
@@ -100,7 +101,8 @@ async function normalizeWeekSlots(
 
 async function getWorkoutMap(
   ctx: QueryCtx | MutationCtx,
-  workoutIds: Array<WorkoutIdOrNull>
+  workoutIds: Array<WorkoutIdOrNull>,
+  ownerId: Id<"users">
 ): Promise<Map<Id<"workouts">, WorkoutDoc>> {
   const uniqueWorkoutIds = Array.from(
     new Set(
@@ -118,7 +120,9 @@ async function getWorkoutMap(
 
   return new Map(
     workouts.flatMap(({ workoutId, workout }) =>
-      workout ? [[workoutId, workout] as const] : []
+      workout && workout.ownerId === ownerId
+        ? [[workoutId, workout] as const]
+        : []
     )
   )
 }
@@ -164,7 +168,8 @@ function fixedWeekSlots(
 
 async function getPlanTree(
   ctx: QueryCtx | MutationCtx,
-  planId: Id<"plans">
+  planId: Id<"plans">,
+  ownerId: Id<"users">
 ): Promise<{
   plan: PlanDoc | null
   weeks: Array<
@@ -174,7 +179,7 @@ async function getPlanTree(
   >
 }> {
   const plan = await ctx.db.get(planId)
-  if (!plan) {
+  if (!plan || plan.ownerId !== ownerId) {
     return { plan: null, weeks: [] }
   }
 
@@ -187,7 +192,8 @@ async function getPlanTree(
   )
   const workoutMap = await getWorkoutMap(
     ctx,
-    weekSlots.flatMap(({ slots }) => slots.map((slot) => slot.workoutId))
+    weekSlots.flatMap(({ slots }) => slots.map((slot) => slot.workoutId)),
+    ownerId
   )
 
   return {
@@ -205,7 +211,11 @@ async function getPlanTree(
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const plans = await ctx.db.query("plans").collect()
+    const ownerId = await requireAuthUserId(ctx)
+    const plans = await ctx.db
+      .query("plans")
+      .withIndex("by_ownerId", (q) => q.eq("ownerId", ownerId))
+      .collect()
 
     return await Promise.all(
       plans.map(async (plan) => {
@@ -215,7 +225,8 @@ export const list = query({
         )
         const workoutMap = await getWorkoutMap(
           ctx,
-          allSlots.flatMap((slots) => slots.map((slot) => slot.workoutId))
+          allSlots.flatMap((slots) => slots.map((slot) => slot.workoutId)),
+          ownerId
         )
 
         let totalWorkouts = 0
@@ -243,7 +254,8 @@ export const list = query({
 export const get = query({
   args: { planId: v.id("plans") },
   handler: async (ctx, args) => {
-    const tree = await getPlanTree(ctx, args.planId)
+    const ownerId = await requireAuthUserId(ctx)
+    const tree = await getPlanTree(ctx, args.planId, ownerId)
     if (!tree.plan) {
       return null
     }
@@ -258,9 +270,20 @@ export const get = query({
 export const migrateWeekSchedules = mutation({
   args: { planId: v.optional(v.id("plans")) },
   handler: async (ctx, args) => {
+    const ownerId = await requireAuthUserId(ctx)
     const weeks = args.planId
-      ? await getPlanWeeks(ctx, args.planId)
-      : await ctx.db.query("planWeeks").collect()
+      ? (await requireOwnedPlan(ctx, args.planId, ownerId),
+        await getPlanWeeks(ctx, args.planId))
+      : (
+          await Promise.all(
+            (
+              await ctx.db
+                .query("plans")
+                .withIndex("by_ownerId", (q) => q.eq("ownerId", ownerId))
+                .collect()
+            ).map((plan) => getPlanWeeks(ctx, plan._id))
+          )
+        ).flat()
 
     for (const week of weeks) {
       await normalizeWeekSlots(ctx, week._id)
@@ -273,7 +296,9 @@ export const migrateWeekSchedules = mutation({
 export const create = mutation({
   args: { title: v.string() },
   handler: async (ctx, args) => {
+    const ownerId = await requireAuthUserId(ctx)
     const planId = await ctx.db.insert("plans", {
+      ownerId,
       title: args.title,
     })
     const weekId = await ctx.db.insert("planWeeks", {
@@ -291,6 +316,7 @@ export const updateTitle = mutation({
     title: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireOwnedPlan(ctx, args.planId)
     await ctx.db.patch(args.planId, {
       title: args.title,
     })
@@ -300,6 +326,7 @@ export const updateTitle = mutation({
 export const remove = mutation({
   args: { planId: v.id("plans") },
   handler: async (ctx, args) => {
+    await requireOwnedPlan(ctx, args.planId)
     const weeks = await getPlanWeeks(ctx, args.planId)
     for (const week of weeks) {
       const slots = await getWeekSlots(ctx, week._id)
@@ -318,12 +345,14 @@ export const duplicatePlan = mutation({
     title: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const tree = await getPlanTree(ctx, args.planId)
+    const ownerId = await requireAuthUserId(ctx)
+    const tree = await getPlanTree(ctx, args.planId, ownerId)
     if (!tree.plan) {
       throw new Error("Plan not found")
     }
 
     const newPlanId = await ctx.db.insert("plans", {
+      ownerId,
       title: args.title ?? `${tree.plan.title} (copy)`,
     })
 
@@ -348,6 +377,7 @@ export const duplicatePlan = mutation({
 export const addWeek = mutation({
   args: { planId: v.id("plans") },
   handler: async (ctx, args) => {
+    await requireOwnedPlan(ctx, args.planId)
     const lastWeek = await ctx.db
       .query("planWeeks")
       .withIndex("by_plan_and_order", (q) => q.eq("planId", args.planId))
@@ -380,10 +410,7 @@ async function renumberPlanWeeks(
 export const removeWeek = mutation({
   args: { weekId: v.id("planWeeks") },
   handler: async (ctx, args) => {
-    const week = await ctx.db.get(args.weekId)
-    if (!week) {
-      return
-    }
+    const { week } = await requireOwnedWeek(ctx, args.weekId)
 
     const slots = await getWeekSlots(ctx, week._id)
     await Promise.all(slots.map((slot) => ctx.db.delete(slot._id)))
@@ -398,9 +425,16 @@ export const updateWeekSchedule = mutation({
     workoutIdsByDay: v.array(v.union(v.id("workouts"), v.null())),
   },
   handler: async (ctx, args) => {
+    const ownerId = await requireAuthUserId(ctx)
+    await requireOwnedWeek(ctx, args.weekId, ownerId)
     if (args.workoutIdsByDay.length !== DAYS_PER_WEEK) {
       throw new Error("Week schedule must contain exactly 7 days")
     }
+    await Promise.all(
+      args.workoutIdsByDay.map((workoutId) =>
+        workoutId ? requireOwnedWorkout(ctx, workoutId, ownerId) : null
+      )
+    )
 
     await normalizeWeekSlots(ctx, args.weekId)
     const slots = await getWeekSlots(ctx, args.weekId)

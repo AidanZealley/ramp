@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useQuery } from "convex/react"
-import { parseRouteGpxText } from "@/lib/routes/gpx"
-import { api } from "#convex/_generated/api"
 import type { Id } from "#convex/_generated/dataModel"
 import type { useNavigate } from "@tanstack/react-router"
 import type { ParsedRouteGpx } from "@/lib/routes/types"
 import type { RouteSimulationRouteState } from "../types"
+import { api } from "#convex/_generated/api"
+import { parseRouteGpxText } from "@/lib/routes/gpx"
 
 type UseRouteSimulationRouteInput = {
   linkedRouteId: Id<"routes"> | undefined

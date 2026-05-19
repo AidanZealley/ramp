@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest"
-import { readdirSync, readFileSync, statSync } from "node:fs"
+import { readFileSync, readdirSync, statSync } from "node:fs"
 import { join, relative } from "node:path"
+import { describe, expect, it } from "vitest"
 
 const repoRoot = join(__dirname, "../../..")
 const packagesRoot = join(repoRoot, "packages")

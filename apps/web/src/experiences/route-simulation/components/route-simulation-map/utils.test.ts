@@ -1,6 +1,4 @@
 import { describe, expect, it } from "vitest"
-import type { FeatureCollection, LineString } from "geojson"
-import type { RoutePoint } from "@/lib/routes/types"
 import {
   buildRouteBearingSegments,
   clampDistanceToRoute,
@@ -11,6 +9,8 @@ import {
   lerpBearingDegrees,
   shouldUpdateCamera,
 } from "./utils"
+import type { FeatureCollection, LineString } from "geojson"
+import type { RoutePoint } from "@/lib/routes/types"
 
 describe("route simulation map utils", () => {
   it("calculates perspective pitch from zoom and grade within camera bounds", () => {

@@ -1,5 +1,5 @@
-import { useTheme } from "@/components/theme-provider"
 import { routeMapStyleUrls, routeMapTheme } from "../colors"
+import { useTheme } from "@/components/theme-provider"
 
 export const useRouteMapStyle = () => {
   const { theme } = useTheme()

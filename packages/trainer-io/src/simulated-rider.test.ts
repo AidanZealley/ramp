@@ -88,7 +88,7 @@ describe("SimulatedRider", () => {
     rider.subscribeState((state) => snapshots.push(state))
 
     rider.dispatch({ type: "setManualPower", watts: 210 })
-    snapshots[0]!.powerWatts = 1
+    snapshots[0].powerWatts = 1
 
     expect(rider.state.powerWatts).toBe(210)
   })

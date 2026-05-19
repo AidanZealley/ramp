@@ -8,6 +8,9 @@
  * @module
  */
 
+import type * as auth from "../auth.js";
+import type * as authHelpers from "../authHelpers.js";
+import type * as http from "../http.js";
 import type * as plans from "../plans.js";
 import type * as routes from "../routes.js";
 import type * as settings from "../settings.js";
@@ -21,6 +24,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  auth: typeof auth;
+  authHelpers: typeof authHelpers;
+  http: typeof http;
   plans: typeof plans;
   routes: typeof routes;
   settings: typeof settings;
