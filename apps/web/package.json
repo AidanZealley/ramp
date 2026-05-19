@@ -35,6 +35,7 @@
     "@tanstack/react-router-devtools": "^1.166.9",
     "@tanstack/react-router-ssr-query": "^1.166.11",
     "@tanstack/react-start": "^1.166.15",
+    "@tanstack/react-table": "^8.21.3",
     "@tanstack/router-plugin": "^1.166.13",
     "@vis.gl/react-maplibre": "^8.1.1",
     "@we-gold/gpxjs": "^1.1.0",

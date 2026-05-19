@@ -1,25 +1,57 @@
 import * as React from "react"
 import { useMutation, useQuery } from "convex/react"
-import { Copy, Plus, X } from "lucide-react"
-import { formatInviteDate, statusLabel } from "./utils"
+import { Copy, Plus } from "lucide-react"
 import type { Id } from "#convex/_generated/dataModel"
 import { api } from "#convex/_generated/api"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
+import { InvitesTable } from "./components/invites-table"
 
 export const AdminInvites = () => {
   const invites = useQuery(api.invites.list, {})
   const createInvite = useMutation(api.invites.create)
   const revokeInvite = useMutation(api.invites.revoke)
+  const deleteInvite = useMutation(api.invites.remove)
   const [email, setEmail] = React.useState("")
   const [createdCode, setCreatedCode] = React.useState<string | null>(null)
   const [pendingInviteId, setPendingInviteId] =
     React.useState<Id<"inviteCodes"> | null>(null)
+  const [pendingDeleteId, setPendingDeleteId] =
+    React.useState<Id<"inviteCodes"> | null>(null)
   const [isCreating, setIsCreating] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+
+  const handleRevoke = React.useCallback(
+    async (inviteId: Id<"inviteCodes">) => {
+      setError(null)
+      setPendingInviteId(inviteId)
+      try {
+        await revokeInvite({ inviteId })
+      } catch {
+        setError("Could not revoke invite.")
+      } finally {
+        setPendingInviteId(null)
+      }
+    },
+    [revokeInvite]
+  )
+
+  const handleDelete = React.useCallback(
+    async (inviteId: Id<"inviteCodes">) => {
+      setError(null)
+      setPendingDeleteId(inviteId)
+      try {
+        await deleteInvite({ inviteId })
+      } catch {
+        setError("Could not delete invite.")
+      } finally {
+        setPendingDeleteId(null)
+      }
+    },
+    [deleteInvite]
+  )
 
   if (invites === undefined) {
     return (
@@ -46,19 +78,6 @@ export const AdminInvites = () => {
     }
   }
 
-  async function handleRevoke(inviteId: Id<"inviteCodes">) {
-    setError(null)
-    setPendingInviteId(inviteId)
-
-    try {
-      await revokeInvite({ inviteId })
-    } catch {
-      setError("Could not revoke invite.")
-    } finally {
-      setPendingInviteId(null)
-    }
-  }
-
   return (
     <section className="mx-auto max-w-5xl space-y-6">
       <div>
@@ -81,11 +100,7 @@ export const AdminInvites = () => {
             required
           />
         </div>
-        <Button
-          type="submit"
-          className="self-end"
-          disabled={isCreating}
-        >
+        <Button type="submit" className="self-end" disabled={isCreating}>
           <Plus />
           {isCreating ? "Creating..." : "Create"}
         </Button>
@@ -115,60 +130,13 @@ export const AdminInvites = () => {
         </p>
       ) : null}
 
-      <div className="overflow-hidden rounded-md border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/60 text-left">
-            <tr>
-              <th className="px-4 py-3 font-medium">Email</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Created</th>
-              <th className="px-4 py-3 font-medium">Used</th>
-              <th className="px-4 py-3 text-right font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {invites.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="px-4 py-8 text-center text-muted-foreground"
-                >
-                  No invites yet.
-                </td>
-              </tr>
-            ) : (
-              invites.map((invite) => (
-                <tr key={invite._id} className="border-t">
-                  <td className="px-4 py-3">{invite.email}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant="secondary">{statusLabel(invite.status)}</Badge>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatInviteDate(invite.createdAt)}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatInviteDate(invite.usedAt)}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {invite.status === "pending" ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        disabled={pendingInviteId === invite._id}
-                        onClick={() => void handleRevoke(invite._id)}
-                      >
-                        <X />
-                        Revoke
-                      </Button>
-                    ) : null}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <InvitesTable
+        data={invites}
+        onRevoke={(id) => void handleRevoke(id)}
+        pendingRevokeId={pendingInviteId}
+        onDelete={(id) => void handleDelete(id)}
+        pendingDeleteId={pendingDeleteId}
+      />
     </section>
   )
 }

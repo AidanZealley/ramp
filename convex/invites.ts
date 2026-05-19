@@ -104,6 +104,23 @@ export const create = mutation({
   },
 })
 
+export const remove = mutation({
+  args: {
+    inviteId: v.id("inviteCodes"),
+  },
+  handler: async (ctx, args) => {
+    await requireAdminUserId(ctx)
+
+    const invite = await ctx.db.get(args.inviteId)
+    if (!invite) {
+      throw new Error("Invite not found")
+    }
+
+    await ctx.db.delete(args.inviteId)
+    return null
+  },
+})
+
 export const revoke = mutation({
   args: {
     inviteId: v.id("inviteCodes"),
