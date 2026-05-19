@@ -25,7 +25,6 @@ import { buildRiderGeojson } from "@/components/route/route-map/utils"
 
 type UseRenderedRiderPositionArgs = {
   mapRef: RefObject<MapRef | null>
-  mapStyle: string
   riderDistanceMeters: number
   routePoints: Array<RoutePoint>
   paused?: boolean
@@ -44,7 +43,6 @@ type RenderState = {
 
 export const useRenderedRiderPosition = ({
   mapRef,
-  mapStyle,
   riderDistanceMeters,
   routePoints,
   paused = false,
@@ -140,7 +138,7 @@ export const useRenderedRiderPosition = ({
     }
     onRenderedFrameRef.current?.(resetSnapshot)
     onRenderedPositionChangeRef.current?.(resetSnapshot)
-  }, [cancelFrame, mapStyle, resetState, routePoints])
+  }, [cancelFrame, resetState, routePoints])
 
   useEffect(() => {
     if (routePoints.length < 1) {

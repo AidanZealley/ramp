@@ -1,4 +1,4 @@
-import { useRouter } from "@tanstack/react-router"
+import { useEffect, useState } from "react"
 import { createContext, use } from "react"
 import type { PropsWithChildren } from "react"
 import type { Theme } from "@/lib/theme"
@@ -10,12 +10,17 @@ const ThemeContext = createContext<ThemeContextVal | null>(null)
 
 export const ThemeProvider = ({
   children,
-  theme,
+  theme: initialTheme,
 }: PropsWithChildren<{ theme: Theme }>) => {
-  const router = useRouter()
+  const [theme, setThemeState] = useState<Theme>(initialTheme)
+
+  useEffect(() => {
+    document.documentElement.className = theme
+  }, [theme])
 
   function setTheme(val: Theme) {
-    setThemeServerFn({ data: val }).then(() => router.invalidate())
+    setThemeState(val)
+    void setThemeServerFn({ data: val })
   }
 
   return <ThemeContext value={{ theme, setTheme }}>{children}</ThemeContext>

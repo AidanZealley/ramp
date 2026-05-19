@@ -89,7 +89,6 @@ export const RouteSimulationMap = ({
 
   useRenderedRiderPosition({
     mapRef,
-    mapStyle,
     onRenderedFrame: (snapshot) => {
       latestRenderedRiderSnapshotRef.current = snapshot
       syncRenderedRiderFrame(snapshot)
@@ -127,7 +126,6 @@ export const RouteSimulationMap = ({
   return (
     <div ref={containerRef} className="absolute inset-0 bg-muted">
       <Map
-        key={mapStyle}
         ref={mapRef}
         mapStyle={mapStyle}
         initialViewState={initialViewState}

@@ -92,7 +92,6 @@ export const RouteMiniMap = ({
       className="absolute top-16 left-3 h-32 w-48 overflow-hidden rounded-lg border border-border/70 bg-card shadow-lg sm:top-20 sm:left-5 sm:h-40 sm:w-64"
     >
       <Map
-        key={mapStyle}
         ref={mapRef}
         mapStyle={mapStyle}
         initialViewState={initialViewState}

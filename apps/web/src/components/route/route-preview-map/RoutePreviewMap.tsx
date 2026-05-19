@@ -85,7 +85,6 @@ export const RoutePreviewMap = ({
       }
     >
       <Map
-        key={mapStyle}
         ref={mapRef}
         mapStyle={mapStyle}
         initialViewState={initialViewState}

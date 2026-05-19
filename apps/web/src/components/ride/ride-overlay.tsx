@@ -6,6 +6,7 @@ import { RideCockpit } from "./ride-cockpit"
 import type { RideRuntimeController } from "@/ride/use-ride-runtime"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { ModeToggle } from "@/components/mode-toggle"
 import { useElementSize } from "@/hooks/use-element-size"
 import {
   AlertDialog,
@@ -223,17 +224,20 @@ export function RideOverlay({
             <Badge>{sourceLabel}</Badge>
           </div>
 
-          <Button
-            size="icon"
-            variant="secondary"
-            aria-label={
-              isCockpitOpen ? "Hide ride cockpit" : "Show ride cockpit"
-            }
-            type="button"
-            onClick={() => setIsCockpitOpen(!isCockpitOpen)}
-          >
-            <Settings />
-          </Button>
+          <div className="flex items-center gap-2">
+            <ModeToggle />
+            <Button
+              size="icon"
+              variant="secondary"
+              aria-label={
+                isCockpitOpen ? "Hide ride cockpit" : "Show ride cockpit"
+              }
+              type="button"
+              onClick={() => setIsCockpitOpen(!isCockpitOpen)}
+            >
+              <Settings />
+            </Button>
+          </div>
         </div>
       </div>
       <AnimatePresence>
