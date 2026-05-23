@@ -7,6 +7,7 @@ import {
   getRoutePositionAtDistanceWithCursor,
   getRoutePositionSnapshotAtDistanceWithCursor,
   lerpBearingDegrees,
+  lerpNumber,
   shouldUpdateCamera,
 } from "./utils"
 import type { FeatureCollection, LineString } from "geojson"
@@ -16,9 +17,11 @@ describe("route simulation map utils", () => {
   it("calculates perspective pitch from zoom and grade within camera bounds", () => {
     expect(getPerspectivePitch(14)).toBe(48)
     expect(getPerspectivePitch(18)).toBe(80)
-    expect(getPerspectivePitch(16, 5)).toBe(68)
-    expect(getPerspectivePitch(16, -50)).toBe(54)
-    expect(getPerspectivePitch(16, 50)).toBe(74)
+    expect(getPerspectivePitch(16, 10, false)).toBe(64)
+    expect(getPerspectivePitch(16, -10, false)).toBe(64)
+    expect(getPerspectivePitch(16, 5, true)).toBe(68)
+    expect(getPerspectivePitch(16, -50, true)).toBe(54)
+    expect(getPerspectivePitch(16, 50, true)).toBe(74)
   })
 
   it("computes the nearest route segment bearing", () => {
@@ -80,6 +83,12 @@ describe("route simulation map utils", () => {
     expect(lerpBearingDegrees(350, 10, 0.5)).toBeCloseTo(0)
     expect(lerpBearingDegrees(10, 350, 0.5)).toBeCloseTo(0)
     expect(lerpBearingDegrees(90, 180, 0.25)).toBeCloseTo(112.5)
+  })
+
+  it("interpolates numbers within clamped progress", () => {
+    expect(lerpNumber(10, 20, 0.25)).toBe(12.5)
+    expect(lerpNumber(10, 20, -1)).toBe(10)
+    expect(lerpNumber(10, 20, 2)).toBe(20)
   })
 
   it("clamps rider distance to the available route distance range", () => {

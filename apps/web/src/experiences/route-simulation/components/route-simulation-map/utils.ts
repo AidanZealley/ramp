@@ -24,6 +24,9 @@ const toDegrees = (radians: number) => (radians * 180) / Math.PI
 export const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max)
 
+export const lerpNumber = (from: number, to: number, progress: number) =>
+  from + (to - from) * clamp(progress, 0, 1)
+
 export const getPerspectivePitchForZoom = (zoom: number) => {
   const progress = clamp(
     (zoom - PERSPECTIVE_MIN_PITCH_ZOOM) /
@@ -38,12 +41,18 @@ export const getPerspectivePitchForZoom = (zoom: number) => {
   )
 }
 
-export const getPerspectivePitch = (zoom: number, gradePercent = 0) => {
-  const gradePitchOffset = clamp(
-    gradePercent * PERSPECTIVE_GRADE_PITCH_MULTIPLIER,
-    -PERSPECTIVE_GRADE_PITCH_RANGE,
-    PERSPECTIVE_GRADE_PITCH_RANGE
-  )
+export const getPerspectivePitch = (
+  zoom: number,
+  gradePercent = 0,
+  terrainEnabled = false
+) => {
+  const gradePitchOffset = terrainEnabled
+    ? clamp(
+        gradePercent * PERSPECTIVE_GRADE_PITCH_MULTIPLIER,
+        -PERSPECTIVE_GRADE_PITCH_RANGE,
+        PERSPECTIVE_GRADE_PITCH_RANGE
+      )
+    : 0
 
   return clamp(
     getPerspectivePitchForZoom(zoom) + gradePitchOffset,

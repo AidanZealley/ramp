@@ -24,6 +24,7 @@ type UseRouteRiderAnchoredZoomArgs = {
   syncPerspectiveCameraElevation: (
     positionOverride?: RoutePosition | null
   ) => void
+  terrainEnabled: boolean
   viewMode: RouteMapViewMode
 }
 
@@ -65,6 +66,7 @@ export const useRouteRiderAnchoredZoom = ({
   riderGradePercent,
   riderPosition,
   syncPerspectiveCameraElevation,
+  terrainEnabled,
   viewMode,
 }: UseRouteRiderAnchoredZoomArgs) => {
   const previousBearingRef = useRef(0)
@@ -108,7 +110,11 @@ export const useRouteRiderAnchoredZoom = ({
       previousBearingRef.current = bearing
 
       const perspectiveZoom = Math.max(nextZoom, PERSPECTIVE_ZOOM_FLOOR)
-      const pitch = getPerspectivePitch(perspectiveZoom, riderGradePercent)
+      const pitch = getPerspectivePitch(
+        perspectiveZoom,
+        riderGradePercent,
+        terrainEnabled
+      )
       const elevation = getPerspectiveTerrainElevation(anchorPosition)
 
       const options = {
@@ -132,6 +138,7 @@ export const useRouteRiderAnchoredZoom = ({
       riderGradePercent,
       riderPosition,
       syncPerspectiveCameraElevation,
+      terrainEnabled,
       viewMode,
     ]
   )

@@ -105,6 +105,7 @@ export const RouteSimulationMap = ({
     riderGradePercent,
     riderPosition,
     syncPerspectiveCameraElevation,
+    terrainEnabled,
     viewMode,
   })
 

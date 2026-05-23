@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef } from "react"
 import {
-  CAMERA_BEARING_SMOOTHING_MS,
   CAMERA_DURATION_MS,
   CAMERA_FOLLOW_EASE_DURATION_MS,
   CAMERA_MODE_TRANSITION_DURATION_MS,
+  CAMERA_SMOOTHING_MS,
   PERSPECTIVE_FOLLOW_OFFSET_PX,
   PERSPECTIVE_ZOOM_FLOOR,
 } from "../constants"
@@ -12,6 +12,7 @@ import {
   computeRouteBearingNearPosition,
   getPerspectivePitch,
   lerpBearingDegrees,
+  lerpNumber,
   shouldUpdateCamera,
 } from "../utils"
 import type { RefObject } from "react"
@@ -173,6 +174,7 @@ export const useRouteCamera = ({
 }: UseRouteCameraArgs) => {
   const previousBearingRef = useRef(0)
   const smoothedBearingRef = useRef<number | null>(null)
+  const smoothedPitchRef = useRef<number | null>(null)
   const previousBearingFrameTimestampRef = useRef<number | null>(null)
   const previousViewModeRef = useRef<RouteMapViewMode>(viewMode)
   const lastCameraTargetRef = useRef<CameraTarget | null>(null)
@@ -195,6 +197,7 @@ export const useRouteCamera = ({
       if (viewMode === "top-down") {
         previousBearingRef.current = 0
         smoothedBearingRef.current = null
+        smoothedPitchRef.current = null
         previousBearingFrameTimestampRef.current = null
         const target = buildTopDownCameraTarget({
           followPosition,
@@ -219,7 +222,7 @@ export const useRouteCamera = ({
           ? 0
           : Math.max(snapshot.timestampMs - previousTimestamp, 0)
       const smoothingProgress =
-        1 - Math.exp(-deltaMs / CAMERA_BEARING_SMOOTHING_MS)
+        1 - Math.exp(-deltaMs / CAMERA_SMOOTHING_MS)
       const bearing =
         snapshot.snapped || previousSmoothedBearing === null
           ? targetBearing
@@ -233,7 +236,16 @@ export const useRouteCamera = ({
       previousBearingFrameTimestampRef.current = snapshot.timestampMs
 
       const zoom = Math.max(map.getZoom(), PERSPECTIVE_ZOOM_FLOOR)
-      const pitch = getPerspectivePitch(zoom, riderGradePercent)
+      const targetPitch = getPerspectivePitch(
+        zoom,
+        riderGradePercent,
+        terrainEnabled
+      )
+      const pitch =
+        terrainEnabled && smoothedPitchRef.current !== null && !snapshot.snapped
+          ? lerpNumber(smoothedPitchRef.current, targetPitch, smoothingProgress)
+          : targetPitch
+      smoothedPitchRef.current = pitch
       const center = [riderPosition.lng, riderPosition.lat] as [number, number]
       const target = buildPerspectiveCameraTarget({
         bearing,
@@ -279,6 +291,7 @@ export const useRouteCamera = ({
     if (viewMode === "top-down") {
       previousBearingRef.current = 0
       smoothedBearingRef.current = null
+      smoothedPitchRef.current = null
       previousBearingFrameTimestampRef.current = null
       if (previousViewMode === "top-down" && !followPosition) {
         return
@@ -323,8 +336,10 @@ export const useRouteCamera = ({
     if (!followPosition || !riderPosition) {
       const pitch = getPerspectivePitch(
         mapRef.current.getZoom(),
-        riderGradePercent
+        riderGradePercent,
+        terrainEnabled
       )
+      smoothedPitchRef.current = pitch
       const target = buildPerspectiveCameraTarget({
         bearing,
         followPosition,
@@ -346,7 +361,8 @@ export const useRouteCamera = ({
     }
 
     const zoom = Math.max(mapRef.current.getZoom(), PERSPECTIVE_ZOOM_FLOOR)
-    const pitch = getPerspectivePitch(zoom, riderGradePercent)
+    const pitch = getPerspectivePitch(zoom, riderGradePercent, terrainEnabled)
+    smoothedPitchRef.current = pitch
     const target = buildPerspectiveCameraTarget({
       bearing,
       center: [riderPosition.lng, riderPosition.lat],
