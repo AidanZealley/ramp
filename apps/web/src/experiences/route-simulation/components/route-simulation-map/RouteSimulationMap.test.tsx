@@ -243,6 +243,11 @@ describe("RouteSimulationMap", () => {
         .getAttribute("data-source-type")
     ).toBe("raster-dem")
     expect(
+      screen
+        .getByTestId("source-route-terrain-hillshade-dem")
+        .getAttribute("data-source-type")
+    ).toBe("raster-dem")
+    expect(
       screen.getByTestId("source-route-rider").getAttribute("data-source-type")
     ).toBe("geojson")
     expect(

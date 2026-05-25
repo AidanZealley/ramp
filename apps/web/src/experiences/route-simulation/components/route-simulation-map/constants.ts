@@ -23,6 +23,7 @@ export const ROUTE_MIN_ZOOM = 0
 export const ROUTE_MAX_ZOOM = 22
 
 export const TERRAIN_SOURCE_ID = "route-terrain-dem"
+export const TERRAIN_HILLSHADE_SOURCE_ID = "route-terrain-hillshade-dem"
 export const TERRAIN_TILE_URL =
   "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
 export const TERRAIN_ATTRIBUTION =
