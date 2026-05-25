@@ -1,5 +1,7 @@
-import { Marker } from "@vis.gl/react-maplibre"
+import { useMemo } from "react"
+import { Layer, Source } from "@vis.gl/react-maplibre"
 import type { RoutePosition } from "@/lib/routes/types"
+import { buildRouteEndpointGeojson } from "../../utils"
 import type { RouteMapColors } from "../../types"
 
 type RouteEndpointMarkersProps = {
@@ -12,23 +14,49 @@ export const RouteEndpointMarkers = ({
   colors,
   finish,
   start,
-}: RouteEndpointMarkersProps) => (
-  <>
-    {start && (
-      <Marker latitude={start.lat} longitude={start.lng} anchor="center">
-        <div
-          className="size-3 rounded-full border-2 border-background shadow"
-          style={{ backgroundColor: colors.startPoint }}
-        />
-      </Marker>
-    )}
-    {finish && (
-      <Marker latitude={finish.lat} longitude={finish.lng} anchor="center">
-        <div
-          className="size-3 rounded-full border-2 border-background shadow"
-          style={{ backgroundColor: colors.finishPoint }}
-        />
-      </Marker>
-    )}
-  </>
-)
+}: RouteEndpointMarkersProps) => {
+  const endpointGeojson = useMemo(
+    () => buildRouteEndpointGeojson({ finish, start }),
+    [finish, start]
+  )
+
+  return (
+    <Source id="route-endpoints" type="geojson" data={endpointGeojson}>
+      <Layer
+        id="route-endpoints-shadow"
+        type="circle"
+        paint={{
+          "circle-color": colors.routeLineShadow,
+          "circle-radius": 8,
+          "circle-opacity": 0.35,
+          "circle-blur": 0.25,
+          "circle-pitch-alignment": "map",
+        }}
+      />
+      <Layer
+        id="route-endpoints-start"
+        type="circle"
+        filter={["==", ["get", "kind"], "start"]}
+        paint={{
+          "circle-color": colors.startPoint,
+          "circle-radius": 4,
+          "circle-stroke-color": colors.riderHalo,
+          "circle-stroke-width": 2,
+          "circle-pitch-alignment": "map",
+        }}
+      />
+      <Layer
+        id="route-endpoints-finish"
+        type="circle"
+        filter={["==", ["get", "kind"], "finish"]}
+        paint={{
+          "circle-color": colors.finishPoint,
+          "circle-radius": 4,
+          "circle-stroke-color": colors.riderHalo,
+          "circle-stroke-width": 2,
+          "circle-pitch-alignment": "map",
+        }}
+      />
+    </Source>
+  )
+}

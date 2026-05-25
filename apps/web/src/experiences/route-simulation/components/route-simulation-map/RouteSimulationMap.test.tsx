@@ -116,10 +116,24 @@ vi.mock("@vis.gl/react-maplibre", () => ({
       </div>
     )
   },
-  Layer: ({ id, type }: { id: string; type: string }) => (
-    <div data-testid={id} data-layer-type={type} />
+  Layer: ({
+    filter,
+    id,
+    paint,
+    type,
+  }: {
+    filter?: unknown
+    id: string
+    paint?: unknown
+    type: string
+  }) => (
+    <div
+      data-testid={id}
+      data-filter={JSON.stringify(filter ?? null)}
+      data-layer-type={type}
+      data-paint={JSON.stringify(paint ?? null)}
+    />
   ),
-  Marker: ({ children }: PropsWithChildren) => <>{children}</>,
 }))
 
 const geojson = {
@@ -231,6 +245,21 @@ describe("RouteSimulationMap", () => {
     expect(
       screen.getByTestId("source-route-rider").getAttribute("data-source-type")
     ).toBe("geojson")
+    expect(
+      screen
+        .getByTestId("source-route-endpoints")
+        .getAttribute("data-source-type")
+    ).toBe("geojson")
+    expect(
+      screen
+        .getByTestId("route-endpoints-start")
+        .getAttribute("data-layer-type")
+    ).toBe("circle")
+    expect(
+      screen
+        .getByTestId("route-endpoints-finish")
+        .getAttribute("data-layer-type")
+    ).toBe("circle")
     expect(setTerrain).toHaveBeenCalledWith({
       source: "route-terrain-dem",
       exaggeration: 2,

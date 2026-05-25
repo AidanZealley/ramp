@@ -63,10 +63,12 @@ vi.mock("@vis.gl/react-maplibre", () => ({
     </div>
   ),
   Layer: ({
+    filter,
     id,
     paint,
     type,
   }: {
+    filter?: unknown
     id: string
     paint: unknown
     type: string
@@ -74,21 +76,9 @@ vi.mock("@vis.gl/react-maplibre", () => ({
     <div
       data-testid={id}
       data-layer-type={type}
+      data-filter={JSON.stringify(filter ?? null)}
       data-paint={JSON.stringify(paint)}
     />
-  ),
-  Marker: ({
-    children,
-    latitude,
-    longitude,
-  }: PropsWithChildren<{ latitude: number; longitude: number }>) => (
-    <div
-      data-testid="marker"
-      data-latitude={latitude}
-      data-longitude={longitude}
-    >
-      {children}
-    </div>
   ),
 }))
 
@@ -192,7 +182,7 @@ describe("RoutePreviewMap", () => {
     expect(fitBounds).toHaveBeenCalledTimes(2)
   })
 
-  it("renders route source, route layers, start marker, and finish marker", () => {
+  it("renders route and endpoint sources and layers", () => {
     render(
       <RoutePreviewMap
         geojson={geojson}
@@ -211,7 +201,62 @@ describe("RoutePreviewMap", () => {
     expect(
       screen.getByTestId("route-line-primary").getAttribute("data-layer-type")
     ).toBe("line")
-    expect(screen.getAllByTestId("marker")).toHaveLength(2)
+    expect(
+      screen
+        .getByTestId("source-route-endpoints")
+        .getAttribute("data-source-type")
+    ).toBe("geojson")
+
+    const endpointGeojson = JSON.parse(
+      screen
+        .getByTestId("source-route-endpoints")
+        .getAttribute("data-source-data") ?? "{}"
+    )
+    expect(endpointGeojson.features).toHaveLength(2)
+    expect(endpointGeojson.features[0]).toMatchObject({
+      properties: { kind: "start" },
+      geometry: {
+        type: "Point",
+        coordinates: [-122.4, 37.8],
+      },
+    })
+    expect(endpointGeojson.features[1]).toMatchObject({
+      properties: { kind: "finish" },
+      geometry: {
+        type: "Point",
+        coordinates: [-122.5, 37.9],
+      },
+    })
+
+    expect(
+      screen
+        .getByTestId("route-endpoints-shadow")
+        .getAttribute("data-layer-type")
+    ).toBe("circle")
+    expect(
+      screen
+        .getByTestId("route-endpoints-start")
+        .getAttribute("data-layer-type")
+    ).toBe("circle")
+    expect(
+      screen
+        .getByTestId("route-endpoints-finish")
+        .getAttribute("data-layer-type")
+    ).toBe("circle")
+    expect(
+      JSON.parse(
+        screen
+          .getByTestId("route-endpoints-start")
+          .getAttribute("data-filter") ?? "null"
+      )
+    ).toEqual(["==", ["get", "kind"], "start"])
+    expect(
+      JSON.parse(
+        screen
+          .getByTestId("route-endpoints-finish")
+          .getAttribute("data-filter") ?? "null"
+      )
+    ).toEqual(["==", ["get", "kind"], "finish"])
   })
 
   it("does not render terrain or rider sources", () => {
