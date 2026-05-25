@@ -10,7 +10,7 @@ import type { Id } from "#convex/_generated/dataModel"
 import type {
   RouteProgressMode,
   RouteSimulationRouteState,
-  RouteSimulationSettingsState,
+  RouteSimulationPreferencesState,
 } from "../../types"
 import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -31,8 +31,8 @@ type RouteSimulationSetupProps = {
     | "routes"
     | "selectedRouteId"
   >
-  settings: Pick<
-    RouteSimulationSettingsState,
+  preferences: Pick<
+    RouteSimulationPreferencesState,
     "physicsProfileReady" | "progressMode"
   >
   startDisabledReason: string | null
@@ -44,7 +44,7 @@ export const RouteSimulationSetup = ({
   onSelectRoute,
   onStart,
   route,
-  settings,
+  preferences,
   startDisabledReason,
 }: RouteSimulationSetupProps) => {
   const {
@@ -55,7 +55,7 @@ export const RouteSimulationSetup = ({
     routes,
     selectedRouteId,
   } = route
-  const { physicsProfileReady, progressMode } = settings
+  const { physicsProfileReady, progressMode } = preferences
 
   return (
     <div className="absolute inset-0 overflow-y-auto bg-background px-4 pt-16 pb-8 sm:px-8 sm:pt-20">

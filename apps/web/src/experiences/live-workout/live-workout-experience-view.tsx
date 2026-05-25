@@ -14,6 +14,7 @@ import { createWorkoutController } from "@ramp/ride-workouts"
 import { LiveWorkoutDashboard } from "./components/live-workout-dashboard"
 import { WorkoutDetailPanel } from "./components/workout-detail-panel"
 import { WorkoutPickerPanel } from "./components/workout-picker-panel"
+import { useLiveWorkoutPreferences } from "./hooks/use-live-workout-preferences"
 import type { RideExperienceConnection } from "@/ride/experience-runtime"
 import type {
   WorkoutRideSession,
@@ -24,7 +25,6 @@ import type { Id } from "#convex/_generated/dataModel"
 import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
 import type { ExperienceSessionAPI } from "@/ride/experience-session"
 import { api } from "#convex/_generated/api"
-import { DEFAULT_FTP } from "@/lib/workout-utils"
 import {
   InvalidWorkoutDefinitionError,
   toWorkoutDefinition,
@@ -148,7 +148,7 @@ export function LiveWorkoutExperienceView({
   }, [])
 
   const workouts = useQuery(api.workouts.list)
-  const settings = useQuery(api.settings.get)
+  const { ftp, preferencesReady } = useLiveWorkoutPreferences()
 
   const [selectedWorkoutId, setSelectedWorkoutId] =
     useState<Id<"workouts"> | null>(null)
@@ -157,12 +157,11 @@ export function LiveWorkoutExperienceView({
   const [isStarting, setIsStarting] = useState(false)
   const lastLinkedWorkoutId = useRef<Id<"workouts"> | undefined>(undefined)
 
-  const ftp = settings?.ftp ?? DEFAULT_FTP
   const supportsTargetPower = session.controls
     .getCapabilities()
     .has(Capability.TargetPower)
 
-  const isLoading = workouts === undefined || settings === undefined
+  const isLoading = workouts === undefined || !preferencesReady
   const linkedWorkoutId = search?.workoutId as Id<"workouts"> | undefined
   const selectedWorkout: WorkoutDoc | null =
     workouts?.find((workout) => workout._id === selectedWorkoutId) ?? null
@@ -316,6 +315,7 @@ export function LiveWorkoutExperienceView({
           onSeek={handleSeek}
           onDifficultyChange={handleDifficultyChange}
           onDifficultyReset={handleDifficultyReset}
+          ftp={ftp}
           session={session}
           workout={activeWorkout}
           workoutState={workoutState}

@@ -53,7 +53,7 @@ export type RouteSimulationRouteState = {
   selectedRouteId: Id<"routes"> | null
 }
 
-export type RouteSimulationSettingsState = {
+export type RouteSimulationPreferencesState = {
   handleProgressModeChange: (mode: RouteProgressMode) => void
   physicsConfig: PhysicsConfig | null
   physicsProfileReady: boolean

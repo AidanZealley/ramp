@@ -156,7 +156,7 @@ describe("LiveWorkoutExperienceView", () => {
     confettiRender.mockClear()
   })
 
-  it("renders loading state until workouts and settings resolve", () => {
+  it("renders loading state until workouts and preferences resolve", () => {
     useQuery.mockImplementation(() => undefined)
 
     render(<LiveWorkoutExperienceView session={createSession()} />)

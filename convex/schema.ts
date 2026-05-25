@@ -4,7 +4,7 @@ import { v } from "convex/values"
 
 const { users: _users, ...authTablesWithoutUsers } = authTables
 
-const appSettingsFields = {
+const userPreferenceFields = {
   ftp: v.optional(v.number()),
   powerDisplayMode: v.optional(
     v.union(v.literal("absolute"), v.literal("percentage"))
@@ -19,7 +19,7 @@ const appSettingsFields = {
 export default defineSchema({
   ...authTablesWithoutUsers,
   // This intentionally mirrors @convex-dev/auth's authTables.users schema and
-  // indexes, with stable app settings added to keep one profile row per user.
+  // indexes, with stable user preferences stored on the auth user row.
   users: defineTable({
     name: v.optional(v.string()),
     image: v.optional(v.string()),
@@ -29,7 +29,7 @@ export default defineSchema({
     phoneVerificationTime: v.optional(v.number()),
     isAnonymous: v.optional(v.boolean()),
     role: v.optional(v.union(v.literal("admin"), v.literal("user"))),
-    ...appSettingsFields,
+    ...userPreferenceFields,
   })
     .index("email", ["email"])
     .index("phone", ["phone"]),

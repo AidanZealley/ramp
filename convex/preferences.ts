@@ -64,7 +64,7 @@ export function validateBikeWeightKg(weight: number): number {
   return normalized
 }
 
-export type SettingsValues = {
+export type PreferenceValues = {
   ftp?: number
   powerDisplayMode?: "absolute" | "percentage"
   riderWeightKg?: number
@@ -72,9 +72,9 @@ export type SettingsValues = {
   routeSimulationProgressMode?: "trainer-speed" | "app-physics"
 }
 
-export function resolveSettingsValues(
-  args: SettingsValues,
-  existing?: SettingsValues | null
+export function resolvePreferenceValues(
+  args: PreferenceValues,
+  existing?: PreferenceValues | null
 ) {
   return {
     ftp: validateFtp(args.ftp ?? existing?.ftp ?? 150),
@@ -98,11 +98,11 @@ export const get = query({
   handler: async (ctx) => {
     const userId = await requireAuthUserId(ctx)
     const user = await ctx.db.get(userId)
-    return resolveSettingsValues({}, user)
+    return resolvePreferenceValues({}, user)
   },
 })
 
-export const upsert = mutation({
+export const update = mutation({
   args: {
     ftp: v.optional(v.number()),
     powerDisplayMode: v.optional(powerDisplayModeValidator),
@@ -118,7 +118,7 @@ export const upsert = mutation({
     if (!user) {
       throw new Error("User not found")
     }
-    const next = resolveSettingsValues(args, user)
+    const next = resolvePreferenceValues(args, user)
 
     await ctx.db.patch(userId, {
       ftp: next.ftp,

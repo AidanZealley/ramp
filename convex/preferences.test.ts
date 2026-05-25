@@ -1,12 +1,31 @@
 import { describe, expect, it } from "vitest"
 import {
   DEFAULT_BIKE_WEIGHT_KG,
-  resolveSettingsValues,
+  DEFAULT_RIDER_WEIGHT_KG,
+  resolvePreferenceValues,
   validateBikeWeightKg,
+  validateFtp,
   validateRiderWeightKg,
-} from "./settings"
+} from "./preferences"
 
-describe("settings helpers", () => {
+describe("preferences helpers", () => {
+  it("uses preference defaults when no values exist", () => {
+    expect(resolvePreferenceValues({}, null)).toEqual({
+      ftp: 150,
+      powerDisplayMode: "percentage",
+      riderWeightKg: DEFAULT_RIDER_WEIGHT_KG,
+      bikeWeightKg: DEFAULT_BIKE_WEIGHT_KG,
+      routeSimulationProgressMode: "trainer-speed",
+    })
+  })
+
+  it("rejects invalid FTP values", () => {
+    expect(() => validateFtp(Number.NaN)).toThrow("finite")
+    expect(() => validateFtp(149.5)).toThrow("integer")
+    expect(() => validateFtp(49)).toThrow("between")
+    expect(() => validateFtp(501)).toThrow("between")
+  })
+
   it("accepts valid rider weight values and normalizes to one decimal", () => {
     expect(validateRiderWeightKg(75)).toBe(75)
     expect(validateRiderWeightKg(75.5)).toBe(75.5)
@@ -29,7 +48,7 @@ describe("settings helpers", () => {
   })
 
   it("uses the default bike weight when none exists", () => {
-    expect(resolveSettingsValues({}, null).bikeWeightKg).toBe(
+    expect(resolvePreferenceValues({}, null).bikeWeightKg).toBe(
       DEFAULT_BIKE_WEIGHT_KG
     )
   })
@@ -55,7 +74,7 @@ describe("settings helpers", () => {
 
   it("preserves existing bike weight when omitted", () => {
     expect(
-      resolveSettingsValues(
+      resolvePreferenceValues(
         { ftp: 250 },
         {
           ftp: 220,
@@ -69,7 +88,7 @@ describe("settings helpers", () => {
 
   it("preserves existing route simulation progress mode when omitted", () => {
     expect(
-      resolveSettingsValues(
+      resolvePreferenceValues(
         { ftp: 250 },
         {
           ftp: 220,

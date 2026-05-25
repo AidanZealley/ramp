@@ -8,13 +8,13 @@ import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { DEFAULT_FTP } from "@/lib/workout-utils"
 
-type UserSettingsFormProps = {
+type UserPreferencesFormProps = {
   onSave?: () => void
 }
 
-export const UserSettingsForm = ({ onSave }: UserSettingsFormProps) => {
-  const settings = useQuery(api.settings.get)
-  const upsertSettings = useMutation(api.settings.upsert)
+export const UserPreferencesForm = ({ onSave }: UserPreferencesFormProps) => {
+  const preferences = useQuery(api.preferences.get)
+  const updatePreferences = useMutation(api.preferences.update)
   const [ftp, setFtp] = useState(String(DEFAULT_FTP))
   const [riderWeightKg, setRiderWeightKg] = useState("75")
   const [bikeWeightKg, setBikeWeightKg] = useState("10")
@@ -22,11 +22,11 @@ export const UserSettingsForm = ({ onSave }: UserSettingsFormProps) => {
     useState<PowerDisplayMode>("percentage")
 
   useEffect(() => {
-    setFtp(String(settings?.ftp ?? DEFAULT_FTP))
-    setRiderWeightKg(String(settings?.riderWeightKg ?? 75))
-    setBikeWeightKg(String(settings?.bikeWeightKg ?? 10))
-    setPowerDisplayMode(settings?.powerDisplayMode ?? "percentage")
-  }, [settings])
+    setFtp(String(preferences?.ftp ?? DEFAULT_FTP))
+    setRiderWeightKg(String(preferences?.riderWeightKg ?? 75))
+    setBikeWeightKg(String(preferences?.bikeWeightKg ?? 10))
+    setPowerDisplayMode(preferences?.powerDisplayMode ?? "percentage")
+  }, [preferences])
 
   const handleSave = async () => {
     const ftpValue = parseInt(ftp, 10)
@@ -39,7 +39,7 @@ export const UserSettingsForm = ({ onSave }: UserSettingsFormProps) => {
       Number.isFinite(riderWeightValue) &&
       Number.isFinite(bikeWeightValue)
     ) {
-      await upsertSettings({
+      await updatePreferences({
         ftp: ftpValue,
         powerDisplayMode,
         riderWeightKg: riderWeightValue,

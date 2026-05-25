@@ -68,14 +68,14 @@ describe("useWorkoutPageController", () => {
       }
     | null
     | undefined
-  let settingsValue:
+  let preferencesValue:
     | { ftp: number; powerDisplayMode: "absolute" | "percentage" }
     | undefined
   let navigateMock: ReturnType<typeof vi.fn>
   let updateIntervalsMock: ReturnType<typeof vi.fn>
   let duplicateWorkoutMock: ReturnType<typeof vi.fn>
   let removeWorkoutMock: ReturnType<typeof vi.fn>
-  let upsertSettingsMock: ReturnType<typeof vi.fn>
+  let updatePreferencesMock: ReturnType<typeof vi.fn>
   let convexQueryMock: ReturnType<typeof vi.fn>
   let queryCallIndex: number
   let mutationCallIndex: number
@@ -87,12 +87,12 @@ describe("useWorkoutPageController", () => {
       intervals: baseIntervals,
       intervalsRevision: 0,
     }
-    settingsValue = { ftp: 255, powerDisplayMode: "percentage" }
+    preferencesValue = { ftp: 255, powerDisplayMode: "percentage" }
     navigateMock = vi.fn()
     updateIntervalsMock = vi.fn().mockResolvedValue(undefined)
     duplicateWorkoutMock = vi.fn().mockResolvedValue("workout-2")
     removeWorkoutMock = vi.fn().mockResolvedValue(undefined)
-    upsertSettingsMock = vi.fn().mockResolvedValue(undefined)
+    updatePreferencesMock = vi.fn().mockResolvedValue(undefined)
     convexQueryMock = vi.fn().mockResolvedValue({
       _id: workoutId,
       title: "Threshold Builder",
@@ -111,7 +111,7 @@ describe("useWorkoutPageController", () => {
       () => {
         const currentCall = queryCallIndex % 2
         queryCallIndex += 1
-        return currentCall === 0 ? workoutValue : settingsValue
+        return currentCall === 0 ? workoutValue : preferencesValue
       }
     )
     ;(useMutation as unknown as ReturnType<typeof vi.fn>).mockImplementation(
@@ -120,7 +120,7 @@ describe("useWorkoutPageController", () => {
           updateIntervalsMock,
           duplicateWorkoutMock,
           removeWorkoutMock,
-          upsertSettingsMock,
+          updatePreferencesMock,
         ]
         const mutation =
           mutations[mutationCallIndex % mutations.length] ?? vi.fn()
@@ -212,12 +212,12 @@ describe("useWorkoutPageController", () => {
         "percentage"
       )
     })
-    expect(upsertSettingsMock).not.toHaveBeenCalled()
+    expect(updatePreferencesMock).not.toHaveBeenCalled()
 
     await act(async () => {
       await getReadyState(result.current).actions.changeDisplayMode("absolute")
     })
-    expect(upsertSettingsMock).toHaveBeenCalledWith({
+    expect(updatePreferencesMock).toHaveBeenCalledWith({
       powerDisplayMode: "absolute",
     })
   })

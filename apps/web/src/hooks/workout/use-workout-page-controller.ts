@@ -11,7 +11,7 @@ import { downloadTextFile, workoutToMrc } from "@/lib/exporters"
 import { DEFAULT_FTP } from "@/lib/workout-utils"
 
 type WorkoutRecord = NonNullable<FunctionReturnType<typeof api.workouts.get>>
-type SettingsRecord = FunctionReturnType<typeof api.settings.get>
+type PreferencesRecord = FunctionReturnType<typeof api.preferences.get>
 
 interface SaveIntervalsArgs {
   intervals: Array<Interval>
@@ -22,7 +22,7 @@ interface SaveIntervalsArgs {
 interface WorkoutPageControllerReadyState {
   status: "ready"
   workout: WorkoutRecord
-  settings: SettingsRecord | undefined
+  preferences: PreferencesRecord | undefined
   ftp: number
   displayMode: PowerDisplayMode
   actions: {
@@ -71,17 +71,17 @@ export function useWorkoutPageController(
   const navigate = useNavigate()
   const convex = useConvex()
   const workout = useQuery(api.workouts.get, { id: workoutId })
-  const settings = useQuery(api.settings.get)
+  const preferences = useQuery(api.preferences.get)
   const updateIntervals = useMutation(api.workouts.updateIntervals)
   const duplicateWorkoutMutation = useMutation(api.workouts.duplicateWorkout)
   const removeWorkout = useMutation(api.workouts.remove)
-  const upsertSettings = useMutation(api.settings.upsert)
+  const updatePreferences = useMutation(api.preferences.update)
 
   const [refreshedWorkout, setRefreshedWorkout] =
     useState<WorkoutRecord | null>(null)
 
-  const ftp = settings?.ftp ?? DEFAULT_FTP
-  const displayMode = settings?.powerDisplayMode ?? "percentage"
+  const ftp = preferences?.ftp ?? DEFAULT_FTP
+  const displayMode = preferences?.powerDisplayMode ?? "percentage"
 
   useEffect(() => {
     if (
@@ -121,9 +121,9 @@ export function useWorkoutPageController(
   const changeDisplayMode = useCallback(
     async (value: PowerDisplayMode) => {
       if (value === displayMode) return
-      await upsertSettings({ powerDisplayMode: value })
+      await updatePreferences({ powerDisplayMode: value })
     },
-    [displayMode, upsertSettings]
+    [displayMode, updatePreferences]
   )
 
   const saveIntervals = useCallback(
@@ -199,7 +199,7 @@ export function useWorkoutPageController(
   return {
     status: "ready",
     workout: resolvedWorkout,
-    settings,
+    preferences,
     ftp,
     displayMode,
     actions: {

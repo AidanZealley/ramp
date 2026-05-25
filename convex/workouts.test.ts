@@ -6,7 +6,7 @@ import {
   resolveIntervalsRevision,
   sanitizeWorkoutForClient,
 } from "./workouts"
-import { validateFtp } from "./settings"
+import { validateFtp } from "./preferences"
 
 describe("workouts helpers", () => {
   it("defaults legacy missing intervalsRevision to zero", () => {

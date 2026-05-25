@@ -6,7 +6,7 @@ import { RouteSimulationLiveView } from "./components/route-simulation-live-view
 import { RouteSimulationSetup } from "./components/route-simulation-setup"
 import { useRouteSimulationRide } from "./hooks/use-route-simulation-ride"
 import { useRouteSimulationRoute } from "./hooks/use-route-simulation-route"
-import { useRouteSimulationSettings } from "./hooks/use-route-simulation-settings"
+import { useRouteSimulationPreferences } from "./hooks/use-route-simulation-preferences"
 import type { RideExperienceConnection } from "@/ride/experience-runtime"
 import type { ExperienceSessionAPI } from "@/ride/experience-session"
 import type { Id } from "#convex/_generated/dataModel"
@@ -33,11 +33,11 @@ export function RouteSimulationExperienceView({
     .has(Capability.SimulationGrade)
 
   const route = useRouteSimulationRoute({ linkedRouteId, navigate })
-  const settings = useRouteSimulationSettings()
+  const preferences = useRouteSimulationPreferences()
   const ride = useRouteSimulationRide({
     parsedRoute: route.parsedRoute,
-    physicsConfig: settings.physicsConfig,
-    progressMode: settings.progressMode,
+    physicsConfig: preferences.physicsConfig,
+    progressMode: preferences.progressMode,
     session,
     supportsSimulation,
     trainerConnected,
@@ -59,9 +59,9 @@ export function RouteSimulationExperienceView({
   const handleProgressModeChange = useCallback(
     (mode: RouteProgressMode) => {
       ride.resetSeekTransition()
-      settings.handleProgressModeChange(mode)
+      preferences.handleProgressModeChange(mode)
     },
-    [ride, settings]
+    [ride, preferences]
   )
 
   const startDisabledReason = !route.parsedRoute
@@ -70,7 +70,7 @@ export function RouteSimulationExperienceView({
       ? "Connect a trainer before starting."
       : !supportsSimulation
         ? "Connected trainer does not support simulation grade."
-        : settings.progressMode === "app-physics" && !settings.physicsConfig
+        : preferences.progressMode === "app-physics" && !preferences.physicsConfig
           ? "Loading physics profile."
           : null
 
@@ -82,7 +82,7 @@ export function RouteSimulationExperienceView({
         onSelectRoute={handleSelectRoute}
         onStart={ride.handleStart}
         route={route}
-        settings={settings}
+        preferences={preferences}
         startDisabledReason={startDisabledReason}
       />
     )

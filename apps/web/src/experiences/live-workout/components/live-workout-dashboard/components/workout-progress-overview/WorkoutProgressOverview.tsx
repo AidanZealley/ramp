@@ -14,10 +14,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 
 type WorkoutProgressOverviewProps = {
   intervals: Array<Interval>
+  ftp: number
   elapsedSeconds: number
   totalDurationSeconds: number
   activeSegmentIndex: number | null
@@ -34,6 +36,7 @@ type WorkoutProgressOverviewProps = {
 
 export const WorkoutProgressOverview = ({
   intervals,
+  ftp,
   elapsedSeconds,
   totalDurationSeconds,
   activeSegmentIndex,
@@ -86,6 +89,16 @@ export const WorkoutProgressOverview = ({
       ),
     [displayCompletedIntervalCount]
   )
+  const maxPower = Math.max(
+    ...intervals.flatMap((interval) => [
+      interval.startPower,
+      interval.endPower,
+    ]),
+    1
+  )
+  const ftpPower = 100
+  const ftpLineTopPercent = 100 - (ftpPower / (maxPower * 1.15)) * 100
+  const showFtpLine = ftpLineTopPercent >= 0 && ftpLineTopPercent <= 100
 
   const getElapsedFromPointer = (clientX: number) => {
     const rect = timelineRef.current?.getBoundingClientRect()
@@ -150,9 +163,19 @@ export const WorkoutProgressOverview = ({
           intervals={intervals}
           className="h-full"
           aria-label="Workout interval shape"
+          showFtpLine
           highlightedIntervalIndex={displayIntervalIndex}
           reducedIntervalIndexes={reducedIntervalIndexes}
         />
+        {showFtpLine && (
+          <Badge
+            variant="outline"
+            className="pointer-events-none absolute right-2 z-30 bg-background/85"
+            style={{ top: `calc(${ftpLineTopPercent}% - 24px)` }}
+          >
+            {`FTP ${ftp}W`}
+          </Badge>
+        )}
         <div
           aria-hidden="true"
           className="absolute inset-y-0 left-0 bg-[color-mix(in_oklch,var(--primary)_18%,transparent)]"

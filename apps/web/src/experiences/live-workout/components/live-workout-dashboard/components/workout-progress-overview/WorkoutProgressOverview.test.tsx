@@ -19,6 +19,7 @@ describe("WorkoutProgressOverview", () => {
     render(
       <WorkoutProgressOverview
         intervals={intervals}
+        ftp={200}
         elapsedSeconds={10}
         totalDurationSeconds={90}
         activeSegmentIndex={0}
@@ -37,6 +38,8 @@ describe("WorkoutProgressOverview", () => {
     expect(screen.getByLabelText("Pause workout")).toBeTruthy()
     expect(screen.getByLabelText("Skip to next interval")).toBeTruthy()
     expect(screen.getByLabelText("End workout")).toBeTruthy()
+    expect(screen.getByTestId("workout-mini-ftp-line")).toBeTruthy()
+    expect(screen.getByText("FTP 200W")).toBeTruthy()
   })
 
   it("skips backward to the current interval start unless near the start", () => {
@@ -44,6 +47,7 @@ describe("WorkoutProgressOverview", () => {
     const { rerender } = render(
       <WorkoutProgressOverview
         intervals={intervals}
+        ftp={200}
         elapsedSeconds={45}
         totalDurationSeconds={90}
         activeSegmentIndex={1}
@@ -63,6 +67,7 @@ describe("WorkoutProgressOverview", () => {
     rerender(
       <WorkoutProgressOverview
         intervals={intervals}
+        ftp={200}
         elapsedSeconds={32}
         totalDurationSeconds={90}
         activeSegmentIndex={1}
@@ -85,6 +90,7 @@ describe("WorkoutProgressOverview", () => {
     render(
       <WorkoutProgressOverview
         intervals={intervals}
+        ftp={200}
         elapsedSeconds={10}
         totalDurationSeconds={90}
         activeSegmentIndex={0}
@@ -108,6 +114,7 @@ describe("WorkoutProgressOverview", () => {
     render(
       <WorkoutProgressOverview
         intervals={intervals}
+        ftp={200}
         elapsedSeconds={0}
         totalDurationSeconds={90}
         activeSegmentIndex={0}
@@ -150,6 +157,7 @@ describe("WorkoutProgressOverview", () => {
     render(
       <WorkoutProgressOverview
         intervals={intervals}
+        ftp={200}
         elapsedSeconds={30}
         totalDurationSeconds={90}
         activeSegmentIndex={1}

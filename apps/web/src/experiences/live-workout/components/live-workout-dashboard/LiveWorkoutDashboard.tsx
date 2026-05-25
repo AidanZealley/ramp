@@ -40,6 +40,7 @@ type LiveWorkoutDashboardProps = {
   onSeek: (elapsedSeconds: number) => void | Promise<void>
   onDifficultyChange: (difficultyPercent: number) => void | Promise<void>
   onDifficultyReset: () => void | Promise<void>
+  ftp: number
   session: ExperienceSessionAPI
   workout: ClientWorkoutDoc
   workoutState: WorkoutSessionState
@@ -86,6 +87,7 @@ export function LiveWorkoutDashboard({
   onSeek,
   onDifficultyChange,
   onDifficultyReset,
+  ftp,
   session,
   workout,
   workoutState,
@@ -321,6 +323,7 @@ export function LiveWorkoutDashboard({
 
       <WorkoutProgressOverview
         intervals={workout.intervals}
+        ftp={ftp}
         elapsedSeconds={elapsedSeconds}
         totalDurationSeconds={totalDurationSeconds}
         activeSegmentIndex={workoutState.activeSegmentIndex}

@@ -19,7 +19,7 @@ import {
 
 export function WorkoutLibrary() {
   const workouts = useQuery(api.workouts.list)
-  const settings = useQuery(api.settings.get)
+  const preferences = useQuery(api.preferences.get)
   const createWorkout = useMutation(api.workouts.create)
   const backfillWorkoutSummaries = useMutation(
     api.workouts.backfillWorkoutSummaries
@@ -28,7 +28,7 @@ export function WorkoutLibrary() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const requestedSummaryBackfillRef = useRef(false)
 
-  const ftp = settings?.ftp ?? 150
+  const ftp = preferences?.ftp ?? 150
 
   useEffect(() => {
     if (workouts === undefined) return

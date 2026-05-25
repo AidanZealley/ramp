@@ -2,20 +2,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import type {
   RouteProgressMode,
-  RouteSimulationSettingsState,
+  RouteSimulationPreferencesState,
 } from "../types"
 import { createIndoorLikePhysicsConfig } from "@/experiences/physics"
 import { api } from "#convex/_generated/api"
 
-type UseRouteSimulationSettingsInput = {
+type UseRouteSimulationPreferencesInput = {
   onProgressModeReset?: () => void
 }
 
-export function useRouteSimulationSettings({
+export function useRouteSimulationPreferences({
   onProgressModeReset,
-}: UseRouteSimulationSettingsInput = {}): RouteSimulationSettingsState {
-  const settings = useQuery(api.settings.get)
-  const upsertSettings = useMutation(api.settings.upsert)
+}: UseRouteSimulationPreferencesInput = {}): RouteSimulationPreferencesState {
+  const preferences = useQuery(api.preferences.get)
+  const updatePreferences = useMutation(api.preferences.update)
   const [progressMode, setProgressMode] =
     useState<RouteProgressMode>("trainer-speed")
   const progressModeRef = useRef<RouteProgressMode>(progressMode)
@@ -25,38 +25,40 @@ export function useRouteSimulationSettings({
   }, [progressMode])
 
   useEffect(() => {
-    if (settings) {
-      if (settings.routeSimulationProgressMode !== progressModeRef.current) {
+    if (preferences) {
+      if (
+        preferences.routeSimulationProgressMode !== progressModeRef.current
+      ) {
         onProgressModeReset?.()
       }
-      setProgressMode(settings.routeSimulationProgressMode)
+      setProgressMode(preferences.routeSimulationProgressMode)
     }
-  }, [onProgressModeReset, settings])
+  }, [onProgressModeReset, preferences])
 
   const handleProgressModeChange = useCallback(
     (mode: RouteProgressMode) => {
       onProgressModeReset?.()
       setProgressMode(mode)
-      void upsertSettings({ routeSimulationProgressMode: mode })
+      void updatePreferences({ routeSimulationProgressMode: mode })
     },
-    [onProgressModeReset, upsertSettings]
+    [onProgressModeReset, updatePreferences]
   )
 
   const physicsConfig = useMemo(
     () =>
-      settings
+      preferences
         ? createIndoorLikePhysicsConfig({
-            riderWeightKg: settings.riderWeightKg,
-            bikeWeightKg: settings.bikeWeightKg,
+            riderWeightKg: preferences.riderWeightKg,
+            bikeWeightKg: preferences.bikeWeightKg,
           })
         : null,
-    [settings]
+    [preferences]
   )
 
   return {
     handleProgressModeChange,
     physicsConfig,
-    physicsProfileReady: settings !== undefined,
+    physicsProfileReady: preferences !== undefined,
     progressMode,
   }
 }

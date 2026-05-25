@@ -13,8 +13,8 @@ import type * as authHelpers from "../authHelpers.js";
 import type * as http from "../http.js";
 import type * as invites from "../invites.js";
 import type * as plans from "../plans.js";
+import type * as preferences from "../preferences.js";
 import type * as routes from "../routes.js";
-import type * as settings from "../settings.js";
 import type * as workoutSummary from "../workoutSummary.js";
 import type * as workouts from "../workouts.js";
 
@@ -30,8 +30,8 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   invites: typeof invites;
   plans: typeof plans;
+  preferences: typeof preferences;
   routes: typeof routes;
-  settings: typeof settings;
   workoutSummary: typeof workoutSummary;
   workouts: typeof workouts;
 }>;

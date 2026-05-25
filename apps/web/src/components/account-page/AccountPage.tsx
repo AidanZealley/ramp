@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router"
 import { useIsAdmin } from "@/hooks/use-is-admin"
-import { UserSettingsForm } from "@/components/user-settings-form"
+import { UserPreferencesForm } from "@/components/user-preferences-form"
 import { Button } from "@/components/ui/button"
 
 export const AccountPage = () => {
@@ -11,9 +11,9 @@ export const AccountPage = () => {
       <h1 className="font-heading text-2xl font-semibold">Account</h1>
 
       <div className="mt-6">
-        <h2 className="font-heading text-lg font-semibold">Settings</h2>
+        <h2 className="font-heading text-lg font-semibold">Preferences</h2>
         <div className="mt-4">
-          <UserSettingsForm />
+          <UserPreferencesForm />
         </div>
       </div>
 

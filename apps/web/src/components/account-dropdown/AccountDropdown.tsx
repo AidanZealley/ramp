@@ -4,7 +4,7 @@ import { useAuthActions } from "@convex-dev/auth/react"
 import { useQuery } from "convex/react"
 import { api } from "#convex/_generated/api"
 import { useIsAdmin } from "@/hooks/use-is-admin"
-import { SettingsDialog } from "@/components/settings-dialog"
+import { PreferencesDialog } from "@/components/preferences-dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 export const AccountDropdown = () => {
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [preferencesOpen, setPreferencesOpen] = useState(false)
   const currentUser = useQuery(api.auth.currentUser)
   const { signOut } = useAuthActions()
   const { isAdmin } = useIsAdmin()
@@ -41,8 +41,8 @@ export const AccountDropdown = () => {
           <DropdownMenuItem render={<Link to="/account" />}>
             Account
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
-            Settings
+          <DropdownMenuItem onClick={() => setPreferencesOpen(true)}>
+            Preferences
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => void signOut()}>
@@ -61,7 +61,10 @@ export const AccountDropdown = () => {
           )}
         </DropdownMenuContent>
       </DropdownMenu>
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <PreferencesDialog
+        open={preferencesOpen}
+        onOpenChange={setPreferencesOpen}
+      />
     </>
   )
 }

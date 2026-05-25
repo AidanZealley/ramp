@@ -7,6 +7,7 @@ export interface WorkoutMiniProps {
   compact?: boolean
   "aria-label"?: string
   showDividers?: boolean
+  showFtpLine?: boolean
   highlightedIntervalIndex?: number | null
   reducedIntervalIndexes?: ReadonlyArray<number>
 }
@@ -17,6 +18,7 @@ export const WorkoutMini = ({
   compact = false,
   "aria-label": ariaLabel,
   showDividers = true,
+  showFtpLine = false,
   highlightedIntervalIndex = null,
   reducedIntervalIndexes = [],
 }: WorkoutMiniProps) => {
@@ -41,6 +43,10 @@ export const WorkoutMini = ({
 
   const viewBoxHeight = 100
   const viewBoxWidth = 200
+  const ftpPower = 100
+  const ftpY =
+    viewBoxHeight - (ftpPower / (maxPower * 1.15)) * viewBoxHeight
+  const shouldShowFtpLine = showFtpLine && ftpY >= 0 && ftpY <= viewBoxHeight
   const reducedIndexes = new Set(reducedIntervalIndexes)
 
   let currentX = 0
@@ -108,6 +114,20 @@ export const WorkoutMini = ({
             />
           )
         })}
+      {shouldShowFtpLine && (
+        <line
+          data-testid="workout-mini-ftp-line"
+          x1={0}
+          x2={viewBoxWidth}
+          y1={ftpY}
+          y2={ftpY}
+          stroke="currentColor"
+          strokeDasharray="4 4"
+          strokeWidth={1}
+          className="text-foreground opacity-35"
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
     </svg>
   )
 }
