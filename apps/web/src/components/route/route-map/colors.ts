@@ -1,6 +1,6 @@
 export const routeMapStyleUrls = {
-  light: "https://tiles.openfreemap.org/styles/positron",
-  dark: "https://tiles.openfreemap.org/styles/dark",
+  light: "/map-styles/positron.json",
+  dark: "/map-styles/dark.json",
 } as const
 
 export const routeMapTheme = {

@@ -2,6 +2,7 @@ import { act, render, screen } from "@testing-library/react"
 import { forwardRef, useEffect, useImperativeHandle } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { RoutePreviewMap } from "./RoutePreviewMap"
+import darkStyle from "../../../../public/map-styles/dark.json"
 import type { PropsWithChildren } from "react"
 import type { FeatureCollection, LineString } from "geojson"
 
@@ -138,7 +139,7 @@ describe("RoutePreviewMap", () => {
     )
 
     expect(screen.getByTestId("map").getAttribute("data-map-style")).toBe(
-      "https://tiles.openfreemap.org/styles/positron"
+      "/map-styles/positron.json"
     )
 
     useTheme.mockReturnValue({ theme: "dark" })
@@ -152,8 +153,12 @@ describe("RoutePreviewMap", () => {
     )
 
     expect(screen.getByTestId("map").getAttribute("data-map-style")).toBe(
-      "https://tiles.openfreemap.org/styles/dark"
+      "/map-styles/dark.json"
     )
+  })
+
+  it("does not reference the missing wood pattern in the local dark style", () => {
+    expect(JSON.stringify(darkStyle)).not.toContain("wood-pattern")
   })
 
   it("fits bounds on load and refits on resize", () => {
