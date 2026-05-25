@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises"
 import { describe, expect, it } from "vitest"
 
 type MapStyleLayer = {
+  filter?: unknown
   id: string
   layout?: Record<string, unknown>
   source?: string
@@ -43,6 +44,29 @@ const getZoomSpacingStops = (symbolSpacing: unknown) => {
   return stops
 }
 
+const isGetExpression = (value: unknown, field: string) =>
+  Array.isArray(value) && value[0] === "get" && value[1] === field
+
+const comparisonReferencesField = (value: unknown, field: string): boolean => {
+  if (!Array.isArray(value)) return false
+
+  const [operator, left, right] = value
+  if (
+    [">", ">=", "<", "<="].includes(String(operator)) &&
+    (isGetExpression(left, field) || isGetExpression(right, field))
+  ) {
+    return true
+  }
+
+  return value.some((item) => comparisonReferencesField(item, field))
+}
+
+const hasFilterGuard = (filter: unknown, field: string) =>
+  Array.isArray(filter) &&
+  filter.some(
+    (part) => Array.isArray(part) && part[0] === "has" && part[1] === field
+  )
+
 describe("route map styles", () => {
   it.each(styleFiles)(
     "%s spaces line road labels out at high zoom",
@@ -61,4 +85,17 @@ describe("route map styles", () => {
       }
     }
   )
+
+  it("guards light style numeric feature comparisons against missing properties", async () => {
+    const styleUrl = new URL(styleFiles[1], import.meta.url)
+    const style = JSON.parse(await readFile(styleUrl, "utf8")) as MapStyle
+
+    for (const layer of style.layers) {
+      for (const field of ["admin_level", "ref_length"]) {
+        if (comparisonReferencesField(layer.filter, field)) {
+          expect(hasFilterGuard(layer.filter, field), layer.id).toBe(true)
+        }
+      }
+    }
+  })
 })
