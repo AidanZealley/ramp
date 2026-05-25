@@ -800,7 +800,19 @@
       ],
       "layout": {
         "symbol-placement": "line",
-        "symbol-spacing": 350,
+        "symbol-spacing": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          12,
+          350,
+          16,
+          800,
+          18,
+          1600,
+          20,
+          3200
+        ],
         "text-field": [
           "case",
           ["has", "name:nonlatin"],
@@ -840,7 +852,19 @@
       ],
       "layout": {
         "symbol-placement": "line",
-        "symbol-spacing": 350,
+        "symbol-spacing": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          12,
+          350,
+          16,
+          800,
+          18,
+          1600,
+          20,
+          3200
+        ],
         "text-field": ["to-string", ["get", "ref"]],
         "text-font": ["Noto Sans Regular"],
         "text-pitch-alignment": "viewport",

@@ -1034,6 +1034,19 @@
       "filter": ["==", ["get", "class"], "path"],
       "layout": {
         "symbol-placement": "line",
+        "symbol-spacing": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          15,
+          350,
+          16,
+          800,
+          18,
+          1600,
+          20,
+          3200
+        ],
         "text-field": [
           "case",
           ["has", "name:nonlatin"],
@@ -1069,6 +1082,19 @@
       ],
       "layout": {
         "symbol-placement": "line",
+        "symbol-spacing": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          15,
+          350,
+          16,
+          800,
+          18,
+          1600,
+          20,
+          3200
+        ],
         "text-field": [
           "case",
           ["has", "name:nonlatin"],
@@ -1100,6 +1126,19 @@
       ],
       "layout": {
         "symbol-placement": "line",
+        "symbol-spacing": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          12,
+          350,
+          16,
+          800,
+          18,
+          1600,
+          20,
+          3200
+        ],
         "text-field": [
           "case",
           ["has", "name:nonlatin"],
@@ -1145,7 +1184,19 @@
         "icon-rotation-alignment": "viewport",
         "icon-size": 1,
         "symbol-placement": ["step", ["zoom"], "point", 11, "line"],
-        "symbol-spacing": 200,
+        "symbol-spacing": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          11,
+          200,
+          16,
+          800,
+          18,
+          1600,
+          20,
+          3200
+        ],
         "text-field": ["to-string", ["get", "ref"]],
         "text-font": ["Noto Sans Regular"],
         "text-rotation-alignment": "viewport",
@@ -1180,7 +1231,19 @@
         "icon-rotation-alignment": "viewport",
         "icon-size": 1,
         "symbol-placement": ["step", ["zoom"], "point", 7, "line", 8, "line"],
-        "symbol-spacing": 200,
+        "symbol-spacing": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          11,
+          200,
+          16,
+          800,
+          18,
+          1600,
+          20,
+          3200
+        ],
         "text-field": ["to-string", ["get", "ref"]],
         "text-font": ["Noto Sans Regular"],
         "text-rotation-alignment": "viewport",
@@ -1215,7 +1278,19 @@
         "icon-rotation-alignment": "viewport",
         "icon-size": 1,
         "symbol-placement": ["step", ["zoom"], "point", 11, "line"],
-        "symbol-spacing": 200,
+        "symbol-spacing": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          12,
+          200,
+          16,
+          800,
+          18,
+          1600,
+          20,
+          3200
+        ],
         "text-field": ["to-string", ["get", "ref"]],
         "text-font": ["Noto Sans Regular"],
         "text-rotation-alignment": "viewport",
