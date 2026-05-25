@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { AdminLayout } from "./components/admin-layout"
+import { AdminLayout } from "./admin-layout"
 
 let mockCurrentUser: unknown
 
