@@ -1,7 +1,6 @@
 import { useId } from "react"
 import { getZoneGradientStops } from "@/lib/zones"
 import {
-  buildDividerXs,
   buildSegmentShapes,
   getChartMaxPower,
   getFtpY,
@@ -11,6 +10,8 @@ import {
   VIEW_BOX_WIDTH,
 } from "./utils"
 import type { WorkoutMiniProps } from "./types"
+
+const DIVIDER_GAP_WIDTH = 0.25
 
 export const WorkoutMini = ({
   intervals,
@@ -25,8 +26,10 @@ export const WorkoutMini = ({
 }: WorkoutMiniProps) => {
   const gradientIdPrefix = useId()
   const svgGradientIdPrefix = gradientIdPrefix.replace(/:/g, "")
-  const dividerMaskId = `${svgGradientIdPrefix}-divider-mask`
   const minHeight = compact ? undefined : 48
+  const powerScale = getPowerScale(powerScalePercent)
+  const maxPower = getChartMaxPower(intervals, powerScale)
+  const totalDuration = getTotalDuration(intervals)
 
   if (intervals.length === 0) {
     return (
@@ -39,15 +42,12 @@ export const WorkoutMini = ({
     )
   }
 
-  const powerScale = getPowerScale(powerScalePercent)
-  const maxPower = getChartMaxPower(intervals, powerScale)
-  const totalDuration = getTotalDuration(intervals)
-
   if (totalDuration === 0) return null
 
   const ftpY = getFtpY(maxPower)
   const shouldShowFtpLine = showFtpLine && ftpY >= 0 && ftpY <= VIEW_BOX_HEIGHT
   const reducedIndexes = new Set(reducedIntervalIndexes)
+  const gapWidth = showDividers ? DIVIDER_GAP_WIDTH : 0
   const segmentShapes = buildSegmentShapes({
     intervals,
     maxPower,
@@ -56,12 +56,11 @@ export const WorkoutMini = ({
     svgGradientIdPrefix,
     highlightedIntervalIndex,
     reducedIndexes,
+    gapWidth,
   })
   const gradientSegments = segmentShapes.filter(
     (segment) => segment.scaledStartPower !== segment.scaledEndPower
   )
-  const dividerXs = showDividers ? buildDividerXs(intervals, totalDuration) : []
-  const shouldMaskDividers = dividerXs.length > 0
 
   return (
     <svg
@@ -71,7 +70,7 @@ export const WorkoutMini = ({
       className={`w-full ${className}`}
       style={{ minHeight }}
     >
-      {(gradientSegments.length > 0 || shouldMaskDividers) && (
+      {gradientSegments.length > 0 && (
         <defs>
           {gradientSegments.map((segment) => (
             <linearGradient
@@ -94,39 +93,9 @@ export const WorkoutMini = ({
               ))}
             </linearGradient>
           ))}
-          {shouldMaskDividers && (
-            <mask
-              id={dividerMaskId}
-              x={0}
-              y={0}
-              width={VIEW_BOX_WIDTH}
-              height={VIEW_BOX_HEIGHT}
-              maskUnits="userSpaceOnUse"
-            >
-              <rect
-                x={0}
-                y={0}
-                width={VIEW_BOX_WIDTH}
-                height={VIEW_BOX_HEIGHT}
-                fill="white"
-              />
-              {dividerXs.map((x, index) => (
-                <line
-                  key={`gap-mask-${index}`}
-                  x1={x}
-                  x2={x}
-                  y1={0}
-                  y2={VIEW_BOX_HEIGHT}
-                  stroke="black"
-                  strokeWidth={1}
-                  vectorEffect="non-scaling-stroke"
-                />
-              ))}
-            </mask>
-          )}
         </defs>
       )}
-      <g mask={shouldMaskDividers ? `url(#${dividerMaskId})` : undefined}>
+      <g>
         {segmentShapes.map((segment) => (
           <polygon
             key={segment.index}

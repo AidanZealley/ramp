@@ -9,6 +9,18 @@ const intervals = [
   { startPower: 80, endPower: 80, durationSeconds: 30 },
 ]
 
+const getSegmentXs = (index: number) => {
+  const points =
+    screen.getByTestId(`workout-mini-segment-${index}`).getAttribute("points") ??
+    ""
+  const [startPoint, endPoint] = points.split(" ")
+
+  return {
+    startX: Number(startPoint?.split(",")[0]),
+    endX: Number(endPoint?.split(",")[0]),
+  }
+}
+
 describe("WorkoutMini", () => {
   it("renders default segments at full opacity", () => {
     render(<WorkoutMini intervals={intervals} />)
@@ -118,24 +130,70 @@ describe("WorkoutMini", () => {
     ])
   })
 
-  it("cuts divider gaps from segments with a mask", () => {
+  it("creates transparent gaps in segment geometry by default", () => {
     const { container } = render(<WorkoutMini intervals={intervals} />)
 
-    const group = container.querySelector("g")
-    const mask = container.querySelector("mask")
-    const dividerLines = mask?.querySelectorAll("line") ?? []
+    const first = getSegmentXs(0)
+    const second = getSegmentXs(1)
+    const third = getSegmentXs(2)
 
-    expect(group?.getAttribute("mask")).toMatch(/^url\(#.+-divider-mask\)$/)
-    expect(dividerLines).toHaveLength(intervals.length - 1)
-    expect(dividerLines[0]?.getAttribute("stroke")).toBe("black")
+    expect(first.startX).toBe(0)
+    expect(first.endX).toBeCloseTo(66.3333, 4)
+    expect(second.startX).toBeCloseTo(66.8333, 4)
+    expect(second.endX).toBeCloseTo(133.1667, 4)
+    expect(third.startX).toBeCloseTo(133.6667, 4)
+
+    expect(container.querySelector("mask")).toBeNull()
+    expect(container.querySelector("line")).toBeNull()
   })
 
-  it("does not apply a divider mask when dividers are hidden", () => {
+  it("keeps contiguous segment geometry when dividers are hidden", () => {
+    render(<WorkoutMini intervals={intervals} showDividers={false} />)
+
+    const first = getSegmentXs(0)
+    const second = getSegmentXs(1)
+
+    expect(first.startX).toBe(0)
+    expect(first.endX).toBeCloseTo(66.6667, 4)
+    expect(second.startX).toBeCloseTo(first.endX, 4)
+  })
+
+  it("does not subtract divider width from thin intervals", () => {
     const { container } = render(
-      <WorkoutMini intervals={intervals} showDividers={false} />
+      <WorkoutMini
+        intervals={[
+          { durationSeconds: 600, startPower: 100, endPower: 100 },
+          { durationSeconds: 5, startPower: 300, endPower: 300 },
+          { durationSeconds: 600, startPower: 100, endPower: 100 },
+        ]}
+      />
     )
 
-    expect(container.querySelector("g")?.getAttribute("mask")).toBeNull()
+    const thinInterval = getSegmentXs(1)
+
+    expect(thinInterval.endX - thinInterval.startX).toBeCloseTo(
+      (5 / 1205) * 199,
+      4
+    )
+
     expect(container.querySelector("mask")).toBeNull()
+  })
+
+  it("caps total gap space for crowded interval layouts", () => {
+    const crowdedIntervals = Array.from({ length: 101 }, () => ({
+      startPower: 100,
+      endPower: 100,
+      durationSeconds: 1,
+    }))
+
+    render(<WorkoutMini intervals={crowdedIntervals} />)
+
+    const first = getSegmentXs(0)
+    const second = getSegmentXs(1)
+    const last = getSegmentXs(100)
+
+    expect(second.startX - first.endX).toBeCloseTo(0.5, 4)
+    expect(first.endX - first.startX).toBeCloseTo(150 / 101, 4)
+    expect(last.endX).toBeCloseTo(200, 4)
   })
 })

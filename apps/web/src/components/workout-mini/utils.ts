@@ -7,6 +7,7 @@ export const VIEW_BOX_WIDTH = 200
 
 const FTP_POWER_PERCENT = 100
 const CHART_HEADROOM_MULTIPLIER = 1.15
+const MAX_TOTAL_GAP_WIDTH_RATIO = 0.25
 
 export function getPowerScale(powerScalePercent: number): number {
   return Number.isFinite(powerScalePercent)
@@ -50,6 +51,7 @@ export function buildSegmentShapes({
   svgGradientIdPrefix,
   highlightedIntervalIndex,
   reducedIndexes,
+  gapWidth = 0,
 }: {
   intervals: Array<Interval>
   maxPower: number
@@ -58,16 +60,23 @@ export function buildSegmentShapes({
   svgGradientIdPrefix: string
   highlightedIntervalIndex: number | null
   reducedIndexes: Set<number>
+  gapWidth?: number
 }): Array<SegmentShape> {
   let currentX = 0
+  const gapCount = intervals.length > 1 ? intervals.length - 1 : 0
+  const requestedTotalGapWidth = Math.max(0, gapWidth) * gapCount
+  const maxTotalGapWidth = VIEW_BOX_WIDTH * MAX_TOTAL_GAP_WIDTH_RATIO
+  const totalGapWidth = Math.min(requestedTotalGapWidth, maxTotalGapWidth)
+  const resolvedGapWidth = gapCount > 0 ? totalGapWidth / gapCount : 0
+  const drawableWidth = Math.max(0, VIEW_BOX_WIDTH - totalGapWidth)
 
   return intervals.map((interval, index) => {
     const x = currentX
-    const width = (interval.durationSeconds / totalDuration) * VIEW_BOX_WIDTH
+    const width = (interval.durationSeconds / totalDuration) * drawableWidth
     const scaledStartPower = interval.startPower * powerScale
     const scaledEndPower = interval.endPower * powerScale
 
-    currentX += width
+    currentX += width + resolvedGapWidth
 
     const fill =
       scaledStartPower === scaledEndPower
@@ -91,18 +100,6 @@ export function buildSegmentShapes({
         endY: getPowerY(scaledEndPower, maxPower),
       }),
     }
-  })
-}
-
-export function buildDividerXs(
-  intervals: Array<Interval>,
-  totalDuration: number
-): Array<number> {
-  let elapsedDuration = 0
-
-  return intervals.slice(0, -1).map((interval) => {
-    elapsedDuration += interval.durationSeconds
-    return (elapsedDuration / totalDuration) * VIEW_BOX_WIDTH
   })
 }
 
