@@ -1,5 +1,6 @@
+import { useId } from "react"
 import type { Interval } from "@/lib/workout-utils"
-import { getZoneColor } from "@/lib/zones"
+import { getZoneColor, getZoneGradientStops } from "@/lib/zones"
 
 export interface WorkoutMiniProps {
   intervals: Array<Interval>
@@ -22,6 +23,9 @@ export const WorkoutMini = ({
   highlightedIntervalIndex = null,
   reducedIntervalIndexes = [],
 }: WorkoutMiniProps) => {
+  const gradientIdPrefix = useId()
+  const svgGradientIdPrefix = gradientIdPrefix.replace(/:/g, "")
+
   if (intervals.length === 0) {
     return (
       <div
@@ -48,6 +52,9 @@ export const WorkoutMini = ({
     viewBoxHeight - (ftpPower / (maxPower * 1.15)) * viewBoxHeight
   const shouldShowFtpLine = showFtpLine && ftpY >= 0 && ftpY <= viewBoxHeight
   const reducedIndexes = new Set(reducedIntervalIndexes)
+  const gradientIntervals = intervals
+    .map((interval, index) => ({ interval, index }))
+    .filter(({ interval }) => interval.startPower !== interval.endPower)
 
   let currentX = 0
 
@@ -68,6 +75,31 @@ export const WorkoutMini = ({
       className={`w-full ${className}`}
       style={{ minHeight: compact ? undefined : 48 }}
     >
+      {gradientIntervals.length > 0 && (
+        <defs>
+          {gradientIntervals.map(({ interval, index }) => (
+            <linearGradient
+              key={index}
+              id={`${svgGradientIdPrefix}-segment-${index}`}
+              x1="0%"
+              x2="100%"
+              y1="0%"
+              y2="0%"
+            >
+              {getZoneGradientStops(
+                interval.startPower,
+                interval.endPower
+              ).map(({ color, position }, stopIndex) => (
+                <stop
+                  key={`${position}-${stopIndex}`}
+                  offset={`${position}%`}
+                  stopColor={color}
+                />
+              ))}
+            </linearGradient>
+          ))}
+        </defs>
+      )}
       {intervals.map((interval, i) => {
         const x = currentX
         const w = (interval.durationSeconds / totalDuration) * viewBoxWidth
@@ -80,15 +112,17 @@ export const WorkoutMini = ({
           viewBoxHeight -
           (interval.endPower / (maxPower * 1.15)) * viewBoxHeight
 
-        const avgPower = (interval.startPower + interval.endPower) / 2
-        const color = getZoneColor(avgPower)
+        const fill =
+          interval.startPower === interval.endPower
+            ? getZoneColor(interval.startPower)
+            : `url(#${svgGradientIdPrefix}-segment-${i})`
 
         return (
           <polygon
             key={i}
             data-testid={`workout-mini-segment-${i}`}
             points={`${x},${y1} ${x + w},${y2} ${x + w},${viewBoxHeight} ${x},${viewBoxHeight}`}
-            fill={color}
+            fill={fill}
             fillOpacity={getIntervalOpacity(i)}
           />
         )

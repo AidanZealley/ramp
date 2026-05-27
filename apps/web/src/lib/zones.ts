@@ -81,12 +81,16 @@ export function getZoneInfoByZone(zone: Zone): ZoneInfo {
 const ZONE_TRANSITION_POWERS = [60, 76, 90, 105, 119] as const
 const DESCENDING_ZONE_TRANSITION_POWERS = [118, 104, 89, 75, 59] as const
 
-export function getZoneGradient(startPower: number, endPower: number): string {
-  if (startPower === endPower) {
-    return getZoneColor(startPower)
-  }
+export interface ZoneGradientStop {
+  color: string
+  position: number
+}
 
-  const direction = startPower < endPower ? 1 : -1
+export function getZoneGradientStops(
+  startPower: number,
+  endPower: number
+): Array<ZoneGradientStop> {
+  const direction = startPower <= endPower ? 1 : -1
   const transitionPowers =
     direction === 1 ? ZONE_TRANSITION_POWERS : DESCENDING_ZONE_TRANSITION_POWERS
   const stops = [
@@ -117,7 +121,18 @@ export function getZoneGradient(startPower: number, endPower: number): string {
     position: 100,
   })
 
-  return `linear-gradient(to right, ${stops
+  return stops
+}
+
+export function getZoneGradient(startPower: number, endPower: number): string {
+  if (startPower === endPower) {
+    return getZoneColor(startPower)
+  }
+
+  return `linear-gradient(to right, ${getZoneGradientStops(
+    startPower,
+    endPower
+  )
     .map(({ color, position }) => `${color} ${position.toFixed(2)}%`)
     .join(", ")})`
 }
