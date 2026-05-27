@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
-import { WorkoutMini } from "./workout-mini"
+import { WorkoutMini } from "./WorkoutMini"
 import { getZoneColor } from "@/lib/zones"
 
 const intervals = [
@@ -19,6 +19,35 @@ describe("WorkoutMini", () => {
     expect(
       screen.getByTestId("workout-mini-segment-1").getAttribute("fill-opacity")
     ).toBe("1")
+  })
+
+  it("scales segment heights without rescaling the chart domain", () => {
+    render(<WorkoutMini intervals={intervals} powerScalePercent={110} />)
+
+    const firstSegmentPoints = screen
+      .getByTestId("workout-mini-segment-0")
+      .getAttribute("points")
+    const firstPointY = Number(firstSegmentPoints?.split(" ")[0]?.split(",")[1])
+
+    expect(firstPointY).toBeCloseTo(20.29, 2)
+  })
+
+  it("expands the chart domain when difficulty would overflow the top", () => {
+    render(<WorkoutMini intervals={intervals} powerScalePercent={150} />)
+
+    const segmentYs = intervals.flatMap((_, index) => {
+      const points =
+        screen
+          .getByTestId(`workout-mini-segment-${index}`)
+          .getAttribute("points") ?? ""
+
+      return points
+        .split(" ")
+        .slice(0, 2)
+        .map((point) => Number(point.split(",")[1]))
+    })
+
+    expect(Math.min(...segmentYs)).toBeGreaterThanOrEqual(0)
   })
 
   it("dims non-highlighted segments when a highlight is present", () => {
@@ -87,5 +116,26 @@ describe("WorkoutMini", () => {
       getZoneColor(119),
       getZoneColor(125),
     ])
+  })
+
+  it("cuts divider gaps from segments with a mask", () => {
+    const { container } = render(<WorkoutMini intervals={intervals} />)
+
+    const group = container.querySelector("g")
+    const mask = container.querySelector("mask")
+    const dividerLines = mask?.querySelectorAll("line") ?? []
+
+    expect(group?.getAttribute("mask")).toMatch(/^url\(#.+-divider-mask\)$/)
+    expect(dividerLines).toHaveLength(intervals.length - 1)
+    expect(dividerLines[0]?.getAttribute("stroke")).toBe("black")
+  })
+
+  it("does not apply a divider mask when dividers are hidden", () => {
+    const { container } = render(
+      <WorkoutMini intervals={intervals} showDividers={false} />
+    )
+
+    expect(container.querySelector("g")?.getAttribute("mask")).toBeNull()
+    expect(container.querySelector("mask")).toBeNull()
   })
 })

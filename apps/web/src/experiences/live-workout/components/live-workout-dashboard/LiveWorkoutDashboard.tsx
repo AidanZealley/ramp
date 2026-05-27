@@ -328,6 +328,7 @@ export function LiveWorkoutDashboard({
         totalDurationSeconds={totalDurationSeconds}
         activeSegmentIndex={workoutState.activeSegmentIndex}
         completedIntervalCount={completedIntervalCount}
+        difficultyPercent={workoutState.difficultyPercent}
         paused={paused}
         isComplete={workoutState.isComplete}
         onPause={onPause}

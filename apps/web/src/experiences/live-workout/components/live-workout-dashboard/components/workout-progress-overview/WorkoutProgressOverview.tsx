@@ -24,6 +24,7 @@ type WorkoutProgressOverviewProps = {
   totalDurationSeconds: number
   activeSegmentIndex: number | null
   completedIntervalCount: number
+  difficultyPercent?: number
   paused: boolean
   isComplete: boolean
   onPause?: () => void
@@ -41,6 +42,7 @@ export const WorkoutProgressOverview = ({
   totalDurationSeconds,
   activeSegmentIndex,
   completedIntervalCount,
+  difficultyPercent = 100,
   paused,
   isComplete,
   onPause,
@@ -162,6 +164,7 @@ export const WorkoutProgressOverview = ({
         <WorkoutMini
           intervals={intervals}
           className="h-full"
+          powerScalePercent={difficultyPercent}
           aria-label="Workout interval shape"
           showFtpLine
           highlightedIntervalIndex={displayIntervalIndex}
