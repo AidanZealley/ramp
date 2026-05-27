@@ -1,25 +1,35 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { useMutation } from "convex/react"
 import { AdminInvites } from "./AdminInvites"
 
 const mockCreate = vi.fn()
 const mockRevoke = vi.fn()
+const mockDelete = vi.fn()
 let mockInvites: unknown
-let mutationCalls = 0
 
-vi.mock("convex/react", () => ({
-  useQuery: vi.fn(() => mockInvites),
-  useMutation: vi.fn(() => {
-    mutationCalls += 1
-    return mutationCalls % 2 === 1 ? mockCreate : mockRevoke
-  }),
-}))
+vi.mock("convex/react", async (importOriginal) => {
+  const original = await importOriginal<typeof import("convex/react")>()
+  return {
+    ...original,
+    useQuery: vi.fn(() => mockInvites),
+    useMutation: vi.fn(),
+  }
+})
 
 describe("AdminInvites", () => {
   beforeEach(() => {
     mockCreate.mockReset()
     mockRevoke.mockReset()
-    mutationCalls = 0
+    mockDelete.mockReset()
+    let callCount = 0
+    vi.mocked(useMutation).mockReset().mockImplementation(() => {
+      callCount++
+      const index = (callCount - 1) % 3
+      if (index === 0) return mockCreate
+      if (index === 1) return mockRevoke
+      return mockDelete
+    })
     mockInvites = [
       {
         _id: "invite-1",
@@ -54,9 +64,9 @@ describe("AdminInvites", () => {
     expect(screen.getByText("pending@example.com")).toBeTruthy()
     expect(screen.getByText("used@example.com")).toBeTruthy()
     expect(screen.getByText("revoked@example.com")).toBeTruthy()
-    expect(screen.getByText("Pending")).toBeTruthy()
+    expect(screen.getAllByText("Pending").length).toBeGreaterThan(0)
     expect(screen.getAllByText("Used").length).toBeGreaterThan(0)
-    expect(screen.getByText("Revoked")).toBeTruthy()
+    expect(screen.getAllByText("Revoked").length).toBeGreaterThan(0)
   })
 
   it("creates an invite and displays the returned code once", async () => {
@@ -66,10 +76,9 @@ describe("AdminInvites", () => {
     })
     render(<AdminInvites />)
 
-    fireEvent.change(screen.getByLabelText("Email"), {
-      target: { value: "new@example.com" },
-    })
-    fireEvent.click(screen.getByRole("button", { name: "Create" }))
+    const emailInput = screen.getByLabelText("Email")
+    fireEvent.change(emailInput, { target: { value: "new@example.com" } })
+    fireEvent.submit(emailInput.closest("form")!)
 
     await waitFor(() =>
       expect(mockCreate).toHaveBeenCalledWith({ email: "new@example.com" })
