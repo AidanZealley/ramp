@@ -81,10 +81,12 @@ export const RouteSimulationLiveView = ({
         elapsedSeconds={ride.elapsedSeconds}
         gradeDiagnostics={ride.debug.gradeDiagnostics}
         gradePercent={ride.displayGradePercent}
+        isComplete={ride.isComplete}
         isPaused={paused}
         lastGradeDispatch={ride.debug.lastGradeDispatch}
         onPause={ride.handlePause}
         onResume={ride.handleResume}
+        onRestart={ride.handleRestart}
         onSmoothingChange={ride.setSmoothingLevel}
         onStop={ride.handleStop}
         onTerrainEnabledChange={(terrainEnabled) =>
@@ -107,6 +109,7 @@ export const RouteSimulationLiveView = ({
         distanceMeters={route.stats.distanceMeters}
         elapsedSeconds={ride.elapsedSeconds}
         onOpenChange={ride.setCompletionDialogOpen}
+        onRestart={ride.handleRestart}
         open={ride.completionDialogOpen}
         routeTitle={activeRouteTitle ?? route.title}
       />

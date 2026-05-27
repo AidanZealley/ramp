@@ -1,4 +1,4 @@
-import { Pause, Play, Square } from "lucide-react"
+import { Pause, Play, RotateCcw, Square } from "lucide-react"
 import { formatElapsedTime, formatMetricDistance } from "../../utils"
 import { RouteDebugPopover } from "./components/route-debug-popover"
 import { RouteSettingsPopover } from "./components/route-settings-popover"
@@ -16,10 +16,12 @@ type RouteRideHudProps = {
   elapsedSeconds: number
   gradeDiagnostics: RouteGradeDiagnostics | null
   gradePercent: number
+  isComplete: boolean
   isPaused: boolean
   lastGradeDispatch: LastGradeDispatch | null
   onPause: () => void
   onResume: () => void
+  onRestart: () => void
   onSmoothingChange: (value: number) => void
   onStop: () => void
   onTerrainEnabledChange: (enabled: boolean) => void
@@ -40,10 +42,12 @@ export const RouteRideHud = ({
   elapsedSeconds,
   gradeDiagnostics,
   gradePercent,
+  isComplete,
   isPaused,
   lastGradeDispatch,
   onPause,
   onResume,
+  onRestart,
   onSmoothingChange,
   onStop,
   onTerrainEnabledChange,
@@ -74,10 +78,16 @@ export const RouteRideHud = ({
           <Button
             size="icon"
             variant="outline"
-            onClick={isPaused ? onResume : onPause}
-            aria-label={isPaused ? "Resume route" : "Pause route"}
+            onClick={isComplete ? onRestart : isPaused ? onResume : onPause}
+            aria-label={
+              isComplete
+                ? "Restart route"
+                : isPaused
+                  ? "Resume route"
+                  : "Pause route"
+            }
           >
-            {isPaused ? <Play /> : <Pause />}
+            {isComplete ? <RotateCcw /> : isPaused ? <Play /> : <Pause />}
           </Button>
           <Button
             size="icon"

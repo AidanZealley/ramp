@@ -71,6 +71,7 @@ export type RouteSimulationRideController = {
   elapsedSeconds: number
   handlePause: () => void
   handleResume: () => void
+  handleRestart: () => void
   handleRouteClick: (position: RoutePosition) => void
   handleStart: () => void
   handleStop: () => void

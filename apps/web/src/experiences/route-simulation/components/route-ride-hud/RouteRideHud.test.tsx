@@ -16,6 +16,7 @@ const defaultProps = {
     elevationMeters: 120,
   },
   gradePercent: 4.2,
+  isComplete: false,
   isPaused: false,
   lastGradeDispatch: {
     gradePercent: 4.2,
@@ -24,6 +25,7 @@ const defaultProps = {
   },
   onPause: vi.fn(),
   onResume: vi.fn(),
+  onRestart: vi.fn(),
   onSmoothingChange: vi.fn(),
   onStop: vi.fn(),
   onTerrainEnabledChange,
@@ -56,6 +58,65 @@ describe("RouteRideHud", () => {
     expect(screen.getByText("212 W")).toBeTruthy()
     expect(screen.getByText("Virtual speed")).toBeTruthy()
     expect(screen.getByText("18.4 km/h")).toBeTruthy()
+  })
+
+  it("uses restart action for the primary control when complete", () => {
+    const onPause = vi.fn()
+    const onResume = vi.fn()
+    const onRestart = vi.fn()
+
+    render(
+      <RouteRideHud
+        {...defaultProps}
+        isComplete={true}
+        onPause={onPause}
+        onResume={onResume}
+        onRestart={onRestart}
+        speedSource="trainer"
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Restart route" }))
+
+    expect(onRestart).toHaveBeenCalledTimes(1)
+    expect(onPause).not.toHaveBeenCalled()
+    expect(onResume).not.toHaveBeenCalled()
+  })
+
+  it("keeps resume action for the primary control when paused before completion", () => {
+    const onResume = vi.fn()
+
+    render(
+      <RouteRideHud
+        {...defaultProps}
+        isComplete={false}
+        isPaused={true}
+        onResume={onResume}
+        speedSource="trainer"
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Resume route" }))
+
+    expect(onResume).toHaveBeenCalledTimes(1)
+  })
+
+  it("keeps pause action for the primary control when riding before completion", () => {
+    const onPause = vi.fn()
+
+    render(
+      <RouteRideHud
+        {...defaultProps}
+        isComplete={false}
+        isPaused={false}
+        onPause={onPause}
+        speedSource="trainer"
+      />
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Pause route" }))
+
+    expect(onPause).toHaveBeenCalledTimes(1)
   })
 
   it("shows missing power when current power is unavailable", () => {

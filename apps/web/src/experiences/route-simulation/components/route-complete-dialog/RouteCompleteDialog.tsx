@@ -12,6 +12,7 @@ type RouteCompleteDialogProps = {
   distanceMeters: number
   elapsedSeconds: number
   onOpenChange: (open: boolean) => void
+  onRestart: () => void
   open: boolean
   routeTitle: string
 }
@@ -20,6 +21,7 @@ export const RouteCompleteDialog = ({
   distanceMeters,
   elapsedSeconds,
   onOpenChange,
+  onRestart,
   open,
   routeTitle,
 }: RouteCompleteDialogProps) => {
@@ -37,7 +39,10 @@ export const RouteCompleteDialog = ({
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)}>Done</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Done
+          </Button>
+          <Button onClick={onRestart}>Restart</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

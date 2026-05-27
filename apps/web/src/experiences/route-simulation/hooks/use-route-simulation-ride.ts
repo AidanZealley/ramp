@@ -401,6 +401,10 @@ export function useRouteSimulationRide({
     session.resume()
   }, [dispatchGrade, gradePercent, parsedRoute, session])
 
+  const handleRestart = useCallback(async () => {
+    await handleStart()
+  }, [handleStart])
+
   const handleStop = useCallback(async () => {
     seekTransitionRef.current = null
     await releaseTrainer()
@@ -475,6 +479,7 @@ export function useRouteSimulationRide({
     elapsedSeconds,
     handlePause,
     handleResume,
+    handleRestart,
     handleRouteClick,
     handleStart,
     handleStop,
