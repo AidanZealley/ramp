@@ -23,7 +23,7 @@ const forceMapCenterElevation = (
 type UseRouteMapTerrainArgs = {
   followPosition: boolean
   mapRef: RefObject<MapRef | null>
-  mapStyle: string
+  mapStyle: unknown
   riderPosition: RoutePosition | null
   terrainEnabled: boolean
   viewMode: RouteMapViewMode

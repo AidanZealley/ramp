@@ -23,7 +23,7 @@ vi.mock("@vis.gl/react-maplibre", () => ({
         mapStyle,
         onLoad,
       }: PropsWithChildren<{
-        mapStyle: string
+        mapStyle: unknown
         onLoad?: () => void
       }>,
       ref
@@ -38,7 +38,7 @@ vi.mock("@vis.gl/react-maplibre", () => ({
       }, [onLoad])
 
       return (
-        <div data-testid="map" data-map-style={mapStyle}>
+        <div data-testid="map" data-map-style={JSON.stringify(mapStyle)}>
           {children}
         </div>
       )
@@ -128,9 +128,10 @@ describe("RoutePreviewMap", () => {
       />
     )
 
-    expect(screen.getByTestId("map").getAttribute("data-map-style")).toBe(
-      "/map-styles/positron.json"
+    let mapStyle = JSON.parse(
+      screen.getByTestId("map").getAttribute("data-map-style") ?? "{}"
     )
+    expect(mapStyle.layers).toEqual(expect.any(Array))
 
     useTheme.mockReturnValue({ theme: "dark" })
     rerender(
@@ -142,9 +143,15 @@ describe("RoutePreviewMap", () => {
       />
     )
 
-    expect(screen.getByTestId("map").getAttribute("data-map-style")).toBe(
-      "/map-styles/dark.json"
+    mapStyle = JSON.parse(
+      screen.getByTestId("map").getAttribute("data-map-style") ?? "{}"
     )
+    expect(mapStyle.layers).toEqual(expect.any(Array))
+    expect(
+      mapStyle.layers.some((layer: { id?: string }) =>
+        ["road_oneway", "road_oneway_opposite"].includes(layer.id ?? "")
+      )
+    ).toBe(false)
   })
 
   it("does not reference the missing wood pattern in the local dark style", () => {

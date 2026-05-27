@@ -5,6 +5,7 @@ type MapStyleLayer = {
   filter?: unknown
   id: string
   layout?: Record<string, unknown>
+  paint?: Record<string, unknown>
   source?: string
   "source-layer"?: string
   type?: string
@@ -67,6 +68,12 @@ const hasFilterGuard = (filter: unknown, field: string) =>
     (part) => Array.isArray(part) && part[0] === "has" && part[1] === field
   )
 
+const hasZeroGapDasharray = (layer: MapStyleLayer) =>
+  Array.isArray(layer.paint?.["line-dasharray"]) &&
+  layer.paint["line-dasharray"].some(
+    (value, index) => index % 2 === 1 && value === 0
+  )
+
 describe("route map styles", () => {
   it.each(styleFiles)(
     "%s spaces line road labels out at high zoom",
@@ -96,6 +103,38 @@ describe("route map styles", () => {
           expect(hasFilterGuard(layer.filter, field), layer.id).toBe(true)
         }
       }
+    }
+  })
+
+  it("hides dark style one-way road arrows", async () => {
+    const styleUrl = new URL(styleFiles[0], import.meta.url)
+    const style = JSON.parse(await readFile(styleUrl, "utf8")) as MapStyle
+
+    const oneWayLayers = style.layers.filter((layer) =>
+      ["road_oneway", "road_oneway_opposite"].includes(layer.id)
+    )
+
+    expect(oneWayLayers).toHaveLength(2)
+    for (const layer of oneWayLayers) {
+      expect(layer.layout?.visibility, layer.id).toBe("none")
+    }
+  })
+
+  it("does not use zero-gap dashed road casings in dark style", async () => {
+    const styleUrl = new URL(styleFiles[0], import.meta.url)
+    const style = JSON.parse(await readFile(styleUrl, "utf8")) as MapStyle
+
+    const roadCasingLayers = style.layers.filter(
+      (layer) =>
+        layer.type === "line" &&
+        layer.source === "openmaptiles" &&
+        layer["source-layer"] === "transportation" &&
+        layer.id.includes("_casing")
+    )
+
+    expect(roadCasingLayers.length).toBeGreaterThan(0)
+    for (const layer of roadCasingLayers) {
+      expect(hasZeroGapDasharray(layer), layer.id).toBe(false)
     }
   })
 })

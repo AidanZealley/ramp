@@ -399,7 +399,6 @@
       "layout": { "line-cap": "butt", "line-join": "miter" },
       "paint": {
         "line-color": "rgba(60,60,60,0.8)",
-        "line-dasharray": [12, 0],
         "line-width": [
           "interpolate",
           ["exponential", 1.3],
@@ -498,7 +497,6 @@
       "layout": { "line-cap": "butt", "line-join": "miter" },
       "paint": {
         "line-color": "rgba(60,60,60,0.8)",
-        "line-dasharray": [2, 0],
         "line-opacity": 1,
         "line-width": [
           "interpolate",
@@ -568,7 +566,8 @@
         "icon-rotation-alignment": "map",
         "icon-size": ["interpolate", ["linear"], ["zoom"], 15, 0.5, 19, 1],
         "symbol-placement": "line",
-        "symbol-spacing": 200
+        "symbol-spacing": 200,
+        "visibility": "none"
       },
       "paint": { "icon-opacity": 0.5 }
     },
@@ -586,7 +585,8 @@
         "icon-rotation-alignment": "map",
         "icon-size": ["interpolate", ["linear"], ["zoom"], 15, 0.5, 19, 1],
         "symbol-placement": "line",
-        "symbol-spacing": 200
+        "symbol-spacing": 200,
+        "visibility": "none"
       },
       "paint": { "icon-opacity": 0.5 }
     },
