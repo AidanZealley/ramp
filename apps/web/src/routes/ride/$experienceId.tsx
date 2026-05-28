@@ -5,6 +5,7 @@ import { RideSessionPage } from "@/components/ride/ride-session-page"
 import { getRideExperienceDefinition } from "@/experiences/catalog"
 
 type RideExperienceSearch = {
+  activityId?: Id<"activities">
   run?: string
   routeId?: Id<"routes">
   workoutId?: Id<"workouts">
@@ -14,6 +15,10 @@ export function validateRideExperienceSearch(
   search: Record<string, unknown>
 ): RideExperienceSearch {
   return {
+    activityId:
+      typeof search.activityId === "string"
+        ? (search.activityId as Id<"activities">)
+        : undefined,
     run: typeof search.run === "string" ? search.run : undefined,
     routeId:
       typeof search.routeId === "string"
@@ -33,7 +38,7 @@ export const Route = createFileRoute("/ride/$experienceId")({
 
 function RideExperienceRoute() {
   const { experienceId } = Route.useParams()
-  const { routeId, run, workoutId } = Route.useSearch()
+  const { activityId, routeId, run, workoutId } = Route.useSearch()
   const experience = getRideExperienceDefinition(experienceId)
 
   if (!experience) {
@@ -44,7 +49,7 @@ function RideExperienceRoute() {
     <RideSessionPage
       key={`${experienceId}:${run ?? "default"}`}
       experience={experience}
-      search={{ routeId, workoutId }}
+      search={{ activityId, routeId, workoutId }}
     />
   )
 }

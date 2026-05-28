@@ -3,17 +3,6 @@ import { Check, Pause, Play, SkipBack, SkipForward, Square } from "lucide-react"
 import type { PointerEvent } from "react"
 import type { Interval } from "@/lib/workout-utils"
 import { WorkoutMini } from "@/components/workout-mini"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 
@@ -233,39 +222,20 @@ export const WorkoutProgressOverview = ({
           >
             {paused ? <Play /> : <Pause />}
           </Button>
-          <AlertDialog
-            open={stopDialogOpen}
-            onOpenChange={onStopDialogOpenChange}
+          <Button
+            type="button"
+            variant="destructive"
+            size="icon-lg"
+            className="size-12 shadow-sm [&_svg:not([class*='size-'])]:size-5"
+            aria-label="End workout"
+            aria-pressed={stopDialogOpen}
+            onClick={() => {
+              onStopDialogOpenChange?.(true)
+              onStop()
+            }}
           >
-            <AlertDialogTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon-lg"
-                  className="size-12 shadow-sm [&_svg:not([class*='size-'])]:size-5"
-                  aria-label="End workout"
-                />
-              }
-            >
-              <Square />
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>End workout?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Your current workout session will end and you&apos;ll return
-                  to workout selection.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel type="button">Stay here</AlertDialogCancel>
-                <AlertDialogAction type="button" onClick={onStop}>
-                  End workout
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            <Square />
+          </Button>
           <Button
             type="button"
             variant="secondary"

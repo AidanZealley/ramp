@@ -405,6 +405,44 @@ export function useRouteSimulationRide({
     await handleStart()
   }, [handleStart])
 
+  const handleResumeActivity = useCallback(
+    async ({
+      distanceMeters: nextDistanceMeters,
+      elapsedSeconds: nextElapsedSeconds,
+    }: {
+      distanceMeters: number
+      elapsedSeconds: number
+    }) => {
+      const route = routeRef.current
+      if (!route || !trainerConnected || !supportsSimulation) return
+      const clampedDistanceMeters = Math.max(
+        0,
+        Math.min(route.stats.distanceMeters, nextDistanceMeters)
+      )
+      setDistanceMeters(clampedDistanceMeters)
+      setElapsedSeconds(Math.max(0, nextElapsedSeconds))
+      setIsActive(true)
+      setIsComplete(false)
+      setCompletionDialogOpen(false)
+      seekTransitionRef.current = null
+      await session.controls.dispatch(
+        { type: "setMode", mode: "simulation" },
+        "experience",
+        { delivery: "acknowledged" }
+      )
+      await dispatchGrade(
+        computeRouteGradePercent(
+          route.points,
+          clampedDistanceMeters,
+          smoothingLevelToMeters(stateRef.current.smoothingLevel)
+        ),
+        true
+      )
+      session.resume()
+    },
+    [dispatchGrade, session, supportsSimulation, trainerConnected]
+  )
+
   const handleStop = useCallback(async () => {
     seekTransitionRef.current = null
     await releaseTrainer()
@@ -480,6 +518,7 @@ export function useRouteSimulationRide({
     handlePause,
     handleResume,
     handleRestart,
+    handleResumeActivity,
     handleRouteClick,
     handleStart,
     handleStop,

@@ -105,6 +105,118 @@ export default defineSchema({
   })
     .index("by_source", ["source"])
     .index("by_ownerId", ["ownerId"]),
+  activities: defineTable({
+    ownerId: v.id("users"),
+    status: v.union(
+      v.literal("in_progress"),
+      v.literal("pending"),
+      v.literal("completed")
+    ),
+    experienceId: v.string(),
+    sourceKind: v.union(v.literal("workout"), v.literal("route")),
+    sourceWorkoutId: v.optional(v.union(v.id("workouts"), v.null())),
+    sourceRouteId: v.optional(v.union(v.id("routes"), v.null())),
+    title: v.string(),
+    startedAt: v.number(),
+    endedAt: v.optional(v.number()),
+    savedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+    summary: v.object({
+      durationSeconds: v.number(),
+      distanceMeters: v.number(),
+      plannedAverageWatts: v.optional(v.union(v.number(), v.null())),
+      elevationGainMeters: v.optional(v.union(v.number(), v.null())),
+      elevationLossMeters: v.optional(v.union(v.number(), v.null())),
+      completionPercent: v.optional(v.union(v.number(), v.null())),
+    }),
+    sourceSnapshot: v.union(
+      v.object({
+        kind: v.literal("workout"),
+        workoutId: v.id("workouts"),
+        title: v.string(),
+        intervalsRevision: v.number(),
+        ftpAtStart: v.number(),
+        totalDurationSeconds: v.number(),
+        intervals: v.array(
+          v.object({
+            startPower: v.number(),
+            endPower: v.number(),
+            durationSeconds: v.number(),
+            comment: v.optional(v.string()),
+          })
+        ),
+      }),
+      v.object({
+        kind: v.literal("route"),
+        routeId: v.id("routes"),
+        title: v.string(),
+        originalFileName: v.string(),
+        stats: v.object({
+          distanceMeters: v.number(),
+          elevationGainMeters: v.number(),
+          elevationLossMeters: v.number(),
+          minElevationMeters: v.union(v.number(), v.null()),
+          maxElevationMeters: v.union(v.number(), v.null()),
+          pointCount: v.number(),
+        }),
+        bounds: v.union(
+          v.object({
+            minLat: v.number(),
+            minLng: v.number(),
+            maxLat: v.number(),
+            maxLng: v.number(),
+          }),
+          v.null()
+        ),
+        start: v.union(
+          v.object({ lat: v.number(), lng: v.number() }),
+          v.null()
+        ),
+        finish: v.union(
+          v.object({ lat: v.number(), lng: v.number() }),
+          v.null()
+        ),
+        previewPoints: v.array(v.object({ x: v.number(), y: v.number() })),
+      })
+    ),
+    resumeState: v.union(
+      v.object({
+        kind: v.literal("workout"),
+        elapsedSeconds: v.number(),
+        difficultyPercent: v.number(),
+      }),
+      v.object({
+        kind: v.literal("route"),
+        elapsedSeconds: v.number(),
+        distanceMeters: v.number(),
+        progressMode: v.union(
+          v.literal("trainer-speed"),
+          v.literal("app-physics")
+        ),
+        smoothingLevel: v.number(),
+      })
+    ),
+  })
+    .index("by_ownerId_and_status_and_updatedAt", [
+      "ownerId",
+      "status",
+      "updatedAt",
+    ])
+    .index("by_ownerId_and_status_and_endedAt", [
+      "ownerId",
+      "status",
+      "endedAt",
+    ])
+    .index("by_ownerId_and_sourceWorkoutId_and_status", [
+      "ownerId",
+      "sourceWorkoutId",
+      "status",
+    ])
+    .index("by_ownerId_and_sourceRouteId_and_status", [
+      "ownerId",
+      "sourceRouteId",
+      "status",
+    ]),
   planWeeks: defineTable({
     planId: v.id("plans"),
     orderIndex: v.number(),

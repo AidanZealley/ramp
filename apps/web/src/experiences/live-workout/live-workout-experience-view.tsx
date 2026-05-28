@@ -7,7 +7,7 @@ import {
   useSyncExternalStore,
 } from "react"
 import { useNavigate } from "@tanstack/react-router"
-import { useQuery } from "convex/react"
+import { useMutation, useQuery } from "convex/react"
 import { Capability } from "@ramp/ride-core"
 import { useRideSelector } from "@ramp/ride-react"
 import { createWorkoutController } from "@ramp/ride-workouts"
@@ -15,6 +15,12 @@ import { LiveWorkoutDashboard } from "./components/live-workout-dashboard"
 import { WorkoutDetailPanel } from "./components/workout-detail-panel"
 import { WorkoutPickerPanel } from "./components/workout-picker-panel"
 import { useLiveWorkoutPreferences } from "./hooks/use-live-workout-preferences"
+import { SaveActivityDialog } from "@/components/activity/save-activity-dialog"
+import { UnresolvedActivityDialog } from "@/components/activity/unresolved-activity-dialog"
+import {
+  formatActivityDistance,
+  formatActivityDuration,
+} from "@/components/activity/format"
 import type { RideExperienceConnection } from "@/ride/experience-runtime"
 import type {
   WorkoutRideSession,
@@ -22,6 +28,10 @@ import type {
   WorkoutSessionState,
 } from "@ramp/ride-workouts"
 import type { Id } from "#convex/_generated/dataModel"
+import type {
+  ActivityClientDoc,
+  ActivityExperienceAPI,
+} from "@/components/activity/types"
 import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
 import type { ExperienceSessionAPI } from "@/ride/experience-session"
 import { api } from "#convex/_generated/api"
@@ -90,12 +100,15 @@ export function LiveWorkoutExperienceView({
   connection,
   search,
   session,
+  activity,
 }: {
   connection?: RideExperienceConnection
   search?: {
+    activityId?: string
     workoutId?: string
   }
   session: ExperienceSessionAPI
+  activity?: ActivityExperienceAPI
 }) {
   const navigate = useNavigate({ from: "/ride/$experienceId" })
   const trainerConnected = useRideSelector(session, (s) => s.trainerConnected)
@@ -148,14 +161,25 @@ export function LiveWorkoutExperienceView({
   }, [])
 
   const workouts = useQuery(api.workouts.list)
+  const completeActivity = useMutation(api.activities.complete)
+  const discardActivity = useMutation(api.activities.discard)
+  const markPendingActivity = useMutation(api.activities.markPending)
   const { ftp, preferencesReady } = useLiveWorkoutPreferences()
 
   const [selectedWorkoutId, setSelectedWorkoutId] =
     useState<Id<"workouts"> | null>(null)
   const [activeWorkout, setActiveWorkout] = useState<WorkoutDoc | null>(null)
+  const [activeFtp, setActiveFtp] = useState(ftp)
   const [startError, setStartError] = useState<string | null>(null)
   const [isStarting, setIsStarting] = useState(false)
+  const [blockedActivity, setBlockedActivity] =
+    useState<ActivityClientDoc | null>(null)
+  const [reviewActivity, setReviewActivity] =
+    useState<ActivityClientDoc | null>(null)
+  const [retryAfterResolve, setRetryAfterResolve] = useState(false)
+  const [activityDialogBusy, setActivityDialogBusy] = useState(false)
   const lastLinkedWorkoutId = useRef<Id<"workouts"> | undefined>(undefined)
+  const loadedActivityId = useRef<string | null>(null)
 
   const supportsTargetPower = session.controls
     .getCapabilities()
@@ -163,6 +187,7 @@ export function LiveWorkoutExperienceView({
 
   const isLoading = workouts === undefined || !preferencesReady
   const linkedWorkoutId = search?.workoutId as Id<"workouts"> | undefined
+  const linkedActivityId = search?.activityId
   const selectedWorkout: WorkoutDoc | null =
     workouts?.find((workout) => workout._id === selectedWorkoutId) ?? null
   const selectedWorkoutHasDuration = hasPositiveDuration(selectedWorkout)
@@ -200,6 +225,76 @@ export function LiveWorkoutExperienceView({
     setStartError(null)
   }, [selectedWorkoutId, trainerConnected, supportsTargetPower])
 
+  const workoutFromSnapshot = useCallback(
+    (sourceActivity: ActivityClientDoc): WorkoutDoc | null => {
+      const snapshot = sourceActivity.sourceSnapshot
+      if (snapshot.kind !== "workout") return null
+      return {
+        _id: snapshot.workoutId,
+        _creationTime: sourceActivity._creationTime,
+        ownerId: sourceActivity.ownerId,
+        title: snapshot.title,
+        intervalsRevision: snapshot.intervalsRevision,
+        intervals: snapshot.intervals,
+        summary: {
+          totalDurationSeconds: snapshot.totalDurationSeconds,
+          stressScore: 0,
+        },
+      }
+    },
+    []
+  )
+
+  useEffect(() => {
+    const resumeActivity = activity?.resumeActivity
+    if (!resumeActivity || !linkedActivityId || !workoutController) return
+    if (loadedActivityId.current === resumeActivity._id) return
+    if (resumeActivity.sourceSnapshot.kind !== "workout") return
+
+    if (resumeActivity.status === "pending") {
+      loadedActivityId.current = resumeActivity._id
+      setReviewActivity(resumeActivity)
+      return
+    }
+
+    if (resumeActivity.status !== "in_progress") return
+    if (resumeActivity.resumeState.kind !== "workout") return
+
+    const snapshotWorkout = workoutFromSnapshot(resumeActivity)
+    if (!snapshotWorkout) return
+    const workoutSnapshot = resumeActivity.sourceSnapshot
+    const workoutResumeState = resumeActivity.resumeState
+
+    loadedActivityId.current = resumeActivity._id
+    void (async () => {
+      try {
+        const result = await workoutController.loadWorkout(
+          toWorkoutDefinition(snapshotWorkout),
+          workoutSnapshot.ftpAtStart
+        )
+        if (!mounted.current || !result.ok) return
+        session.pause()
+        await workoutController.setDifficultyPercent(
+          workoutResumeState.difficultyPercent
+        )
+        await workoutController.seekToElapsedSeconds(
+          workoutResumeState.elapsedSeconds
+        )
+        setActiveFtp(workoutSnapshot.ftpAtStart)
+        setActiveWorkout(snapshotWorkout)
+      } catch (error) {
+        console.error("[live-workout] resume failed", error)
+        setStartError("Unable to resume workout activity.")
+      }
+    })()
+  }, [
+    activity?.resumeActivity,
+    linkedActivityId,
+    session,
+    workoutController,
+    workoutFromSnapshot,
+  ])
+
   const handleStart = useCallback(async () => {
     if (
       !workoutController ||
@@ -226,8 +321,35 @@ export function LiveWorkoutExperienceView({
     })
 
     try {
-      const definition = toWorkoutDefinition(selectedWorkout)
-      const result = await workoutController.loadWorkout(definition, ftp)
+      let sourceActivity: ActivityClientDoc | null = null
+      let workoutToLoad = selectedWorkout
+      let ftpForWorkout = ftp
+
+      if (activity) {
+        const startResult = await activity.startWorkoutActivity({
+          workoutId: selectedWorkout._id,
+          ftpAtStart: ftp,
+        })
+        if (!startResult.ok) {
+          setBlockedActivity(startResult.activity)
+          return
+        }
+        sourceActivity = startResult.activity
+        const snapshotWorkout = workoutFromSnapshot(startResult.activity)
+        if (
+          snapshotWorkout &&
+          startResult.activity.sourceSnapshot.kind === "workout"
+        ) {
+          workoutToLoad = snapshotWorkout
+          ftpForWorkout = startResult.activity.sourceSnapshot.ftpAtStart
+        }
+      }
+
+      const definition = toWorkoutDefinition(workoutToLoad)
+      const result = await workoutController.loadWorkout(
+        definition,
+        ftpForWorkout
+      )
       console.info("[live-workout] loadWorkout result", result)
       if (!mounted.current) return
       if (!result.ok) {
@@ -237,7 +359,21 @@ export function LiveWorkoutExperienceView({
       }
       session.pause()
       setStartError(null)
-      setActiveWorkout(selectedWorkout)
+      setActiveFtp(ftpForWorkout)
+      setActiveWorkout(workoutToLoad)
+      if (sourceActivity) {
+        void navigate({
+          search: (previous) => ({
+            ...previous,
+            activityId: sourceActivity._id,
+            workoutId:
+              sourceActivity.sourceSnapshot.kind === "workout"
+                ? sourceActivity.sourceSnapshot.workoutId
+                : selectedWorkout._id,
+          }),
+          replace: true,
+        })
+      }
     } catch (error: unknown) {
       console.error("[live-workout] start failed", error)
       if (!mounted.current) return
@@ -260,14 +396,18 @@ export function LiveWorkoutExperienceView({
     supportsTargetPower,
     trainerConnected,
     workoutController,
+    activity,
+    navigate,
+    workoutFromSnapshot,
   ])
 
   const handleEnd = useCallback(() => {
     if (!workoutController) return
     workoutController.clearWorkout()
     setActiveWorkout(null)
+    setActiveFtp(ftp)
     setStartError(null)
-  }, [workoutController])
+  }, [ftp, workoutController])
 
   const handleSelectWorkout = useCallback(
     (nextWorkoutId: Id<"workouts">) => {
@@ -306,8 +446,109 @@ export function LiveWorkoutExperienceView({
 
   return (
     <div className="absolute inset-0 flex flex-col overflow-y-auto px-4 pt-16 pb-6 sm:px-8 sm:pt-20">
+      <UnresolvedActivityDialog
+        open={blockedActivity !== null}
+        activity={blockedActivity}
+        busy={activityDialogBusy}
+        onOpenChange={(open) => {
+          if (!open) setBlockedActivity(null)
+        }}
+        onResume={() => {
+          if (!blockedActivity || !activity) return
+          void navigate(activity.getResumeUrl(blockedActivity))
+        }}
+        onSaveExisting={async () => {
+          if (!blockedActivity) return
+          setActivityDialogBusy(true)
+          try {
+            if (blockedActivity.status === "in_progress") {
+              await markPendingActivity({
+                activityId: blockedActivity._id,
+                summary: blockedActivity.summary,
+                resumeState: blockedActivity.resumeState,
+              })
+            }
+            setReviewActivity({ ...blockedActivity, status: "pending" })
+            setRetryAfterResolve(true)
+            setBlockedActivity(null)
+          } finally {
+            setActivityDialogBusy(false)
+          }
+        }}
+        onDiscardExisting={async () => {
+          if (!blockedActivity) return
+          setActivityDialogBusy(true)
+          try {
+            await discardActivity({ activityId: blockedActivity._id })
+            setBlockedActivity(null)
+            void handleStart()
+          } finally {
+            setActivityDialogBusy(false)
+          }
+        }}
+      />
+      <SaveActivityDialog
+        open={reviewActivity !== null}
+        defaultTitle={reviewActivity?.title ?? ""}
+        description="Review the activity title before saving it to history."
+        metrics={
+          reviewActivity
+            ? [
+                {
+                  label: "Time",
+                  value: formatActivityDuration(
+                    reviewActivity.summary.durationSeconds
+                  ),
+                },
+                {
+                  label: "Distance",
+                  value: formatActivityDistance(
+                    reviewActivity.summary.distanceMeters
+                  ),
+                },
+              ]
+            : []
+        }
+        saving={activityDialogBusy}
+        discarding={activityDialogBusy}
+        onOpenChange={(open) => {
+          if (!open) setReviewActivity(null)
+        }}
+        onSave={async (title) => {
+          if (!reviewActivity) return
+          setActivityDialogBusy(true)
+          try {
+            await completeActivity({
+              activityId: reviewActivity._id,
+              title,
+            })
+            setReviewActivity(null)
+            if (retryAfterResolve) {
+              setRetryAfterResolve(false)
+              void handleStart()
+            }
+          } finally {
+            setActivityDialogBusy(false)
+          }
+        }}
+        onDiscard={async () => {
+          if (!reviewActivity) return
+          setActivityDialogBusy(true)
+          try {
+            await discardActivity({ activityId: reviewActivity._id })
+            setReviewActivity(null)
+            if (retryAfterResolve) {
+              setRetryAfterResolve(false)
+              void handleStart()
+            }
+          } finally {
+            setActivityDialogBusy(false)
+          }
+        }}
+      />
       {workoutController == null ? null : activeWorkout ? (
         <LiveWorkoutDashboard
+          activity={activity}
           onEnd={handleEnd}
           onReconnect={connection?.reconnect}
           onPause={session.pause}
@@ -315,7 +556,7 @@ export function LiveWorkoutExperienceView({
           onSeek={handleSeek}
           onDifficultyChange={handleDifficultyChange}
           onDifficultyReset={handleDifficultyReset}
-          ftp={ftp}
+          ftp={activeFtp}
           session={session}
           workout={activeWorkout}
           workoutState={workoutState}

@@ -18,6 +18,7 @@ import {
 import type React from "react"
 
 const useQuery = vi.fn()
+const useMutation = vi.fn(() => vi.fn(() => Promise.resolve(null)))
 const confettiRender = vi.hoisted(() => vi.fn())
 const navigateMock = vi.hoisted(() => vi.fn())
 
@@ -29,6 +30,7 @@ vi.mock("react-confetti", () => ({
 }))
 
 vi.mock("convex/react", () => ({
+  useMutation: (...args: Array<unknown>) => useMutation(...args),
   useQuery: (...args: Array<unknown>) => useQuery(...args),
 }))
 
@@ -152,6 +154,7 @@ async function startWorkout() {
 describe("LiveWorkoutExperienceView", () => {
   beforeEach(() => {
     useQuery.mockReset()
+    useMutation.mockClear()
     navigateMock.mockReset()
     confettiRender.mockClear()
   })
@@ -462,8 +465,7 @@ describe("LiveWorkoutExperienceView", () => {
     const cue = screen.getByLabelText("Interval cue")
     const difficulty = screen.getByLabelText("Workout difficulty")
     expect(
-      cue.compareDocumentPosition(difficulty) &
-        Node.DOCUMENT_POSITION_FOLLOWING
+      cue.compareDocumentPosition(difficulty) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy()
 
     expect(within(difficulty).getByText("100%")).toBeTruthy()
@@ -772,10 +774,10 @@ describe("LiveWorkoutExperienceView", () => {
     fireEvent.click(screen.getByLabelText("End workout"))
 
     expect(screen.getByText("End workout?")).toBeTruthy()
-    expect(screen.getByText("Stay here")).toBeTruthy()
-    expect(screen.getAllByText("End workout")).toHaveLength(1)
+    expect(screen.getByText("Cancel")).toBeTruthy()
+    expect(screen.getByText("Discard")).toBeTruthy()
 
-    fireEvent.click(screen.getByText("End workout"))
+    fireEvent.click(screen.getByText("Discard"))
 
     await waitFor(() => {
       expect(screen.queryByText("Now riding")).toBeNull()
@@ -795,10 +797,10 @@ describe("LiveWorkoutExperienceView", () => {
     fireEvent.keyDown(document, { key: "Escape" })
 
     expect(screen.getByText("End workout?")).toBeTruthy()
-    expect(screen.getByText("Stay here")).toBeTruthy()
+    expect(screen.getByText("Cancel")).toBeTruthy()
     expect(screen.getByText("Now riding")).toBeTruthy()
 
-    fireEvent.click(screen.getByText("End workout"))
+    fireEvent.click(screen.getByText("Discard"))
 
     await waitFor(() => {
       expect(screen.queryByText("Now riding")).toBeNull()

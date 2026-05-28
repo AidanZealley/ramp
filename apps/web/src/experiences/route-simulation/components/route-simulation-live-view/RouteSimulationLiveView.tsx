@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react"
 import Confetti from "react-confetti"
 import { useRideSelector } from "@ramp/ride-react"
 import { useViewportSize } from "../../hooks/use-viewport-size"
@@ -8,23 +9,42 @@ import { RouteMiniMap } from "../route-mini-map"
 import { RouteRideHud } from "../route-ride-hud"
 import { RouteSimulationMap } from "../route-simulation-map"
 import type { ParsedRouteGpx } from "@/lib/routes/types"
+import type {
+  ActivityExperienceAPI,
+  ActivityResumeStateInput,
+  ActivitySummaryInput,
+} from "@/components/activity/types"
 import type { RideExperienceConnection } from "@/ride/experience-runtime"
 import type { ExperienceSessionAPI } from "@/ride/experience-session"
-import type { RouteSimulationRideController } from "../../types"
+import type {
+  RouteProgressMode,
+  RouteSimulationRideController,
+} from "../../types"
+import { EndActivityDialog } from "@/components/activity/end-activity-dialog"
+import { SaveActivityDialog } from "@/components/activity/save-activity-dialog"
+import {
+  formatActivityDistance,
+  formatActivityDuration,
+  formatActivityElevation,
+} from "@/components/activity/format"
 
 type RouteSimulationLiveViewProps = {
   activeRouteTitle: string | null
+  activity?: ActivityExperienceAPI
   connection?: RideExperienceConnection
   ride: RouteSimulationRideController
   route: ParsedRouteGpx
+  progressMode: RouteProgressMode
   session: ExperienceSessionAPI
 }
 
 export const RouteSimulationLiveView = ({
   activeRouteTitle,
+  activity,
   connection,
   ride,
   route,
+  progressMode,
   session,
 }: RouteSimulationLiveViewProps) => {
   const paused = useRideSelector(session, (s) => s.paused)
@@ -35,6 +55,145 @@ export const RouteSimulationLiveView = ({
   const powerWatts = useRideSelector(session, (s) => s.telemetry.powerWatts)
   const trainerConnected = useRideSelector(session, (s) => s.trainerConnected)
   const viewportSize = useViewportSize()
+  const [endDialogOpen, setEndDialogOpen] = useState(false)
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false)
+  const [activityBusy, setActivityBusy] = useState(false)
+  const pendingMarkedComplete = useRef(false)
+
+  const buildActivitySummary = (): ActivitySummaryInput => ({
+    durationSeconds: Math.round(ride.elapsedSeconds),
+    distanceMeters: ride.isComplete
+      ? route.stats.distanceMeters
+      : Math.round(ride.distanceMeters),
+    elevationGainMeters: ride.isComplete
+      ? route.stats.elevationGainMeters
+      : Math.round(
+          route.stats.elevationGainMeters *
+            Math.min(
+              1,
+              ride.distanceMeters / Math.max(route.stats.distanceMeters, 1)
+            )
+        ),
+    elevationLossMeters: ride.isComplete
+      ? route.stats.elevationLossMeters
+      : Math.round(
+          route.stats.elevationLossMeters *
+            Math.min(
+              1,
+              ride.distanceMeters / Math.max(route.stats.distanceMeters, 1)
+            )
+        ),
+    completionPercent:
+      route.stats.distanceMeters > 0
+        ? Math.min(
+            100,
+            (ride.distanceMeters / route.stats.distanceMeters) * 100
+          )
+        : 0,
+  })
+
+  const buildResumeState = (): ActivityResumeStateInput => ({
+    kind: "route",
+    elapsedSeconds: Math.round(ride.elapsedSeconds),
+    distanceMeters: Math.round(ride.distanceMeters),
+    progressMode,
+    smoothingLevel: ride.smoothingLevel,
+  })
+
+  const activitySummary = buildActivitySummary()
+  const activityMetrics = [
+    {
+      label: "Time",
+      value: formatActivityDuration(activitySummary.durationSeconds),
+    },
+    {
+      label: "Distance",
+      value: formatActivityDistance(activitySummary.distanceMeters),
+    },
+    {
+      label: "Climb",
+      value: formatActivityElevation(activitySummary.elevationGainMeters),
+    },
+    {
+      label: "Complete",
+      value: `${Math.round(activitySummary.completionPercent ?? 0)}%`,
+    },
+  ]
+
+  useEffect(() => {
+    if (!activity || !ride.isComplete || pendingMarkedComplete.current) return
+    pendingMarkedComplete.current = true
+    void activity
+      .markPending({
+        summary: buildActivitySummary(),
+        resumeState: buildResumeState(),
+      })
+      .then(() => setSaveDialogOpen(true))
+  }, [activity, ride.isComplete])
+
+  const handleSaveActivity = async () => {
+    if (!activity) {
+      await ride.handleStop()
+      return
+    }
+    setActivityBusy(true)
+    try {
+      await activity.markPending({
+        summary: buildActivitySummary(),
+        resumeState: buildResumeState(),
+      })
+      setEndDialogOpen(false)
+      setSaveDialogOpen(true)
+    } finally {
+      setActivityBusy(false)
+    }
+  }
+
+  const handleCompleteLater = async () => {
+    if (!activity) {
+      await ride.handleStop()
+      return
+    }
+    setActivityBusy(true)
+    try {
+      await activity.saveProgress({
+        summary: buildActivitySummary(),
+        resumeState: buildResumeState(),
+      })
+      setEndDialogOpen(false)
+      await ride.handleStop()
+    } finally {
+      setActivityBusy(false)
+    }
+  }
+
+  const handleDiscardActivity = async () => {
+    setActivityBusy(true)
+    try {
+      await activity?.discard()
+      setEndDialogOpen(false)
+      setSaveDialogOpen(false)
+      await ride.handleStop()
+    } finally {
+      setActivityBusy(false)
+    }
+  }
+
+  const handleCompleteActivity = async (title: string) => {
+    if (!activity) return
+    setActivityBusy(true)
+    try {
+      await activity.complete({
+        title,
+        summary: buildActivitySummary(),
+        resumeState: buildResumeState(),
+      })
+      setSaveDialogOpen(false)
+      await ride.handleStop()
+    } finally {
+      setActivityBusy(false)
+    }
+  }
 
   return (
     <div className="absolute inset-0 overflow-hidden bg-background">
@@ -88,7 +247,7 @@ export const RouteSimulationLiveView = ({
         onResume={ride.handleResume}
         onRestart={ride.handleRestart}
         onSmoothingChange={ride.setSmoothingLevel}
-        onStop={ride.handleStop}
+        onStop={() => setEndDialogOpen(true)}
         onTerrainEnabledChange={(terrainEnabled) =>
           ride.setMapPresentation((current) => ({ ...current, terrainEnabled }))
         }
@@ -105,13 +264,37 @@ export const RouteSimulationLiveView = ({
         totalDistanceMeters={route.stats.distanceMeters}
         viewMode={ride.mapPresentation.viewMode}
       />
-      <RouteCompleteDialog
-        distanceMeters={route.stats.distanceMeters}
-        elapsedSeconds={ride.elapsedSeconds}
-        onOpenChange={ride.setCompletionDialogOpen}
-        onRestart={ride.handleRestart}
-        open={ride.completionDialogOpen}
-        routeTitle={activeRouteTitle ?? route.title}
+      {activity ? null : (
+        <RouteCompleteDialog
+          distanceMeters={route.stats.distanceMeters}
+          elapsedSeconds={ride.elapsedSeconds}
+          onOpenChange={ride.setCompletionDialogOpen}
+          onRestart={ride.handleRestart}
+          open={ride.completionDialogOpen}
+          routeTitle={activeRouteTitle ?? route.title}
+        />
+      )}
+      <EndActivityDialog
+        open={endDialogOpen}
+        title="End route ride?"
+        description="Save this ride now, keep it for later, or discard it."
+        metrics={activityMetrics}
+        busy={activityBusy}
+        onOpenChange={setEndDialogOpen}
+        onSaveActivity={handleSaveActivity}
+        onCompleteLater={handleCompleteLater}
+        onDiscard={handleDiscardActivity}
+      />
+      <SaveActivityDialog
+        open={saveDialogOpen}
+        defaultTitle={activeRouteTitle ?? route.title}
+        description="Review the activity title before saving it to history."
+        metrics={activityMetrics}
+        saving={activityBusy}
+        discarding={activityBusy}
+        onOpenChange={setSaveDialogOpen}
+        onSave={handleCompleteActivity}
+        onDiscard={handleDiscardActivity}
       />
       {!trainerConnected && ride.isActive && (
         <RouteDisconnectedOverlay

@@ -65,6 +65,22 @@ function isIntervalsRevisionConflictError(
   )
 }
 
+function isLinkedUnresolvedActivityError(error: unknown): error is ConvexError<{
+  kind: "linkedUnresolvedActivity"
+  activityId: Id<"activities">
+  status: "in_progress" | "pending"
+  title: string
+}> {
+  return (
+    error instanceof Error &&
+    "data" in error &&
+    typeof error.data === "object" &&
+    error.data !== null &&
+    "kind" in error.data &&
+    error.data.kind === "linkedUnresolvedActivity"
+  )
+}
+
 export function useWorkoutPageController(
   workoutId: Id<"workouts">
 ): WorkoutPageController {
@@ -157,7 +173,21 @@ export function useWorkoutPageController(
   const deleteWorkout = useCallback(async () => {
     if (!resolvedWorkout) return
 
-    await removeWorkout({ id: resolvedWorkout._id })
+    try {
+      await removeWorkout({ id: resolvedWorkout._id })
+    } catch (error) {
+      if (!isLinkedUnresolvedActivityError(error)) {
+        throw error
+      }
+      const confirmed = window.confirm(
+        "There is an in-progress or pending activity using this workout. Deleting this workout will also delete that activity."
+      )
+      if (!confirmed) return
+      await removeWorkout({
+        id: resolvedWorkout._id,
+        deleteLinkedUnresolvedActivity: true,
+      })
+    }
     toast.success("Workout deleted")
     navigate({ to: "/" })
   }, [navigate, removeWorkout, resolvedWorkout])

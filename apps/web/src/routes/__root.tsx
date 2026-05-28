@@ -59,6 +59,7 @@ function RootLayout() {
   const plansActive = pathname.startsWith("/plan")
   const routeActive = pathname.startsWith("/route")
   const rideActive = pathname.startsWith("/ride")
+  const activityActive = pathname.startsWith("/activity")
   const rideImmersive = pathname.startsWith("/ride/")
 
   return (
@@ -74,6 +75,7 @@ function RootLayout() {
         </Unauthenticated>
         <Authenticated>
           <AuthenticatedAppShell
+            activityActive={activityActive}
             rideImmersive={rideImmersive}
             workoutsActive={workoutsActive}
             plansActive={plansActive}

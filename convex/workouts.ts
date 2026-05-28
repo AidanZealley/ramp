@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values"
 import { internal } from "./_generated/api"
 import { internalMutation, mutation, query } from "./_generated/server"
+import { handleLinkedUnresolvedActivityForSource } from "./activities"
 import { requireAuthUserId, requireOwnedWorkout } from "./authHelpers"
 import { computeWorkoutSummary } from "./workoutSummary"
 import type { MutationCtx } from "./_generated/server"
@@ -291,9 +292,18 @@ export const duplicateWorkout = mutation({
 })
 
 export const remove = mutation({
-  args: { id: v.id("workouts") },
+  args: {
+    id: v.id("workouts"),
+    deleteLinkedUnresolvedActivity: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const workout = await requireOwnedWorkout(ctx, args.id)
+    await handleLinkedUnresolvedActivityForSource(ctx, {
+      ownerId: workout.ownerId,
+      sourceKind: "workout",
+      sourceId: args.id,
+      deleteLinkedUnresolvedActivity: args.deleteLinkedUnresolvedActivity,
+    })
     await ctx.db.delete(args.id)
     await clearOwnedWorkoutReferences(ctx, args.id, workout.ownerId)
   },

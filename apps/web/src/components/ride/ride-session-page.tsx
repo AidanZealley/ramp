@@ -5,11 +5,13 @@ import { RideOverlay } from "./ride-overlay"
 import type { Id } from "#convex/_generated/dataModel"
 import type { RideExperienceDefinition } from "@/experiences/types"
 import type { RideRuntimeController } from "@/ride/use-ride-runtime"
+import { useActivitySession } from "@/hooks/activity/use-activity-session"
 import { useElementSize } from "@/hooks/use-element-size"
 import { narrowForExperience } from "@/ride/experience-session"
 import { useRideRuntime } from "@/ride/use-ride-runtime"
 
 type RideExperienceSearchProps = {
+  activityId?: Id<"activities">
   workoutId?: Id<"workouts">
   routeId?: Id<"routes">
 }
@@ -27,6 +29,7 @@ export function RideSessionPage({
   search?: RideExperienceSearchProps
 }) {
   const runtime = useRideRuntime()
+  const activity = useActivitySession({ activityId: search?.activityId })
   const [connectionConfirmed, setConnectionConfirmed] = useState(false)
 
   if (!connectionConfirmed || !runtime.ready || runtime.session === null) {
@@ -42,6 +45,7 @@ export function RideSessionPage({
   return (
     <RideSessionExperience
       experience={experience}
+      activity={activity}
       onDisconnected={() => setConnectionConfirmed(false)}
       search={search}
       trainerController={runtime as ReadyRideRuntimeController}
@@ -51,11 +55,13 @@ export function RideSessionPage({
 
 function RideSessionExperience({
   experience,
+  activity,
   onDisconnected,
   search,
   trainerController,
 }: {
   experience: RideExperienceDefinition
+  activity: ReturnType<typeof useActivitySession>
   onDisconnected: () => void
   search?: RideExperienceSearchProps
   trainerController: ReadyRideRuntimeController
@@ -130,6 +136,7 @@ function RideSessionExperience({
                   experience.id === "diagnostics" ? session : experienceSession
                 }
                 connection={connection}
+                activity={activity}
                 search={search}
               />
             </Suspense>

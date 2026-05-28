@@ -6,6 +6,7 @@ import { AccountDropdown } from "@/components/account-dropdown"
 import { Toaster } from "@/components/ui/sonner"
 
 type AuthenticatedAppShellProps = {
+  activityActive: boolean
   rideImmersive: boolean
   workoutsActive: boolean
   plansActive: boolean
@@ -14,6 +15,7 @@ type AuthenticatedAppShellProps = {
 }
 
 export const AuthenticatedAppShell = ({
+  activityActive,
   rideImmersive,
   workoutsActive,
   plansActive,
@@ -37,6 +39,7 @@ export const AuthenticatedAppShell = ({
               </Link>
 
               <AppNav
+                activityActive={activityActive}
                 workoutsActive={workoutsActive}
                 plansActive={plansActive}
                 routeActive={routeActive}

@@ -23,14 +23,25 @@ import {
 } from "./utils"
 import type { WorkoutCompletionSummary } from "./components/workout-complete-dialog"
 import type { WorkoutSessionState } from "@ramp/ride-workouts"
+import type {
+  ActivityExperienceAPI,
+  ActivityResumeStateInput,
+  ActivitySummaryInput,
+} from "@/components/activity/types"
 import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
 import type { ExperienceSessionAPI } from "@/ride/experience-session"
+import { EndActivityDialog } from "@/components/activity/end-activity-dialog"
+import { SaveActivityDialog } from "@/components/activity/save-activity-dialog"
 import {
   RideDashboardMetric,
   RideHeartCadenceModule,
   RidePowerModule,
 } from "@/components/ride/ride-dashboard"
-import { formatDuration } from "@/lib/workout-utils"
+import { formatDuration, getAveragePower } from "@/lib/workout-utils"
+import {
+  formatActivityDistance,
+  formatActivityDuration,
+} from "@/components/activity/format"
 
 type LiveWorkoutDashboardProps = {
   onEnd: () => void
@@ -44,6 +55,7 @@ type LiveWorkoutDashboardProps = {
   session: ExperienceSessionAPI
   workout: ClientWorkoutDoc
   workoutState: WorkoutSessionState
+  activity?: ActivityExperienceAPI
 }
 
 function getDisconnectErrorCopy(code: string | undefined): string | null {
@@ -91,6 +103,7 @@ export function LiveWorkoutDashboard({
   session,
   workout,
   workoutState,
+  activity,
 }: LiveWorkoutDashboardProps) {
   const trainerConnected = useRideSelector(session, (s) => s.trainerConnected)
   const telemetryStatus = useRideSelector(
@@ -111,6 +124,8 @@ export function LiveWorkoutDashboard({
   const [completionSummary, setCompletionSummary] =
     useState<WorkoutCompletionSummary | null>(null)
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false)
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false)
+  const [activityBusy, setActivityBusy] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
   const [manualSeekKey, setManualSeekKey] = useState(0)
   const { stopDialogOpen, setStopDialogOpen } = useWorkoutKeypresses({
@@ -195,17 +210,137 @@ export function LiveWorkoutDashboard({
     return onSeek(nextElapsedSeconds)
   }
 
+  const buildActivitySummary = (): ActivitySummaryInput => {
+    const completionPercent =
+      totalDurationSeconds > 0
+        ? Math.min(100, (elapsedSeconds / totalDurationSeconds) * 100)
+        : 0
+    return {
+      durationSeconds: Math.round(completionDurationSeconds),
+      distanceMeters: telemetry.distanceMeters ?? 0,
+      plannedAverageWatts: Math.round(
+        (getAveragePower(workout.intervals) * ftp) / 100
+      ),
+      completionPercent: workoutState.isComplete ? 100 : completionPercent,
+    }
+  }
+
+  const buildResumeState = (): ActivityResumeStateInput => ({
+    kind: "workout",
+    elapsedSeconds: Math.round(elapsedSeconds),
+    difficultyPercent: workoutState.difficultyPercent,
+  })
+
+  const activityMetrics = [
+    {
+      label: "Time",
+      value: formatActivityDuration(buildActivitySummary().durationSeconds),
+    },
+    {
+      label: "Distance",
+      value: formatActivityDistance(buildActivitySummary().distanceMeters),
+    },
+    {
+      label: "Planned",
+      value: `${buildActivitySummary().plannedAverageWatts ?? 0}W`,
+    },
+    {
+      label: "Complete",
+      value: `${Math.round(buildActivitySummary().completionPercent ?? 0)}%`,
+    },
+  ]
+
+  const handleRequestEnd = () => {
+    session.pause()
+    setStopDialogOpen(true)
+  }
+
+  const handleSaveActivity = async () => {
+    if (!activity) {
+      onEnd()
+      return
+    }
+    setActivityBusy(true)
+    try {
+      await activity.markPending({
+        summary: buildActivitySummary(),
+        resumeState: buildResumeState(),
+      })
+      setStopDialogOpen(false)
+      setSaveDialogOpen(true)
+    } finally {
+      setActivityBusy(false)
+    }
+  }
+
+  const handleCompleteLater = async () => {
+    if (!activity) {
+      onEnd()
+      return
+    }
+    setActivityBusy(true)
+    try {
+      await activity.saveProgress({
+        summary: buildActivitySummary(),
+        resumeState: buildResumeState(),
+      })
+      setStopDialogOpen(false)
+      onEnd()
+    } finally {
+      setActivityBusy(false)
+    }
+  }
+
+  const handleDiscardActivity = async () => {
+    setActivityBusy(true)
+    try {
+      await activity?.discard()
+      setStopDialogOpen(false)
+      setSaveDialogOpen(false)
+      onEnd()
+    } finally {
+      setActivityBusy(false)
+    }
+  }
+
+  const handleCompleteActivity = async (title: string) => {
+    if (!activity) return
+    setActivityBusy(true)
+    try {
+      await activity.complete({
+        title,
+        summary: buildActivitySummary(),
+        resumeState: buildResumeState(),
+      })
+      setSaveDialogOpen(false)
+      onEnd()
+    } finally {
+      setActivityBusy(false)
+    }
+  }
+
   useEffect(() => {
     if (!previousIsComplete.current && workoutState.isComplete) {
-      setCompletionSummary({
+      const summary = {
         durationSeconds: Math.round(completionDurationSeconds),
         distanceMeters: telemetry.distanceMeters,
-      })
-      setCompletionDialogOpen(true)
+      }
+      setCompletionSummary(summary)
+      if (activity) {
+        void activity
+          .markPending({
+            summary: buildActivitySummary(),
+            resumeState: buildResumeState(),
+          })
+          .then(() => setSaveDialogOpen(true))
+      } else {
+        setCompletionDialogOpen(true)
+      }
       setShowConfetti(true)
     }
     previousIsComplete.current = workoutState.isComplete
   }, [
+    activity,
     completionDurationSeconds,
     telemetry.distanceMeters,
     workoutState.isComplete,
@@ -239,10 +374,32 @@ export function LiveWorkoutDashboard({
           onOpenChange={setCompletionDialogOpen}
         />
       )}
+      <EndActivityDialog
+        open={stopDialogOpen}
+        title="End workout?"
+        description="Save this ride now, keep it for later, or discard it."
+        metrics={activityMetrics}
+        busy={activityBusy}
+        onOpenChange={setStopDialogOpen}
+        onSaveActivity={handleSaveActivity}
+        onCompleteLater={handleCompleteLater}
+        onDiscard={handleDiscardActivity}
+      />
+      <SaveActivityDialog
+        open={saveDialogOpen}
+        defaultTitle={workout.title}
+        description="Review the activity title before saving it to history."
+        metrics={activityMetrics}
+        saving={activityBusy}
+        discarding={activityBusy}
+        onOpenChange={setSaveDialogOpen}
+        onSave={handleCompleteActivity}
+        onDiscard={handleDiscardActivity}
+      />
       {showDisconnectedOverlay && onReconnect && (
         <DisconnectedOverlay
           onReconnect={onReconnect}
-          onEnd={onEnd}
+          onEnd={handleRequestEnd}
           errorCopy={getDisconnectErrorCopy(lastTrainerErrorCode)}
         />
       )}
@@ -333,7 +490,7 @@ export function LiveWorkoutDashboard({
         isComplete={workoutState.isComplete}
         onPause={onPause}
         onResume={onResume}
-        onStop={onEnd}
+        onStop={handleRequestEnd}
         onSeek={handleSeek}
         stopDialogOpen={stopDialogOpen}
         onStopDialogOpenChange={setStopDialogOpen}

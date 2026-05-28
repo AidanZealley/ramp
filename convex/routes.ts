@@ -1,5 +1,6 @@
 import { v } from "convex/values"
 import { mutation, query } from "./_generated/server"
+import { handleLinkedUnresolvedActivityForSource } from "./activities"
 import { requireAuthUserId, requireOwnedRoute } from "./authHelpers"
 
 const routeStatsValidator = v.object({
@@ -135,9 +136,18 @@ export const get = query({
 })
 
 export const remove = mutation({
-  args: { id: v.id("routes") },
+  args: {
+    id: v.id("routes"),
+    deleteLinkedUnresolvedActivity: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const routeDoc = await requireOwnedRoute(ctx, args.id)
+    await handleLinkedUnresolvedActivityForSource(ctx, {
+      ownerId: routeDoc.ownerId,
+      sourceKind: "route",
+      sourceId: args.id,
+      deleteLinkedUnresolvedActivity: args.deleteLinkedUnresolvedActivity,
+    })
 
     await ctx.storage.delete(routeDoc.fileStorageId)
     await ctx.db.delete(args.id)

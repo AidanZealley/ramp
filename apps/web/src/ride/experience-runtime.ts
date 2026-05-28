@@ -3,6 +3,7 @@ import type {
   RideSessionController,
 } from "@ramp/ride-core"
 import type { TrainerError } from "@ramp/trainer-io"
+import type { ActivityExperienceAPI } from "@/components/activity/types"
 import type { ExperienceSessionAPI } from "@/ride/experience-session"
 import type React from "react"
 
@@ -17,18 +18,22 @@ type RideExperienceViewProps = {
   session: ExperienceSessionAPI
   connection?: RideExperienceConnection
   search?: {
+    activityId?: string
     workoutId?: string
     routeId?: string
   }
+  activity?: ActivityExperienceAPI
 }
 
 type PrivilegedRideExperienceViewProps = {
   session: RideSessionController
   connection?: RideExperienceConnection
   search?: {
+    activityId?: string
     workoutId?: string
     routeId?: string
   }
+  activity?: ActivityExperienceAPI
 }
 
 export type RideExperiencePlugin =

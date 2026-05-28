@@ -1,6 +1,10 @@
 import type { Dispatch, SetStateAction } from "react"
 import type { Doc, Id } from "#convex/_generated/dataModel"
-import type { ParsedRouteGpx, RoutePoint, RoutePosition } from "@/lib/routes/types"
+import type {
+  ParsedRouteGpx,
+  RoutePoint,
+  RoutePosition,
+} from "@/lib/routes/types"
 import type { RouteGradeDiagnostics } from "@/lib/routes/simulation"
 import type { PhysicsConfig } from "@/experiences/physics"
 
@@ -72,6 +76,10 @@ export type RouteSimulationRideController = {
   handlePause: () => void
   handleResume: () => void
   handleRestart: () => void
+  handleResumeActivity: (args: {
+    distanceMeters: number
+    elapsedSeconds: number
+  }) => void
   handleRouteClick: (position: RoutePosition) => void
   handleStart: () => void
   handleStop: () => void
