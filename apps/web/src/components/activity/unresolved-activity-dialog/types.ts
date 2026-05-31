@@ -5,7 +5,7 @@ export type UnresolvedActivityDialogProps = {
   activity: ActivityClientDoc | null
   busy?: boolean
   onOpenChange: (open: boolean) => void
-  onResume: () => void
+  onResume: () => void | Promise<void>
   onSaveExisting: () => void | Promise<void>
   onDiscardExisting: () => void | Promise<void>
 }

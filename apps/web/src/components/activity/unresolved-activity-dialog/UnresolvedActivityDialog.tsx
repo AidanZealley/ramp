@@ -1,10 +1,10 @@
 import { RotateCcw, Save, Trash2 } from "lucide-react"
-import type { UnresolvedActivityDialogProps } from "./types"
 import {
   formatActivityDate,
   getActivityPrimaryTimestamp,
   getActivitySourceLabel,
 } from "../format"
+import type { UnresolvedActivityDialogProps } from "./types"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -24,9 +24,14 @@ export const UnresolvedActivityDialog = ({
   onSaveExisting,
   onDiscardExisting,
 }: UnresolvedActivityDialogProps) => {
+  const handleResume = async () => {
+    await onResume()
+    onOpenChange(false)
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Activity already in progress</DialogTitle>
           <DialogDescription>
@@ -72,7 +77,7 @@ export const UnresolvedActivityDialog = ({
             </Button>
             <Button
               type="button"
-              onClick={onResume}
+              onClick={() => void handleResume()}
               disabled={!activity || busy}
             >
               <RotateCcw />
