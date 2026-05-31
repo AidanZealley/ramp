@@ -2,6 +2,10 @@ import { v } from "convex/values"
 import { mutation, query } from "./_generated/server"
 import { handleLinkedUnresolvedActivityForSource } from "./activities"
 import { requireAuthUserId, requireOwnedRoute } from "./authHelpers"
+import {
+  routeSegmentInputValidator,
+  validateGeneratedRouteSegments,
+} from "./routeSegmentValidators"
 
 const routeStatsValidator = v.object({
   distanceMeters: v.number(),
@@ -85,13 +89,15 @@ export const createFromGpxUpload = mutation({
     finish: routePositionValidator,
     previewPoints: v.array(routePreviewPointValidator),
     tags: v.optional(v.array(v.string())),
+    segments: v.optional(v.array(routeSegmentInputValidator)),
   },
   handler: async (ctx, args) => {
     const ownerId = await requireAuthUserId(ctx)
     const title = normalizeRouteTitle(args.title)
     validatePreviewPoints(args.previewPoints)
+    const segments = validateGeneratedRouteSegments(args.segments ?? [])
 
-    return await ctx.db.insert("routes", {
+    const routeId = await ctx.db.insert("routes", {
       ownerId,
       title,
       source: "gpx",
@@ -106,6 +112,19 @@ export const createFromGpxUpload = mutation({
       previewPoints: args.previewPoints,
       tags: args.tags,
     })
+
+    const generatedAt = Date.now()
+    for (const segment of segments) {
+      await ctx.db.insert("routeSegments", {
+        ...segment,
+        ownerId,
+        routeId,
+        source: "generated",
+        generatedAt,
+      })
+    }
+
+    return routeId
   },
 })
 
@@ -148,6 +167,16 @@ export const remove = mutation({
       sourceId: args.id,
       deleteLinkedUnresolvedActivity: args.deleteLinkedUnresolvedActivity,
     })
+
+    const routeSegments = await ctx.db
+      .query("routeSegments")
+      .withIndex("by_routeId_and_startDistanceMeters", (q) =>
+        q.eq("routeId", args.id)
+      )
+      .collect()
+    for (const segment of routeSegments) {
+      await ctx.db.delete(segment._id)
+    }
 
     await ctx.storage.delete(routeDoc.fileStorageId)
     await ctx.db.delete(args.id)

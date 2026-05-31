@@ -5,6 +5,7 @@ import { Upload } from "lucide-react"
 import { toast } from "sonner"
 import { api } from "#convex/_generated/api"
 import { parseRouteGpxFile } from "@/lib/routes/gpx"
+import { detectRouteSegments } from "@/lib/routes/segments"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { RouteCard } from "@/components/route/route-card"
@@ -29,6 +30,7 @@ export const RouteLibrary = () => {
         toast.error(`Couldn't import ${file.name}: ${result.message}`)
         return
       }
+      const segments = detectRouteSegments(result.route.points)
 
       const uploadUrl = await generateUploadUrl()
       const uploadResponse = await fetch(uploadUrl, {
@@ -54,6 +56,7 @@ export const RouteLibrary = () => {
         start: result.route.start,
         finish: result.route.finish,
         previewPoints: result.route.previewPoints,
+        segments,
       })
 
       navigate({ to: "/route/$id", params: { id } })

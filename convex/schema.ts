@@ -106,6 +106,31 @@ export default defineSchema({
   })
     .index("by_source", ["source"])
     .index("by_ownerId", ["ownerId"]),
+  routeSegments: defineTable({
+    ownerId: v.id("users"),
+    routeId: v.id("routes"),
+    type: v.literal("climb"),
+    startDistanceMeters: v.number(),
+    endDistanceMeters: v.number(),
+    distanceMeters: v.number(),
+    startElevationMeters: v.number(),
+    endElevationMeters: v.number(),
+    elevationGainMeters: v.number(),
+    averageGradient: v.number(),
+    previewSamples: v.array(
+      v.object({
+        distanceMeters: v.number(),
+        elevationMeters: v.number(),
+      })
+    ),
+    source: v.literal("generated"),
+    generatedAt: v.number(),
+  })
+    .index("by_routeId_and_startDistanceMeters", [
+      "routeId",
+      "startDistanceMeters",
+    ])
+    .index("by_ownerId", ["ownerId"]),
   activities: defineTable({
     ownerId: v.id("users"),
     status: v.union(

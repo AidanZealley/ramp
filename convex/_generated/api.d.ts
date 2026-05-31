@@ -15,6 +15,8 @@ import type * as http from "../http.js";
 import type * as invites from "../invites.js";
 import type * as plans from "../plans.js";
 import type * as preferences from "../preferences.js";
+import type * as routeSegmentValidators from "../routeSegmentValidators.js";
+import type * as routeSegments from "../routeSegments.js";
 import type * as routes from "../routes.js";
 import type * as workoutSummary from "../workoutSummary.js";
 import type * as workouts from "../workouts.js";
@@ -33,6 +35,8 @@ declare const fullApi: ApiFromModules<{
   invites: typeof invites;
   plans: typeof plans;
   preferences: typeof preferences;
+  routeSegmentValidators: typeof routeSegmentValidators;
+  routeSegments: typeof routeSegments;
   routes: typeof routes;
   workoutSummary: typeof workoutSummary;
   workouts: typeof workouts;
