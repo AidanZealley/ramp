@@ -1,5 +1,8 @@
 import { useState } from "react"
 import { RefreshCw } from "lucide-react"
+import { ClimbSegmentCard } from "./components/climb-segment-card"
+import type { Id } from "#convex/_generated/dataModel"
+import type { StoredRouteSegment } from "./types"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -12,10 +15,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { ClimbSegmentCard } from "./components/climb-segment-card"
-import type { StoredRouteSegment } from "./types"
 
 type RouteSegmentsProps = {
+  routeId: Id<"routes">
   segments: Array<StoredRouteSegment> | undefined
   canGenerate: boolean
   generating?: boolean
@@ -25,6 +27,7 @@ type RouteSegmentsProps = {
 }
 
 export const RouteSegments = ({
+  routeId,
   segments,
   canGenerate,
   generating = false,
@@ -67,19 +70,15 @@ export const RouteSegments = ({
         </div>
       ) : hasSegments ? (
         <div className="grid gap-3">
-          {sortedSegments.map((segment) => {
-            switch (segment.type) {
-              case "climb":
-                return (
-                  <ClimbSegmentCard
-                    key={segment._id}
-                    segment={segment}
-                    deleting={deletingSegmentId === segment._id}
-                    onDelete={() => onDeleteSegment(segment)}
-                  />
-                )
-            }
-          })}
+          {sortedSegments.map((segment) => (
+            <ClimbSegmentCard
+              key={segment._id}
+              routeId={routeId}
+              segment={segment}
+              deleting={deletingSegmentId === segment._id}
+              onDelete={() => onDeleteSegment(segment)}
+            />
+          ))}
         </div>
       ) : (
         <div className="rounded-lg border border-dashed border-border/70 px-6 py-10 text-center text-sm text-muted-foreground">

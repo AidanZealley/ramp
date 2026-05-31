@@ -14,6 +14,7 @@ type RideExperienceSearchProps = {
   activityId?: Id<"activities">
   workoutId?: Id<"workouts">
   routeId?: Id<"routes">
+  routeSegmentId?: Id<"routeSegments">
 }
 
 type ReadyRideRuntimeController = RideRuntimeController & {

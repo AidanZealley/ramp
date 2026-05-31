@@ -51,10 +51,13 @@ export type RouteSimulationRouteState = {
   handleSelectRoute: (routeId: Id<"routes">) => void
   isLoading: boolean
   linkedRouteId: Id<"routes"> | undefined
+  linkedRouteSegmentId: Id<"routeSegments"> | undefined
   loadError: string | null
   parsedRoute: ParsedRouteGpx | null
   routes: Array<Doc<"routes">>
   selectedRouteId: Id<"routes"> | null
+  selectedRouteSegmentId: Id<"routeSegments"> | null
+  activeRouteSource?: "route" | "segment"
 }
 
 export type RouteSimulationPreferencesState = {

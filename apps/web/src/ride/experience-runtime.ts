@@ -21,6 +21,7 @@ type RideExperienceViewProps = {
     activityId?: string
     workoutId?: string
     routeId?: string
+    routeSegmentId?: string
   }
   activity?: ActivityExperienceAPI
 }
@@ -32,6 +33,7 @@ type PrivilegedRideExperienceViewProps = {
     activityId?: string
     workoutId?: string
     routeId?: string
+    routeSegmentId?: string
   }
   activity?: ActivityExperienceAPI
 }

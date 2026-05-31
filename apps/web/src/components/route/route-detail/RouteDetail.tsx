@@ -5,6 +5,7 @@ import { ArrowLeft, Bike } from "lucide-react"
 import { toast } from "sonner"
 import type { Id } from "#convex/_generated/dataModel"
 import type { ParsedRouteGpx } from "@/lib/routes/types"
+import type { StoredRouteSegment } from "@/components/route/route-segments/types"
 import { api } from "#convex/_generated/api"
 import { parseRouteGpxText } from "@/lib/routes/gpx"
 import { detectRouteSegments } from "@/lib/routes/segments"
@@ -23,7 +24,6 @@ import {
 import { ElevationChart } from "@/components/route/elevation-chart"
 import { RoutePreviewMap } from "@/components/route/route-preview-map"
 import { RouteSegments } from "@/components/route/route-segments"
-import type { StoredRouteSegment } from "@/components/route/route-segments/types"
 import { RouteStats } from "@/components/route/route-stats"
 import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 
@@ -224,6 +224,7 @@ export const RouteDetail = ({ routeId }: RouteDetailProps) => {
       )}
 
       <RouteSegments
+        routeId={routeDoc._id}
         segments={routeSegments}
         canGenerate={Boolean(parsedRoute)}
         generating={generatingSegments}

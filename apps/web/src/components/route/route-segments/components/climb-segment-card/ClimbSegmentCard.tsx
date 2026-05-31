@@ -1,17 +1,21 @@
-import { Trash2 } from "lucide-react"
+import { Link } from "@tanstack/react-router"
+import { Bike, Trash2 } from "lucide-react"
+import type { Id } from "#convex/_generated/dataModel"
+import type { StoredRouteSegment } from "../../types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { SegmentElevationPreview } from "@/components/route/route-segments/components/segment-elevation-preview"
 import { useUnitFormatters } from "@/hooks/use-unit-formatters"
-import type { StoredRouteSegment } from "../../types"
 
 type ClimbSegmentCardProps = {
+  routeId: Id<"routes">
   segment: StoredRouteSegment
   deleting?: boolean
   onDelete: () => void
 }
 
 export const ClimbSegmentCard = ({
+  routeId,
   segment,
   deleting = false,
   onDelete,
@@ -34,16 +38,32 @@ export const ClimbSegmentCard = ({
               })}
             </span>
           </div>
-          <Button
-            aria-label="Delete segment"
-            disabled={deleting}
-            onClick={onDelete}
-            size="icon"
-            type="button"
-            variant="ghost"
-          >
-            <Trash2 />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              nativeButton={false}
+              size="sm"
+              render={
+                <Link
+                  to="/ride/$experienceId"
+                  params={{ experienceId: "route" }}
+                  search={{ routeId, routeSegmentId: segment._id }}
+                />
+              }
+            >
+              <Bike />
+              Ride segment
+            </Button>
+            <Button
+              aria-label="Delete segment"
+              disabled={deleting}
+              onClick={onDelete}
+              size="icon"
+              type="button"
+              variant="ghost"
+            >
+              <Trash2 />
+            </Button>
+          </div>
         </div>
         <dl className="grid grid-cols-3 gap-3 text-sm">
           <div>

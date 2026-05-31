@@ -8,21 +8,19 @@ import { RouteSimulationSetup } from "./components/route-simulation-setup"
 import { useRouteSimulationRide } from "./hooks/use-route-simulation-ride"
 import { useRouteSimulationRoute } from "./hooks/use-route-simulation-route"
 import { useRouteSimulationPreferences } from "./hooks/use-route-simulation-preferences"
-import { SaveActivityDialog } from "@/components/activity/save-activity-dialog"
-import { UnresolvedActivityDialog } from "@/components/activity/unresolved-activity-dialog"
-import {
-  formatActivityDuration,
-} from "@/components/activity/format"
-import { useUnitFormatters } from "@/hooks/use-unit-formatters"
-import type { RideExperienceConnection } from "@/ride/experience-runtime"
-import type { ExperienceSessionAPI } from "@/ride/experience-session"
+import type { RouteProgressMode } from "./types"
 import type { Id } from "#convex/_generated/dataModel"
 import type {
   ActivityClientDoc,
   ActivityExperienceAPI,
 } from "@/components/activity/types"
-import type { RouteProgressMode } from "./types"
+import type { RideExperienceConnection } from "@/ride/experience-runtime"
+import type { ExperienceSessionAPI } from "@/ride/experience-session"
 import { api } from "#convex/_generated/api"
+import { formatActivityDuration } from "@/components/activity/format"
+import { SaveActivityDialog } from "@/components/activity/save-activity-dialog"
+import { UnresolvedActivityDialog } from "@/components/activity/unresolved-activity-dialog"
+import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 
 type RouteSimulationExperienceViewProps = {
   activity?: ActivityExperienceAPI
@@ -30,6 +28,7 @@ type RouteSimulationExperienceViewProps = {
   search?: {
     activityId?: string
     routeId?: string
+    routeSegmentId?: string
   }
   session: ExperienceSessionAPI
 }
@@ -42,6 +41,9 @@ export function RouteSimulationExperienceView({
 }: RouteSimulationExperienceViewProps) {
   const navigate = useNavigate({ from: "/ride/$experienceId" })
   const linkedRouteId = search?.routeId as Id<"routes"> | undefined
+  const linkedRouteSegmentId = search?.routeSegmentId as
+    | Id<"routeSegments">
+    | undefined
   const linkedActivityId = search?.activityId
   const completeActivity = useMutation(api.activities.complete)
   const discardActivity = useMutation(api.activities.discard)
@@ -59,7 +61,11 @@ export function RouteSimulationExperienceView({
     .getCapabilities()
     .has(Capability.SimulationGrade)
 
-  const route = useRouteSimulationRoute({ linkedRouteId, navigate })
+  const route = useRouteSimulationRoute({
+    linkedRouteId,
+    linkedRouteSegmentId,
+    navigate,
+  })
   const preferences = useRouteSimulationPreferences()
   const ride = useRouteSimulationRide({
     parsedRoute: route.parsedRoute,
@@ -139,6 +145,7 @@ export function RouteSimulationExperienceView({
       search: (previous) => ({
         ...previous,
         activityId: result.activity._id,
+        routeSegmentId: linkedRouteSegmentId,
         routeId:
           result.activity.sourceSnapshot.kind === "route"
             ? result.activity.sourceSnapshot.routeId
@@ -147,7 +154,7 @@ export function RouteSimulationExperienceView({
       replace: true,
     })
     await ride.handleStart()
-  }, [activity, linkedRouteId, navigate, ride])
+  }, [activity, linkedRouteId, linkedRouteSegmentId, navigate, ride])
 
   const startDisabledReason = !route.parsedRoute
     ? "Choose a valid GPX route."

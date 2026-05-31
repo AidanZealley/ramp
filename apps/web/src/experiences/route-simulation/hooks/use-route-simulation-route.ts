@@ -6,15 +6,18 @@ import type { ParsedRouteGpx } from "@/lib/routes/types"
 import type { RouteSimulationRouteState } from "../types"
 import { api } from "#convex/_generated/api"
 import { parseRouteGpxText } from "@/lib/routes/gpx"
+import { sliceParsedRouteGpx } from "@/lib/routes/slice"
 
 type UseRouteSimulationRouteInput = {
   linkedRouteId: Id<"routes"> | undefined
+  linkedRouteSegmentId: Id<"routeSegments"> | undefined
   navigate: ReturnType<typeof useNavigate>
   onRouteChange?: () => void
 }
 
 export function useRouteSimulationRoute({
   linkedRouteId,
+  linkedRouteSegmentId,
   navigate,
   onRouteChange,
 }: UseRouteSimulationRouteInput): RouteSimulationRouteState {
@@ -23,15 +26,25 @@ export function useRouteSimulationRoute({
     api.routes.get,
     linkedRouteId ? { id: linkedRouteId } : "skip"
   )
+  const routeSegments = useQuery(
+    api.routeSegments.listByRoute,
+    linkedRouteId ? { routeId: linkedRouteId } : "skip"
+  )
   const [selectedRouteId, setSelectedRouteId] = useState<Id<"routes"> | null>(
     linkedRouteId ?? null
   )
+  const [selectedRouteSegmentId, setSelectedRouteSegmentId] =
+    useState<Id<"routeSegments"> | null>(linkedRouteSegmentId ?? null)
   const [parsedRoute, setParsedRoute] = useState<ParsedRouteGpx | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
     setSelectedRouteId(linkedRouteId ?? null)
   }, [linkedRouteId])
+
+  useEffect(() => {
+    setSelectedRouteSegmentId(linkedRouteSegmentId ?? null)
+  }, [linkedRouteSegmentId])
 
   useEffect(() => {
     let cancelled = false
@@ -44,6 +57,8 @@ export function useRouteSimulationRoute({
       }
       return
     }
+
+    if (linkedRouteSegmentId && routeSegments === undefined) return
 
     if (!routeDoc.fileUrl) {
       setLoadError("Route GPX file is unavailable. Pick another route.")
@@ -62,7 +77,41 @@ export function useRouteSimulationRoute({
           setLoadError(result.message)
           return
         }
-        setParsedRoute(result.route)
+        if (!linkedRouteSegmentId) {
+          setParsedRoute(result.route)
+          return
+        }
+
+        const sortedSegments = [...(routeSegments ?? [])].sort(
+          (a, b) => a.startDistanceMeters - b.startDistanceMeters
+        )
+        const segmentIndex = sortedSegments.findIndex(
+          (segment) => segment._id === linkedRouteSegmentId
+        )
+        const segment = segmentIndex >= 0 ? sortedSegments[segmentIndex] : null
+        if (!segment) {
+          setLoadError("Route segment not found. Pick another route.")
+          return
+        }
+
+        try {
+          setParsedRoute(
+            sliceParsedRouteGpx(
+              result.route,
+              {
+                startDistanceMeters: segment.startDistanceMeters,
+                endDistanceMeters: segment.endDistanceMeters,
+              },
+              { title: `${routeDoc.title} - Climb ${segmentIndex + 1}` }
+            )
+          )
+        } catch (error) {
+          setLoadError(
+            error instanceof Error
+              ? error.message
+              : "Route segment could not be sliced."
+          )
+        }
       })
       .catch((error: unknown) => {
         if (cancelled) return
@@ -74,13 +123,23 @@ export function useRouteSimulationRoute({
     return () => {
       cancelled = true
     }
-  }, [linkedRouteId, routeDoc])
+  }, [linkedRouteId, linkedRouteSegmentId, routeDoc, routeSegments])
 
   const selectedRouteDoc = useMemo(
     () => routes?.find((route) => route._id === selectedRouteId) ?? null,
     [routes, selectedRouteId]
   )
-  const activeRouteTitle = routeDoc?.title ?? selectedRouteDoc?.title ?? null
+  const selectedSegmentIndex = useMemo(() => {
+    if (!linkedRouteSegmentId || !routeSegments) return -1
+    return [...routeSegments]
+      .sort((a, b) => a.startDistanceMeters - b.startDistanceMeters)
+      .findIndex((segment) => segment._id === linkedRouteSegmentId)
+  }, [linkedRouteSegmentId, routeSegments])
+  const baseRouteTitle = routeDoc?.title ?? selectedRouteDoc?.title ?? null
+  const activeRouteTitle =
+    baseRouteTitle && selectedSegmentIndex >= 0
+      ? `${baseRouteTitle} - Climb ${selectedSegmentIndex + 1}`
+      : baseRouteTitle
 
   const handleSelectRoute = useCallback(
     (routeId: Id<"routes">) => {
@@ -90,7 +149,11 @@ export function useRouteSimulationRoute({
         search: (previous: Record<string, unknown>) => Record<string, unknown>
         replace: boolean
       }) => void)({
-        search: (previous) => ({ ...previous, routeId }),
+        search: (previous) => {
+          const nextSearch: Record<string, unknown> = { ...previous, routeId }
+          delete nextSearch.routeSegmentId
+          return nextSearch
+        },
         replace: true,
       })
     },
@@ -109,6 +172,7 @@ export function useRouteSimulationRoute({
       search: (previous) => {
         const nextSearch = { ...previous }
         delete nextSearch.routeId
+        delete nextSearch.routeSegmentId
         return nextSearch
       },
       replace: true,
@@ -121,11 +185,15 @@ export function useRouteSimulationRoute({
     handleSelectRoute,
     isLoading:
       routes === undefined ||
-      (linkedRouteId !== undefined && routeDoc === undefined),
+      (linkedRouteId !== undefined && routeDoc === undefined) ||
+      (linkedRouteSegmentId !== undefined && routeSegments === undefined),
     linkedRouteId,
+    linkedRouteSegmentId,
     loadError,
     parsedRoute,
     routes: routes ?? [],
     selectedRouteId,
+    selectedRouteSegmentId,
+    activeRouteSource: linkedRouteSegmentId ? "segment" : "route",
   }
 }

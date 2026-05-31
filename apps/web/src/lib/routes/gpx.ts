@@ -45,7 +45,7 @@ export function downsampleEvenly<T>(items: Array<T>, limit: number): Array<T> {
   })
 }
 
-function getBounds(points: Array<RoutePoint>): RouteBounds | null {
+export function getRouteBounds(points: Array<RoutePoint>): RouteBounds | null {
   if (points.length === 0) return null
 
   return points.reduce<RouteBounds>(
@@ -64,7 +64,7 @@ function getBounds(points: Array<RoutePoint>): RouteBounds | null {
   )
 }
 
-function normalizePreviewPoints(
+export function normalizeRoutePreviewPoints(
   points: Array<RoutePoint>
 ): Array<RoutePreviewPoint> {
   const sampled = downsampleEvenly(points, ROUTE_PREVIEW_POINT_LIMIT)
@@ -94,7 +94,9 @@ function normalizePreviewPoints(
   }))
 }
 
-function buildElevationSamples(points: Array<RoutePoint>): Array<ElevationSample> {
+export function buildRouteElevationSamples(
+  points: Array<RoutePoint>
+): Array<ElevationSample> {
   const samples = points
     .filter((point) => point.elevationMeters !== null)
     .map((point) => ({
@@ -103,6 +105,74 @@ function buildElevationSamples(points: Array<RoutePoint>): Array<ElevationSample
     }))
 
   return downsampleEvenly(samples, ELEVATION_SAMPLE_LIMIT)
+}
+
+export function buildParsedRouteFromPoints(
+  title: string,
+  points: Array<RoutePoint>
+): ParsedRouteGpx {
+  if (points.length < 2) {
+    throw new Error("Route must include at least two points")
+  }
+
+  let elevationGainMeters = 0
+  let elevationLossMeters = 0
+  let minElevationMeters: number | null = null
+  let maxElevationMeters: number | null = null
+
+  for (let index = 0; index < points.length; index += 1) {
+    const elevation = points[index].elevationMeters
+    if (elevation === null || !Number.isFinite(elevation)) continue
+
+    minElevationMeters =
+      minElevationMeters === null ? elevation : Math.min(minElevationMeters, elevation)
+    maxElevationMeters =
+      maxElevationMeters === null ? elevation : Math.max(maxElevationMeters, elevation)
+
+    const previousElevation = points[index - 1]?.elevationMeters
+    if (index > 0 && previousElevation !== null && Number.isFinite(previousElevation)) {
+      const delta = elevation - previousElevation
+      if (delta > 0) elevationGainMeters += delta
+      if (delta < 0) elevationLossMeters += Math.abs(delta)
+    }
+  }
+
+  const bounds = getRouteBounds(points)
+  const geojson: FeatureCollection<LineString> = {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "LineString",
+          coordinates: points.map((point) => [point.lng, point.lat]),
+        },
+      },
+    ],
+  }
+
+  return {
+    title,
+    points,
+    geojson,
+    stats: {
+      distanceMeters: points[points.length - 1].distanceMeters,
+      elevationGainMeters,
+      elevationLossMeters,
+      minElevationMeters,
+      maxElevationMeters,
+      pointCount: points.length,
+    },
+    bounds,
+    start: { lat: points[0].lat, lng: points[0].lng },
+    finish: {
+      lat: points[points.length - 1].lat,
+      lng: points[points.length - 1].lng,
+    },
+    elevationSamples: buildRouteElevationSamples(points),
+    previewPoints: normalizeRoutePreviewPoints(points),
+  }
 }
 
 function getTitle(
@@ -159,36 +229,9 @@ export function parseRouteGpxText(
   }
 
   let distanceMeters = 0
-  let elevationGainMeters = 0
-  let elevationLossMeters = 0
-  let minElevationMeters: number | null = null
-  let maxElevationMeters: number | null = null
-
   const points: Array<RoutePoint> = rawPoints.map((point, index) => {
     if (index > 0) {
       distanceMeters += haversineMeters(rawPoints[index - 1], point)
-    }
-
-    if (point.elevation !== null && Number.isFinite(point.elevation)) {
-      minElevationMeters =
-        minElevationMeters === null
-          ? point.elevation
-          : Math.min(minElevationMeters, point.elevation)
-      maxElevationMeters =
-        maxElevationMeters === null
-          ? point.elevation
-          : Math.max(maxElevationMeters, point.elevation)
-
-      const previousElevation = rawPoints[index - 1]?.elevation
-      if (
-        index > 0 &&
-        previousElevation !== null &&
-        Number.isFinite(previousElevation)
-      ) {
-        const delta = point.elevation - previousElevation
-        if (delta > 0) elevationGainMeters += delta
-        if (delta < 0) elevationLossMeters += Math.abs(delta)
-      }
     }
 
     return {
@@ -202,42 +245,10 @@ export function parseRouteGpxText(
     }
   })
 
-  const bounds = getBounds(points)
-  const geojson: FeatureCollection<LineString> = {
-    type: "FeatureCollection",
-    features: [
-      {
-        type: "Feature",
-        properties: {},
-        geometry: {
-          type: "LineString",
-          coordinates: points.map((point) => [point.lng, point.lat]),
-        },
-      },
-    ],
-  }
-
-  const route: ParsedRouteGpx = {
-    title: getTitle(parsed, stripGpxExtension(fileName)),
-    points,
-    geojson,
-    stats: {
-      distanceMeters,
-      elevationGainMeters,
-      elevationLossMeters,
-      minElevationMeters,
-      maxElevationMeters,
-      pointCount: points.length,
-    },
-    bounds,
-    start: { lat: points[0].lat, lng: points[0].lng },
-    finish: {
-      lat: points[points.length - 1].lat,
-      lng: points[points.length - 1].lng,
-    },
-    elevationSamples: buildElevationSamples(points),
-    previewPoints: normalizePreviewPoints(points),
-  }
+  const route = buildParsedRouteFromPoints(
+    getTitle(parsed, stripGpxExtension(fileName)),
+    points
+  )
 
   return { kind: "success", route }
 }

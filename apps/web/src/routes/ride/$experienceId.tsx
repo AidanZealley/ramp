@@ -8,6 +8,7 @@ type RideExperienceSearch = {
   activityId?: Id<"activities">
   run?: string
   routeId?: Id<"routes">
+  routeSegmentId?: Id<"routeSegments">
   workoutId?: Id<"workouts">
 }
 
@@ -24,6 +25,10 @@ export function validateRideExperienceSearch(
       typeof search.routeId === "string"
         ? (search.routeId as Id<"routes">)
         : undefined,
+    routeSegmentId:
+      typeof search.routeSegmentId === "string"
+        ? (search.routeSegmentId as Id<"routeSegments">)
+        : undefined,
     workoutId:
       typeof search.workoutId === "string"
         ? (search.workoutId as Id<"workouts">)
@@ -38,7 +43,8 @@ export const Route = createFileRoute("/ride/$experienceId")({
 
 function RideExperienceRoute() {
   const { experienceId } = Route.useParams()
-  const { activityId, routeId, run, workoutId } = Route.useSearch()
+  const { activityId, routeId, routeSegmentId, run, workoutId } =
+    Route.useSearch()
   const experience = getRideExperienceDefinition(experienceId)
 
   if (!experience) {
@@ -49,7 +55,7 @@ function RideExperienceRoute() {
     <RideSessionPage
       key={`${experienceId}:${run ?? "default"}`}
       experience={experience}
-      search={{ activityId, routeId, workoutId }}
+      search={{ activityId, routeId, routeSegmentId, workoutId }}
     />
   )
 }

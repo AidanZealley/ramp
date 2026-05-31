@@ -76,7 +76,12 @@ vi.mock("@tanstack/react-router", async () => {
         "$experienceId",
         params?.experienceId ?? "$experienceId"
       )
-      const query = search?.routeId ? `?routeId=${search.routeId}` : ""
+      const queryParams = new URLSearchParams()
+      if (search?.routeId) queryParams.set("routeId", search.routeId)
+      if (search?.routeSegmentId) {
+        queryParams.set("routeSegmentId", search.routeSegmentId)
+      }
+      const query = queryParams.size > 0 ? `?${queryParams.toString()}` : ""
       return <a href={`${href}${query}`}>{children}</a>
     },
   }
@@ -90,10 +95,12 @@ describe("RouteDetail", () => {
     mutationCall = 0
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => ({
-        ok: true,
-        text: async () => gpx,
-      }))
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          text: () => Promise.resolve(gpx),
+        })
+      )
     )
   })
 
@@ -152,6 +159,9 @@ describe("RouteDetail", () => {
     render(<RouteDetail routeId={"route-1" as never} />)
 
     expect(screen.getByText("Climb")).toBeTruthy()
+    expect(
+      screen.getByRole("link", { name: /ride segment/i }).getAttribute("href")
+    ).toBe("/ride/route?routeId=route-1&routeSegmentId=segment-1")
     expect(screen.getByText("1.0 km")).toBeTruthy()
     expect(screen.getByText("52 m")).toBeTruthy()
     expect(screen.getByText("5.2%")).toBeTruthy()
