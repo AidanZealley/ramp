@@ -5,6 +5,31 @@ import type { Capability } from "@ramp/trainer-io"
 import type { RideExperienceDefinition } from "@/experiences/types"
 import type { RideRuntimeController } from "@/ride/use-ride-runtime"
 import type * as ReactModule from "react"
+import { formatDistanceMeters, formatSpeedMps } from "@/lib/units"
+
+vi.mock("@/hooks/use-unit-formatters", () => ({
+  useUnitFormatters: () => ({
+    unitSystem: "metric",
+    preferencesReady: true,
+    distance: (
+      meters: number,
+      options?: { precision?: number; compactUnderKm?: boolean }
+    ) => formatDistanceMeters(meters, "metric", options),
+    speedMps: (mps: number | null | undefined) => formatSpeedMps(mps, "metric"),
+  }),
+}))
+
+vi.mock("@/hooks/activity/use-activity-session", () => ({
+  useActivitySession: () => ({
+    busy: false,
+    unresolvedActivity: null,
+    resumeActivity: null,
+    complete: vi.fn(),
+    discard: vi.fn(),
+    markPending: vi.fn(),
+    saveProgress: vi.fn(),
+  }),
+}))
 
 const { trainer } = vi.hoisted(() => ({
   trainer: {

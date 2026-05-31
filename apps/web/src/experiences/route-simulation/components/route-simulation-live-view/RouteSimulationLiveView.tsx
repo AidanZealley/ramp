@@ -23,10 +23,9 @@ import type {
 import { EndActivityDialog } from "@/components/activity/end-activity-dialog"
 import { SaveActivityDialog } from "@/components/activity/save-activity-dialog"
 import {
-  formatActivityDistance,
   formatActivityDuration,
-  formatActivityElevation,
 } from "@/components/activity/format"
+import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 
 type RouteSimulationLiveViewProps = {
   activeRouteTitle: string | null
@@ -59,6 +58,7 @@ export const RouteSimulationLiveView = ({
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const [activityBusy, setActivityBusy] = useState(false)
   const pendingMarkedComplete = useRef(false)
+  const units = useUnitFormatters()
 
   const buildActivitySummary = (): ActivitySummaryInput => ({
     durationSeconds: Math.round(ride.elapsedSeconds),
@@ -108,11 +108,11 @@ export const RouteSimulationLiveView = ({
     },
     {
       label: "Distance",
-      value: formatActivityDistance(activitySummary.distanceMeters),
+      value: units.distance(activitySummary.distanceMeters),
     },
     {
       label: "Climb",
-      value: formatActivityElevation(activitySummary.elevationGainMeters),
+      value: units.elevation(activitySummary.elevationGainMeters),
     },
     {
       label: "Complete",

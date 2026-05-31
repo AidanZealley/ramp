@@ -1,6 +1,7 @@
 import { useRideThrottledSelector } from "@ramp/ride-react"
 import type React from "react"
 import type { RideSessionController } from "@ramp/ride-core"
+import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 
 type StatusModuleProps = {
   session: RideSessionController
@@ -11,6 +12,7 @@ export const StatusModule = ({ session }: StatusModuleProps) => {
     hz: 4,
   })
   const { telemetry } = state
+  const units = useUnitFormatters()
 
   return (
     <section className="min-w-0" aria-label="Status">
@@ -31,7 +33,10 @@ export const StatusModule = ({ session }: StatusModuleProps) => {
         />
         <StatusField
           label="Distance"
-          value={`${(telemetry.distanceMeters / 1000).toFixed(2)} km`}
+          value={units.distance(telemetry.distanceMeters, {
+            precision: 2,
+            compactUnderKm: true,
+          })}
         />
         <StatusField
           label="Telemetry age"

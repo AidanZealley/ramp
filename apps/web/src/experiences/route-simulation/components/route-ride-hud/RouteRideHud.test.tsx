@@ -1,6 +1,38 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { RouteRideHud } from "./RouteRideHud"
+import {
+  displayWeightToKg,
+  formatDistanceMeters,
+  formatElevationMeters,
+  formatSpeedKph,
+  formatSpeedMps,
+  formatWeightKg,
+  kgToDisplayWeight,
+  type UnitSystem,
+} from "@/lib/units"
+
+let unitSystem: UnitSystem = "metric"
+
+vi.mock("@/hooks/use-unit-formatters", () => ({
+  useUnitFormatters: () => ({
+    unitSystem,
+    preferencesReady: true,
+    distance: (
+      meters: number,
+      options?: { precision?: number; compactUnderKm?: boolean }
+    ) => formatDistanceMeters(meters, unitSystem, options),
+    elevation: (meters: number | null | undefined) =>
+      formatElevationMeters(meters, unitSystem),
+    speedKph: (kph: number | null | undefined) =>
+      formatSpeedKph(kph, unitSystem),
+    speedMps: (mps: number | null | undefined) =>
+      formatSpeedMps(mps, unitSystem),
+    weight: (kg: number) => formatWeightKg(kg, unitSystem),
+    weightValue: (kg: number) => kgToDisplayWeight(kg, unitSystem),
+    weightInputToKg: (value: number) => displayWeightToKg(value, unitSystem),
+  }),
+}))
 
 const onTerrainEnabledChange = vi.fn()
 const onViewModeChange = vi.fn()
@@ -47,6 +79,7 @@ const defaultProps = {
 
 describe("RouteRideHud", () => {
   beforeEach(() => {
+    unitSystem = "metric"
     onTerrainEnabledChange.mockClear()
     onViewModeChange.mockClear()
   })
@@ -58,6 +91,15 @@ describe("RouteRideHud", () => {
     expect(screen.getByText("212 W")).toBeTruthy()
     expect(screen.getByText("Virtual speed")).toBeTruthy()
     expect(screen.getByText("18.4 km/h")).toBeTruthy()
+  })
+
+  it("uses imperial labels when the unit preference is imperial", () => {
+    unitSystem = "imperial"
+
+    render(<RouteRideHud {...defaultProps} speedSource="physics" />)
+
+    expect(screen.getByText("11.4 mph")).toBeTruthy()
+    expect(screen.getByText("0.6 mi / 3.1 mi")).toBeTruthy()
   })
 
   it("uses restart action for the primary control when complete", () => {

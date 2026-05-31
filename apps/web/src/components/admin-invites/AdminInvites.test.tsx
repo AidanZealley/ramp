@@ -23,13 +23,15 @@ describe("AdminInvites", () => {
     mockRevoke.mockReset()
     mockDelete.mockReset()
     let callCount = 0
-    vi.mocked(useMutation).mockReset().mockImplementation(() => {
-      callCount++
-      const index = (callCount - 1) % 3
-      if (index === 0) return mockCreate
-      if (index === 1) return mockRevoke
-      return mockDelete
-    })
+    vi.mocked(useMutation)
+      .mockReset()
+      .mockImplementation(() => {
+        callCount++
+        const index = (callCount - 1) % 3
+        if (index === 0) return mockCreate as never
+        if (index === 1) return mockRevoke as never
+        return mockDelete as never
+      })
     mockInvites = [
       {
         _id: "invite-1",

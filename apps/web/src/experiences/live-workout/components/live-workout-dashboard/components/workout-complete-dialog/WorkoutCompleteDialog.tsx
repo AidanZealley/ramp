@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router"
 import { ArrowLeft, Pencil } from "lucide-react"
-import { formatDistance } from "./utils"
 import type { WorkoutCompleteDialogProps } from "./types"
 import { buttonVariants } from "@/components/ui/button"
 import {
@@ -13,6 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { formatDuration } from "@/lib/workout-utils"
+import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 
 export const WorkoutCompleteDialog = ({
   open,
@@ -21,6 +21,7 @@ export const WorkoutCompleteDialog = ({
   summary,
   onOpenChange,
 }: WorkoutCompleteDialogProps) => {
+  const units = useUnitFormatters()
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -45,7 +46,10 @@ export const WorkoutCompleteDialog = ({
               Distance
             </div>
             <div className="mt-1 font-heading text-2xl font-semibold tabular-nums">
-              {formatDistance(summary.distanceMeters)}
+              {units.distance(summary.distanceMeters, {
+                precision: 2,
+                compactUnderKm: true,
+              })}
             </div>
           </div>
         </div>

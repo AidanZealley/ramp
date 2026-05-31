@@ -17,6 +17,7 @@ import {
 } from "@/ride/use-ride-runtime"
 import { Button } from "@/components/ui/button"
 import { formatDuration } from "@/lib/workout-utils"
+import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 
 type RideCockpitProps = {
   trainerController: RideRuntimeController
@@ -47,6 +48,7 @@ export function RideCockpit({ trainerController, rootRef }: RideCockpitProps) {
     hz: 2,
   })
   const simulatorControls = useRideSimulatorControls(trainerController)
+  const units = useUnitFormatters()
   const riderState = simulatorControls.riderState
   const trainerState = simulatorControls.trainerState
 
@@ -80,7 +82,7 @@ export function RideCockpit({ trainerController, rootRef }: RideCockpitProps) {
           />
           <CockpitMetric
             label="Speed"
-            value={`${((telemetry.speedMps ?? 0) * 3.6).toFixed(1)} km/h`}
+            value={units.speedMps(telemetry.speedMps)}
           />
           <CockpitMetric
             label="Time"
@@ -88,7 +90,10 @@ export function RideCockpit({ trainerController, rootRef }: RideCockpitProps) {
           />
           <CockpitMetric
             label="Distance"
-            value={`${(telemetry.distanceMeters / 1000).toFixed(2)} km`}
+            value={units.distance(telemetry.distanceMeters, {
+              precision: 2,
+              compactUnderKm: true,
+            })}
           />
           <CockpitMetric label="Status" value={`${status} · ${source}`} />
         </div>

@@ -1,8 +1,8 @@
 import { Mountain, RouteIcon } from "lucide-react"
 import type { Doc } from "#convex/_generated/dataModel"
-import { formatRouteDistance, formatRouteElevation } from "@/lib/routes/format"
 import { Card, CardContent } from "@/components/ui/card"
 import { RouteMini } from "@/components/route/route-mini"
+import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 
 type RouteCardProps = {
   routeDoc: Doc<"routes">
@@ -10,6 +10,7 @@ type RouteCardProps = {
 }
 
 export const RouteCard = ({ routeDoc, onClick }: RouteCardProps) => {
+  const units = useUnitFormatters()
   return (
     <Card
       size="sm"
@@ -27,12 +28,12 @@ export const RouteCard = ({ routeDoc, onClick }: RouteCardProps) => {
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5">
               <RouteIcon className="size-3.5 text-foreground/70" />
-              <span>{formatRouteDistance(routeDoc.stats.distanceMeters)}</span>
+              <span>{units.distance(routeDoc.stats.distanceMeters)}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Mountain className="size-3.5 text-foreground/70" />
               <span>
-                {formatRouteElevation(routeDoc.stats.elevationGainMeters)}
+                {units.elevation(routeDoc.stats.elevationGainMeters)}
               </span>
             </div>
           </div>

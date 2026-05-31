@@ -16,6 +16,7 @@ describe("preferences helpers", () => {
       riderWeightKg: DEFAULT_RIDER_WEIGHT_KG,
       bikeWeightKg: DEFAULT_BIKE_WEIGHT_KG,
       routeSimulationProgressMode: "trainer-speed",
+      unitSystem: "metric",
     })
   })
 
@@ -99,5 +100,26 @@ describe("preferences helpers", () => {
         }
       ).routeSimulationProgressMode
     ).toBe("app-physics")
+  })
+
+  it("preserves existing unit system when omitted", () => {
+    expect(
+      resolvePreferenceValues(
+        { ftp: 250 },
+        {
+          ftp: 220,
+          powerDisplayMode: "percentage",
+          riderWeightKg: 72,
+          bikeWeightKg: 12.5,
+          unitSystem: "imperial",
+        }
+      ).unitSystem
+    ).toBe("imperial")
+  })
+
+  it("resolves explicit imperial unit system", () => {
+    expect(resolvePreferenceValues({ unitSystem: "imperial" }, null).unitSystem).toBe(
+      "imperial"
+    )
   })
 })

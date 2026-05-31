@@ -39,9 +39,9 @@ import {
 } from "@/components/ride/ride-dashboard"
 import { formatDuration, getAveragePower } from "@/lib/workout-utils"
 import {
-  formatActivityDistance,
   formatActivityDuration,
 } from "@/components/activity/format"
+import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 
 type LiveWorkoutDashboardProps = {
   onEnd: () => void
@@ -126,6 +126,7 @@ export function LiveWorkoutDashboard({
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false)
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const [activityBusy, setActivityBusy] = useState(false)
+  const units = useUnitFormatters()
   const [showConfetti, setShowConfetti] = useState(false)
   const [manualSeekKey, setManualSeekKey] = useState(0)
   const { stopDialogOpen, setStopDialogOpen } = useWorkoutKeypresses({
@@ -238,7 +239,7 @@ export function LiveWorkoutDashboard({
     },
     {
       label: "Distance",
-      value: formatActivityDistance(buildActivitySummary().distanceMeters),
+      value: units.distance(buildActivitySummary().distanceMeters),
     },
     {
       label: "Planned",

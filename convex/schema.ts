@@ -14,6 +14,7 @@ const userPreferenceFields = {
   routeSimulationProgressMode: v.optional(
     v.union(v.literal("trainer-speed"), v.literal("app-physics"))
   ),
+  unitSystem: v.optional(v.union(v.literal("metric"), v.literal("imperial"))),
 }
 
 export default defineSchema({

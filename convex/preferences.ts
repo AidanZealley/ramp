@@ -10,6 +10,7 @@ const routeSimulationProgressModeValidator = v.union(
   v.literal("trainer-speed"),
   v.literal("app-physics")
 )
+const unitSystemValidator = v.union(v.literal("metric"), v.literal("imperial"))
 const MIN_FTP = 50
 const MAX_FTP = 500
 export const DEFAULT_RIDER_WEIGHT_KG = 75
@@ -70,7 +71,10 @@ export type PreferenceValues = {
   riderWeightKg?: number
   bikeWeightKg?: number
   routeSimulationProgressMode?: "trainer-speed" | "app-physics"
+  unitSystem?: UnitSystem
 }
+
+export type UnitSystem = "metric" | "imperial"
 
 export function resolvePreferenceValues(
   args: PreferenceValues,
@@ -90,6 +94,7 @@ export function resolvePreferenceValues(
       args.routeSimulationProgressMode ??
       existing?.routeSimulationProgressMode ??
       "trainer-speed",
+    unitSystem: args.unitSystem ?? existing?.unitSystem ?? "metric",
   }
 }
 
@@ -111,6 +116,7 @@ export const update = mutation({
     routeSimulationProgressMode: v.optional(
       routeSimulationProgressModeValidator
     ),
+    unitSystem: v.optional(unitSystemValidator),
   },
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx)
@@ -126,6 +132,7 @@ export const update = mutation({
       riderWeightKg: next.riderWeightKg,
       bikeWeightKg: next.bikeWeightKg,
       routeSimulationProgressMode: next.routeSimulationProgressMode,
+      unitSystem: next.unitSystem,
     })
   },
 })

@@ -16,9 +16,20 @@ import {
   getIntervalRemainingSeconds,
 } from "./components/live-workout-dashboard/utils"
 import type React from "react"
+import {
+  displayWeightToKg,
+  formatDistanceMeters,
+  formatElevationMeters,
+  formatSpeedKph,
+  formatSpeedMps,
+  formatWeightKg,
+  kgToDisplayWeight,
+} from "@/lib/units"
 
 const useQuery = vi.fn()
-const useMutation = vi.fn(() => vi.fn(() => Promise.resolve(null)))
+const useMutation = vi.fn((_arg?: unknown) =>
+  vi.fn(() => Promise.resolve(null))
+)
 const confettiRender = vi.hoisted(() => vi.fn())
 const navigateMock = vi.hoisted(() => vi.fn())
 
@@ -30,8 +41,26 @@ vi.mock("react-confetti", () => ({
 }))
 
 vi.mock("convex/react", () => ({
-  useMutation: (...args: Array<unknown>) => useMutation(...args),
-  useQuery: (...args: Array<unknown>) => useQuery(...args),
+  useMutation: (arg: unknown) => useMutation(arg),
+  useQuery: (arg: unknown) => useQuery(arg),
+}))
+
+vi.mock("@/hooks/use-unit-formatters", () => ({
+  useUnitFormatters: () => ({
+    unitSystem: "metric",
+    preferencesReady: true,
+    distance: (
+      meters: number,
+      options?: { precision?: number; compactUnderKm?: boolean }
+    ) => formatDistanceMeters(meters, "metric", options),
+    elevation: (meters: number | null | undefined) =>
+      formatElevationMeters(meters, "metric"),
+    speedKph: (kph: number | null | undefined) => formatSpeedKph(kph, "metric"),
+    speedMps: (mps: number | null | undefined) => formatSpeedMps(mps, "metric"),
+    weight: (kg: number) => formatWeightKg(kg, "metric"),
+    weightValue: (kg: number) => kgToDisplayWeight(kg, "metric"),
+    weightInputToKg: (value: number) => displayWeightToKg(value, "metric"),
+  }),
 }))
 
 vi.mock("@tanstack/react-router", () => ({

@@ -10,16 +10,16 @@ import {
 import type { ActivityCardProps } from "./types"
 import {
   formatActivityDate,
-  formatActivityDistance,
   formatActivityDuration,
-  formatActivityElevation,
   getActivityPrimaryTimestamp,
   getActivitySourceLabel,
 } from "../format"
 import { Card, CardContent } from "@/components/ui/card"
+import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 
 export const ActivityCard = ({ activity, actions }: ActivityCardProps) => {
   const summary = activity.summary
+  const units = useUnitFormatters()
   return (
     <Card size="sm" className="py-0!">
       <CardContent className="flex flex-col gap-3 p-4!">
@@ -56,7 +56,7 @@ export const ActivityCard = ({ activity, actions }: ActivityCardProps) => {
           </span>
           <span className="flex items-center gap-1.5">
             <RouteIcon className="size-4 text-foreground/70" />
-            {formatActivityDistance(summary.distanceMeters)}
+            {units.distance(summary.distanceMeters)}
           </span>
           {summary.plannedAverageWatts != null ? (
             <span className="flex items-center gap-1.5">
@@ -67,7 +67,7 @@ export const ActivityCard = ({ activity, actions }: ActivityCardProps) => {
           {summary.elevationGainMeters != null ? (
             <span className="flex items-center gap-1.5">
               <Mountain className="size-4 text-foreground/70" />
-              {formatActivityElevation(summary.elevationGainMeters)}
+              {units.elevation(summary.elevationGainMeters)}
             </span>
           ) : null}
           {summary.completionPercent != null &&

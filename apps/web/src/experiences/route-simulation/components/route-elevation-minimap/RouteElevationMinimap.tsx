@@ -3,6 +3,13 @@ import { Minus, Plus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import type { ElevationSample } from "@/lib/routes/types"
+import {
+  formatElevationMeters,
+  formatDistanceMeters,
+  metersToDisplayDistance,
+  type UnitSystem,
+} from "@/lib/units"
+import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 
 type RouteElevationMinimapProps = {
   distanceMeters: number
@@ -78,7 +85,8 @@ const getEffectiveZoomTargets = (totalDistanceMeters: number) => {
 
 const formatZoomWindowLabel = (
   windowMeters: number,
-  totalDistanceMeters: number
+  totalDistanceMeters: number,
+  unitSystem: UnitSystem
 ) => {
   if (
     windowMeters === Number.POSITIVE_INFINITY ||
@@ -87,11 +95,14 @@ const formatZoomWindowLabel = (
     return "All"
   }
 
-  if (windowMeters >= 1000) {
-    return `${windowMeters / 1000} km`
+  if (unitSystem === "metric" && windowMeters < 1000) {
+    return formatDistanceMeters(windowMeters, unitSystem, {
+      compactUnderKm: true,
+    })
   }
 
-  return `${Math.round(windowMeters)} m`
+  const display = metersToDisplayDistance(windowMeters, unitSystem)
+  return `${Number(display.value.toFixed(display.value >= 10 ? 0 : 1))} ${display.unit}`
 }
 
 const getElevationWindow = (
@@ -251,7 +262,10 @@ const getTargetViewport = (
   }
 }
 
-const formatCurrentElevation = (elevationMeters: number | null | undefined) => {
+const formatCurrentElevation = (
+  elevationMeters: number | null | undefined,
+  unitSystem: UnitSystem
+) => {
   if (
     elevationMeters === null ||
     elevationMeters === undefined ||
@@ -260,7 +274,7 @@ const formatCurrentElevation = (elevationMeters: number | null | undefined) => {
     return "--"
   }
 
-  return `${Math.round(elevationMeters).toLocaleString()} m`
+  return formatElevationMeters(elevationMeters, unitSystem)
 }
 
 export const RouteElevationMinimap = ({
@@ -269,7 +283,11 @@ export const RouteElevationMinimap = ({
   samples,
   totalDistanceMeters,
 }: RouteElevationMinimapProps) => {
-  const currentElevation = formatCurrentElevation(riderElevationMeters)
+  const units = useUnitFormatters()
+  const currentElevation = formatCurrentElevation(
+    riderElevationMeters,
+    units.unitSystem
+  )
   const safeTotalDistance = getSafeTotalDistance(totalDistanceMeters, samples)
   const zoomTargets = useMemo(
     () => getEffectiveZoomTargets(safeTotalDistance),
@@ -400,7 +418,8 @@ export const RouteElevationMinimap = ({
   )
   const zoomLabel = formatZoomWindowLabel(
     selectedWindowMeters,
-    safeTotalDistance
+    safeTotalDistance,
+    units.unitSystem
   )
   const canZoomOut = zoomIndex > 0
   const canZoomIn = zoomIndex < zoomTargets.length - 1

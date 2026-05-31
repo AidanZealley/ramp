@@ -1,4 +1,4 @@
-import { formatElapsedTime, formatMetricDistance } from "../../utils"
+import { formatElapsedTime } from "../../utils"
 import {
   Dialog,
   DialogContent,
@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 
 type RouteCompleteDialogProps = {
   distanceMeters: number
@@ -25,6 +26,7 @@ export const RouteCompleteDialog = ({
   open,
   routeTitle,
 }: RouteCompleteDialogProps) => {
+  const units = useUnitFormatters()
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -34,8 +36,7 @@ export const RouteCompleteDialog = ({
         <div className="grid gap-2 text-sm">
           <div className="font-heading text-lg font-semibold">{routeTitle}</div>
           <div className="text-muted-foreground">
-            {formatMetricDistance(distanceMeters)} in{" "}
-            {formatElapsedTime(elapsedSeconds)}
+            {units.distance(distanceMeters)} in {formatElapsedTime(elapsedSeconds)}
           </div>
         </div>
         <DialogFooter>

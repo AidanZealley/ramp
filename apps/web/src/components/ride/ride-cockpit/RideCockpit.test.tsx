@@ -5,6 +5,19 @@ import type {
   RideRuntimeController,
   RideSimulatorControls,
 } from "@/ride/use-ride-runtime"
+import { formatDistanceMeters, formatSpeedMps } from "@/lib/units"
+
+vi.mock("@/hooks/use-unit-formatters", () => ({
+  useUnitFormatters: () => ({
+    unitSystem: "metric",
+    preferencesReady: true,
+    distance: (
+      meters: number,
+      options?: { precision?: number; compactUnderKm?: boolean }
+    ) => formatDistanceMeters(meters, "metric", options),
+    speedMps: (mps: number | null | undefined) => formatSpeedMps(mps, "metric"),
+  }),
+}))
 
 const { useRideSimulatorControls } = vi.hoisted(() => ({
   useRideSimulatorControls: vi.fn(),

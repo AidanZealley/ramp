@@ -7,8 +7,8 @@ import {
   RideDashboardMetric,
   RideHeartCadenceModule,
   RidePowerModule,
-  formatSpeedKph,
 } from "@/components/ride/ride-dashboard"
+import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 
 export function DiagnosticsExperienceView({
   session,
@@ -19,6 +19,7 @@ export function DiagnosticsExperienceView({
     hz: 2,
   })
   const trainerConnected = useRideSelector(session, (s) => s.trainerConnected)
+  const units = useUnitFormatters()
   const showStaleBadge =
     telemetry.telemetryStatus === "stale" && trainerConnected
 
@@ -52,7 +53,7 @@ export function DiagnosticsExperienceView({
           />
           <RideDashboardMetric
             label="Speed"
-            value={formatSpeedKph(telemetry.speedMps)}
+            value={units.speedMps(telemetry.speedMps)}
             tone={telemetry.speedMps === null ? "muted" : "default"}
             valueClassName="text-6xl md:text-7xl xl:text-8xl"
           />

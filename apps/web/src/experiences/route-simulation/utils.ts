@@ -12,10 +12,6 @@ export type SeekTransitionGradeInput = {
   nowMs: number
 }
 
-export function formatMetricDistance(meters: number): string {
-  return `${Math.max(0, meters / 1000).toFixed(1)} km`
-}
-
 export function formatElapsedTime(seconds: number): string {
   const total = Math.max(0, Math.floor(seconds))
   const hours = Math.floor(total / 3600)

@@ -1,21 +1,22 @@
 import { Mountain, RouteIcon, Waypoints } from "lucide-react"
 import type { RouteStatsSnapshot } from "@/lib/routes/types"
-import { formatRouteDistance, formatRouteElevation } from "@/lib/routes/format"
+import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 
 type RouteStatsProps = {
   stats: RouteStatsSnapshot
 }
 
 export const RouteStats = ({ stats }: RouteStatsProps) => {
+  const units = useUnitFormatters()
   const items = [
     {
       label: "Distance",
-      value: formatRouteDistance(stats.distanceMeters),
+      value: units.distance(stats.distanceMeters),
       icon: RouteIcon,
     },
     {
       label: "Climbing",
-      value: formatRouteElevation(stats.elevationGainMeters),
+      value: units.elevation(stats.elevationGainMeters),
       icon: Mountain,
     },
     {

@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ElevationChart } from "@/components/route/elevation-chart"
 import { RoutePreviewMap } from "@/components/route/route-preview-map"
 import { RouteStats } from "@/components/route/route-stats"
+import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 
 type RouteDetailProps = {
   routeId: Id<"routes">
@@ -18,6 +19,7 @@ type RouteDetailProps = {
 
 export const RouteDetail = ({ routeId }: RouteDetailProps) => {
   const routeDoc = useQuery(api.routes.get, { id: routeId })
+  const units = useUnitFormatters()
   const [parsedRoute, setParsedRoute] = useState<ParsedRouteGpx | null>(null)
   const [parseError, setParseError] = useState<string | null>(null)
 
@@ -138,7 +140,10 @@ export const RouteDetail = ({ routeId }: RouteDetailProps) => {
             start={routeDoc.start}
             finish={routeDoc.finish}
           />
-          <ElevationChart samples={parsedRoute.elevationSamples} />
+          <ElevationChart
+            samples={parsedRoute.elevationSamples}
+            unitSystem={units.unitSystem}
+          />
         </>
       ) : (
         <>

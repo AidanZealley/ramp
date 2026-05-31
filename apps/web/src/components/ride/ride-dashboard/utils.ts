@@ -1,4 +1,5 @@
 import type { RideTelemetry } from "@ramp/ride-core"
+import { formatSpeedMps } from "@/lib/units"
 
 export function getSourceLabel(
   source: RideTelemetry["telemetrySource"]
@@ -9,6 +10,5 @@ export function getSourceLabel(
 }
 
 export function formatSpeedKph(speedMps: number | null): string {
-  if (speedMps === null) return "-- km/h"
-  return `${(speedMps * 3.6).toFixed(1)} km/h`
+  return formatSpeedMps(speedMps, "metric")
 }

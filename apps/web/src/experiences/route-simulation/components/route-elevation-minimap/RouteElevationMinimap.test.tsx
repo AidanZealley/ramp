@@ -2,6 +2,33 @@ import { act, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { RouteElevationMinimap } from "./RouteElevationMinimap"
 import type { ElevationSample } from "@/lib/routes/types"
+import {
+  displayWeightToKg,
+  formatDistanceMeters,
+  formatElevationMeters,
+  formatSpeedKph,
+  formatSpeedMps,
+  formatWeightKg,
+  kgToDisplayWeight,
+} from "@/lib/units"
+
+vi.mock("@/hooks/use-unit-formatters", () => ({
+  useUnitFormatters: () => ({
+    unitSystem: "metric",
+    preferencesReady: true,
+    distance: (
+      meters: number,
+      options?: { precision?: number; compactUnderKm?: boolean }
+    ) => formatDistanceMeters(meters, "metric", options),
+    elevation: (meters: number | null | undefined) =>
+      formatElevationMeters(meters, "metric"),
+    speedKph: (kph: number | null | undefined) => formatSpeedKph(kph, "metric"),
+    speedMps: (mps: number | null | undefined) => formatSpeedMps(mps, "metric"),
+    weight: (kg: number) => formatWeightKg(kg, "metric"),
+    weightValue: (kg: number) => kgToDisplayWeight(kg, "metric"),
+    weightInputToKg: (value: number) => displayWeightToKg(value, "metric"),
+  }),
+}))
 
 let animationFrameId = 0
 let animationFrames = new Map<number, FrameRequestCallback>()

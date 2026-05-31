@@ -5,7 +5,6 @@ import {
   Play,
   RouteIcon,
 } from "lucide-react"
-import { formatMetricDistance } from "../../utils"
 import type { Id } from "#convex/_generated/dataModel"
 import type {
   RouteProgressMode,
@@ -16,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { RoutePreviewMap } from "@/components/route/route-preview-map"
 import { RouteMini } from "@/components/route/route-mini"
+import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 
 type RouteSimulationSetupProps = {
   onChangeRoute: () => void
@@ -56,6 +56,7 @@ export const RouteSimulationSetup = ({
     selectedRouteId,
   } = route
   const { physicsProfileReady, progressMode } = preferences
+  const units = useUnitFormatters()
 
   return (
     <div className="absolute inset-0 overflow-y-auto bg-background px-4 pt-16 pb-8 sm:px-8 sm:pt-20">
@@ -119,7 +120,7 @@ export const RouteSimulationSetup = ({
                     {routeOption.title}
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {formatMetricDistance(routeOption.stats.distanceMeters)}
+                    {units.distance(routeOption.stats.distanceMeters)}
                   </div>
                 </button>
               ))

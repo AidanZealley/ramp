@@ -18,9 +18,9 @@ import { useLiveWorkoutPreferences } from "./hooks/use-live-workout-preferences"
 import { SaveActivityDialog } from "@/components/activity/save-activity-dialog"
 import { UnresolvedActivityDialog } from "@/components/activity/unresolved-activity-dialog"
 import {
-  formatActivityDistance,
   formatActivityDuration,
 } from "@/components/activity/format"
+import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 import type { RideExperienceConnection } from "@/ride/experience-runtime"
 import type {
   WorkoutRideSession,
@@ -176,6 +176,7 @@ export function LiveWorkoutExperienceView({
     useState<ActivityClientDoc | null>(null)
   const [reviewActivity, setReviewActivity] =
     useState<ActivityClientDoc | null>(null)
+  const units = useUnitFormatters()
   const [retryAfterResolve, setRetryAfterResolve] = useState(false)
   const [activityDialogBusy, setActivityDialogBusy] = useState(false)
   const lastLinkedWorkoutId = useRef<Id<"workouts"> | undefined>(undefined)
@@ -502,9 +503,7 @@ export function LiveWorkoutExperienceView({
                 },
                 {
                   label: "Distance",
-                  value: formatActivityDistance(
-                    reviewActivity.summary.distanceMeters
-                  ),
+                  value: units.distance(reviewActivity.summary.distanceMeters),
                 },
               ]
             : []

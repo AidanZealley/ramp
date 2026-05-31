@@ -1,5 +1,5 @@
 import { Pause, Play, RotateCcw, Square } from "lucide-react"
-import { formatElapsedTime, formatMetricDistance } from "../../utils"
+import { formatElapsedTime } from "../../utils"
 import { RouteDebugPopover } from "./components/route-debug-popover"
 import { RouteSettingsPopover } from "./components/route-settings-popover"
 import type {
@@ -10,6 +10,7 @@ import type {
 import type { RouteGradeDiagnostics } from "@/lib/routes/simulation"
 import type { RoutePoint } from "@/lib/routes/types"
 import { Button } from "@/components/ui/button"
+import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 
 type RouteRideHudProps = {
   distanceMeters: number
@@ -62,6 +63,7 @@ export const RouteRideHud = ({
   totalDistanceMeters,
   viewMode,
 }: RouteRideHudProps) => {
+  const units = useUnitFormatters()
   const speedLabel =
     speedSource === "fallback"
       ? "Speed fallback"
@@ -117,13 +119,13 @@ export const RouteRideHud = ({
               align="center"
               className="px-3 py-2"
               label={speedLabel}
-              value={`${speedKph.toFixed(1)} km/h`}
+              value={units.speedKph(speedKph)}
             />
             <Metric
               align="center"
               className="px-3 py-2"
               label="Distance"
-              value={`${formatMetricDistance(distanceMeters)} / ${formatMetricDistance(totalDistanceMeters)}`}
+              value={`${units.distance(distanceMeters)} / ${units.distance(totalDistanceMeters)}`}
             />
           </div>
         </div>

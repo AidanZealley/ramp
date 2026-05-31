@@ -5,9 +5,7 @@ import type { Id } from "#convex/_generated/dataModel"
 import { api } from "#convex/_generated/api"
 import {
   formatActivityDate,
-  formatActivityDistance,
   formatActivityDuration,
-  formatActivityElevation,
   getActivityPrimaryTimestamp,
   getActivitySourceLabel,
 } from "@/components/activity/format"
@@ -16,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { RouteMini } from "@/components/route/route-mini"
 import { WorkoutMini } from "@/components/workout-mini"
+import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 
 export const Route = createFileRoute("/activity/$id")({
   params: {
@@ -28,6 +27,7 @@ export const Route = createFileRoute("/activity/$id")({
 function ActivityDetailPage() {
   const { id } = Route.useParams()
   const activity = useQuery(api.activities.get, { activityId: id })
+  const units = useUnitFormatters()
   const workout = useQuery(
     api.workouts.get,
     activity?.sourceSnapshot.kind === "workout"
@@ -83,7 +83,7 @@ function ActivityDetailPage() {
     },
     {
       label: "Distance",
-      value: formatActivityDistance(summary.distanceMeters),
+      value: units.distance(summary.distanceMeters),
     },
     ...(summary.plannedAverageWatts != null
       ? [
@@ -97,7 +97,7 @@ function ActivityDetailPage() {
       ? [
           {
             label: "Climb",
-            value: formatActivityElevation(summary.elevationGainMeters),
+            value: units.elevation(summary.elevationGainMeters),
           },
         ]
       : []),
@@ -225,19 +225,15 @@ function ActivityDetailPage() {
               metrics={[
                 {
                   label: "Route distance",
-                  value: formatActivityDistance(snapshot.stats.distanceMeters),
+                  value: units.distance(snapshot.stats.distanceMeters),
                 },
                 {
                   label: "Gain",
-                  value: formatActivityElevation(
-                    snapshot.stats.elevationGainMeters
-                  ),
+                  value: units.elevation(snapshot.stats.elevationGainMeters),
                 },
                 {
                   label: "Loss",
-                  value: formatActivityElevation(
-                    snapshot.stats.elevationLossMeters
-                  ),
+                  value: units.elevation(snapshot.stats.elevationLossMeters),
                 },
               ]}
             />

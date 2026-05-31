@@ -11,9 +11,9 @@ import { useRouteSimulationPreferences } from "./hooks/use-route-simulation-pref
 import { SaveActivityDialog } from "@/components/activity/save-activity-dialog"
 import { UnresolvedActivityDialog } from "@/components/activity/unresolved-activity-dialog"
 import {
-  formatActivityDistance,
   formatActivityDuration,
 } from "@/components/activity/format"
+import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 import type { RideExperienceConnection } from "@/ride/experience-runtime"
 import type { ExperienceSessionAPI } from "@/ride/experience-session"
 import type { Id } from "#convex/_generated/dataModel"
@@ -50,6 +50,7 @@ export function RouteSimulationExperienceView({
     useState<ActivityClientDoc | null>(null)
   const [reviewActivity, setReviewActivity] =
     useState<ActivityClientDoc | null>(null)
+  const units = useUnitFormatters()
   const [retryAfterResolve, setRetryAfterResolve] = useState(false)
   const [activityDialogBusy, setActivityDialogBusy] = useState(false)
   const loadedActivityId = useRef<string | null>(null)
@@ -217,9 +218,7 @@ export function RouteSimulationExperienceView({
                   },
                   {
                     label: "Distance",
-                    value: formatActivityDistance(
-                      reviewActivity.summary.distanceMeters
-                    ),
+                    value: units.distance(reviewActivity.summary.distanceMeters),
                   },
                 ]
               : []
@@ -331,9 +330,7 @@ export function RouteSimulationExperienceView({
                 },
                 {
                   label: "Distance",
-                  value: formatActivityDistance(
-                    reviewActivity.summary.distanceMeters
-                  ),
+                  value: units.distance(reviewActivity.summary.distanceMeters),
                 },
               ]
             : []

@@ -1,19 +1,8 @@
 import type { ActivityClientDoc } from "./types"
-import { formatRouteDistance, formatRouteElevation } from "@/lib/routes/format"
 import { formatDuration } from "@/lib/workout-utils"
 
 export function formatActivityDuration(seconds: number): string {
   return formatDuration(Math.max(0, seconds))
-}
-
-export function formatActivityDistance(meters: number): string {
-  return formatRouteDistance(Math.max(0, meters))
-}
-
-export function formatActivityElevation(
-  meters: number | null | undefined
-): string {
-  return formatRouteElevation(meters ?? null)
 }
 
 export function formatActivityDate(timestamp: number | undefined): string {

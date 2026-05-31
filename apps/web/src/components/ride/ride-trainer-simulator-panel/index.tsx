@@ -10,6 +10,7 @@ import type {
 } from "@ramp/trainer-io"
 import { RangeControl } from "@/components/ride/ride-simulator-controls/components/range-control"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 
 type RideTrainerSimulatorPanelProps = {
   trainer: SimulatedTrainer
@@ -19,6 +20,7 @@ export function RideTrainerSimulatorPanel({
   trainer,
 }: RideTrainerSimulatorPanelProps) {
   const [state, setState] = useState<SimulatedTrainerState>(trainer.simulator)
+  const units = useUnitFormatters()
 
   useEffect(
     () => trainer.subscribeSimulatorState((next) => setState(next)),
@@ -29,7 +31,7 @@ export function RideTrainerSimulatorPanel({
     ["ERG target", formatNullableWatts(state.targetPowerWatts)],
     ["Power", formatNullableWatts(state.currentPowerWatts)],
     ["Cadence", formatNullableRpm(state.currentCadenceRpm)],
-    ["Speed", formatNullableSpeed(state.currentSpeedMps)],
+    ["Speed", formatNullableSpeed(state.currentSpeedMps, units.speedMps)],
     ["Gradient", `${state.gradePercent.toFixed(1)}%`],
     [
       "Resistance",
@@ -131,8 +133,11 @@ function formatNullableRpm(value: number | null): string {
   return value == null ? "None" : `${Math.round(value)} rpm`
 }
 
-function formatNullableSpeed(value: number | null): string {
-  return value == null ? "None" : `${(value * 3.6).toFixed(1)} km/h`
+function formatNullableSpeed(
+  value: number | null,
+  formatSpeed: (value: number) => string
+): string {
+  return value == null ? "None" : formatSpeed(value)
 }
 
 function formatCapabilities(capabilities: ReadonlySet<Capability>): string {

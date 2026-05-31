@@ -2,6 +2,33 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { describe, expect, it, vi } from "vitest"
 import { Capability } from "@ramp/ride-core"
 import { DiagnosticsExperienceView } from "./diagnostics-experience-view"
+import {
+  displayWeightToKg,
+  formatDistanceMeters,
+  formatElevationMeters,
+  formatSpeedKph,
+  formatSpeedMps,
+  formatWeightKg,
+  kgToDisplayWeight,
+} from "@/lib/units"
+
+vi.mock("@/hooks/use-unit-formatters", () => ({
+  useUnitFormatters: () => ({
+    unitSystem: "metric",
+    preferencesReady: true,
+    distance: (
+      meters: number,
+      options?: { precision?: number; compactUnderKm?: boolean }
+    ) => formatDistanceMeters(meters, "metric", options),
+    elevation: (meters: number | null | undefined) =>
+      formatElevationMeters(meters, "metric"),
+    speedKph: (kph: number | null | undefined) => formatSpeedKph(kph, "metric"),
+    speedMps: (mps: number | null | undefined) => formatSpeedMps(mps, "metric"),
+    weight: (kg: number) => formatWeightKg(kg, "metric"),
+    weightValue: (kg: number) => kgToDisplayWeight(kg, "metric"),
+    weightInputToKg: (value: number) => displayWeightToKg(value, "metric"),
+  }),
+}))
 
 type SessionOptions = {
   trainerConnected?: boolean
