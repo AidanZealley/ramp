@@ -1,10 +1,11 @@
+import {
+  
+  downsampleByDistance,
+  smoothElevationByDistance
+} from "./utils"
+import type {ElevationProfileSample} from "./utils";
 import type { RoutePoint } from "@/lib/routes/types"
 import type { GeneratedRouteSegment, RouteSegmentDetector } from "./types"
-import {
-  downsampleByDistance,
-  smoothElevationByDistance,
-  type ElevationProfileSample,
-} from "./utils"
 
 const MIN_CLIMB_DISTANCE_METERS = 500
 const MIN_ELEVATION_GAIN_METERS = 30

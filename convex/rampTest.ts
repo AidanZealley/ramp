@@ -51,7 +51,7 @@ const CLASSIC_RAMP_TEST: RampTestProtocol = {
   intervals: [...WARMUP_INTERVALS, ...RAMP_INTERVALS, ...COOLDOWN_INTERVALS],
 }
 
-export const RAMP_TEST_PROTOCOLS: Record<string, RampTestProtocol> = {
+export const RAMP_TEST_PROTOCOLS: Partial<Record<string, RampTestProtocol>> = {
   [CLASSIC_RAMP_TEST.builtInId]: CLASSIC_RAMP_TEST,
 }
 

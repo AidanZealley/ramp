@@ -218,7 +218,7 @@ export function LiveWorkoutDashboard({
         : 0
     return {
       durationSeconds: Math.round(completionDurationSeconds),
-      distanceMeters: telemetry.distanceMeters ?? 0,
+      distanceMeters: telemetry.distanceMeters,
       plannedAverageWatts: Math.round(
         (getAveragePower(workout.intervals) * ftp) / 100
       ),

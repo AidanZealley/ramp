@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Minus, Plus } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import type { ElevationSample } from "@/lib/routes/types"
+import type {UnitSystem} from "@/lib/units";
+import { Button } from "@/components/ui/button"
 import {
-  formatElevationMeters,
+  
   formatDistanceMeters,
-  metersToDisplayDistance,
-  type UnitSystem,
+  formatElevationMeters,
+  metersToDisplayDistance
 } from "@/lib/units"
 import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 

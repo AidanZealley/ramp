@@ -1,5 +1,5 @@
-import type { RoutePoint } from "@/lib/routes/types"
 import { routeSegmentDetectors } from "./detectors"
+import type { RoutePoint } from "@/lib/routes/types"
 import type { GeneratedRouteSegment, RouteSegmentDetector } from "./types"
 
 export function detectRouteSegments(

@@ -1,7 +1,7 @@
 import { useMemo } from "react"
 import { Layer, Source } from "@vis.gl/react-maplibre"
-import type { RoutePosition } from "@/lib/routes/types"
 import { buildRouteEndpointGeojson } from "../../utils"
+import type { RoutePosition } from "@/lib/routes/types"
 import type { RouteMapColors } from "../../types"
 
 type RouteEndpointMarkersProps = {

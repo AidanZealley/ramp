@@ -19,5 +19,5 @@ export type GeneratedRouteSegment = {
 
 export type RouteSegmentDetector = {
   type: RouteSegmentType
-  detect(points: Array<RoutePoint>): Array<GeneratedRouteSegment>
+  detect: (points: Array<RoutePoint>) => Array<GeneratedRouteSegment>
 }

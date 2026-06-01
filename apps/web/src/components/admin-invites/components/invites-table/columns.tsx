@@ -1,5 +1,7 @@
-import type { ColumnDef } from "@tanstack/react-table"
 import { ArrowDown, ArrowUp, ArrowUpDown, Trash2, X } from "lucide-react"
+import { formatInviteDate, statusLabel } from "../../utils"
+import type { ColumnDef } from "@tanstack/react-table"
+import type { InviteListItem, InviteStatus } from "../../types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -8,8 +10,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { formatInviteDate, statusLabel } from "../../utils"
-import type { InviteListItem, InviteStatus } from "../../types"
 
 type ColumnOptions = {
   onRevoke: (id: InviteListItem["_id"]) => void
@@ -38,7 +38,7 @@ export function createColumns({
   pendingRevokeId,
   onDelete,
   pendingDeleteId,
-}: ColumnOptions): ColumnDef<InviteListItem>[] {
+}: ColumnOptions): Array<ColumnDef<InviteListItem>> {
   return [
     {
       id: "select",

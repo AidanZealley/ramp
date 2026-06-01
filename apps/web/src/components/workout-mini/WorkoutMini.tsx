@@ -1,15 +1,15 @@
 import { useId } from "react"
-import { getZoneGradientStops } from "@/lib/zones"
 import {
+  VIEW_BOX_HEIGHT,
+  VIEW_BOX_WIDTH,
   buildSegmentShapes,
   getChartMaxPower,
   getFtpY,
   getPowerScale,
   getTotalDuration,
-  VIEW_BOX_HEIGHT,
-  VIEW_BOX_WIDTH,
 } from "./utils"
 import type { WorkoutMiniProps } from "./types"
+import { getZoneGradientStops } from "@/lib/zones"
 
 const DIVIDER_GAP_WIDTH = 0.25
 

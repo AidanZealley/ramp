@@ -2,13 +2,13 @@ import * as React from "react"
 import { useMutation, useQuery } from "convex/react"
 import { useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, Copy, Plus } from "lucide-react"
+import { InvitesTable } from "./components/invites-table"
 import type { Id } from "#convex/_generated/dataModel"
 import { api } from "#convex/_generated/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
-import { InvitesTable } from "./components/invites-table"
 
 export const AdminInvites = () => {
   const navigate = useNavigate()

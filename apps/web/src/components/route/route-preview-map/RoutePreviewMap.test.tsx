@@ -1,8 +1,8 @@
 import { act, render, screen } from "@testing-library/react"
 import { forwardRef, useEffect, useImperativeHandle } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { RoutePreviewMap } from "./RoutePreviewMap"
 import darkStyle from "../../../../public/map-styles/dark.json"
+import { RoutePreviewMap } from "./RoutePreviewMap"
 import type { PropsWithChildren } from "react"
 import type { FeatureCollection, LineString } from "geojson"
 

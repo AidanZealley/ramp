@@ -7,13 +7,13 @@ import {
   RouteIcon,
   Timer,
 } from "lucide-react"
-import type { ActivityCardProps } from "./types"
 import {
   formatActivityDate,
   formatActivityDuration,
   getActivityPrimaryTimestamp,
   getActivitySourceLabel,
 } from "../format"
+import type { ActivityCardProps } from "./types"
 import { Card, CardContent } from "@/components/ui/card"
 import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 

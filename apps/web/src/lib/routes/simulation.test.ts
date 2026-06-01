@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
-  computeRouteGradePercent,
   computeRouteGradeDiagnostics,
+  computeRouteGradePercent,
   findNearestRouteDistanceMeters,
   interpolateRoutePointByDistance,
 } from "./simulation"

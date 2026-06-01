@@ -12,7 +12,7 @@ type MapStyleLayer = {
 }
 
 type MapStyle = {
-  layers: MapStyleLayer[]
+  layers: Array<MapStyleLayer>
 }
 
 const styleFiles = [

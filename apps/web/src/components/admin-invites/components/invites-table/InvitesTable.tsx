@@ -7,13 +7,15 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
+import { Search } from "lucide-react"
+import { createColumns } from "./columns"
 import type {
   ColumnFiltersState,
   PaginationState,
   RowSelectionState,
   SortingState,
 } from "@tanstack/react-table"
-import { Search } from "lucide-react"
+import type { InviteListItem, InviteStatus } from "../../types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -25,8 +27,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import type { InviteListItem, InviteStatus } from "../../types"
-import { createColumns } from "./columns"
 
 const STATUS_OPTIONS: Array<{ value: InviteStatus | ""; label: string }> = [
   { value: "", label: "All" },
@@ -38,7 +38,7 @@ const STATUS_OPTIONS: Array<{ value: InviteStatus | ""; label: string }> = [
 const PAGE_SIZE_OPTIONS = [10, 20, 50]
 
 type InvitesTableProps = {
-  data: InviteListItem[]
+  data: Array<InviteListItem>
   onRevoke: (id: InviteListItem["_id"]) => void
   pendingRevokeId: InviteListItem["_id"] | null
   onDelete: (id: InviteListItem["_id"]) => void
@@ -86,8 +86,7 @@ export function InvitesTable({
   })
 
   const selectedRows = table.getFilteredSelectedRowModel().rows
-  const emailFilter =
-    (table.getColumn("email")?.getFilterValue() as string) ?? ""
+  const emailFilter = table.getColumn("email")?.getFilterValue() as string
   const pendingSelectedCount = selectedRows.filter(
     (row) => row.original.status === "pending"
   ).length

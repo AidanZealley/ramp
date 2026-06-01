@@ -51,10 +51,6 @@ export function validateGeneratedRouteSegments(
   }
 
   for (const [segmentIndex, segment] of segments.entries()) {
-    if (segment.type !== "climb") {
-      throw new Error(`segments[${segmentIndex}].type must be climb`)
-    }
-
     const numericFields = [
       "startDistanceMeters",
       "endDistanceMeters",

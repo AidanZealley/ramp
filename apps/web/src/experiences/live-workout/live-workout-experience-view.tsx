@@ -15,12 +15,6 @@ import { LiveWorkoutDashboard } from "./components/live-workout-dashboard"
 import { WorkoutDetailPanel } from "./components/workout-detail-panel"
 import { WorkoutPickerPanel } from "./components/workout-picker-panel"
 import { useLiveWorkoutPreferences } from "./hooks/use-live-workout-preferences"
-import { SaveActivityDialog } from "@/components/activity/save-activity-dialog"
-import { UnresolvedActivityDialog } from "@/components/activity/unresolved-activity-dialog"
-import {
-  formatActivityDuration,
-} from "@/components/activity/format"
-import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 import type { RideExperienceConnection } from "@/ride/experience-runtime"
 import type {
   WorkoutRideSession,
@@ -34,6 +28,12 @@ import type {
 } from "@/components/activity/types"
 import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
 import type { ExperienceSessionAPI } from "@/ride/experience-session"
+import { useUnitFormatters } from "@/hooks/use-unit-formatters"
+import {
+  formatActivityDuration,
+} from "@/components/activity/format"
+import { UnresolvedActivityDialog } from "@/components/activity/unresolved-activity-dialog"
+import { SaveActivityDialog } from "@/components/activity/save-activity-dialog"
 import { api } from "#convex/_generated/api"
 import {
   InvalidWorkoutDefinitionError,

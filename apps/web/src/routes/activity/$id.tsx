@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
+import { Link, createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "convex/react"
 import { ArrowLeft, Bike, ExternalLink } from "lucide-react"
 import type { Id } from "#convex/_generated/dataModel"

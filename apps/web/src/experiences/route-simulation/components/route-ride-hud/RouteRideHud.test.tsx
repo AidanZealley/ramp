@@ -1,15 +1,16 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { RouteRideHud } from "./RouteRideHud"
+import type {UnitSystem} from "@/lib/units";
 import {
+  
   displayWeightToKg,
   formatDistanceMeters,
   formatElevationMeters,
   formatSpeedKph,
   formatSpeedMps,
   formatWeightKg,
-  kgToDisplayWeight,
-  type UnitSystem,
+  kgToDisplayWeight
 } from "@/lib/units"
 
 let unitSystem: UnitSystem = "metric"

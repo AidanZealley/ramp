@@ -1,7 +1,7 @@
 import { routeMapTheme } from "../colors"
-import { useTheme } from "@/components/theme-provider"
 import darkMapStyle from "../../../../../public/map-styles/dark.json"
 import lightMapStyle from "../../../../../public/map-styles/positron.json"
+import { useTheme } from "@/components/theme-provider"
 
 type RouteMapStyle = typeof darkMapStyle
 

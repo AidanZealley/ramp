@@ -1,10 +1,10 @@
 import { act, renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { useRampTestMonitor } from "./use-ramp-test-monitor"
 import {
   getCooldownStartSeconds,
   getRampStartSeconds,
 } from "../ramp-protocol"
+import { useRampTestMonitor } from "./use-ramp-test-monitor"
 import type { ExperienceSessionAPI } from "@/ride/experience-session"
 import type {
   WorkoutSessionController,
@@ -46,7 +46,7 @@ function createFakeSession(options: {
   }
 
   return {
-    getState: () => state as never,
+    getState: () => state,
     subscribe: (listener: () => void) => {
       listeners.add(listener)
       return () => listeners.delete(listener)
@@ -62,7 +62,7 @@ function createFakeSession(options: {
     setTelemetry: (patch) => {
       Object.assign(state.telemetry, patch)
     },
-  } as FakeSession
+  }
 }
 
 function createFakeController(elapsedSeconds: number, targetWatts: number) {

@@ -30,7 +30,7 @@ vi.mock("convex/react", () => ({
 }))
 
 vi.mock("@/lib/routes/gpx", () => ({
-  parseRouteGpxFile: vi.fn(async () => ({
+  parseRouteGpxFile: vi.fn(() => Promise.resolve({
     kind: "success",
     route: {
       title: "Climb Route",
@@ -71,9 +71,9 @@ describe("RouteLibrary", () => {
     navigate.mockReset()
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => ({
+      vi.fn(() => Promise.resolve({
         ok: true,
-        json: async () => ({ storageId: "storage-1" }),
+        json: () => Promise.resolve({ storageId: "storage-1" }),
       }))
     )
   })
@@ -96,8 +96,12 @@ describe("RouteLibrary", () => {
   })
 
   it("passes generated route segments to createFromGpxUpload", async () => {
-    const generateUploadUrl = vi.fn(async () => "https://example.test/upload")
-    const createFromGpxUpload = vi.fn(async (_args: { segments: unknown[] }) => "route-1")
+    const generateUploadUrl = vi.fn(() =>
+      Promise.resolve("https://example.test/upload")
+    )
+    const createFromGpxUpload = vi.fn((_args: { segments: Array<unknown> }) =>
+      Promise.resolve("route-1")
+    )
     useQuery.mockReturnValue([])
     useMutation
       .mockReturnValueOnce(generateUploadUrl)
@@ -119,9 +123,8 @@ describe("RouteLibrary", () => {
 
     await waitFor(() => expect(createFromGpxUpload).toHaveBeenCalled())
     const createArgs = createFromGpxUpload.mock.calls[0]?.[0]
-    expect(createArgs?.segments.length).toBeGreaterThan(
-      0
-    )
+    expect(createArgs).toBeDefined()
+    expect(createArgs.segments.length).toBeGreaterThan(0)
     expect(navigate).toHaveBeenCalledWith({
       to: "/route/$id",
       params: { id: "route-1" },

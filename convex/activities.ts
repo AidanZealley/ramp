@@ -282,7 +282,7 @@ async function getUnresolvedByStatus(
   ctx: Ctx,
   ownerId: Id<"users">,
   status: UnresolvedActivityStatus
-) {
+): Promise<Doc<"activities"> | null> {
   const rows = await ctx.db
     .query("activities")
     .withIndex("by_ownerId_and_status_and_updatedAt", (q) =>
@@ -293,16 +293,19 @@ async function getUnresolvedByStatus(
   return rows[0] ?? null
 }
 
-async function getUnresolvedActivity(ctx: Ctx, ownerId: Id<"users">) {
-  const activities = (
-    await Promise.all(
-      UNRESOLVED_STATUSES.map((status) =>
-        getUnresolvedByStatus(ctx, ownerId, status)
-      )
+async function getUnresolvedActivity(
+  ctx: Ctx,
+  ownerId: Id<"users">
+): Promise<Doc<"activities"> | null> {
+  const activities = await Promise.all(
+    UNRESOLVED_STATUSES.map((status) =>
+      getUnresolvedByStatus(ctx, ownerId, status)
     )
-  ).filter((activity): activity is Doc<"activities"> => activity !== null)
+  )
 
-  return activities.sort((a, b) => b.updatedAt - a.updatedAt)[0] ?? null
+  return activities
+    .filter((activity): activity is Doc<"activities"> => activity !== null)
+    .sort((a, b) => b.updatedAt - a.updatedAt)[0] ?? null
 }
 
 async function getUnresolvedForSource(

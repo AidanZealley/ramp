@@ -1,6 +1,6 @@
-import { getZoneColor } from "@/lib/zones"
 import type { Interval } from "@/lib/workout-utils"
 import type { SegmentShape } from "./types"
+import { getZoneColor } from "@/lib/zones"
 
 export const VIEW_BOX_HEIGHT = 100
 export const VIEW_BOX_WIDTH = 200

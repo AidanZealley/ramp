@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
+import { Link, createFileRoute } from "@tanstack/react-router"
 import { useMutation, usePaginatedQuery, useQuery } from "convex/react"
 import { ArrowRight, Trash2 } from "lucide-react"
 import { toast } from "sonner"

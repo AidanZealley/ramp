@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { Save, Trash2 } from "lucide-react"
-import type { SaveActivityDialogProps } from "./types"
 import { ActivitySummaryMetrics } from "../activity-summary-metrics"
+import type { SaveActivityDialogProps } from "./types"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,

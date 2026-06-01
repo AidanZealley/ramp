@@ -15,7 +15,7 @@ type AdminSection = {
   icon: LucideIcon
 }
 
-const adminSections: AdminSection[] = [
+const adminSections: Array<AdminSection> = [
   {
     title: "Invites",
     description: "Manage invite codes and control access to the app.",

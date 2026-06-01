@@ -1,6 +1,6 @@
 import { CheckCircle2, Clock, Trash2 } from "lucide-react"
-import type { EndActivityDialogProps } from "./types"
 import { ActivitySummaryMetrics } from "../activity-summary-metrics"
+import type { EndActivityDialogProps } from "./types"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,

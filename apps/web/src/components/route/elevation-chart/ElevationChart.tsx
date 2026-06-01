@@ -6,15 +6,16 @@ import {
   YAxis,
 } from "recharts"
 import type { ElevationSample } from "@/lib/routes/types"
+import type {UnitSystem} from "@/lib/units";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
 import {
+  
   metersToDisplayDistance,
-  metersToDisplayElevation,
-  type UnitSystem,
+  metersToDisplayElevation
 } from "@/lib/units"
 
 type ElevationChartProps = {

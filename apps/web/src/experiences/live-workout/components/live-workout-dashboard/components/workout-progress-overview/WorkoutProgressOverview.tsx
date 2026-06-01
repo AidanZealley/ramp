@@ -103,7 +103,7 @@ export const WorkoutProgressOverview = ({
 
   const commitSeek = (nextElapsedSeconds: number) => {
     if (!seekEnabled) return
-    void onSeek?.(clamp(nextElapsedSeconds, 0, totalDurationSeconds))
+    void onSeek(clamp(nextElapsedSeconds, 0, totalDurationSeconds))
   }
 
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {

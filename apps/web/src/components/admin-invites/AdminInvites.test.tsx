@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { useMutation } from "convex/react"
 import { AdminInvites } from "./AdminInvites"
+import type * as ConvexReact from "convex/react"
 
 const mockCreate = vi.fn()
 const mockRevoke = vi.fn()
@@ -9,7 +10,7 @@ const mockDelete = vi.fn()
 let mockInvites: unknown
 
 vi.mock("convex/react", async (importOriginal) => {
-  const original = await importOriginal<typeof import("convex/react")>()
+  const original = await importOriginal<typeof ConvexReact>()
   return {
     ...original,
     useQuery: vi.fn(() => mockInvites),

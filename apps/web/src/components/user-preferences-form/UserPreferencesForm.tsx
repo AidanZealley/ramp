@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import type { PowerDisplayMode } from "@/lib/workout-utils"
+import type {UnitSystem} from "@/lib/units";
 import { api } from "#convex/_generated/api"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -8,9 +9,9 @@ import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { DEFAULT_FTP } from "@/lib/workout-utils"
 import {
+  
   displayWeightToKg,
-  kgToDisplayWeight,
-  type UnitSystem,
+  kgToDisplayWeight
 } from "@/lib/units"
 
 type UserPreferencesFormProps = {

@@ -15,17 +15,17 @@ import type { ParsedRouteGpx, RoutePosition } from "@/lib/routes/types"
 import type { ExperienceSessionAPI } from "@/ride/experience-session"
 import type { PhysicsConfig, PhysicsState } from "@/experiences/physics"
 import type {
+  LastGradeDispatch,
   RouteMapPresentation,
   RouteProgressMode,
   RouteSimulationRideController,
   RouteSpeedSource,
   SeekTransitionState,
-  LastGradeDispatch,
 } from "../types"
 import { createInitialPhysicsState, stepPhysics } from "@/experiences/physics"
 import {
-  computeRouteGradePercent,
   computeRouteGradeDiagnostics,
+  computeRouteGradePercent,
   findNearestRouteDistanceMeters,
   interpolateRoutePointByDistance,
 } from "@/lib/routes/simulation"
