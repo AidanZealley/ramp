@@ -6,6 +6,10 @@ import {
   requireOwnedRoute,
   requireOwnedWorkout,
 } from "./authHelpers"
+import {
+  getRampTestProtocol,
+  getRampTestTotalDurationSeconds,
+} from "./rampTest"
 import type { Doc, Id } from "./_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "./_generated/server"
 
@@ -23,6 +27,11 @@ export const activitySummaryValidator = v.object({
 export const activityResumeStateValidator = v.union(
   v.object({
     kind: v.literal("workout"),
+    elapsedSeconds: v.number(),
+    difficultyPercent: v.number(),
+  }),
+  v.object({
+    kind: v.literal("ramp-test"),
     elapsedSeconds: v.number(),
     difficultyPercent: v.number(),
   }),
@@ -105,6 +114,26 @@ export function createWorkoutSnapshot(
   }
 }
 
+export function createRampTestSnapshot(builtInId: string, ftpAtStart: number) {
+  const protocol = getRampTestProtocol(builtInId)
+  return {
+    kind: "ramp-test" as const,
+    builtInId: protocol.builtInId,
+    title: protocol.title,
+    ftpAtStart,
+    totalDurationSeconds: getRampTestTotalDurationSeconds(protocol),
+    intervals: protocol.intervals.map((interval) => ({
+      startPower: interval.startPower,
+      endPower: interval.endPower,
+      durationSeconds: interval.durationSeconds,
+      ...(interval.comment === undefined
+        ? {}
+        : { comment: interval.comment }),
+    })),
+    resultFtp: null as number | null,
+  }
+}
+
 export function createRouteSnapshot(route: Doc<"routes">) {
   return {
     kind: "route" as const,
@@ -129,6 +158,36 @@ function emptyWorkoutSummary(
       snapshot.intervals,
       snapshot.ftpAtStart
     ),
+    completionPercent: 0,
+  }
+}
+
+function computeAbsoluteAverageWatts(
+  intervals: Array<{
+    startPower: number
+    endPower: number
+    durationSeconds: number
+  }>
+): number | null {
+  let weightedWattSeconds = 0
+  let totalDurationSeconds = 0
+  for (const interval of intervals) {
+    const durationSeconds = Math.max(0, interval.durationSeconds)
+    totalDurationSeconds += durationSeconds
+    weightedWattSeconds +=
+      ((interval.startPower + interval.endPower) / 2) * durationSeconds
+  }
+  if (totalDurationSeconds <= 0) return null
+  return Math.round(weightedWattSeconds / totalDurationSeconds)
+}
+
+function emptyRampTestSummary(
+  snapshot: ReturnType<typeof createRampTestSnapshot>
+) {
+  return {
+    durationSeconds: 0,
+    distanceMeters: 0,
+    plannedAverageWatts: computeAbsoluteAverageWatts(snapshot.intervals),
     completionPercent: 0,
   }
 }
@@ -186,7 +245,7 @@ function validateResumeState(
     throw new Error("Resume state kind does not match activity source")
   }
   assertFiniteMetric(resumeState.elapsedSeconds, "elapsedSeconds")
-  if (resumeState.kind === "workout") {
+  if (resumeState.kind === "workout" || resumeState.kind === "ramp-test") {
     assertFiniteMetric(resumeState.difficultyPercent, "difficultyPercent")
     return
   }
@@ -426,6 +485,12 @@ export const start = mutation({
         sourceKind: v.literal("route"),
         routeId: v.id("routes"),
         experienceId: v.literal("route"),
+      }),
+      v.object({
+        sourceKind: v.literal("ramp-test"),
+        builtInId: v.string(),
+        experienceId: v.literal("ramp-test"),
+        ftpAtStart: v.number(),
       })
     ),
   },
@@ -437,7 +502,9 @@ export const start = mutation({
     const activityId =
       args.activity.sourceKind === "workout"
         ? await startWorkoutActivity(ctx, ownerId, args.activity, now)
-        : await startRouteActivity(ctx, ownerId, args.activity, now)
+        : args.activity.sourceKind === "route"
+          ? await startRouteActivity(ctx, ownerId, args.activity, now)
+          : await startRampTestActivity(ctx, ownerId, args.activity, now)
     const activity = await ctx.db.get(activityId)
     if (!activity) {
       throw new Error("Activity was not created")
@@ -475,6 +542,40 @@ async function startWorkoutActivity(
     sourceSnapshot,
     resumeState: {
       kind: "workout",
+      elapsedSeconds: 0,
+      difficultyPercent: 100,
+    },
+  })
+}
+
+async function startRampTestActivity(
+  ctx: MutationCtx,
+  ownerId: Id<"users">,
+  args: {
+    sourceKind: "ramp-test"
+    builtInId: string
+    experienceId: "ramp-test"
+    ftpAtStart: number
+  },
+  now: number
+) {
+  assertFiniteMetric(args.ftpAtStart, "ftpAtStart")
+  const sourceSnapshot = createRampTestSnapshot(args.builtInId, args.ftpAtStart)
+
+  return await ctx.db.insert("activities", {
+    ownerId,
+    status: "in_progress",
+    experienceId: args.experienceId,
+    sourceKind: "ramp-test",
+    sourceWorkoutId: null,
+    sourceRouteId: null,
+    title: sourceSnapshot.title,
+    startedAt: now,
+    updatedAt: now,
+    summary: emptyRampTestSummary(sourceSnapshot),
+    sourceSnapshot,
+    resumeState: {
+      kind: "ramp-test",
       elapsedSeconds: 0,
       difficultyPercent: 100,
     },
@@ -566,6 +667,7 @@ export const complete = mutation({
     title: v.string(),
     summary: v.optional(activitySummaryValidator),
     resumeState: v.optional(activityResumeStateValidator),
+    resultFtp: v.optional(v.union(v.number(), v.null())),
   },
   handler: async (ctx, args) => {
     const activity = await requireOwnedActivity(ctx, args.activityId)
@@ -586,6 +688,18 @@ export const complete = mutation({
     if (args.resumeState !== undefined) {
       validateResumeState(args.resumeState, activity.sourceKind)
       patch.resumeState = args.resumeState
+    }
+    if (args.resultFtp !== undefined && args.resultFtp !== null) {
+      assertFiniteMetric(args.resultFtp, "resultFtp")
+    }
+    if (
+      args.resultFtp !== undefined &&
+      activity.sourceSnapshot.kind === "ramp-test"
+    ) {
+      patch.sourceSnapshot = {
+        ...activity.sourceSnapshot,
+        resultFtp: args.resultFtp,
+      }
     }
 
     await ctx.db.patch(activity._id, patch)

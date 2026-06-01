@@ -38,6 +38,23 @@ export const rideExperiences: Array<RideExperienceDefinition> = [
       (await import("./live-workout")).liveWorkoutExperience,
   },
   {
+    id: "ramp-test",
+    displayName: "Ramp Test",
+    description:
+      "Find your FTP with a Zwift-style ramp: 1-minute steps until you can no longer hold the target.",
+    tags: ["FTP test", "ERG", "simulator"],
+    accent: {
+      from: "#ffe2d8",
+      to: "#b83535",
+      ink: "#30100c",
+    },
+    preview: {
+      eyebrow: "FTP test",
+      spotlight: "Progressive ramp to failure",
+    },
+    loadPlugin: async () => (await import("./ramp-test")).rampTestExperience,
+  },
+  {
     id: "route",
     displayName: "Route Simulation",
     description:

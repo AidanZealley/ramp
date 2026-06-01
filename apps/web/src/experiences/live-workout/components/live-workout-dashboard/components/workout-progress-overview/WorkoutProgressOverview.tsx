@@ -19,7 +19,8 @@ type WorkoutProgressOverviewProps = {
   onPause?: () => void
   onResume?: () => void
   onStop: () => void
-  onSeek: (elapsedSeconds: number) => void | Promise<void>
+  onSeek?: (elapsedSeconds: number) => void | Promise<void>
+  disableSeek?: boolean
   stopDialogOpen?: boolean
   onStopDialogOpenChange?: (open: boolean) => void
 }
@@ -38,9 +39,11 @@ export const WorkoutProgressOverview = ({
   onResume,
   onStop,
   onSeek,
+  disableSeek = false,
   stopDialogOpen,
   onStopDialogOpenChange,
 }: WorkoutProgressOverviewProps) => {
+  const seekEnabled = !disableSeek && onSeek !== undefined
   const timelineRef = useRef<HTMLDivElement | null>(null)
   const [previewElapsedSeconds, setPreviewElapsedSeconds] = useState<
     number | null
@@ -99,15 +102,18 @@ export const WorkoutProgressOverview = ({
   }
 
   const commitSeek = (nextElapsedSeconds: number) => {
-    void onSeek(clamp(nextElapsedSeconds, 0, totalDurationSeconds))
+    if (!seekEnabled) return
+    void onSeek?.(clamp(nextElapsedSeconds, 0, totalDurationSeconds))
   }
 
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (!seekEnabled) return
     if (!timelineRef.current?.hasPointerCapture(event.pointerId)) return
     setPreviewElapsedSeconds(getElapsedFromPointer(event.clientX))
   }
 
   const handlePointerEnd = (event: PointerEvent<HTMLDivElement>) => {
+    if (!seekEnabled) return
     if (!timelineRef.current?.hasPointerCapture(event.pointerId)) return
     const nextElapsedSeconds = getElapsedFromPointer(event.clientX)
     timelineRef.current.releasePointerCapture(event.pointerId)
@@ -140,12 +146,20 @@ export const WorkoutProgressOverview = ({
       </div>
       <div
         ref={timelineRef}
-        className="group/timeline relative h-28 cursor-col-resize touch-none overflow-hidden md:h-36 xl:h-44"
+        className={
+          seekEnabled
+            ? "group/timeline relative h-28 cursor-col-resize touch-none overflow-hidden md:h-36 xl:h-44"
+            : "group/timeline relative h-28 touch-none overflow-hidden md:h-36 xl:h-44"
+        }
         data-testid="workout-progress-timeline"
-        onPointerDown={(event) => {
-          timelineRef.current?.setPointerCapture(event.pointerId)
-          setPreviewElapsedSeconds(getElapsedFromPointer(event.clientX))
-        }}
+        onPointerDown={
+          seekEnabled
+            ? (event) => {
+                timelineRef.current?.setPointerCapture(event.pointerId)
+                setPreviewElapsedSeconds(getElapsedFromPointer(event.clientX))
+              }
+            : undefined
+        }
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerEnd}
         onPointerCancel={handlePointerEnd}
@@ -201,16 +215,18 @@ export const WorkoutProgressOverview = ({
       <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
         <div aria-hidden="true" />
         <div className="flex items-center justify-center gap-2 justify-self-center">
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon"
-            onClick={handleSkipBack}
-            disabled={isComplete || intervals.length === 0}
-            aria-label="Skip to previous interval"
-          >
-            <SkipBack />
-          </Button>
+          {seekEnabled && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              onClick={handleSkipBack}
+              disabled={isComplete || intervals.length === 0}
+              aria-label="Skip to previous interval"
+            >
+              <SkipBack />
+            </Button>
+          )}
           <Button
             type="button"
             variant="default"
@@ -236,16 +252,18 @@ export const WorkoutProgressOverview = ({
           >
             <Square />
           </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon"
-            onClick={handleSkipForward}
-            disabled={isComplete || intervals.length === 0}
-            aria-label="Skip to next interval"
-          >
-            <SkipForward />
-          </Button>
+          {seekEnabled && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              onClick={handleSkipForward}
+              disabled={isComplete || intervals.length === 0}
+              aria-label="Skip to next interval"
+            >
+              <SkipForward />
+            </Button>
+          )}
         </div>
         <div aria-hidden="true" />
       </div>

@@ -27,6 +27,10 @@ export type ActivityExperienceAPI = {
   startRouteActivity: (args: {
     routeId: Id<"routes">
   }) => Promise<ActivityStartResult>
+  startRampTestActivity: (args: {
+    builtInId: string
+    ftpAtStart: number
+  }) => Promise<ActivityStartResult>
   saveProgress: (args: {
     summary: ActivitySummaryInput
     resumeState: ActivityResumeStateInput
@@ -39,6 +43,7 @@ export type ActivityExperienceAPI = {
     title: string
     summary?: ActivitySummaryInput
     resumeState?: ActivityResumeStateInput
+    resultFtp?: number | null
   }) => Promise<void>
   discard: () => Promise<void>
   getResumeUrl: (activity: ActivityClientDoc) => {

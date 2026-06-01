@@ -150,6 +150,20 @@ function ActivityDetailPage() {
               </Button>
             </>
           ) : null}
+          {snapshot.kind === "ramp-test" ? (
+            <Button
+              nativeButton={false}
+              render={
+                <Link
+                  to="/ride/$experienceId"
+                  params={{ experienceId: "ramp-test" }}
+                />
+              }
+            >
+              <Bike />
+              Ride ramp test
+            </Button>
+          ) : null}
           {snapshot.kind === "route" && route ? (
             <>
               <Button
@@ -203,6 +217,21 @@ function ActivityDetailPage() {
               <p className="text-sm text-muted-foreground">
                 FTP {snapshot.ftpAtStart}W · revision{" "}
                 {snapshot.intervalsRevision}
+              </p>
+            </div>
+            <WorkoutMini intervals={snapshot.intervals} className="h-40" />
+          </div>
+        ) : snapshot.kind === "ramp-test" ? (
+          <div className="grid gap-3 rounded-lg border bg-background p-4">
+            <div>
+              <div className="font-heading text-xl font-semibold">
+                {snapshot.title}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                FTP {snapshot.ftpAtStart}W at start
+                {snapshot.resultFtp != null
+                  ? ` · result FTP ${snapshot.resultFtp}W`
+                  : ""}
               </p>
             </div>
             <WorkoutMini intervals={snapshot.intervals} className="h-40" />

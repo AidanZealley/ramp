@@ -132,6 +132,39 @@ export function useActivitySession({
     [resolveBlockedActivity, startActivity]
   )
 
+  const startRampTestActivity = useCallback(
+    async ({
+      builtInId,
+      ftpAtStart,
+    }: {
+      builtInId: string
+      ftpAtStart: number
+    }): Promise<ActivityStartResult> => {
+      try {
+        const activity = await startActivity({
+          activity: {
+            sourceKind: "ramp-test",
+            builtInId,
+            experienceId: "ramp-test",
+            ftpAtStart,
+          },
+        })
+        setLocalActivity(activity)
+        return { ok: true, activity }
+      } catch (error) {
+        if (isUnresolvedActivityError(error)) {
+          return {
+            ok: false,
+            reason: "unresolvedActivityExists",
+            activity: await resolveBlockedActivity(error),
+          }
+        }
+        throw error
+      }
+    },
+    [resolveBlockedActivity, startActivity]
+  )
+
   const requireActiveActivityId = useCallback(() => {
     if (!activeActivity) {
       throw new Error("No active activity")
@@ -190,10 +223,12 @@ export function useActivitySession({
       title,
       summary,
       resumeState,
+      resultFtp,
     }: {
       title: string
       summary?: ActivitySummaryInput
       resumeState?: ActivityResumeStateInput
+      resultFtp?: number | null
     }) => {
       const currentActivityId = requireActiveActivityId()
       await completeMutation({
@@ -201,6 +236,7 @@ export function useActivitySession({
         title,
         summary,
         resumeState,
+        resultFtp,
       })
       setLocalActivity(null)
     },
@@ -221,6 +257,7 @@ export function useActivitySession({
       resumeActivity,
       startWorkoutActivity,
       startRouteActivity,
+      startRampTestActivity,
       saveProgress,
       markPending,
       complete,
@@ -234,6 +271,7 @@ export function useActivitySession({
       markPending,
       resumeActivity,
       saveProgress,
+      startRampTestActivity,
       startRouteActivity,
       startWorkoutActivity,
       unresolvedActivity,

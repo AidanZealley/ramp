@@ -14,7 +14,14 @@ export function formatActivityDate(timestamp: number | undefined): string {
 }
 
 export function getActivitySourceLabel(activity: ActivityClientDoc): string {
-  return activity.sourceKind === "workout" ? "Workout" : "Route"
+  switch (activity.sourceKind) {
+    case "workout":
+      return "Workout"
+    case "ramp-test":
+      return "Ramp test"
+    default:
+      return "Route"
+  }
 }
 
 export function getActivityPrimaryTimestamp(

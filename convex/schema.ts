@@ -139,7 +139,11 @@ export default defineSchema({
       v.literal("completed")
     ),
     experienceId: v.string(),
-    sourceKind: v.union(v.literal("workout"), v.literal("route")),
+    sourceKind: v.union(
+      v.literal("workout"),
+      v.literal("route"),
+      v.literal("ramp-test")
+    ),
     sourceWorkoutId: v.optional(v.union(v.id("workouts"), v.null())),
     sourceRouteId: v.optional(v.union(v.id("routes"), v.null())),
     title: v.string(),
@@ -203,11 +207,32 @@ export default defineSchema({
           v.null()
         ),
         previewPoints: v.array(v.object({ x: v.number(), y: v.number() })),
+      }),
+      v.object({
+        kind: v.literal("ramp-test"),
+        builtInId: v.string(),
+        title: v.string(),
+        ftpAtStart: v.number(),
+        totalDurationSeconds: v.number(),
+        intervals: v.array(
+          v.object({
+            startPower: v.number(),
+            endPower: v.number(),
+            durationSeconds: v.number(),
+            comment: v.optional(v.string()),
+          })
+        ),
+        resultFtp: v.optional(v.union(v.number(), v.null())),
       })
     ),
     resumeState: v.union(
       v.object({
         kind: v.literal("workout"),
+        elapsedSeconds: v.number(),
+        difficultyPercent: v.number(),
+      }),
+      v.object({
+        kind: v.literal("ramp-test"),
         elapsedSeconds: v.number(),
         difficultyPercent: v.number(),
       }),
