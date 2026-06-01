@@ -21,6 +21,7 @@ type TestDoc =
   | Doc<"planWeeks">
   | Doc<"planWeekWorkouts">
   | Doc<"routes">
+  | Doc<"activities">
 
 const user1 = "user-1" as Id<"users">
 const user2 = "user-2" as Id<"users">
@@ -33,6 +34,7 @@ const week2Id = "week-2" as Id<"planWeeks">
 const slot1Id = "slot-1" as Id<"planWeekWorkouts">
 const slot2Id = "slot-2" as Id<"planWeekWorkouts">
 const route1Id = "route-1" as Id<"routes">
+const activity1Id = "activity-1" as Id<"activities">
 
 function workout(id: Id<"workouts">, ownerId: Id<"users">): Doc<"workouts"> {
   return {
@@ -91,6 +93,45 @@ function route(id: Id<"routes">, ownerId: Id<"users">): Doc<"routes"> {
   }
 }
 
+function workoutActivity(
+  id: Id<"activities">,
+  ownerId: Id<"users">,
+  sourceWorkoutId: Id<"workouts">
+): Doc<"activities"> {
+  return {
+    _id: id,
+    _creationTime: 1,
+    ownerId,
+    status: "pending",
+    experienceId: "live-workout",
+    sourceKind: "workout",
+    sourceWorkoutId,
+    sourceRouteId: null,
+    title: "Workout activity",
+    startedAt: 1,
+    updatedAt: 1,
+    summary: {
+      durationSeconds: 60,
+      distanceMeters: 0,
+      plannedAverageWatts: 100,
+    },
+    sourceSnapshot: {
+      kind: "workout",
+      workoutId: sourceWorkoutId,
+      title: "Workout",
+      intervalsRevision: 0,
+      ftpAtStart: 250,
+      totalDurationSeconds: 60,
+      intervals: [{ startPower: 100, endPower: 100, durationSeconds: 60 }],
+    },
+    resumeState: {
+      kind: "workout",
+      elapsedSeconds: 0,
+      difficultyPercent: 100,
+    },
+  }
+}
+
 function createCtx(docs: Array<TestDoc>) {
   const docsById = new Map<string, TestDoc>(
     docs.map((doc) => [doc._id as string, doc])
@@ -106,6 +147,7 @@ function createCtx(docs: Array<TestDoc>) {
       if (table === "planWeeks") return doc._id.startsWith("week-")
       if (table === "planWeekWorkouts") return doc._id.startsWith("slot-")
       if (table === "routes") return doc._id.startsWith("route-")
+      if (table === "activities") return doc._id.startsWith("activity-")
       return false
     })
 
@@ -130,14 +172,27 @@ function createCtx(docs: Array<TestDoc>) {
     }),
     query: vi.fn((table: string) => {
       let rows = queryDocs(table)
+      const conditions: Array<{ field: string; value: unknown }> = []
+      const indexQuery = {
+        eq(field: string, value: unknown) {
+          conditions.push({ field, value })
+          return indexQuery
+        },
+      }
       const builder = {
         withIndex: vi.fn(
-          (_indexName: string, cb: (q: { eq: typeof eq }) => unknown) => {
-            const condition = cb({ eq }) as { field: string; value: unknown }
-            rows = rows.filter(
-              (doc) =>
-                (doc as unknown as Record<string, unknown>)[condition.field] ===
-                condition.value
+          (
+            _indexName: string,
+            cb: (q: typeof indexQuery) => typeof indexQuery
+          ) => {
+            cb(indexQuery)
+            rows = rows.filter((doc) =>
+              conditions.every(
+                (condition) =>
+                  (doc as unknown as Record<string, unknown>)[
+                    condition.field
+                  ] === condition.value
+              )
             )
             return builder
           }
@@ -160,10 +215,6 @@ function createCtx(docs: Array<TestDoc>) {
   } as unknown as QueryCtx & MutationCtx
 
   return { ctx, db, patches, deleted, inserted }
-}
-
-function eq(field: string, value: unknown) {
-  return { field, value }
 }
 
 function handler(registeredFunction: unknown) {
@@ -292,11 +343,13 @@ describe("public Convex function authorization", () => {
       week(week2Id, plan2Id),
       slot(slot1Id, week1Id, workout1Id),
       slot(slot2Id, week2Id, workout1Id),
+      workoutActivity(activity1Id, user2, workout1Id),
     ])
 
     await handler(workouts.remove)(ctx, { id: workout1Id })
 
     expect(deleted.has(workout1Id)).toBe(true)
+    expect(deleted.has(activity1Id)).toBe(false)
     expect(patches.get(slot1Id)).toEqual({ workoutId: null })
     expect(patches.has(slot2Id)).toBe(false)
     expect(db.patch).toHaveBeenCalledTimes(1)
