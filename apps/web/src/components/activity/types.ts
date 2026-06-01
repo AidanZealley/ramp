@@ -46,6 +46,7 @@ export type ActivityExperienceAPI = {
     resultFtp?: number | null
   }) => Promise<void>
   discard: () => Promise<void>
+  discardById: (activityId: Id<"activities">) => Promise<void>
   getResumeUrl: (activity: ActivityClientDoc) => {
     to: "/ride/$experienceId"
     params: { experienceId: string }

@@ -448,6 +448,65 @@ describe("LiveWorkoutExperienceView", () => {
     expect(screen.queryByText("Now riding")).toBeNull()
   })
 
+  it("discards a created activity when workout loading fails", async () => {
+    useQuery.mockImplementation((_query) =>
+      useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }
+    )
+    const dispatch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({ ok: false, reason: "capability-unsupported" })
+    const createdActivity = {
+      _id: "activity-1",
+      _creationTime: 1,
+      ownerId: "user-1",
+      sourceSnapshot: {
+        kind: "workout",
+        workoutId: "w1",
+        title: "Ramp Builder",
+        intervalsRevision: 0,
+        intervals: workoutDoc.intervals,
+        totalDurationSeconds: 60,
+        ftpAtStart: 200,
+      },
+    }
+    const discardById = vi.fn(() => Promise.resolve())
+
+    render(
+      <LiveWorkoutExperienceView
+        activity={
+          {
+            unresolvedActivity: null,
+            resumeActivity: null,
+            startWorkoutActivity: vi.fn(() =>
+              Promise.resolve({ ok: true, activity: createdActivity })
+            ),
+            startRouteActivity: vi.fn(),
+            startRampTestActivity: vi.fn(),
+            saveProgress: vi.fn(),
+            markPending: vi.fn(),
+            complete: vi.fn(),
+            discard: vi.fn(),
+            discardById,
+            getResumeUrl: vi.fn(),
+          } as never
+        }
+        session={createSession({ dispatchImpl: dispatch })}
+      />
+    )
+
+    fireEvent.click(screen.getByText("Ramp Builder"))
+    fireEvent.click(screen.getByText("Start workout"))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Connected trainer does not support ERG target power.")
+      ).toBeTruthy()
+    })
+    expect(discardById).toHaveBeenCalledWith("activity-1")
+    expect(screen.queryByText("Now riding")).toBeNull()
+  })
+
   it("renders the active dashboard metrics after a successful start", async () => {
     useQuery.mockImplementation((_query) =>
       useQuery.mock.calls.length % 2 === 1 ? [workoutDoc] : { ftp: 200 }

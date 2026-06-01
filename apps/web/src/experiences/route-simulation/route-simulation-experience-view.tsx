@@ -21,6 +21,7 @@ import { formatActivityDuration } from "@/components/activity/format"
 import { SaveActivityDialog } from "@/components/activity/save-activity-dialog"
 import { UnresolvedActivityDialog } from "@/components/activity/unresolved-activity-dialog"
 import { useUnitFormatters } from "@/hooks/use-unit-formatters"
+import { startActivityTransaction } from "@/hooks/activity/start-activity-transaction"
 
 type RouteSimulationExperienceViewProps = {
   activity?: ActivityExperienceAPI
@@ -46,7 +47,6 @@ export function RouteSimulationExperienceView({
     | undefined
   const linkedActivityId = search?.activityId
   const completeActivity = useMutation(api.activities.complete)
-  const discardActivity = useMutation(api.activities.discard)
   const markPendingActivity = useMutation(api.activities.markPending)
   const [blockedActivity, setBlockedActivity] =
     useState<ActivityClientDoc | null>(null)
@@ -55,6 +55,7 @@ export function RouteSimulationExperienceView({
   const units = useUnitFormatters()
   const [retryAfterResolve, setRetryAfterResolve] = useState(false)
   const [activityDialogBusy, setActivityDialogBusy] = useState(false)
+  const [startError, setStartError] = useState<string | null>(null)
   const loadedActivityId = useRef<string | null>(null)
   const trainerConnected = useRideSelector(session, (s) => s.trainerConnected)
   const supportsSimulation = session.controls
@@ -79,6 +80,7 @@ export function RouteSimulationExperienceView({
   const handleSelectRoute = useCallback(
     (routeId: Id<"routes">) => {
       ride.resetRideStateForRouteChange()
+      setStartError(null)
       route.handleSelectRoute(routeId)
     },
     [ride, route]
@@ -86,6 +88,7 @@ export function RouteSimulationExperienceView({
 
   const handleChangeRoute = useCallback(() => {
     ride.resetRideStateForRouteChange()
+    setStartError(null)
     route.handleChangeRoute()
   }, [ride, route])
 
@@ -132,28 +135,47 @@ export function RouteSimulationExperienceView({
 
   const handleStart = useCallback(async () => {
     if (!linkedRouteId) return
-    if (!activity) {
-      await ride.handleStart()
+
+    const transaction = await startActivityTransaction({
+      startActivity: async () => {
+        if (!activity) return { ok: true, activity: null }
+        return await activity.startRouteActivity({ routeId: linkedRouteId })
+      },
+      discardActivity: async (createdActivity) => {
+        await activity?.discardById(createdActivity._id)
+      },
+      resetLocal: () => {
+        ride.resetRideStateForRouteChange()
+      },
+      startLocal: async () => {
+        await ride.handleStart()
+        setStartError(null)
+      },
+    })
+
+    if (!transaction.ok) {
+      if (transaction.reason === "unresolvedActivityExists") {
+        setBlockedActivity(transaction.activity)
+        return
+      }
+      setStartError("Unable to start route simulation.")
       return
     }
-    const result = await activity.startRouteActivity({ routeId: linkedRouteId })
-    if (!result.ok) {
-      setBlockedActivity(result.activity)
-      return
-    }
+
+    const createdActivity = transaction.activity
+    if (!createdActivity) return
     void navigate({
       search: (previous) => ({
         ...previous,
-        activityId: result.activity._id,
+        activityId: createdActivity._id,
         routeSegmentId: linkedRouteSegmentId,
         routeId:
-          result.activity.sourceSnapshot.kind === "route"
-            ? result.activity.sourceSnapshot.routeId
+          createdActivity.sourceSnapshot.kind === "route"
+            ? createdActivity.sourceSnapshot.routeId
             : linkedRouteId,
       }),
       replace: true,
     })
-    await ride.handleStart()
   }, [activity, linkedRouteId, linkedRouteSegmentId, navigate, ride])
 
   const startDisabledReason = !route.parsedRoute
@@ -203,9 +225,9 @@ export function RouteSimulationExperienceView({
             if (!blockedActivity) return
             setActivityDialogBusy(true)
             try {
-              await discardActivity({ activityId: blockedActivity._id })
+              await activity?.discardById(blockedActivity._id)
               setBlockedActivity(null)
-              void handleStart()
+              await handleStart()
             } finally {
               setActivityDialogBusy(false)
             }
@@ -225,7 +247,9 @@ export function RouteSimulationExperienceView({
                   },
                   {
                     label: "Distance",
-                    value: units.distance(reviewActivity.summary.distanceMeters),
+                    value: units.distance(
+                      reviewActivity.summary.distanceMeters
+                    ),
                   },
                 ]
               : []
@@ -246,7 +270,7 @@ export function RouteSimulationExperienceView({
               setReviewActivity(null)
               if (retryAfterResolve) {
                 setRetryAfterResolve(false)
-                void handleStart()
+                await handleStart()
               }
             } finally {
               setActivityDialogBusy(false)
@@ -256,11 +280,11 @@ export function RouteSimulationExperienceView({
             if (!reviewActivity) return
             setActivityDialogBusy(true)
             try {
-              await discardActivity({ activityId: reviewActivity._id })
+              await activity?.discardById(reviewActivity._id)
               setReviewActivity(null)
               if (retryAfterResolve) {
                 setRetryAfterResolve(false)
-                void handleStart()
+                await handleStart()
               }
             } finally {
               setActivityDialogBusy(false)
@@ -275,6 +299,7 @@ export function RouteSimulationExperienceView({
           route={route}
           preferences={preferences}
           startDisabledReason={startDisabledReason}
+          startError={startError}
         />
       </>
     )
@@ -315,9 +340,9 @@ export function RouteSimulationExperienceView({
           if (!blockedActivity) return
           setActivityDialogBusy(true)
           try {
-            await discardActivity({ activityId: blockedActivity._id })
+            await activity?.discardById(blockedActivity._id)
             setBlockedActivity(null)
-            void handleStart()
+            await handleStart()
           } finally {
             setActivityDialogBusy(false)
           }
@@ -358,7 +383,7 @@ export function RouteSimulationExperienceView({
             setReviewActivity(null)
             if (retryAfterResolve) {
               setRetryAfterResolve(false)
-              void handleStart()
+              await handleStart()
             }
           } finally {
             setActivityDialogBusy(false)
@@ -368,11 +393,11 @@ export function RouteSimulationExperienceView({
           if (!reviewActivity) return
           setActivityDialogBusy(true)
           try {
-            await discardActivity({ activityId: reviewActivity._id })
+            await activity?.discardById(reviewActivity._id)
             setReviewActivity(null)
             if (retryAfterResolve) {
               setRetryAfterResolve(false)
-              void handleStart()
+              await handleStart()
             }
           } finally {
             setActivityDialogBusy(false)

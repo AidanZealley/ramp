@@ -39,6 +39,7 @@ import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { api } from "#convex/_generated/api"
+import { startActivityTransaction } from "@/hooks/activity/start-activity-transaction"
 
 const subscribeToPendingWorkout = () => () => undefined
 
@@ -118,7 +119,6 @@ export function RampTestExperienceView({
   }, [])
 
   const completeActivity = useMutation(api.activities.complete)
-  const discardActivity = useMutation(api.activities.discard)
   const markPendingActivity = useMutation(api.activities.markPending)
   const { ftp, preferencesReady } = useLiveWorkoutPreferences()
   const units = useUnitFormatters()
@@ -157,43 +157,59 @@ export function RampTestExperienceView({
 
     setIsStarting(true)
     try {
-      let sourceActivity: ActivityClientDoc | null = null
-      let ftpForTest = ftp
+      const transaction = await startActivityTransaction({
+        startActivity: async () => {
+          if (!activity) return { ok: true, activity: null }
+          return await activity.startRampTestActivity({
+            builtInId: RAMP_TEST_BUILT_IN_ID,
+            ftpAtStart: ftp,
+          })
+        },
+        discardActivity: async (createdActivity) => {
+          await activity?.discardById(createdActivity._id)
+        },
+        resetLocal: () => {
+          workoutController.clearWorkout()
+          setStarted(false)
+        },
+        startLocal: async (createdActivity) => {
+          const ftpForTest =
+            createdActivity?.sourceSnapshot.kind === "ramp-test"
+              ? createdActivity.sourceSnapshot.ftpAtStart
+              : ftp
 
-      if (activity) {
-        const startResult = await activity.startRampTestActivity({
-          builtInId: RAMP_TEST_BUILT_IN_ID,
-          ftpAtStart: ftp,
-        })
-        if (!startResult.ok) {
-          setBlockedActivity(startResult.activity)
+          workoutController.clearWorkout()
+          const result = await workoutController.loadWorkout(
+            getRampTestDefinition(),
+            ftpForTest
+          )
+
+          if (!result.ok) {
+            throw new Error(result.reason ?? "Unable to start ramp test.")
+          }
+
+          session.pause()
+          setStartError(null)
+          setActiveFtp(ftpForTest)
+          setStarted(true)
+        },
+      })
+
+      if (!mounted.current) return
+      if (!transaction.ok) {
+        if (transaction.reason === "unresolvedActivityExists") {
+          setBlockedActivity(transaction.activity)
           return
         }
-        sourceActivity = startResult.activity
-        if (startResult.activity.sourceSnapshot.kind === "ramp-test") {
-          ftpForTest = startResult.activity.sourceSnapshot.ftpAtStart
-        }
-      }
-
-      const result = await workoutController.loadWorkout(
-        getRampTestDefinition(),
-        ftpForTest
-      )
-      if (!mounted.current) return
-      if (!result.ok) {
         setStartError("Unable to start ramp test.")
-        setStarted(false)
         return
       }
-      session.pause()
-      setStartError(null)
-      setActiveFtp(ftpForTest)
-      setStarted(true)
-      if (sourceActivity) {
+      if (transaction.activity) {
+        const activityId = transaction.activity._id
         void navigate({
           search: (previous) => ({
             ...previous,
-            activityId: sourceActivity._id,
+            activityId,
           }),
           replace: true,
         })
@@ -201,6 +217,7 @@ export function RampTestExperienceView({
     } catch (error) {
       console.error("[ramp-test] start failed", error)
       if (!mounted.current) return
+      workoutController.clearWorkout()
       setStarted(false)
       setStartError("Unable to start ramp test.")
     } finally {
@@ -262,6 +279,14 @@ export function RampTestExperienceView({
     setStartError(null)
   }, [ftp, workoutController])
 
+  const handleSeek = useCallback(
+    async (elapsedSeconds: number) => {
+      if (!workoutController) return
+      await workoutController.seekToElapsedSeconds(elapsedSeconds)
+    },
+    [workoutController]
+  )
+
   const startDisabled =
     !workoutController ||
     !trainerConnected ||
@@ -304,9 +329,9 @@ export function RampTestExperienceView({
           if (!blockedActivity) return
           setActivityDialogBusy(true)
           try {
-            await discardActivity({ activityId: blockedActivity._id })
+            await activity?.discardById(blockedActivity._id)
             setBlockedActivity(null)
-            void handleStart()
+            await handleStart()
           } finally {
             setActivityDialogBusy(false)
           }
@@ -345,7 +370,7 @@ export function RampTestExperienceView({
             setReviewActivity(null)
             if (retryAfterResolve) {
               setRetryAfterResolve(false)
-              void handleStart()
+              await handleStart()
             }
           } finally {
             setActivityDialogBusy(false)
@@ -355,11 +380,11 @@ export function RampTestExperienceView({
           if (!reviewActivity) return
           setActivityDialogBusy(true)
           try {
-            await discardActivity({ activityId: reviewActivity._id })
+            await activity?.discardById(reviewActivity._id)
             setReviewActivity(null)
             if (retryAfterResolve) {
               setRetryAfterResolve(false)
-              void handleStart()
+              await handleStart()
             }
           } finally {
             setActivityDialogBusy(false)
@@ -380,6 +405,7 @@ export function RampTestExperienceView({
           onReconnect={connection?.reconnect}
           onPause={session.pause}
           onResume={session.resume}
+          onSeek={handleSeek}
           activity={activity}
         />
       ) : (
@@ -394,10 +420,11 @@ export function RampTestExperienceView({
                   Ramp Test
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Find your FTP with a progressive ramp. After a short warmup the
-                  target steps up by 20 W every minute. Hold each step as long as
-                  you can — when you can no longer keep up, the test drops into a
-                  cooldown and estimates your FTP at 75% of your best minute.
+                  Find your FTP with a progressive ramp. After a short warmup
+                  the target steps up by 20 W every minute. Hold each step as
+                  long as you can — when you can no longer keep up, the test
+                  drops into a cooldown and estimates your FTP at 75% of your
+                  best minute.
                 </p>
               </div>
               <Button

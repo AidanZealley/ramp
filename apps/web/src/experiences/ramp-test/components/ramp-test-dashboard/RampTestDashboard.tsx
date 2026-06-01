@@ -52,6 +52,7 @@ type RampTestDashboardProps = {
   onReconnect?: () => void
   onPause?: () => void
   onResume?: () => void
+  onSeek?: (elapsedSeconds: number) => void | Promise<void>
   activity?: ActivityExperienceAPI
 }
 
@@ -82,6 +83,7 @@ export function RampTestDashboard({
   onReconnect,
   onPause,
   onResume,
+  onSeek,
   activity,
 }: RampTestDashboardProps) {
   const trainerConnected = useRideSelector(session, (s) => s.trainerConnected)
@@ -402,7 +404,7 @@ export function RampTestDashboard({
         onPause={onPause}
         onResume={onResume}
         onStop={handleRequestEnd}
-        disableSeek
+        onSeek={onSeek}
         stopDialogOpen={stopDialogOpen}
         onStopDialogOpenChange={setStopDialogOpen}
       />

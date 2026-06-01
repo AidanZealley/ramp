@@ -29,9 +29,7 @@ import type {
 import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
 import type { ExperienceSessionAPI } from "@/ride/experience-session"
 import { useUnitFormatters } from "@/hooks/use-unit-formatters"
-import {
-  formatActivityDuration,
-} from "@/components/activity/format"
+import { formatActivityDuration } from "@/components/activity/format"
 import { UnresolvedActivityDialog } from "@/components/activity/unresolved-activity-dialog"
 import { SaveActivityDialog } from "@/components/activity/save-activity-dialog"
 import { api } from "#convex/_generated/api"
@@ -39,6 +37,7 @@ import {
   InvalidWorkoutDefinitionError,
   toWorkoutDefinition,
 } from "@/ride/convex-workout-mapper"
+import { startActivityTransaction } from "@/hooks/activity/start-activity-transaction"
 
 type WorkoutDoc = ClientWorkoutDoc
 
@@ -162,7 +161,6 @@ export function LiveWorkoutExperienceView({
 
   const workouts = useQuery(api.workouts.list)
   const completeActivity = useMutation(api.activities.complete)
-  const discardActivity = useMutation(api.activities.discard)
   const markPendingActivity = useMutation(api.activities.markPending)
   const { ftp, preferencesReady } = useLiveWorkoutPreferences()
 
@@ -303,74 +301,86 @@ export function LiveWorkoutExperienceView({
       !trainerConnected ||
       !selectedWorkoutHasDuration
     ) {
-      console.info("[live-workout] start ignored", {
-        hasWorkoutController: Boolean(workoutController),
-        hasWorkout: Boolean(selectedWorkout),
-        trainerConnected,
-        selectedWorkoutHasDuration,
-      })
       return
     }
 
     setIsStarting(true)
-    console.info("[live-workout] start requested", {
-      workoutId: selectedWorkout._id,
-      title: selectedWorkout.title,
-      trainerConnected,
-      supportsTargetPower,
-      capabilities: Array.from(session.controls.getCapabilities()),
-    })
 
     try {
-      let sourceActivity: ActivityClientDoc | null = null
-      let workoutToLoad = selectedWorkout
-      let ftpForWorkout = ftp
+      let startedWorkout = selectedWorkout
+      const transaction = await startActivityTransaction({
+        startActivity: async () => {
+          if (!activity) return { ok: true, activity: null }
+          return await activity.startWorkoutActivity({
+            workoutId: selectedWorkout._id,
+            ftpAtStart: ftp,
+          })
+        },
+        discardActivity: async (createdActivity) => {
+          await activity?.discardById(createdActivity._id)
+        },
+        resetLocal: () => {
+          workoutController.clearWorkout()
+          setActiveWorkout(null)
+        },
+        startLocal: async (createdActivity) => {
+          let workoutToLoad = selectedWorkout
+          let ftpForWorkout = ftp
 
-      if (activity) {
-        const startResult = await activity.startWorkoutActivity({
-          workoutId: selectedWorkout._id,
-          ftpAtStart: ftp,
-        })
-        if (!startResult.ok) {
-          setBlockedActivity(startResult.activity)
+          if (createdActivity) {
+            const snapshotWorkout = workoutFromSnapshot(createdActivity)
+            if (
+              snapshotWorkout &&
+              createdActivity.sourceSnapshot.kind === "workout"
+            ) {
+              workoutToLoad = snapshotWorkout
+              ftpForWorkout = createdActivity.sourceSnapshot.ftpAtStart
+            }
+          }
+
+          const definition = toWorkoutDefinition(workoutToLoad)
+          workoutController.clearWorkout()
+          const result = await workoutController.loadWorkout(
+            definition,
+            ftpForWorkout
+          )
+          if (!result.ok) {
+            throw new Error(result.reason ?? "Unable to start workout.")
+          }
+
+          session.pause()
+          setStartError(null)
+          setActiveFtp(ftpForWorkout)
+          setActiveWorkout(workoutToLoad)
+          startedWorkout = workoutToLoad
+        },
+      })
+
+      if (!mounted.current) return
+      if (!transaction.ok) {
+        if (transaction.reason === "unresolvedActivityExists") {
+          setBlockedActivity(transaction.activity)
           return
         }
-        sourceActivity = startResult.activity
-        const snapshotWorkout = workoutFromSnapshot(startResult.activity)
-        if (
-          snapshotWorkout &&
-          startResult.activity.sourceSnapshot.kind === "workout"
-        ) {
-          workoutToLoad = snapshotWorkout
-          ftpForWorkout = startResult.activity.sourceSnapshot.ftpAtStart
+        if (transaction.error instanceof InvalidWorkoutDefinitionError) {
+          setStartError("Workout data is invalid.")
+          return
         }
-      }
-
-      const definition = toWorkoutDefinition(workoutToLoad)
-      const result = await workoutController.loadWorkout(
-        definition,
-        ftpForWorkout
-      )
-      console.info("[live-workout] loadWorkout result", result)
-      if (!mounted.current) return
-      if (!result.ok) {
-        setStartError(getWorkoutErrorCopy(result.reason))
-        setActiveWorkout(null)
+        const reason =
+          transaction.error instanceof Error ? transaction.error.message : null
+        setStartError(getWorkoutErrorCopy(reason) ?? "Unable to start workout.")
         return
       }
-      session.pause()
-      setStartError(null)
-      setActiveFtp(ftpForWorkout)
-      setActiveWorkout(workoutToLoad)
-      if (sourceActivity) {
+      const createdActivity = transaction.activity
+      if (createdActivity) {
         void navigate({
           search: (previous) => ({
             ...previous,
-            activityId: sourceActivity._id,
+            activityId: createdActivity._id,
             workoutId:
-              sourceActivity.sourceSnapshot.kind === "workout"
-                ? sourceActivity.sourceSnapshot.workoutId
-                : selectedWorkout._id,
+              createdActivity.sourceSnapshot.kind === "workout"
+                ? createdActivity.sourceSnapshot.workoutId
+                : startedWorkout._id,
           }),
           replace: true,
         })
@@ -480,9 +490,9 @@ export function LiveWorkoutExperienceView({
           if (!blockedActivity) return
           setActivityDialogBusy(true)
           try {
-            await discardActivity({ activityId: blockedActivity._id })
+            await activity?.discardById(blockedActivity._id)
             setBlockedActivity(null)
-            void handleStart()
+            await handleStart()
           } finally {
             setActivityDialogBusy(false)
           }
@@ -524,7 +534,7 @@ export function LiveWorkoutExperienceView({
             setReviewActivity(null)
             if (retryAfterResolve) {
               setRetryAfterResolve(false)
-              void handleStart()
+              await handleStart()
             }
           } finally {
             setActivityDialogBusy(false)
@@ -534,11 +544,11 @@ export function LiveWorkoutExperienceView({
           if (!reviewActivity) return
           setActivityDialogBusy(true)
           try {
-            await discardActivity({ activityId: reviewActivity._id })
+            await activity?.discardById(reviewActivity._id)
             setReviewActivity(null)
             if (retryAfterResolve) {
               setRetryAfterResolve(false)
-              void handleStart()
+              await handleStart()
             }
           } finally {
             setActivityDialogBusy(false)

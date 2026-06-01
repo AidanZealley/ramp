@@ -243,11 +243,19 @@ export function useActivitySession({
     [completeMutation, requireActiveActivityId]
   )
 
+  const discardById = useCallback(
+    async (activityId: Id<"activities">) => {
+      await discardMutation({ activityId })
+      setLocalActivity((current) =>
+        current?._id === activityId ? null : current
+      )
+    },
+    [discardMutation]
+  )
+
   const discard = useCallback(async () => {
-    const currentActivityId = requireActiveActivityId()
-    await discardMutation({ activityId: currentActivityId })
-    setLocalActivity(null)
-  }, [discardMutation, requireActiveActivityId])
+    await discardById(requireActiveActivityId())
+  }, [discardById, requireActiveActivityId])
 
   const getResumeUrl = useCallback(getActivityResumeUrl, [])
 
@@ -262,11 +270,13 @@ export function useActivitySession({
       markPending,
       complete,
       discard,
+      discardById,
       getResumeUrl,
     }),
     [
       complete,
       discard,
+      discardById,
       getResumeUrl,
       markPending,
       resumeActivity,

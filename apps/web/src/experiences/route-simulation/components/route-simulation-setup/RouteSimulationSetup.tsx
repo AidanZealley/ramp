@@ -36,6 +36,7 @@ type RouteSimulationSetupProps = {
     "physicsProfileReady" | "progressMode"
   >
   startDisabledReason: string | null
+  startError?: string | null
 }
 
 export const RouteSimulationSetup = ({
@@ -46,6 +47,7 @@ export const RouteSimulationSetup = ({
   route,
   preferences,
   startDisabledReason,
+  startError,
 }: RouteSimulationSetupProps) => {
   const {
     activeRouteTitle,
@@ -172,6 +174,11 @@ export const RouteSimulationSetup = ({
             <Play />
             Start
           </Button>
+          {startError ? (
+            <p className="mt-3 text-center text-sm text-destructive">
+              {startError}
+            </p>
+          ) : null}
         </aside>
       </div>
     </div>
