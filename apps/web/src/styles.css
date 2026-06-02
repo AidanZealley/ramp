@@ -142,3 +142,17 @@
     font-family: var(--font-sans);
   }
 }
+
+/* Free Ride HUD: lit power segments pulse when power exceeds full-scale. */
+@keyframes free-ride-hud-flash {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+.free-ride-hud-flash {
+  animation: free-ride-hud-flash 0.55s ease-in-out infinite;
+}

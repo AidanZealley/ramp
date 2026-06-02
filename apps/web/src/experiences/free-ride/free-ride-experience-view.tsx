@@ -1,0 +1,74 @@
+import { useCallback, useEffect, useMemo, useRef } from "react"
+import { useRideFrame } from "@ramp/ride-react"
+import { FreeRideScene } from "./components/free-ride-scene"
+import { FreeRideHud } from "./components/free-ride-hud"
+import { createRideState } from "./ride-state"
+import { clamp } from "./track"
+import type { ExperienceSessionAPI } from "@/ride/experience-session"
+
+const GRADE_DISPATCH_INTERVAL_MS = 250
+const GRADE_DEADBAND_PERCENT = 0.5
+const MAX_GRADE_PERCENT = 15
+
+/**
+ * Free Ride — a first-person, Redout-style flight down a neon anti-gravity
+ * track. Pure visual: it records no activity. Forward speed is trainer-driven
+ * (with a cruise fallback when no trainer speed is present) and the track
+ * gradient is fed back to the trainer as simulation grade.
+ */
+export function FreeRideExperienceView({
+  session,
+}: {
+  session: ExperienceSessionAPI
+}) {
+  const rideState = useMemo(() => createRideState(), [])
+  const lastGradePercent = useRef<number | null>(null)
+  const lastDispatchMs = useRef(0)
+
+  // Keep speed source live and dispatch simulation grade (throttled + deadband).
+  useRideFrame(
+    session,
+    useCallback(
+      (frame) => {
+        rideState.telemetrySpeedMps = frame.telemetry?.speedMps ?? null
+
+        const now = Date.now()
+        if (now - lastDispatchMs.current < GRADE_DISPATCH_INTERVAL_MS) return
+
+        const gradePercent = clamp(
+          rideState.grade * 100,
+          -MAX_GRADE_PERCENT,
+          MAX_GRADE_PERCENT
+        )
+        if (
+          lastGradePercent.current === null ||
+          Math.abs(gradePercent - lastGradePercent.current) >= GRADE_DEADBAND_PERCENT
+        ) {
+          lastGradePercent.current = gradePercent
+          lastDispatchMs.current = now
+          void session.controls.dispatch(
+            { type: "setSimulationGrade", gradePercent },
+            "experience"
+          )
+        }
+      },
+      [session, rideState]
+    )
+  )
+
+  // Track trainer connection so motion can fall back to cruise when idle.
+  useEffect(() => {
+    const update = () => {
+      rideState.trainerConnected = session.getState().trainerConnected
+    }
+    update()
+    return session.subscribe(update)
+  }, [session, rideState])
+
+  return (
+    <div className="relative h-full w-full">
+      <FreeRideScene rideState={rideState} />
+      <FreeRideHud session={session} rideState={rideState} />
+    </div>
+  )
+}

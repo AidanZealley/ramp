@@ -55,6 +55,23 @@ export const rideExperiences: Array<RideExperienceDefinition> = [
       (await import("./route-simulation")).routeSimulationExperience,
   },
   {
+    id: "free-ride",
+    displayName: "Free Ride",
+    description:
+      "A first-person flight down a glowing anti-gravity track. Pure ride-for-the-vibe — banking neon turns, no targets.",
+    tags: ["3D", "free ride", "visual"],
+    accent: {
+      from: "#1a0b3a",
+      to: "#ff2bd6",
+      ink: "#f3e9ff",
+    },
+    preview: {
+      eyebrow: "Neon flight",
+      spotlight: "Redout-style 3D world",
+    },
+    loadPlugin: async () => (await import("./free-ride")).freeRideExperience,
+  },
+  {
     id: "diagnostics",
     displayName: "Diagnostics",
     description:
