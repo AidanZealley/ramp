@@ -105,7 +105,7 @@ export const MetricPod = ({
   return (
     <div
       className={cn(
-        "relative flex h-[clamp(5rem,75vw,8rem)] items-center",
+        "relative flex h-[clamp(5rem,8.5vw,8rem)] items-center",
         // The dial side is fully rounded; the inner side is gently rounded.
         isLeft ? "flex-row" : "flex-row-reverse",
         roundedClass
