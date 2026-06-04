@@ -51,14 +51,18 @@ export const FREE_RIDE_CAMERA = {
   /** Position/orientation smoothing (per second). Higher = snappier. */
   positionLerpRate: 6,
   orientationLerpRate: 7,
-  /** Extra visual grade cue: uphill keeps eye lower, downhill lets it float higher. */
-  gradeHeightBiasMeters: 1.15,
-  /** Grade percent where the visual bias reaches full strength. */
-  gradeHeightBiasFullGradePercent: 10,
+  /** Look-ahead grade cue: climbs lift early, descents float higher for drama. */
+  gradeHeightBiasLookAheadMeters: 34,
+  gradeHeightBiasTrailMeters: 10,
+  gradeClimbLiftMeters: 0.75,
+  gradeDescentLiftMeters: 1.35,
+  gradeClimbFullGradePercent: 10,
+  gradeDescentFullGradePercent: 10,
   /** Prevent rapid grade transitions from popping the camera vertically. */
   gradeHeightBiasLerpRate: 2.8,
-  /** Apply a milder bias to the look target so the horizon also signals grade. */
-  gradeTargetBiasMultiplier: 0.45,
+  /** Apply asymmetric look-target bias so descents read more dramatically. */
+  gradeClimbTargetBiasMultiplier: 0.25,
+  gradeDescentTargetBiasMultiplier: 0.55,
   /** Subtle look-target yaw bias into upcoming turns for a rear-end drift feel. */
   yawDriftLookAheadMeters: 24,
   yawDriftStrengthMeters: 3.8,

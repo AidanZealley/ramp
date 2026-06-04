@@ -1,51 +1,85 @@
 import { describe, expect, it } from "vitest"
 import { FREE_RIDE_CAMERA, FREE_RIDE_MOTION } from "../../free-ride-config"
-import { getLateralCurvature } from "../../track"
-import { getGradeHeightBiasTarget, getYawDriftTarget } from "./utils"
+import {
+  createTrackSample,
+  getLateralCurvature,
+  sampleTrackInto,
+} from "../../track"
+import { getGradeCameraBiasTarget, getYawDriftTarget } from "./utils"
 
-describe("getGradeHeightBiasTarget", () => {
-  it("returns zero on flat grades", () => {
-    expect(getGradeHeightBiasTarget(0)).toBe(0)
+describe("getGradeCameraBiasTarget", () => {
+  it("stays near zero on flat-ish sections", () => {
+    let checked = 0
+
+    for (let distance = 0; distance <= 20000; distance += 1) {
+      if (!gradeBiasWindowIsFlat(distance)) continue
+
+      const bias = getGradeCameraBiasTarget(distance)
+      expect(Math.abs(bias.eyeHeightMeters)).toBeLessThan(0.12)
+      expect(Math.abs(bias.targetHeightMeters)).toBeLessThan(0.08)
+      checked += 1
+      if (checked >= 12) break
+    }
+
+    expect(checked).toBeGreaterThanOrEqual(12)
   })
 
-  it("returns negative bias on positive grades", () => {
-    expect(getGradeHeightBiasTarget(0.05)).toBeLessThan(0)
+  it("lifts the camera on climbs", () => {
+    const distance = findGradeDistance(0.08, 1)
+    const bias = getGradeCameraBiasTarget(distance)
+
+    expect(bias.eyeHeightMeters).toBeGreaterThan(0)
+    expect(bias.targetHeightMeters).toBeGreaterThan(0)
   })
 
-  it("returns positive bias on negative grades", () => {
-    expect(getGradeHeightBiasTarget(-0.05)).toBeGreaterThan(0)
-  })
+  it("makes descents more dramatic than climbs", () => {
+    const climbDistance = findGradeDistance(0.08, 1)
+    const descentDistance = findGradeDistance(0.08, -1)
+    const climbBias = getGradeCameraBiasTarget(climbDistance)
+    const descentBias = getGradeCameraBiasTarget(descentDistance)
 
-  it("reaches configured magnitude at the full positive grade threshold", () => {
-    const fullGrade = FREE_RIDE_CAMERA.gradeHeightBiasFullGradePercent / 100
-
-    expect(getGradeHeightBiasTarget(fullGrade)).toBeCloseTo(
-      -FREE_RIDE_CAMERA.gradeHeightBiasMeters
+    expect(descentBias.eyeHeightMeters).toBeGreaterThan(
+      climbBias.eyeHeightMeters
+    )
+    expect(descentBias.targetHeightMeters).toBeGreaterThan(
+      climbBias.targetHeightMeters
     )
   })
 
-  it("reaches configured magnitude at the full negative grade threshold", () => {
-    const fullGrade = -FREE_RIDE_CAMERA.gradeHeightBiasFullGradePercent / 100
-
-    expect(getGradeHeightBiasTarget(fullGrade)).toBeCloseTo(
-      FREE_RIDE_CAMERA.gradeHeightBiasMeters
+  it("lifts before a climb reaches the rider", () => {
+    const distance = findPreClimbDistance()
+    const currentGrade = sampleGrade(distance)
+    const futureGrade = sampleGrade(
+      distance + FREE_RIDE_CAMERA.gradeHeightBiasLookAheadMeters
     )
+    const bias = getGradeCameraBiasTarget(distance)
+
+    expect(Math.abs(currentGrade)).toBeLessThan(0.025)
+    expect(futureGrade).toBeGreaterThan(0.06)
+    expect(bias.eyeHeightMeters).toBeGreaterThan(0)
   })
 
-  it("clamps beyond the full-grade threshold", () => {
-    const fullGrade = FREE_RIDE_CAMERA.gradeHeightBiasFullGradePercent / 100
-
-    expect(getGradeHeightBiasTarget(fullGrade * 2)).toBeCloseTo(
-      -FREE_RIDE_CAMERA.gradeHeightBiasMeters
+  it("stays finite and bounded across a long sweep", () => {
+    const maxEyeLift = Math.max(
+      FREE_RIDE_CAMERA.gradeClimbLiftMeters,
+      FREE_RIDE_CAMERA.gradeDescentLiftMeters
     )
-    expect(getGradeHeightBiasTarget(fullGrade * -2)).toBeCloseTo(
-      FREE_RIDE_CAMERA.gradeHeightBiasMeters
+    const maxTargetLift = Math.max(
+      FREE_RIDE_CAMERA.gradeClimbLiftMeters *
+        FREE_RIDE_CAMERA.gradeClimbTargetBiasMultiplier,
+      FREE_RIDE_CAMERA.gradeDescentLiftMeters *
+        FREE_RIDE_CAMERA.gradeDescentTargetBiasMultiplier
     )
-  })
 
-  it("returns finite values across realistic steep grades", () => {
-    for (let grade = -0.3; grade <= 0.3; grade += 0.01) {
-      expect(Number.isFinite(getGradeHeightBiasTarget(grade))).toBe(true)
+    for (let distance = 0; distance <= 20000; distance += 17) {
+      const bias = getGradeCameraBiasTarget(distance)
+
+      expect(Number.isFinite(bias.eyeHeightMeters)).toBe(true)
+      expect(Number.isFinite(bias.targetHeightMeters)).toBe(true)
+      expect(bias.eyeHeightMeters).toBeGreaterThanOrEqual(0)
+      expect(bias.eyeHeightMeters).toBeLessThanOrEqual(maxEyeLift + 1e-9)
+      expect(bias.targetHeightMeters).toBeGreaterThanOrEqual(0)
+      expect(bias.targetHeightMeters).toBeLessThanOrEqual(maxTargetLift + 1e-9)
     }
   })
 })
@@ -129,7 +163,10 @@ describe("getYawDriftTarget", () => {
       const curvature = getLateralCurvature(
         distance + FREE_RIDE_CAMERA.yawDriftLookAheadMeters
       )
-      if (Math.abs(curvature) < 0.0005 || !yawDriftWindowMatchesSign(distance)) {
+      if (
+        Math.abs(curvature) < 0.0005 ||
+        !yawDriftWindowMatchesSign(distance)
+      ) {
         continue
       }
 
@@ -168,3 +205,47 @@ function getYawDriftWindowCurvatures(distance: number): Array<number> {
     getLateralCurvature(distance + offset)
   )
 }
+
+function findGradeDistance(threshold: number, sign: 1 | -1): number {
+  for (let distance = 0; distance <= 20000; distance += 1) {
+    const grade = sampleGrade(distance)
+    if (Math.sign(grade) === sign && Math.abs(grade) >= threshold) {
+      return distance
+    }
+  }
+
+  throw new Error("Expected to find a strong grade section")
+}
+
+function findPreClimbDistance(): number {
+  for (let distance = 0; distance <= 20000; distance += 1) {
+    const currentGrade = sampleGrade(distance)
+    const futureGrade = sampleGrade(
+      distance + FREE_RIDE_CAMERA.gradeHeightBiasLookAheadMeters
+    )
+
+    if (Math.abs(currentGrade) < 0.025 && futureGrade > 0.06) {
+      return distance
+    }
+  }
+
+  throw new Error("Expected to find an approaching climb")
+}
+
+function gradeBiasWindowIsFlat(distance: number): boolean {
+  for (
+    let offset = -FREE_RIDE_CAMERA.gradeHeightBiasTrailMeters;
+    offset <= FREE_RIDE_CAMERA.gradeHeightBiasLookAheadMeters;
+    offset += 5.5
+  ) {
+    if (Math.abs(sampleGrade(distance + offset)) > 0.018) return false
+  }
+
+  return true
+}
+
+function sampleGrade(distance: number): number {
+  return sampleTrackInto(distance, sampleGradeScratch).grade
+}
+
+const sampleGradeScratch = createTrackSample()

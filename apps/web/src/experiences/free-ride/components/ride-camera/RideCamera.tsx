@@ -12,7 +12,7 @@ import {
 import { measureFreeRideSection } from "../../perf"
 import type { RideState } from "../../ride-state"
 import type { PerspectiveCamera } from "three"
-import { getGradeHeightBiasTarget, getYawDriftTarget } from "./utils"
+import { getGradeCameraBiasTarget, getYawDriftTarget } from "./utils"
 
 type RideCameraProps = {
   rideState: RideState
@@ -35,7 +35,8 @@ export function RideCamera({ rideState }: RideCameraProps) {
       tangent: new Vector3(),
       up: new Vector3(),
       aheadSample: createTrackSample(),
-      gradeHeightBias: 0,
+      gradeEyeHeightBias: 0,
+      gradeTargetHeightBias: 0,
       yawDrift: 0,
     }),
     []
@@ -52,7 +53,7 @@ export function RideCamera({ rideState }: RideCameraProps) {
       const ahead = sampleTrackInto(aheadDistance, scratch.aheadSample)
       const hereOffset = getRacingLineOffset(rideState.distance)
       const aheadOffset = getRacingLineOffset(aheadDistance)
-      const targetGradeHeightBias = getGradeHeightBiasTarget(rideState.grade)
+      const targetGradeBias = getGradeCameraBiasTarget(rideState.distance)
       const gradeBiasLerp =
         1 - Math.exp(-FREE_RIDE_CAMERA.gradeHeightBiasLerpRate * dt)
       const targetYawDrift = getYawDriftTarget({
@@ -62,8 +63,12 @@ export function RideCamera({ rideState }: RideCameraProps) {
       })
       const yawDriftLerp = 1 - Math.exp(-FREE_RIDE_CAMERA.yawDriftLerpRate * dt)
 
-      scratch.gradeHeightBias +=
-        (targetGradeHeightBias - scratch.gradeHeightBias) * gradeBiasLerp
+      scratch.gradeEyeHeightBias +=
+        (targetGradeBias.eyeHeightMeters - scratch.gradeEyeHeightBias) *
+        gradeBiasLerp
+      scratch.gradeTargetHeightBias +=
+        (targetGradeBias.targetHeightMeters - scratch.gradeTargetHeightBias) *
+        gradeBiasLerp
       scratch.yawDrift += (targetYawDrift - scratch.yawDrift) * yawDriftLerp
 
       up.set(here.up[0], here.up[1], here.up[2])
@@ -89,7 +94,7 @@ export function RideCamera({ rideState }: RideCameraProps) {
       eye.set(here.position[0], getVisualTrackY(here), here.position[2])
       eye.addScaledVector(hereRight, hereOffset)
       eye.addScaledVector(up, FREE_RIDE_CAMERA.eyeHeightMeters + bob)
-      eye.y += scratch.gradeHeightBias
+      eye.y += scratch.gradeEyeHeightBias
 
       target.set(ahead.position[0], getVisualTrackY(ahead), ahead.position[2])
       target.addScaledVector(aheadRight, aheadOffset + scratch.yawDrift)
@@ -97,8 +102,7 @@ export function RideCamera({ rideState }: RideCameraProps) {
         up,
         FREE_RIDE_CAMERA.eyeHeightMeters - FREE_RIDE_CAMERA.lookDownMeters
       )
-      target.y +=
-        scratch.gradeHeightBias * FREE_RIDE_CAMERA.gradeTargetBiasMultiplier
+      target.y += scratch.gradeTargetHeightBias
 
       const positionLerp = 1 - Math.exp(-FREE_RIDE_CAMERA.positionLerpRate * dt)
       const orientationLerp =
