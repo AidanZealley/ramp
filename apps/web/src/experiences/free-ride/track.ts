@@ -78,7 +78,7 @@ function sumSinDeriv2(harmonics: Array<Harmonic>, s: number): number {
   return total
 }
 
-function lateralCurvatureAt(distance: number): number {
+export function getLateralCurvature(distance: number): number {
   return sumSinDeriv2(LATERAL, distance)
 }
 
@@ -105,7 +105,7 @@ export function sampleTrack(distance: number): TrackSample {
   const tangent = normalize([dx, dy, 1])
 
   // Lean into the turn from the lateral curvature (second derivative).
-  const curvature = sumSinDeriv2(LATERAL, s)
+  const curvature = getLateralCurvature(s)
   const bank = clamp(curvature * BANK_GAIN, -MAX_BANK, MAX_BANK)
 
   // Horizontal "right" of travel, then a stable up perpendicular to both.
@@ -152,9 +152,9 @@ export function offsetAlongRight(sample: TrackSample, lateral: number): Vec3 {
 }
 
 export function getRacingLineOffset(distance: number): number {
-  const entryCurvature = lateralCurvatureAt(distance + 34)
-  const apexCurvature = lateralCurvatureAt(distance + 14)
-  const exitCurvature = lateralCurvatureAt(distance - 18)
+  const entryCurvature = getLateralCurvature(distance + 34)
+  const apexCurvature = getLateralCurvature(distance + 14)
+  const exitCurvature = getLateralCurvature(distance - 18)
 
   const apex = Math.tanh(apexCurvature * 120) * 3
   const entry = -Math.tanh(entryCurvature * 120) * 0.75

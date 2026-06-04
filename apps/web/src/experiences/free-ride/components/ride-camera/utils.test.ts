@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
-import { FREE_RIDE_CAMERA } from "../../free-ride-config"
-import { getGradeHeightBiasTarget } from "./utils"
+import { FREE_RIDE_CAMERA, FREE_RIDE_MOTION } from "../../free-ride-config"
+import { getLateralCurvature } from "../../track"
+import { getGradeHeightBiasTarget, getYawDriftTarget } from "./utils"
 
 describe("getGradeHeightBiasTarget", () => {
   it("returns zero on flat grades", () => {
@@ -48,3 +49,107 @@ describe("getGradeHeightBiasTarget", () => {
     }
   })
 })
+
+describe("getYawDriftTarget", () => {
+  const maxSpeed = FREE_RIDE_MOTION.maxSpeedMps
+  const cruiseSpeed = FREE_RIDE_MOTION.cruiseSpeedMps
+
+  it("returns zero with no speed", () => {
+    expect(getYawDriftTarget({ distance: 1000, speed: 0, maxSpeed })).toBe(0)
+  })
+
+  it("returns finite values across a long sweep", () => {
+    for (let distance = 0; distance <= 20000; distance += 31) {
+      for (const speed of [0, cruiseSpeed, maxSpeed]) {
+        expect(
+          Number.isFinite(getYawDriftTarget({ distance, speed, maxSpeed }))
+        ).toBe(true)
+      }
+    }
+  })
+
+  it("stays bounded by the configured strength", () => {
+    for (let distance = 0; distance <= 20000; distance += 17) {
+      const value = getYawDriftTarget({ distance, speed: maxSpeed, maxSpeed })
+
+      expect(Math.abs(value)).toBeLessThanOrEqual(
+        FREE_RIDE_CAMERA.yawDriftStrengthMeters + 1e-9
+      )
+    }
+  })
+
+  it("is near zero on near-straights", () => {
+    let checked = 0
+
+    for (let distance = 0; distance <= 20000; distance += 1) {
+      const curvature = getLateralCurvature(
+        distance + FREE_RIDE_CAMERA.yawDriftLookAheadMeters
+      )
+      if (Math.abs(curvature) > 0.0001) continue
+
+      const drift = getYawDriftTarget({ distance, speed: maxSpeed, maxSpeed })
+      expect(Math.abs(drift)).toBeLessThan(0.08)
+      checked += 1
+      if (checked >= 25) break
+    }
+
+    expect(checked).toBeGreaterThanOrEqual(25)
+  })
+
+  it("gates by speed", () => {
+    const distance = findTurningDistance()
+    const lowSpeed = maxSpeed * FREE_RIDE_CAMERA.yawDriftSpeedMinRatio * 0.5
+    const midSpeed =
+      maxSpeed *
+      ((FREE_RIDE_CAMERA.yawDriftSpeedMinRatio +
+        FREE_RIDE_CAMERA.yawDriftSpeedFullRatio) /
+        2)
+
+    const lowDrift = getYawDriftTarget({
+      distance,
+      speed: lowSpeed,
+      maxSpeed,
+    })
+    const midDrift = getYawDriftTarget({
+      distance,
+      speed: midSpeed,
+      maxSpeed,
+    })
+    const fullDrift = getYawDriftTarget({
+      distance,
+      speed: maxSpeed,
+      maxSpeed,
+    })
+
+    expect(lowDrift).toBe(0)
+    expect(Math.abs(fullDrift)).toBeGreaterThan(Math.abs(midDrift))
+  })
+
+  it("follows the sign of upcoming curvature", () => {
+    let checked = 0
+
+    for (let distance = 0; distance <= 20000; distance += 19) {
+      const curvature = getLateralCurvature(
+        distance + FREE_RIDE_CAMERA.yawDriftLookAheadMeters
+      )
+      if (Math.abs(curvature) < 0.0005) continue
+
+      const drift = getYawDriftTarget({ distance, speed: maxSpeed, maxSpeed })
+      expect(Math.sign(drift)).toBe(Math.sign(curvature))
+      checked += 1
+    }
+
+    expect(checked).toBeGreaterThan(50)
+  })
+})
+
+function findTurningDistance(): number {
+  for (let distance = 0; distance <= 20000; distance += 1) {
+    const curvature = getLateralCurvature(
+      distance + FREE_RIDE_CAMERA.yawDriftLookAheadMeters
+    )
+    if (Math.abs(curvature) > 0.001) return distance
+  }
+
+  throw new Error("Expected to find a meaningful turning section")
+}
