@@ -1,4 +1,4 @@
-import { Canvas } from "@react-three/fiber"
+import { Canvas, useFrame } from "@react-three/fiber"
 import { FogExp2 } from "three"
 import {
   FREE_RIDE_CAMERA,
@@ -14,10 +14,19 @@ import { RideSky } from "../ride-sky"
 import { SceneryField } from "../scenery-field"
 import { TrackEdges } from "../track-edges"
 import { TrackRibbon } from "../track-ribbon"
+import { installFreeRidePerfProbe, recordFreeRideFrame } from "../../perf"
 import type { RideState } from "../../ride-state"
 
 type FreeRideSceneProps = {
   rideState: RideState
+}
+
+function FreeRidePerfRecorder() {
+  useFrame((_, delta) => {
+    recordFreeRideFrame(delta)
+  })
+
+  return null
 }
 
 /**
@@ -38,13 +47,18 @@ export function FreeRideScene({ rideState }: FreeRideSceneProps) {
         position: [0, FREE_RIDE_CAMERA.eyeHeightMeters, 0],
       }}
       gl={{ antialias: true, alpha: false }}
-      onCreated={({ scene }) => {
+      onCreated={({ gl, scene }) => {
         scene.fog = new FogExp2(FREE_RIDE_PALETTE.fog, FREE_RIDE_FOG.density)
+        installFreeRidePerfProbe(gl)
       }}
     >
       <color attach="background" args={[FREE_RIDE_PALETTE.fog]} />
       <ambientLight intensity={0.36} color={FREE_RIDE_PALETTE.neonViolet} />
-      <directionalLight intensity={0.55} position={[40, 100, -30]} color="#9bb2ff" />
+      <directionalLight
+        intensity={0.55}
+        position={[40, 100, -30]}
+        color="#9bb2ff"
+      />
 
       <RideSky />
       <RideMotion rideState={rideState} />
@@ -55,6 +69,7 @@ export function FreeRideScene({ rideState }: FreeRideSceneProps) {
       <FloatingStructures rideState={rideState} />
 
       <PostFx />
+      <FreeRidePerfRecorder />
     </Canvas>
   )
 }

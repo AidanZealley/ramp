@@ -2,10 +2,11 @@
  * Pure, deterministic track geometry for the Free Ride experience.
  *
  * The track centerline is an analytic function of `distance` (a sum of sines),
- * so `sampleTrack` is O(1), allocation-free in its hot path, and trivially
+ * so `sampleTrackInto` is O(1), allocation-free in its hot path, and trivially
  * unit-testable without any three.js / WebGL dependency. The scene rebuilds the
  * ribbon every frame by re-sampling this function across a sliding window, which
- * gives a seamless treadmill with no chunk swapping.
+ * gives a seamless treadmill with no chunk swapping. `sampleTrack` remains a
+ * fresh-object wrapper for tests and non-hot-path callers.
  *
  * Convention: `distance` runs along +Z (forward). The path sweeps in X (turns)
  * and undulates in Y (physical elevation). `bank` leans the cross-section into
@@ -18,7 +19,7 @@ import { FREE_RIDE_ELEVATION } from "./free-ride-config"
 
 export type Vec3 = [number, number, number]
 
-export type TrackSample = {
+export type MutableTrackSample = {
   /** World position of the centerline at this distance. */
   position: Vec3
   /** Unit forward direction. */
@@ -32,6 +33,8 @@ export type TrackSample = {
   /** Slope (dy/ddistance), used to drive trainer simulation grade. */
   grade: number
 }
+
+export type TrackSample = MutableTrackSample
 
 type Harmonic = { amp: number; len: number; phase: number }
 
@@ -65,7 +68,8 @@ function sumSin(harmonics: Array<Harmonic>, s: number): number {
 /** First derivative (d/ds) of a sum-of-sines. */
 function sumSinDeriv(harmonics: Array<Harmonic>, s: number): number {
   let total = 0
-  for (const h of harmonics) total += (h.amp / h.len) * Math.cos(s / h.len + h.phase)
+  for (const h of harmonics)
+    total += (h.amp / h.len) * Math.cos(s / h.len + h.phase)
   return total
 }
 
@@ -82,49 +86,95 @@ export function getLateralCurvature(distance: number): number {
   return sumSinDeriv2(LATERAL, distance)
 }
 
-function normalize(v: Vec3): Vec3 {
-  const len = Math.hypot(v[0], v[1], v[2]) || 1
-  return [v[0] / len, v[1] / len, v[2] / len]
+function normalizeComponentsInto(
+  x: number,
+  y: number,
+  z: number,
+  out: Vec3
+): Vec3 {
+  const len = Math.hypot(x, y, z) || 1
+  out[0] = x / len
+  out[1] = y / len
+  out[2] = z / len
+  return out
 }
 
-function cross(a: Vec3, b: Vec3): Vec3 {
-  return [
-    a[1] * b[2] - a[2] * b[1],
-    a[2] * b[0] - a[0] * b[2],
-    a[0] * b[1] - a[1] * b[0],
-  ]
+function crossComponentsInto(
+  ax: number,
+  ay: number,
+  az: number,
+  bx: number,
+  by: number,
+  bz: number,
+  out: Vec3
+): Vec3 {
+  const x = ay * bz - az * by
+  const y = az * bx - ax * bz
+  const z = ax * by - ay * bx
+  out[0] = x
+  out[1] = y
+  out[2] = z
+  return out
 }
 
-export function sampleTrack(distance: number): TrackSample {
+export function createTrackSample(): MutableTrackSample {
+  return {
+    position: [0, 0, 0],
+    tangent: [0, 0, 1],
+    right: [1, 0, 0],
+    up: [0, 1, 0],
+    bank: 0,
+    grade: 0,
+  }
+}
+
+export function sampleTrackInto(
+  distance: number,
+  out: MutableTrackSample
+): MutableTrackSample {
   const s = distance
   const x = sumSin(LATERAL, s)
   const y = sumSin(ELEVATION, s)
 
   const dx = sumSinDeriv(LATERAL, s)
   const dy = sumSinDeriv(ELEVATION, s)
-  const tangent = normalize([dx, dy, 1])
+  normalizeComponentsInto(dx, dy, 1, out.tangent)
 
   // Lean into the turn from the lateral curvature (second derivative).
   const curvature = getLateralCurvature(s)
   const bank = clamp(curvature * BANK_GAIN, -MAX_BANK, MAX_BANK)
 
   // Horizontal "right" of travel, then a stable up perpendicular to both.
-  const right0 = normalize([tangent[2], 0, -tangent[0]])
-  const up0 = normalize(cross(tangent, right0))
+  const right0x = out.tangent[2]
+  const right0y = 0
+  const right0z = -out.tangent[0]
+  const right0Len = Math.hypot(right0x, right0y, right0z) || 1
+  const rightX = right0x / right0Len
+  const rightY = right0y / right0Len
+  const rightZ = right0z / right0Len
+  crossComponentsInto(
+    out.tangent[0],
+    out.tangent[1],
+    out.tangent[2],
+    rightX,
+    rightY,
+    rightZ,
+    out.up
+  )
+  normalizeComponentsInto(out.up[0], out.up[1], out.up[2], out.up)
 
   // Rotate the cross-section frame around the tangent by `bank`.
   const cb = Math.cos(bank)
   const sb = Math.sin(bank)
-  const right: Vec3 = [
-    right0[0] * cb - up0[0] * sb,
-    right0[1] * cb - up0[1] * sb,
-    right0[2] * cb - up0[2] * sb,
-  ]
-  const up: Vec3 = [
-    right0[0] * sb + up0[0] * cb,
-    right0[1] * sb + up0[1] * cb,
-    right0[2] * sb + up0[2] * cb,
-  ]
+  const upX = out.up[0]
+  const upY = out.up[1]
+  const upZ = out.up[2]
+  out.right[0] = rightX * cb - upX * sb
+  out.right[1] = rightY * cb - upY * sb
+  out.right[2] = rightZ * cb - upZ * sb
+  out.up[0] = rightX * sb + upX * cb
+  out.up[1] = rightY * sb + upY * cb
+  out.up[2] = rightZ * sb + upZ * cb
 
   const grade = clamp(
     dy * FREE_RIDE_ELEVATION.trainerGradeScale,
@@ -132,14 +182,16 @@ export function sampleTrack(distance: number): TrackSample {
     FREE_RIDE_ELEVATION.maxTrainerGradePercent / 100
   )
 
-  return {
-    position: [x, y, s],
-    tangent,
-    right,
-    up,
-    bank,
-    grade,
-  }
+  out.position[0] = x
+  out.position[1] = y
+  out.position[2] = s
+  out.bank = bank
+  out.grade = grade
+  return out
+}
+
+export function sampleTrack(distance: number): TrackSample {
+  return sampleTrackInto(distance, createTrackSample())
 }
 
 /** Offset a point from the centerline along the (banked) cross-section right axis. */
@@ -163,7 +215,11 @@ export function getRacingLineOffset(distance: number): number {
   const rawOffset = apex + entry + exit
   return Math.abs(rawOffset) < 0.08
     ? 0
-    : clamp(rawOffset, -MAX_RACING_LINE_OFFSET_METERS, MAX_RACING_LINE_OFFSET_METERS)
+    : clamp(
+        rawOffset,
+        -MAX_RACING_LINE_OFFSET_METERS,
+        MAX_RACING_LINE_OFFSET_METERS
+      )
 }
 
 export function getVisualTrackY(sample: TrackSample): number {

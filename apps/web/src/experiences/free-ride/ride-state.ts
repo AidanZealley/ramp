@@ -7,6 +7,9 @@
  * are all readers. Centralising this avoids the multi-component telemetry
  * sampling that made the old 3D experience jitter and pop.
  */
+import { createTrackSample } from "./track"
+import type { MutableTrackSample } from "./track"
+
 export type RideState = {
   /** Authoritative travelled distance along the track (metres). */
   distance: number
@@ -18,6 +21,8 @@ export type RideState = {
   bank: number
   /** Track grade (slope) at the current distance. */
   grade: number
+  /** Mutable track sample at the current distance; written once per frame. */
+  trackSample: MutableTrackSample
   /** Whether a trainer is currently connected (drives speed source). */
   trainerConnected: boolean
 }
@@ -29,6 +34,7 @@ export function createRideState(): RideState {
     telemetrySpeedMps: null,
     bank: 0,
     grade: 0,
+    trackSample: createTrackSample(),
     trainerConnected: false,
   }
 }

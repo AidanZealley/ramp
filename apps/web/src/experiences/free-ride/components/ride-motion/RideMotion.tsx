@@ -1,6 +1,6 @@
 import { useFrame } from "@react-three/fiber"
 import { FREE_RIDE_MOTION } from "../../free-ride-config"
-import { clamp, sampleTrack } from "../../track"
+import { clamp, sampleTrackInto } from "../../track"
 import type { RideState } from "../../ride-state"
 
 type RideMotionProps = {
@@ -22,7 +22,8 @@ export function RideMotion({ rideState }: RideMotionProps) {
       rideState.trainerConnected && rideState.telemetrySpeedMps !== null
     const targetSpeed = hasTrainerSpeed
       ? clamp(
-          (rideState.telemetrySpeedMps ?? 0) * FREE_RIDE_MOTION.visualSpeedScale,
+          (rideState.telemetrySpeedMps ?? 0) *
+            FREE_RIDE_MOTION.visualSpeedScale,
           0,
           FREE_RIDE_MOTION.maxSpeedMps
         )
@@ -32,7 +33,7 @@ export function RideMotion({ rideState }: RideMotionProps) {
     rideState.speed += (targetSpeed - rideState.speed) * ease
     rideState.distance += rideState.speed * dt
 
-    const sample = sampleTrack(rideState.distance)
+    const sample = sampleTrackInto(rideState.distance, rideState.trackSample)
     rideState.bank = sample.bank
     rideState.grade = sample.grade
   })

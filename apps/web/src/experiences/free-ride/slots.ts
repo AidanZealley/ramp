@@ -22,6 +22,10 @@ export function slotCount(window: SlotWindow): number {
   return Math.ceil((window.back + window.ahead) / window.spacing) + 1
 }
 
+export function firstSlotIndex(distance: number, window: SlotWindow): number {
+  return Math.ceil((distance - window.back) / window.spacing)
+}
+
 /**
  * Invoke `visit` for each active slot. `k` is the stable integer slot index
  * (use it to seed deterministic per-slot attributes); `distanceAlong` is the
@@ -32,7 +36,7 @@ export function forEachSlot(
   window: SlotWindow,
   visit: (slotIndex: number, k: number, distanceAlong: number) => void
 ): void {
-  const first = Math.ceil((distance - window.back) / window.spacing)
+  const first = firstSlotIndex(distance, window)
   const count = slotCount(window)
   for (let i = 0; i < count; i += 1) {
     const k = first + i

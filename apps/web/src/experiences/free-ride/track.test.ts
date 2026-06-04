@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest"
 import { FREE_RIDE_ELEVATION } from "./free-ride-config"
 import {
+  createTrackSample,
   getLowerWorldY,
   getRacingLineOffset,
   getVisualTrackY,
   offsetAlongRight,
   sampleTrack,
+  sampleTrackInto,
 } from "./track"
 
 function length(v: [number, number, number]): number {
@@ -13,6 +15,39 @@ function length(v: [number, number, number]): number {
 }
 
 describe("sampleTrack", () => {
+  it("sampleTrackInto matches sampleTrack for representative distances", () => {
+    const out = createTrackSample()
+
+    for (const distance of [-25, 0, 12.5, 1234, 9876.5]) {
+      const mutable = sampleTrackInto(distance, out)
+      const fresh = sampleTrack(distance)
+
+      expect(mutable.position).toEqual(fresh.position)
+      expect(mutable.tangent).toEqual(fresh.tangent)
+      expect(mutable.right).toEqual(fresh.right)
+      expect(mutable.up).toEqual(fresh.up)
+      expect(mutable.bank).toBe(fresh.bank)
+      expect(mutable.grade).toBe(fresh.grade)
+    }
+  })
+
+  it("sampleTrackInto reuses the provided sample and vector arrays", () => {
+    const out = createTrackSample()
+    const position = out.position
+    const tangent = out.tangent
+    const right = out.right
+    const up = out.up
+
+    expect(sampleTrackInto(100, out)).toBe(out)
+    sampleTrackInto(200, out)
+
+    expect(out.position).toBe(position)
+    expect(out.tangent).toBe(tangent)
+    expect(out.right).toBe(right)
+    expect(out.up).toBe(up)
+    expect(out.position[2]).toBe(200)
+  })
+
   it("returns finite, well-formed samples across a long sweep", () => {
     for (let distance = 0; distance <= 20000; distance += 37) {
       const sample = sampleTrack(distance)
@@ -136,7 +171,9 @@ describe("sampleTrack", () => {
 
   it("keeps racing-line offsets inside the central deck", () => {
     for (let distance = 0; distance <= 20000; distance += 13) {
-      expect(Math.abs(getRacingLineOffset(distance))).toBeLessThanOrEqual(1.8 + 1e-9)
+      expect(Math.abs(getRacingLineOffset(distance))).toBeLessThanOrEqual(
+        1.8 + 1e-9
+      )
     }
   })
 
@@ -183,7 +220,10 @@ describe("sampleTrack", () => {
 
     for (let distance = 0; distance <= 20000; distance += 1) {
       const sample = sampleTrack(distance)
-      if (Math.abs(sample.grade * 100) < FREE_RIDE_ELEVATION.maxTrainerGradePercent * 0.75) {
+      if (
+        Math.abs(sample.grade * 100) <
+        FREE_RIDE_ELEVATION.maxTrainerGradePercent * 0.75
+      ) {
         continue
       }
 

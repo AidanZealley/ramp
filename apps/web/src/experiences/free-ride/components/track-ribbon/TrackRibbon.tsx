@@ -15,7 +15,12 @@ import {
   FREE_RIDE_TRACK,
   FREE_RIDE_TRACK_SURFACE,
 } from "../../free-ride-config"
-import { getVisualTrackY, sampleTrack } from "../../track"
+import { measureFreeRideSection } from "../../perf"
+import {
+  createTrackSample,
+  getVisualTrackY,
+  sampleTrackInto,
+} from "../../track"
 import type { RideState } from "../../ride-state"
 import type { TrackSample } from "../../track"
 
@@ -63,11 +68,43 @@ function writeDeckVertex(
     sample.right[0] * crossSection.lateral +
     sample.up[0] * crossSection.lift
   out[offset + 1] =
-    visualY + sample.right[1] * crossSection.lateral + sample.up[1] * crossSection.lift
+    visualY +
+    sample.right[1] * crossSection.lateral +
+    sample.up[1] * crossSection.lift
   out[offset + 2] =
     sample.position[2] +
     sample.right[2] * crossSection.lateral +
     sample.up[2] * crossSection.lift
+}
+
+function writeDeckNormal(
+  sample: TrackSample,
+  crossSectionIndex: number,
+  out: Float32Array,
+  offset: number
+): void {
+  const previous = CROSS_SECTION[Math.max(0, crossSectionIndex - 1)]
+  const next =
+    CROSS_SECTION[Math.min(VERTICES_PER_SEGMENT - 1, crossSectionIndex + 1)]
+  const lateralDelta = next.lateral - previous.lateral || 1
+  const liftDelta = next.lift - previous.lift
+  const edgeX = sample.right[0] * lateralDelta + sample.up[0] * liftDelta
+  const edgeY = sample.right[1] * lateralDelta + sample.up[1] * liftDelta
+  const edgeZ = sample.right[2] * lateralDelta + sample.up[2] * liftDelta
+  let nx = sample.tangent[1] * edgeZ - sample.tangent[2] * edgeY
+  let ny = sample.tangent[2] * edgeX - sample.tangent[0] * edgeZ
+  let nz = sample.tangent[0] * edgeY - sample.tangent[1] * edgeX
+
+  if (nx * sample.up[0] + ny * sample.up[1] + nz * sample.up[2] < 0) {
+    nx *= -1
+    ny *= -1
+    nz *= -1
+  }
+
+  const len = Math.hypot(nx, ny, nz) || 1
+  out[offset] = nx / len
+  out[offset + 1] = ny / len
+  out[offset + 2] = nz / len
 }
 
 function makeTrackMaterial(): ShaderMaterial {
@@ -79,6 +116,7 @@ function makeTrackMaterial(): ShaderMaterial {
       {
         time: { value: 0 },
         speed: { value: 0 },
+        roadOffset: { value: 0 },
         markingIntensity: { value: FREE_RIDE_MARKINGS.intensity },
         panelSpacing: { value: FREE_RIDE_MARKINGS.panelSpacingMeters },
         centerTraceWidth: { value: FREE_RIDE_MARKINGS.centerTraceWidthMeters },
@@ -87,10 +125,10 @@ function makeTrackMaterial(): ShaderMaterial {
         baseColor: { value: new Color(FREE_RIDE_PALETTE.trackSurface) },
         panelColor: { value: new Color(FREE_RIDE_PALETTE.trackPanel) },
         shoulderColor: { value: new Color(FREE_RIDE_PALETTE.trackShoulder) },
-      wallColor: { value: new Color(FREE_RIDE_PALETTE.trackWall) },
-      cyan: { value: new Color(FREE_RIDE_PALETTE.neonCyan) },
-      violet: { value: new Color(FREE_RIDE_PALETTE.neonViolet) },
-      neutralLine: { value: new Color("#7f8a96") },
+        wallColor: { value: new Color(FREE_RIDE_PALETTE.trackWall) },
+        cyan: { value: new Color(FREE_RIDE_PALETTE.neonCyan) },
+        violet: { value: new Color(FREE_RIDE_PALETTE.neonViolet) },
+        neutralLine: { value: new Color("#7f8a96") },
       },
     ]),
     vertexShader: /* glsl */ `
@@ -99,9 +137,10 @@ function makeTrackMaterial(): ShaderMaterial {
       varying vec2 vRoad;
       varying vec3 vNormal;
       varying vec3 vViewDir;
+      uniform float roadOffset;
 
       void main() {
-        vRoad = uv;
+        vRoad = vec2(uv.x, uv.y + roadOffset);
         vec4 worldPosition = modelMatrix * vec4(position, 1.0);
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
         vNormal = normalize(normalMatrix * normal);
@@ -186,6 +225,10 @@ export const TrackRibbon = ({ rideState }: TrackRibbonProps) => {
     () => new Float32Array(segmentCount * VERTICES_PER_SEGMENT * 3),
     []
   )
+  const normals = useMemo(
+    () => new Float32Array(segmentCount * VERTICES_PER_SEGMENT * 3),
+    []
+  )
   const roadUvs = useMemo(
     () => new Float32Array(segmentCount * VERTICES_PER_SEGMENT * 2),
     []
@@ -194,7 +237,16 @@ export const TrackRibbon = ({ rideState }: TrackRibbonProps) => {
   const geometry = useMemo(() => {
     const geom = new BufferGeometry()
     geom.setAttribute("position", new BufferAttribute(positions, 3))
+    geom.setAttribute("normal", new BufferAttribute(normals, 3))
     geom.setAttribute("uv", new BufferAttribute(roadUvs, 2))
+
+    for (let i = 0; i < segmentCount; i += 1) {
+      for (let j = 0; j < VERTICES_PER_SEGMENT; j += 1) {
+        const uvOffset = (i * VERTICES_PER_SEGMENT + j) * 2
+        roadUvs[uvOffset] = CROSS_SECTION[j].lateral
+        roadUvs[uvOffset + 1] = i * segmentSpacingMeters
+      }
+    }
 
     const indices: Array<number> = []
     for (let i = 0; i < segmentCount - 1; i += 1) {
@@ -205,34 +257,34 @@ export const TrackRibbon = ({ rideState }: TrackRibbonProps) => {
       }
     }
     geom.setIndex(indices)
-    geom.computeVertexNormals()
     return geom
-  }, [positions, roadUvs])
+  }, [normals, positions, roadUvs])
 
   const material = useMemo(() => makeTrackMaterial(), [])
   const materialRef = useRef(material)
   materialRef.current = material
+  const sample = useMemo(() => createTrackSample(), [])
 
   useFrame((state) => {
-    const start = rideState.distance - behindMeters
-    for (let i = 0; i < segmentCount; i += 1) {
-      const distanceAlong = start + i * segmentSpacingMeters
-      const sample = sampleTrack(distanceAlong)
-      for (let j = 0; j < VERTICES_PER_SEGMENT; j += 1) {
-        const positionOffset = (i * VERTICES_PER_SEGMENT + j) * 3
-        const uvOffset = (i * VERTICES_PER_SEGMENT + j) * 2
-        const crossSection = CROSS_SECTION[j]
-        writeDeckVertex(sample, crossSection, positions, positionOffset)
-        roadUvs[uvOffset] = crossSection.lateral
-        roadUvs[uvOffset + 1] = distanceAlong
+    measureFreeRideSection("trackRibbon", () => {
+      const start = rideState.distance - behindMeters
+      for (let i = 0; i < segmentCount; i += 1) {
+        const distanceAlong = start + i * segmentSpacingMeters
+        sampleTrackInto(distanceAlong, sample)
+        for (let j = 0; j < VERTICES_PER_SEGMENT; j += 1) {
+          const positionOffset = (i * VERTICES_PER_SEGMENT + j) * 3
+          const crossSection = CROSS_SECTION[j]
+          writeDeckVertex(sample, crossSection, positions, positionOffset)
+          writeDeckNormal(sample, j, normals, positionOffset)
+        }
       }
-    }
-    geometry.attributes.position.needsUpdate = true
-    geometry.attributes.uv.needsUpdate = true
-    geometry.computeVertexNormals()
-    const uniforms = materialRef.current.uniforms
-    if (uniforms.time) uniforms.time.value = state.clock.elapsedTime
-    if (uniforms.speed) uniforms.speed.value = rideState.speed
+      geometry.attributes.position.needsUpdate = true
+      geometry.attributes.normal.needsUpdate = true
+      const uniforms = materialRef.current.uniforms
+      if (uniforms.time) uniforms.time.value = state.clock.elapsedTime
+      if (uniforms.speed) uniforms.speed.value = rideState.speed
+      if (uniforms.roadOffset) uniforms.roadOffset.value = start
+    })
   })
 
   return <mesh geometry={geometry} material={material} frustumCulled={false} />

@@ -6,8 +6,14 @@ import {
   FREE_RIDE_PALETTE,
   FREE_RIDE_SEED,
 } from "../../free-ride-config"
-import { getLowerWorldY, getVisualTrackY, sampleTrack } from "../../track"
-import { forEachSlot, slotCount } from "../../slots"
+import { measureFreeRideSection } from "../../perf"
+import {
+  createTrackSample,
+  getLowerWorldY,
+  getVisualTrackY,
+  sampleTrackInto,
+} from "../../track"
+import { firstSlotIndex, forEachSlot, slotCount } from "../../slots"
 import { hashInt, mulberry32 } from "../../rng"
 import type { InstancedMesh } from "three"
 import type { SlotWindow } from "../../slots"
@@ -88,7 +94,9 @@ const MEGA: CityLayerConfig = {
 }
 
 /** Horizontal "right" of travel (ignores bank so buildings stand upright). */
-function horizontalRight(tangent: readonly [number, number, number]): [number, number] {
+function horizontalRight(
+  tangent: readonly [number, number, number]
+): [number, number] {
   const x = tangent[2]
   const z = -tangent[0]
   const len = Math.hypot(x, z) || 1
@@ -121,60 +129,81 @@ function CityLayer({
   )
   const dummy = useMemo(() => new Object3D(), [])
   const color = useMemo(() => new Color(), [])
-  const warmWindowColor = useMemo(() => new Color(FREE_RIDE_PALETTE.windowWarm), [])
+  const warmWindowColor = useMemo(
+    () => new Color(FREE_RIDE_PALETTE.windowWarm),
+    []
+  )
+  const sample = useMemo(() => createTrackSample(), [])
   const meshRef = useRef<InstancedMesh>(null)
+  const firstSlotRef = useRef<number | null>(null)
 
   useFrame(() => {
-    const mesh = meshRef.current
-    if (!mesh) return
+    measureFreeRideSection("scenery", () => {
+      const mesh = meshRef.current
+      if (!mesh) return
+      const first = firstSlotIndex(rideState.distance, config.window)
+      if (firstSlotRef.current === first) return
+      firstSlotRef.current = first
 
-    forEachSlot(rideState.distance, config.window, (slotIndex, k, distanceAlong) => {
-      const rng = mulberry32(hashInt(k, SEED + config.saltSeed))
-      if (rng() < config.hiddenBelow) {
-        dummy.scale.set(0, 0, 0)
-        dummy.position.set(0, -9999, 0)
-        dummy.updateMatrix()
-        mesh.setMatrixAt(slotIndex, dummy.matrix)
-        return
-      }
+      forEachSlot(
+        rideState.distance,
+        config.window,
+        (slotIndex, k, distanceAlong) => {
+          const rng = mulberry32(hashInt(k, SEED + config.saltSeed))
+          if (rng() < config.hiddenBelow) {
+            dummy.scale.set(0, 0, 0)
+            dummy.position.set(0, -9999, 0)
+            dummy.updateMatrix()
+            mesh.setMatrixAt(slotIndex, dummy.matrix)
+            return
+          }
 
-      const sample = sampleTrack(distanceAlong)
-      const side = rng() < 0.5 ? -1 : 1
-      const lateral = (config.lateralMin + rng() * config.lateralRange) * side
-      const [rx, rz] = horizontalRight(sample.tangent)
-      const width = config.widthMin + rng() * config.widthRange
-      const depth = config.depthMin + rng() * config.depthRange
-      const height = config.heightMin + rng() * config.heightRange
-      const lowerWorldY = getLowerWorldY(sample)
-      const maxTopY = getVisualTrackY(sample) - 18
-      const baseY = Math.min(
-        lowerWorldY - rng() * config.yJitter,
-        maxTopY - height
+          sampleTrackInto(distanceAlong, sample)
+          const side = rng() < 0.5 ? -1 : 1
+          const lateral =
+            (config.lateralMin + rng() * config.lateralRange) * side
+          const [rx, rz] = horizontalRight(sample.tangent)
+          const width = config.widthMin + rng() * config.widthRange
+          const depth = config.depthMin + rng() * config.depthRange
+          const height = config.heightMin + rng() * config.heightRange
+          const lowerWorldY = getLowerWorldY(sample)
+          const maxTopY = getVisualTrackY(sample) - 18
+          const baseY = Math.min(
+            lowerWorldY - rng() * config.yJitter,
+            maxTopY - height
+          )
+          const lit = rng() > 0.68
+
+          dummy.position.set(
+            sample.position[0] + rx * lateral,
+            baseY,
+            sample.position[2] + rz * lateral
+          )
+          dummy.rotation.set(0, rng() * Math.PI * 2, 0)
+          dummy.scale.set(width, height, depth)
+          dummy.updateMatrix()
+          mesh.setMatrixAt(slotIndex, dummy.matrix)
+
+          color
+            .set(lit ? FREE_RIDE_PALETTE.windowCool : FREE_RIDE_PALETTE.scenery)
+            .lerp(warmWindowColor, lit ? rng() * 0.35 : 0)
+            .multiplyScalar(
+              (lit ? 0.9 + rng() * 0.5 : 0.42 + rng() * 0.2) * config.farFade
+            )
+          mesh.setColorAt(slotIndex, color)
+        }
       )
-      const lit = rng() > 0.68
-
-      dummy.position.set(
-        sample.position[0] + rx * lateral,
-        baseY,
-        sample.position[2] + rz * lateral
-      )
-      dummy.rotation.set(0, rng() * Math.PI * 2, 0)
-      dummy.scale.set(width, height, depth)
-      dummy.updateMatrix()
-      mesh.setMatrixAt(slotIndex, dummy.matrix)
-
-      color
-        .set(lit ? FREE_RIDE_PALETTE.windowCool : FREE_RIDE_PALETTE.scenery)
-        .lerp(warmWindowColor, lit ? rng() * 0.35 : 0)
-        .multiplyScalar((lit ? 0.9 + rng() * 0.5 : 0.42 + rng() * 0.2) * config.farFade)
-      mesh.setColorAt(slotIndex, color)
+      mesh.instanceMatrix.needsUpdate = true
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
     })
-    mesh.instanceMatrix.needsUpdate = true
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
   })
 
   return (
-    <instancedMesh ref={meshRef} args={[geometry, material, count]} frustumCulled={false} />
+    <instancedMesh
+      ref={meshRef}
+      args={[geometry, material, count]}
+      frustumCulled={false}
+    />
   )
 }
 

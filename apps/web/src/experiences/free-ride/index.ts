@@ -8,4 +8,11 @@ export const freeRideExperience: RideExperiencePlugin = {
 }
 
 export { FreeRideExperienceView }
-export { getLowerWorldY, getVisualTrackY, offsetAlongRight, sampleTrack } from "./track"
+export {
+  createTrackSample,
+  getLowerWorldY,
+  getVisualTrackY,
+  offsetAlongRight,
+  sampleTrack,
+  sampleTrackInto,
+} from "./track"
