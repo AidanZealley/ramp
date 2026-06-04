@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useRef } from "react"
 import { useRideFrame } from "@ramp/ride-react"
 import { FreeRideScene } from "./components/free-ride-scene"
 import { FreeRideHud } from "./components/free-ride-hud"
+import { FREE_RIDE_ELEVATION } from "./free-ride-config"
 import { createRideState } from "./ride-state"
 import { clamp } from "./track"
 import type { ExperienceSessionAPI } from "@/ride/experience-session"
 
 const GRADE_DISPATCH_INTERVAL_MS = 250
 const GRADE_DEADBAND_PERCENT = 0.5
-const MAX_GRADE_PERCENT = 15
 
 /**
  * Free Ride — a first-person, Redout-style flight down a neon anti-gravity
@@ -35,10 +35,12 @@ export function FreeRideExperienceView({
         const now = Date.now()
         if (now - lastDispatchMs.current < GRADE_DISPATCH_INTERVAL_MS) return
 
+        // Dispatch physical trainer grade only; visual height exaggeration is
+        // applied by rendering helpers and never feeds the trainer.
         const gradePercent = clamp(
           rideState.grade * 100,
-          -MAX_GRADE_PERCENT,
-          MAX_GRADE_PERCENT
+          -FREE_RIDE_ELEVATION.maxTrainerGradePercent,
+          FREE_RIDE_ELEVATION.maxTrainerGradePercent
         )
         if (
           lastGradePercent.current === null ||

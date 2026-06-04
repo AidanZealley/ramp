@@ -6,20 +6,25 @@
 
 export const FREE_RIDE_PALETTE = {
   /** Deep dusk sky, top to horizon. */
-  skyTop: "#05030f",
-  skyHorizon: "#3a0f4d",
+  skyTop: "#050816",
+  skyHorizon: "#18224b",
   /** Matches fog to the horizon so distant geometry dissolves into the sky. */
-  fog: "#250a3a",
+  fog: "#0b1025",
   /** Track surface (kept dark so the neon edges read). */
-  trackSurface: "#0a0712",
-  trackUnderglow: "#1b0b3a",
+  trackSurface: "#070809",
+  trackPanel: "#111318",
+  trackShoulder: "#0d0f12",
+  trackWall: "#181b20",
+  trackUnderglow: "#151820",
   /** Neon accents. */
   neonCyan: "#19f4ff",
-  neonMagenta: "#ff2bd6",
-  neonOrange: "#ff7a18",
+  neonMagenta: "#b244ff",
+  neonOrange: "#d76b2a",
   neonViolet: "#7a4bff",
-  scenery: "#160a2e",
-  sceneryRim: "#5e2bff",
+  scenery: "#080b17",
+  sceneryRim: "#233064",
+  windowWarm: "#7ea0ff",
+  windowCool: "#19f4ff",
 } as const
 
 export const FREE_RIDE_MOTION = {
@@ -38,6 +43,8 @@ export const FREE_RIDE_CAMERA = {
   eyeHeightMeters: 1.15,
   /** How far down the track the camera looks. */
   lookAheadMeters: 26,
+  /** Slight downward sightline keeps the elevated deck visible in first person. */
+  lookDownMeters: 0.85,
   /** FOV at rest and the extra degrees added at max speed. */
   baseFov: 74,
   speedFovBoost: 16,
@@ -61,17 +68,58 @@ export const FREE_RIDE_TRACK = {
   behindMeters: 18,
 } as const
 
+export const FREE_RIDE_TRACK_SURFACE = {
+  centerHalfWidthMeters: 3.8,
+  innerPanelHalfWidthMeters: 5.2,
+  shoulderOuterMeters: 6.35,
+  wallOuterMeters: 7.1,
+  wallBaseLiftMeters: 0.28,
+  shoulderDropMeters: 0.16,
+  deckAlpha: 0.72,
+  roughness: 0.22,
+  metalness: 0.42,
+} as const
+
+export const FREE_RIDE_ELEVATION = {
+  /** Visual-only road height exaggeration. Trainer grade remains physical. */
+  visualHeightScale: 2.2,
+  /** Lower-world drop measured from visually amplified road height. */
+  lowerCityDropMeters: 90,
+  /** Physical grade multiplier before the trainer-grade clamp. */
+  trainerGradeScale: 1,
+  maxTrainerGradePercent: 15,
+} as const
+
+export const FREE_RIDE_MARKINGS = {
+  intensity: 0.72,
+  panelSpacingMeters: 8,
+  centerTraceWidthMeters: 0.08,
+  gridSpacingMeters: 1.3,
+} as const
+
+export const FREE_RIDE_CITY = {
+  density: "smooth",
+  nearWindow: { spacing: 18, back: 50, ahead: 360 },
+  farWindow: { spacing: 42, back: 80, ahead: 680 },
+  megaWindow: { spacing: 95, back: 80, ahead: 620 },
+  baseDropMeters: 90,
+  nearLateralMinMeters: 24,
+  nearLateralRangeMeters: 72,
+  farLateralMinMeters: 115,
+  farLateralRangeMeters: 240,
+} as const
+
 export const FREE_RIDE_FOG = {
   /** Exponential fog density — tuned with the long ribbon + scenery draw distance. */
-  density: 0.0085,
+  density: 0.0068,
 } as const
 
 export const FREE_RIDE_FX = {
-  bloomIntensity: 1.5,
-  bloomThreshold: 0.18,
+  bloomIntensity: 1.05,
+  bloomThreshold: 0.22,
   bloomSmoothing: 0.9,
-  vignetteDarkness: 0.85,
-  chromaticOffset: 0.0009,
+  vignetteDarkness: 0.78,
+  chromaticOffset: 0.00055,
   /** Clamp device pixel ratio so high-DPI screens stay smooth. */
   dpr: [1, 1.75] as [number, number],
 } as const

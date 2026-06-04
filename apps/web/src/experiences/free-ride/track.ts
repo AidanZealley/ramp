@@ -8,10 +8,13 @@
  * gives a seamless treadmill with no chunk swapping.
  *
  * Convention: `distance` runs along +Z (forward). The path sweeps in X (turns)
- * and undulates gently in Y (elevation). `bank` leans the cross-section into
- * turns — the signature Redout feel — and is shared by the ribbon and camera so
- * they stay consistent.
+ * and undulates in Y (physical elevation). `bank` leans the cross-section into
+ * turns and is shared by the ribbon and camera so they stay consistent. Visual
+ * height exaggeration is intentionally separate from the physical grade that is
+ * dispatched to the trainer.
  */
+
+import { FREE_RIDE_ELEVATION } from "./free-ride-config"
 
 export type Vec3 = [number, number, number]
 
@@ -40,8 +43,13 @@ const LATERAL: Array<Harmonic> = [
 ]
 
 const ELEVATION: Array<Harmonic> = [
-  { amp: 6.5, len: 190, phase: 0.6 },
-  { amp: 2.4, len: 74, phase: 1.9 },
+  // Long rolling baseline: gives the causeway real altitude changes.
+  { amp: 16, len: 520, phase: 0.45 },
+  // Medium climb / descend waves: readable trainer-grade changes.
+  { amp: 8, len: 220, phase: 1.55 },
+  { amp: 3, len: 90, phase: 2.25 },
+  // Small smoothing variation: breaks up the contour without grade spikes.
+  { amp: 1.2, len: 45, phase: 0.9 },
 ]
 
 const BANK_GAIN = 62
@@ -113,13 +121,19 @@ export function sampleTrack(distance: number): TrackSample {
     right0[2] * sb + up0[2] * cb,
   ]
 
+  const grade = clamp(
+    dy * FREE_RIDE_ELEVATION.trainerGradeScale,
+    -FREE_RIDE_ELEVATION.maxTrainerGradePercent / 100,
+    FREE_RIDE_ELEVATION.maxTrainerGradePercent / 100
+  )
+
   return {
     position: [x, y, s],
     tangent,
     right,
     up,
     bank,
-    grade: dy,
+    grade,
   }
 }
 
@@ -130,6 +144,14 @@ export function offsetAlongRight(sample: TrackSample, lateral: number): Vec3 {
     sample.position[1] + sample.right[1] * lateral,
     sample.position[2] + sample.right[2] * lateral,
   ]
+}
+
+export function getVisualTrackY(sample: TrackSample): number {
+  return sample.position[1] * FREE_RIDE_ELEVATION.visualHeightScale
+}
+
+export function getLowerWorldY(sample: TrackSample): number {
+  return getVisualTrackY(sample) - FREE_RIDE_ELEVATION.lowerCityDropMeters
 }
 
 export function clamp(value: number, min: number, max: number): number {

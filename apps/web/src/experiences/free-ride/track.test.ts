@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { offsetAlongRight, sampleTrack } from "./track"
+import { FREE_RIDE_ELEVATION } from "./free-ride-config"
+import { getLowerWorldY, getVisualTrackY, offsetAlongRight, sampleTrack } from "./track"
 
 function length(v: [number, number, number]): number {
   return Math.hypot(v[0], v[1], v[2])
@@ -9,7 +10,16 @@ describe("sampleTrack", () => {
   it("returns finite, well-formed samples across a long sweep", () => {
     for (let distance = 0; distance <= 20000; distance += 37) {
       const sample = sampleTrack(distance)
-      for (const component of [...sample.position, ...sample.tangent, sample.bank, sample.grade]) {
+      for (const component of [
+        ...sample.position,
+        ...sample.tangent,
+        ...sample.right,
+        ...sample.up,
+        sample.bank,
+        sample.grade,
+        getVisualTrackY(sample),
+        getLowerWorldY(sample),
+      ]) {
         expect(Number.isFinite(component)).toBe(true)
       }
       // Forward distance maps straight onto +Z.
@@ -33,9 +43,43 @@ describe("sampleTrack", () => {
       const current = sampleTrack(distance)
       const dx = current.position[0] - previous.position[0]
       const dy = current.position[1] - previous.position[1]
+      const visualDy = getVisualTrackY(current) - getVisualTrackY(previous)
       // Lateral + vertical drift per metre is bounded (no discontinuities).
       expect(Math.hypot(dx, dy)).toBeLessThan(2)
+      expect(Math.abs(visualDy)).toBeLessThan(1)
       previous = current
+    }
+  })
+
+  it("keeps physical grade bounded and realistic", () => {
+    for (let distance = 0; distance <= 20000; distance += 19) {
+      const { grade } = sampleTrack(distance)
+      expect(Math.abs(grade * 100)).toBeLessThanOrEqual(
+        FREE_RIDE_ELEVATION.maxTrainerGradePercent + 1e-9
+      )
+    }
+  })
+
+  it("keeps visual height amplification separate from physical grade", () => {
+    for (let distance = 0; distance <= 5000; distance += 41) {
+      const sample = sampleTrack(distance)
+      const gradeBefore = sample.grade
+      expect(getVisualTrackY(sample)).toBeCloseTo(
+        sample.position[1] * FREE_RIDE_ELEVATION.visualHeightScale,
+        8
+      )
+      expect(sample.grade).toBe(gradeBefore)
+    }
+  })
+
+  it("places the lower world below the visual road by the configured drop", () => {
+    for (let distance = 0; distance <= 5000; distance += 47) {
+      const sample = sampleTrack(distance)
+      expect(getLowerWorldY(sample)).toBeCloseTo(
+        getVisualTrackY(sample) - FREE_RIDE_ELEVATION.lowerCityDropMeters,
+        8
+      )
+      expect(getLowerWorldY(sample)).toBeLessThan(getVisualTrackY(sample))
     }
   })
 

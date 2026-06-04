@@ -1,8 +1,12 @@
 import { useFrame } from "@react-three/fiber"
 import { useMemo, useRef } from "react"
-import { ConeGeometry, Object3D } from "three"
-import { FREE_RIDE_PALETTE, FREE_RIDE_SEED } from "../../free-ride-config"
-import { sampleTrack } from "../../track"
+import { BoxGeometry, Color, MeshStandardMaterial, Object3D } from "three"
+import {
+  FREE_RIDE_CITY,
+  FREE_RIDE_PALETTE,
+  FREE_RIDE_SEED,
+} from "../../free-ride-config"
+import { getLowerWorldY, getVisualTrackY, sampleTrack } from "../../track"
 import { forEachSlot, slotCount } from "../../slots"
 import { hashInt, mulberry32 } from "../../rng"
 import type { InstancedMesh } from "three"
@@ -13,9 +17,7 @@ type SceneryFieldProps = {
   rideState: RideState
 }
 
-const SEED = hashInt(0xc0ffee, FREE_RIDE_SEED.length)
-
-type LayerConfig = {
+type CityLayerConfig = {
   window: SlotWindow
   saltSeed: number
   lateralMin: number
@@ -24,37 +26,68 @@ type LayerConfig = {
   heightRange: number
   widthMin: number
   widthRange: number
-  hideBelow: number
+  depthMin: number
+  depthRange: number
+  hiddenBelow: number
+  yJitter: number
   emissiveIntensity: number
+  farFade: number
 }
 
-const NEAR: LayerConfig = {
-  window: { spacing: 14, back: 30, ahead: 300 },
+const SEED = hashInt(0xc17c17, FREE_RIDE_SEED.length)
+
+const NEAR: CityLayerConfig = {
+  window: FREE_RIDE_CITY.nearWindow,
   saltSeed: 101,
-  lateralMin: 12,
-  lateralRange: 40,
-  heightMin: 8,
-  heightRange: 26,
-  widthMin: 2,
-  widthRange: 5,
-  hideBelow: 0.25,
-  emissiveIntensity: 0.28,
+  lateralMin: FREE_RIDE_CITY.nearLateralMinMeters,
+  lateralRange: FREE_RIDE_CITY.nearLateralRangeMeters,
+  heightMin: 18,
+  heightRange: 88,
+  widthMin: 4,
+  widthRange: 14,
+  depthMin: 5,
+  depthRange: 18,
+  hiddenBelow: 0.12,
+  yJitter: 20,
+  emissiveIntensity: 0.08,
+  farFade: 1,
 }
 
-const FAR: LayerConfig = {
-  window: { spacing: 42, back: 40, ahead: 480 },
+const FAR: CityLayerConfig = {
+  window: FREE_RIDE_CITY.farWindow,
   saltSeed: 202,
-  lateralMin: 90,
-  lateralRange: 150,
+  lateralMin: FREE_RIDE_CITY.farLateralMinMeters,
+  lateralRange: FREE_RIDE_CITY.farLateralRangeMeters,
   heightMin: 30,
-  heightRange: 90,
-  widthMin: 20,
-  widthRange: 50,
-  hideBelow: 0.15,
-  emissiveIntensity: 0.12,
+  heightRange: 160,
+  widthMin: 10,
+  widthRange: 42,
+  depthMin: 12,
+  depthRange: 58,
+  hiddenBelow: 0.2,
+  yJitter: 32,
+  emissiveIntensity: 0.035,
+  farFade: 0.58,
 }
 
-/** Horizontal "right" of travel (ignores bank so monoliths stand upright). */
+const MEGA: CityLayerConfig = {
+  window: FREE_RIDE_CITY.megaWindow,
+  saltSeed: 303,
+  lateralMin: 55,
+  lateralRange: 190,
+  heightMin: 80,
+  heightRange: 170,
+  widthMin: 28,
+  widthRange: 78,
+  depthMin: 55,
+  depthRange: 120,
+  hiddenBelow: 0.48,
+  yJitter: 16,
+  emissiveIntensity: 0.025,
+  farFade: 0.72,
+}
+
+/** Horizontal "right" of travel (ignores bank so buildings stand upright). */
 function horizontalRight(tangent: readonly [number, number, number]): [number, number] {
   const x = tangent[2]
   const z = -tangent[0]
@@ -62,30 +95,42 @@ function horizontalRight(tangent: readonly [number, number, number]): [number, n
   return [x / len, z / len]
 }
 
-function SceneryLayer({
+function CityLayer({
   rideState,
   config,
 }: {
   rideState: RideState
-  config: LayerConfig
+  config: CityLayerConfig
 }) {
   const count = useMemo(() => slotCount(config.window), [config.window])
-  // Cone with its base translated to y=0 so it rises from the ground.
   const geometry = useMemo(() => {
-    const geom = new ConeGeometry(1, 1, 5)
+    const geom = new BoxGeometry(1, 1, 1)
     geom.translate(0, 0.5, 0)
     return geom
   }, [])
+  const material = useMemo(
+    () =>
+      new MeshStandardMaterial({
+        color: FREE_RIDE_PALETTE.scenery,
+        emissive: FREE_RIDE_PALETTE.sceneryRim,
+        emissiveIntensity: config.emissiveIntensity,
+        roughness: 0.78,
+        metalness: 0.28,
+      }),
+    [config.emissiveIntensity]
+  )
   const dummy = useMemo(() => new Object3D(), [])
+  const color = useMemo(() => new Color(), [])
+  const warmWindowColor = useMemo(() => new Color(FREE_RIDE_PALETTE.windowWarm), [])
   const meshRef = useRef<InstancedMesh>(null)
 
   useFrame(() => {
     const mesh = meshRef.current
     if (!mesh) return
+
     forEachSlot(rideState.distance, config.window, (slotIndex, k, distanceAlong) => {
       const rng = mulberry32(hashInt(k, SEED + config.saltSeed))
-      const visible = rng() >= config.hideBelow
-      if (!visible) {
+      if (rng() < config.hiddenBelow) {
         dummy.scale.set(0, 0, 0)
         dummy.position.set(0, -9999, 0)
         dummy.updateMatrix()
@@ -98,40 +143,47 @@ function SceneryLayer({
       const lateral = (config.lateralMin + rng() * config.lateralRange) * side
       const [rx, rz] = horizontalRight(sample.tangent)
       const width = config.widthMin + rng() * config.widthRange
+      const depth = config.depthMin + rng() * config.depthRange
       const height = config.heightMin + rng() * config.heightRange
+      const lowerWorldY = getLowerWorldY(sample)
+      const maxTopY = getVisualTrackY(sample) - 18
+      const baseY = Math.min(
+        lowerWorldY - rng() * config.yJitter,
+        maxTopY - height
+      )
+      const lit = rng() > 0.68
 
       dummy.position.set(
         sample.position[0] + rx * lateral,
-        sample.position[1] - 2,
+        baseY,
         sample.position[2] + rz * lateral
       )
       dummy.rotation.set(0, rng() * Math.PI * 2, 0)
-      dummy.scale.set(width, height, width)
+      dummy.scale.set(width, height, depth)
       dummy.updateMatrix()
       mesh.setMatrixAt(slotIndex, dummy.matrix)
+
+      color
+        .set(lit ? FREE_RIDE_PALETTE.windowCool : FREE_RIDE_PALETTE.scenery)
+        .lerp(warmWindowColor, lit ? rng() * 0.35 : 0)
+        .multiplyScalar((lit ? 0.9 + rng() * 0.5 : 0.42 + rng() * 0.2) * config.farFade)
+      mesh.setColorAt(slotIndex, color)
     })
     mesh.instanceMatrix.needsUpdate = true
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
   })
 
   return (
-    <instancedMesh ref={meshRef} args={[geometry, undefined, count]} frustumCulled={false}>
-      <meshStandardMaterial
-        color={FREE_RIDE_PALETTE.scenery}
-        emissive={FREE_RIDE_PALETTE.sceneryRim}
-        emissiveIntensity={config.emissiveIntensity}
-        roughness={0.7}
-        metalness={0.1}
-      />
-    </instancedMesh>
+    <instancedMesh ref={meshRef} args={[geometry, material, count]} frustumCulled={false} />
   )
 }
 
-/** Jagged neon-rimmed monoliths flanking the track, near and far. */
-export function SceneryField({ rideState }: SceneryFieldProps) {
+export const SceneryField = ({ rideState }: SceneryFieldProps) => {
   return (
     <group>
-      <SceneryLayer rideState={rideState} config={NEAR} />
-      <SceneryLayer rideState={rideState} config={FAR} />
+      <CityLayer rideState={rideState} config={FAR} />
+      <CityLayer rideState={rideState} config={MEGA} />
+      <CityLayer rideState={rideState} config={NEAR} />
     </group>
   )
 }

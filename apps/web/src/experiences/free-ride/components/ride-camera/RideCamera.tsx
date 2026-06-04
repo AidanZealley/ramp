@@ -2,7 +2,7 @@ import { useFrame, useThree } from "@react-three/fiber"
 import { useMemo } from "react"
 import { Vector3 } from "three"
 import { FREE_RIDE_CAMERA, FREE_RIDE_MOTION } from "../../free-ride-config"
-import { clamp, sampleTrack } from "../../track"
+import { clamp, getVisualTrackY, sampleTrack } from "../../track"
 import type { RideState } from "../../ride-state"
 import type { PerspectiveCamera } from "three"
 
@@ -46,11 +46,14 @@ export function RideCamera({ rideState }: RideCameraProps) {
       Math.sin(state.clock.elapsedTime * FREE_RIDE_CAMERA.bobFrequency) *
       FREE_RIDE_CAMERA.bobAmplitude
 
-    eye.set(here.position[0], here.position[1], here.position[2])
+    eye.set(here.position[0], getVisualTrackY(here), here.position[2])
     eye.addScaledVector(up, FREE_RIDE_CAMERA.eyeHeightMeters + bob)
 
-    target.set(ahead.position[0], ahead.position[1], ahead.position[2])
-    target.addScaledVector(up, FREE_RIDE_CAMERA.eyeHeightMeters)
+    target.set(ahead.position[0], getVisualTrackY(ahead), ahead.position[2])
+    target.addScaledVector(
+      up,
+      FREE_RIDE_CAMERA.eyeHeightMeters - FREE_RIDE_CAMERA.lookDownMeters
+    )
 
     const positionLerp = 1 - Math.exp(-FREE_RIDE_CAMERA.positionLerpRate * dt)
     const orientationLerp = 1 - Math.exp(-FREE_RIDE_CAMERA.orientationLerpRate * dt)

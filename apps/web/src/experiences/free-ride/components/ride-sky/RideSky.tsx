@@ -6,10 +6,8 @@ import { FREE_RIDE_PALETTE } from "../../free-ride-config"
 import type { Group } from "three"
 
 /**
- * Dark dusk backdrop: a large inverted sphere with a vertical gradient (deep
- * indigo overhead fading to a magenta horizon that matches the scene fog), plus
- * a subtle starfield. The backdrop ignores fog so it stays crisp behind the
- * fogged geometry.
+ * Dark sci-fi night backdrop: a large inverted sphere with a vertical blue /
+ * violet gradient, plus a restrained starfield behind the fogged city depth.
  */
 export function RideSky() {
   const material = useMemo(() => {
@@ -53,7 +51,7 @@ export function RideSky() {
       <mesh material={material} frustumCulled={false} scale={3000}>
         <sphereGeometry args={[1, 32, 16]} />
       </mesh>
-      <Stars radius={600} depth={120} count={2200} factor={6} saturation={0.4} fade speed={0.6} />
+      <Stars radius={700} depth={160} count={1700} factor={4.5} saturation={0.25} fade speed={0.35} />
     </group>
   )
 }

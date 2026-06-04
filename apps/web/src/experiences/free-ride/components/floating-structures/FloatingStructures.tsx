@@ -7,7 +7,7 @@ import {
   FREE_RIDE_SEED,
   FREE_RIDE_TRACK,
 } from "../../free-ride-config"
-import { sampleTrack } from "../../track"
+import { getVisualTrackY, sampleTrack } from "../../track"
 import { forEachSlot, slotCount } from "../../slots"
 import { hashInt, mulberry32 } from "../../rng"
 import type { InstancedMesh } from "three"
@@ -18,14 +18,12 @@ type FloatingStructuresProps = {
 }
 
 const SEED = hashInt(0x71179, FREE_RIDE_SEED.length)
-const WINDOW = { spacing: 70, back: 20, ahead: 420 }
-const RING_PROBABILITY = 0.55
+const WINDOW = { spacing: 115, back: 20, ahead: 480 }
+const RING_PROBABILITY = 0.34
 
 const NEON_CHOICES = [
   FREE_RIDE_PALETTE.neonCyan,
-  FREE_RIDE_PALETTE.neonMagenta,
   FREE_RIDE_PALETTE.neonViolet,
-  FREE_RIDE_PALETTE.neonOrange,
 ]
 
 /**
@@ -65,7 +63,7 @@ export function FloatingStructures({ rideState }: FloatingStructuresProps) {
       }
 
       const sample = sampleTrack(distanceAlong)
-      const radius = FREE_RIDE_TRACK.halfWidthMeters + 3 + rng() * 4
+      const radius = FREE_RIDE_TRACK.halfWidthMeters + 4 + rng() * 5
 
       // Map the torus' local frame onto the track: +X→right, +Y→up, +Z→tangent,
       // so the hole-axis (local +Z) faces down the track and the ring stands as a
@@ -77,13 +75,13 @@ export function FloatingStructures({ rideState }: FloatingStructuresProps) {
       matrix.scale(scale.setScalar(radius))
       matrix.setPosition(
         sample.position[0] + up.x * FREE_RIDE_CAMERA.eyeHeightMeters,
-        sample.position[1] + up.y * FREE_RIDE_CAMERA.eyeHeightMeters,
+        getVisualTrackY(sample) + up.y * FREE_RIDE_CAMERA.eyeHeightMeters,
         sample.position[2] + up.z * FREE_RIDE_CAMERA.eyeHeightMeters
       )
       mesh.setMatrixAt(slotIndex, matrix)
 
       const choice = NEON_CHOICES[Math.floor(rng() * NEON_CHOICES.length)]
-      color.set(choice).multiplyScalar(2)
+      color.set(choice).multiplyScalar(1.35)
       mesh.setColorAt(slotIndex, color)
     })
     mesh.instanceMatrix.needsUpdate = true

@@ -9,9 +9,8 @@ import { Vector2 } from "three"
 import { FREE_RIDE_FX } from "../../free-ride-config"
 
 /**
- * The post stack that sells the Redout look: strong, threshold-tuned bloom over
- * the HDR neon, a vignette to frame the speed, and a hint of chromatic
- * aberration at the edges.
+ * Premium dark post stack: restrained bloom over sparse emissive accents, a
+ * vignette to frame speed, and subtle chromatic aberration at the edges.
  */
 export function PostFx() {
   const chromaticOffset = useMemo(

@@ -43,8 +43,8 @@ export function FreeRideScene({ rideState }: FreeRideSceneProps) {
       }}
     >
       <color attach="background" args={[FREE_RIDE_PALETTE.fog]} />
-      <ambientLight intensity={0.5} color={FREE_RIDE_PALETTE.neonViolet} />
-      <directionalLight intensity={0.8} position={[40, 80, -20]} color="#bfa9ff" />
+      <ambientLight intensity={0.36} color={FREE_RIDE_PALETTE.neonViolet} />
+      <directionalLight intensity={0.55} position={[40, 100, -30]} color="#9bb2ff" />
 
       <RideSky />
       <RideMotion rideState={rideState} />
