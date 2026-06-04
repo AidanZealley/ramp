@@ -2,7 +2,7 @@ import { useFrame, useThree } from "@react-three/fiber"
 import { useMemo } from "react"
 import { Vector3 } from "three"
 import { FREE_RIDE_CAMERA, FREE_RIDE_MOTION } from "../../free-ride-config"
-import { clamp, getVisualTrackY, sampleTrack } from "../../track"
+import { clamp, getRacingLineOffset, getVisualTrackY, sampleTrack } from "../../track"
 import type { RideState } from "../../ride-state"
 import type { PerspectiveCamera } from "three"
 
@@ -22,6 +22,8 @@ export function RideCamera({ rideState }: RideCameraProps) {
     () => ({
       eye: new Vector3(),
       target: new Vector3(),
+      hereRight: new Vector3(),
+      aheadRight: new Vector3(),
       tangent: new Vector3(),
       up: new Vector3(),
     }),
@@ -30,13 +32,18 @@ export function RideCamera({ rideState }: RideCameraProps) {
 
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.05)
-    const { eye, target, tangent, up } = scratch
+    const { eye, target, hereRight, aheadRight, tangent, up } = scratch
 
     const here = sampleTrack(rideState.distance)
-    const ahead = sampleTrack(rideState.distance + FREE_RIDE_CAMERA.lookAheadMeters)
+    const aheadDistance = rideState.distance + FREE_RIDE_CAMERA.lookAheadMeters
+    const ahead = sampleTrack(aheadDistance)
+    const hereOffset = getRacingLineOffset(rideState.distance)
+    const aheadOffset = getRacingLineOffset(aheadDistance)
 
     up.set(here.up[0], here.up[1], here.up[2])
     tangent.set(here.tangent[0], here.tangent[1], here.tangent[2])
+    hereRight.set(here.right[0], here.right[1], here.right[2])
+    aheadRight.set(ahead.right[0], ahead.right[1], ahead.right[2])
 
     // Lean a touch harder than the track itself.
     const extraRoll = here.bank * (FREE_RIDE_CAMERA.bankMultiplier - 1)
@@ -47,9 +54,11 @@ export function RideCamera({ rideState }: RideCameraProps) {
       FREE_RIDE_CAMERA.bobAmplitude
 
     eye.set(here.position[0], getVisualTrackY(here), here.position[2])
+    eye.addScaledVector(hereRight, hereOffset)
     eye.addScaledVector(up, FREE_RIDE_CAMERA.eyeHeightMeters + bob)
 
     target.set(ahead.position[0], getVisualTrackY(ahead), ahead.position[2])
+    target.addScaledVector(aheadRight, aheadOffset)
     target.addScaledVector(
       up,
       FREE_RIDE_CAMERA.eyeHeightMeters - FREE_RIDE_CAMERA.lookDownMeters

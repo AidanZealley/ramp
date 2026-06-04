@@ -54,6 +54,7 @@ const ELEVATION: Array<Harmonic> = [
 
 const BANK_GAIN = 62
 const MAX_BANK = 0.52
+const MAX_RACING_LINE_OFFSET_METERS = 1.8
 
 function sumSin(harmonics: Array<Harmonic>, s: number): number {
   let total = 0
@@ -75,6 +76,10 @@ function sumSinDeriv2(harmonics: Array<Harmonic>, s: number): number {
     total += -(h.amp / (h.len * h.len)) * Math.sin(s / h.len + h.phase)
   }
   return total
+}
+
+function lateralCurvatureAt(distance: number): number {
+  return sumSinDeriv2(LATERAL, distance)
 }
 
 function normalize(v: Vec3): Vec3 {
@@ -144,6 +149,21 @@ export function offsetAlongRight(sample: TrackSample, lateral: number): Vec3 {
     sample.position[1] + sample.right[1] * lateral,
     sample.position[2] + sample.right[2] * lateral,
   ]
+}
+
+export function getRacingLineOffset(distance: number): number {
+  const entryCurvature = lateralCurvatureAt(distance + 34)
+  const apexCurvature = lateralCurvatureAt(distance + 14)
+  const exitCurvature = lateralCurvatureAt(distance - 18)
+
+  const apex = Math.tanh(apexCurvature * 120) * 3
+  const entry = -Math.tanh(entryCurvature * 120) * 0.75
+  const exit = -Math.tanh(exitCurvature * 120) * 0.4
+
+  const rawOffset = apex + entry + exit
+  return Math.abs(rawOffset) < 0.08
+    ? 0
+    : clamp(rawOffset, -MAX_RACING_LINE_OFFSET_METERS, MAX_RACING_LINE_OFFSET_METERS)
 }
 
 export function getVisualTrackY(sample: TrackSample): number {

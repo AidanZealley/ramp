@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest"
 import { FREE_RIDE_ELEVATION } from "./free-ride-config"
-import { getLowerWorldY, getVisualTrackY, offsetAlongRight, sampleTrack } from "./track"
+import {
+  getLowerWorldY,
+  getRacingLineOffset,
+  getVisualTrackY,
+  offsetAlongRight,
+  sampleTrack,
+} from "./track"
 
 function length(v: [number, number, number]): number {
   return Math.hypot(v[0], v[1], v[2])
@@ -120,5 +126,79 @@ describe("sampleTrack", () => {
     expect(mid[0]).toBeCloseTo(sample.position[0], 6)
     expect(mid[1]).toBeCloseTo(sample.position[1], 6)
     expect(mid[2]).toBeCloseTo(sample.position[2], 6)
+  })
+
+  it("returns finite racing-line offsets across a long sweep", () => {
+    for (let distance = 0; distance <= 20000; distance += 23) {
+      expect(Number.isFinite(getRacingLineOffset(distance))).toBe(true)
+    }
+  })
+
+  it("keeps racing-line offsets inside the central deck", () => {
+    for (let distance = 0; distance <= 20000; distance += 13) {
+      expect(Math.abs(getRacingLineOffset(distance))).toBeLessThanOrEqual(1.8 + 1e-9)
+    }
+  })
+
+  it("does not ride the racing-line clamp through turns", () => {
+    for (let distance = 0; distance <= 20000; distance += 13) {
+      expect(Math.abs(getRacingLineOffset(distance))).toBeLessThan(1.75)
+    }
+  })
+
+  it("keeps near-straight sections centered", () => {
+    let checked = 0
+
+    for (let distance = 0; distance <= 20000; distance += 1) {
+      const offset = getRacingLineOffset(distance)
+      if (offset !== 0) continue
+
+      const center = sampleTrack(distance).position[0]
+      const curvature =
+        sampleTrack(distance - 1).position[0] -
+        2 * center +
+        sampleTrack(distance + 1).position[0]
+
+      expect(Math.abs(curvature)).toBeLessThan(0.004)
+      checked += 1
+      if (checked >= 25) break
+    }
+
+    expect(checked).toBeGreaterThanOrEqual(25)
+  })
+
+  it("changes racing-line offsets continuously between adjacent samples", () => {
+    const step = 1
+    let previous = getRacingLineOffset(0)
+
+    for (let distance = step; distance <= 10000; distance += step) {
+      const current = getRacingLineOffset(distance)
+      expect(Math.abs(current - previous)).toBeLessThan(0.18)
+      previous = current
+    }
+  })
+
+  it("does not create racing-line offsets from high grade alone", () => {
+    let checked = 0
+
+    for (let distance = 0; distance <= 20000; distance += 1) {
+      const sample = sampleTrack(distance)
+      if (Math.abs(sample.grade * 100) < FREE_RIDE_ELEVATION.maxTrainerGradePercent * 0.75) {
+        continue
+      }
+
+      const offset = getRacingLineOffset(distance)
+      const center = sample.position[0]
+      const curvature =
+        sampleTrack(distance - 1).position[0] -
+        2 * center +
+        sampleTrack(distance + 1).position[0]
+
+      if (Math.abs(curvature) < 0.003 && Math.abs(offset) <= 0.2) {
+        checked += 1
+      }
+    }
+
+    expect(checked).toBeGreaterThan(5)
   })
 })
