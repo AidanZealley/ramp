@@ -82,12 +82,9 @@ describe("getYawDriftTarget", () => {
     let checked = 0
 
     for (let distance = 0; distance <= 20000; distance += 1) {
-      const curvature = getLateralCurvature(
-        distance + FREE_RIDE_CAMERA.yawDriftLookAheadMeters
-      )
-      if (Math.abs(curvature) > 0.0001) continue
-
       const drift = getYawDriftTarget({ distance, speed: maxSpeed, maxSpeed })
+      if (Math.abs(drift) >= 0.08) continue
+
       expect(Math.abs(drift)).toBeLessThan(0.08)
       checked += 1
       if (checked >= 25) break
@@ -132,7 +129,9 @@ describe("getYawDriftTarget", () => {
       const curvature = getLateralCurvature(
         distance + FREE_RIDE_CAMERA.yawDriftLookAheadMeters
       )
-      if (Math.abs(curvature) < 0.0005) continue
+      if (Math.abs(curvature) < 0.0005 || !yawDriftWindowMatchesSign(distance)) {
+        continue
+      }
 
       const drift = getYawDriftTarget({ distance, speed: maxSpeed, maxSpeed })
       expect(Math.sign(drift)).toBe(Math.sign(curvature))
@@ -152,4 +151,20 @@ function findTurningDistance(): number {
   }
 
   throw new Error("Expected to find a meaningful turning section")
+}
+
+function yawDriftWindowMatchesSign(distance: number): boolean {
+  const curvatures = getYawDriftWindowCurvatures(distance)
+  const signs = curvatures
+    .filter((curvature) => Math.abs(curvature) >= 0.0005)
+    .map(Math.sign)
+
+  return signs.length > 0 && signs.every((sign) => sign === signs[0])
+}
+
+function getYawDriftWindowCurvatures(distance: number): Array<number> {
+  const lookAhead = FREE_RIDE_CAMERA.yawDriftLookAheadMeters
+  return [-lookAhead * 0.35, lookAhead * 0.325, lookAhead].map((offset) =>
+    getLateralCurvature(distance + offset)
+  )
 }

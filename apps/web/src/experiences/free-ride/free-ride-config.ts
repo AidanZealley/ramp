@@ -60,11 +60,11 @@ export const FREE_RIDE_CAMERA = {
   /** Apply a milder bias to the look target so the horizon also signals grade. */
   gradeTargetBiasMultiplier: 0.45,
   /** Subtle look-target yaw bias into upcoming turns for a rear-end drift feel. */
-  yawDriftLookAheadMeters: 16,
-  yawDriftStrengthMeters: 1.15,
-  yawDriftFullCurvature: 0.0045,
-  yawDriftSpeedMinRatio: 0.25,
-  yawDriftSpeedFullRatio: 0.75,
+  yawDriftLookAheadMeters: 24,
+  yawDriftStrengthMeters: 3.8,
+  yawDriftFullCurvature: 0.008,
+  yawDriftSpeedMinRatio: 0.05,
+  yawDriftSpeedFullRatio: 0.35,
   yawDriftLerpRate: 5.5,
   /** Subtle vertical bob. */
   bobAmplitude: 0.06,

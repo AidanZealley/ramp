@@ -18,9 +18,7 @@ export function getYawDriftTarget(input: {
   speed: number
   maxSpeed: number
 }): number {
-  const curvature = getLateralCurvature(
-    input.distance + FREE_RIDE_CAMERA.yawDriftLookAheadMeters
-  )
+  const curvature = getYawDriftCurvatureSignal(input.distance)
   const curvatureRatio = clamp(
     curvature / FREE_RIDE_CAMERA.yawDriftFullCurvature,
     -1,
@@ -41,4 +39,24 @@ export function getYawDriftTarget(input: {
   if (speedT === 0 || shapedTurn === 0) return 0
 
   return shapedTurn * speedT * FREE_RIDE_CAMERA.yawDriftStrengthMeters
+}
+
+function getYawDriftCurvatureSignal(distance: number): number {
+  const lookAhead = FREE_RIDE_CAMERA.yawDriftLookAheadMeters
+  const startOffset = -lookAhead * 0.35
+  const endOffset = lookAhead
+  const sampleCount = 9
+  let weightedCurvature = 0
+  let totalWeight = 0
+
+  for (let i = 0; i < sampleCount; i += 1) {
+    const t = i / (sampleCount - 1)
+    const offset = startOffset + (endOffset - startOffset) * t
+    const weight = Math.sin(Math.PI * t)
+
+    weightedCurvature += getLateralCurvature(distance + offset) * weight
+    totalWeight += weight
+  }
+
+  return totalWeight > 0 ? weightedCurvature / totalWeight : 0
 }
