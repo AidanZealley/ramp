@@ -51,6 +51,14 @@ export const FREE_RIDE_CAMERA = {
   /** Position/orientation smoothing (per second). Higher = snappier. */
   positionLerpRate: 6,
   orientationLerpRate: 7,
+  /** Extra visual grade cue: uphill keeps eye lower, downhill lets it float higher. */
+  gradeHeightBiasMeters: 1.15,
+  /** Grade percent where the visual bias reaches full strength. */
+  gradeHeightBiasFullGradePercent: 10,
+  /** Prevent rapid grade transitions from popping the camera vertically. */
+  gradeHeightBiasLerpRate: 2.8,
+  /** Apply a milder bias to the look target so the horizon also signals grade. */
+  gradeTargetBiasMultiplier: 0.45,
   /** Subtle vertical bob. */
   bobAmplitude: 0.06,
   bobFrequency: 2.2,

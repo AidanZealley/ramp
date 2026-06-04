@@ -5,6 +5,7 @@ import { FREE_RIDE_CAMERA, FREE_RIDE_MOTION } from "../../free-ride-config"
 import { clamp, getRacingLineOffset, getVisualTrackY, sampleTrack } from "../../track"
 import type { RideState } from "../../ride-state"
 import type { PerspectiveCamera } from "three"
+import { getGradeHeightBiasTarget } from "./utils"
 
 type RideCameraProps = {
   rideState: RideState
@@ -26,6 +27,7 @@ export function RideCamera({ rideState }: RideCameraProps) {
       aheadRight: new Vector3(),
       tangent: new Vector3(),
       up: new Vector3(),
+      gradeHeightBias: 0,
     }),
     []
   )
@@ -39,6 +41,12 @@ export function RideCamera({ rideState }: RideCameraProps) {
     const ahead = sampleTrack(aheadDistance)
     const hereOffset = getRacingLineOffset(rideState.distance)
     const aheadOffset = getRacingLineOffset(aheadDistance)
+    const targetGradeHeightBias = getGradeHeightBiasTarget(rideState.grade)
+    const gradeBiasLerp =
+      1 - Math.exp(-FREE_RIDE_CAMERA.gradeHeightBiasLerpRate * dt)
+
+    scratch.gradeHeightBias +=
+      (targetGradeHeightBias - scratch.gradeHeightBias) * gradeBiasLerp
 
     up.set(here.up[0], here.up[1], here.up[2])
     tangent.set(here.tangent[0], here.tangent[1], here.tangent[2])
@@ -56,6 +64,7 @@ export function RideCamera({ rideState }: RideCameraProps) {
     eye.set(here.position[0], getVisualTrackY(here), here.position[2])
     eye.addScaledVector(hereRight, hereOffset)
     eye.addScaledVector(up, FREE_RIDE_CAMERA.eyeHeightMeters + bob)
+    eye.y += scratch.gradeHeightBias
 
     target.set(ahead.position[0], getVisualTrackY(ahead), ahead.position[2])
     target.addScaledVector(aheadRight, aheadOffset)
@@ -63,6 +72,7 @@ export function RideCamera({ rideState }: RideCameraProps) {
       up,
       FREE_RIDE_CAMERA.eyeHeightMeters - FREE_RIDE_CAMERA.lookDownMeters
     )
+    target.y += scratch.gradeHeightBias * FREE_RIDE_CAMERA.gradeTargetBiasMultiplier
 
     const positionLerp = 1 - Math.exp(-FREE_RIDE_CAMERA.positionLerpRate * dt)
     const orientationLerp = 1 - Math.exp(-FREE_RIDE_CAMERA.orientationLerpRate * dt)
