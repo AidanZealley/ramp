@@ -10,30 +10,12 @@ import type {
 import type { Id } from "#convex/_generated/dataModel"
 import { api } from "#convex/_generated/api"
 import { getActivityResumeUrl } from "@/components/activity/routing"
-
-type UseActivitySessionArgs = {
-  activityId?: Id<"activities">
-}
-
-type UnresolvedActivityError = Error & {
-  data?: {
-    kind?: string
-    activityId?: Id<"activities">
-  }
-}
-
-function isUnresolvedActivityError(
-  error: unknown
-): error is UnresolvedActivityError {
-  return (
-    error instanceof Error &&
-    "data" in error &&
-    typeof error.data === "object" &&
-    error.data !== null &&
-    "kind" in error.data &&
-    error.data.kind === "unresolvedActivityExists"
-  )
-}
+import type {
+  StartActivityInput,
+  UnresolvedActivityError,
+  UseActivitySessionArgs,
+} from "@/hooks/activity/types"
+import { isUnresolvedActivityError } from "@/hooks/activity/utils"
 
 export function useActivitySession({
   activityId,
@@ -69,22 +51,11 @@ export function useActivitySession({
     [convex, unresolvedActivity]
   )
 
-  const startWorkoutActivity = useCallback(
-    async ({
-      workoutId,
-      ftpAtStart,
-    }: {
-      workoutId: Id<"workouts">
-      ftpAtStart: number
-    }): Promise<ActivityStartResult> => {
+  const startExperienceActivity = useCallback(
+    async (activityInput: StartActivityInput): Promise<ActivityStartResult> => {
       try {
         const activity = await startActivity({
-          activity: {
-            sourceKind: "workout",
-            workoutId,
-            experienceId: "live-workout",
-            ftpAtStart,
-          },
+          activity: activityInput,
         })
         setLocalActivity(activity)
         return { ok: true, activity }
@@ -102,34 +73,37 @@ export function useActivitySession({
     [resolveBlockedActivity, startActivity]
   )
 
+  const startWorkoutActivity = useCallback(
+    async ({
+      workoutId,
+      ftpAtStart,
+    }: {
+      workoutId: Id<"workouts">
+      ftpAtStart: number
+    }): Promise<ActivityStartResult> => {
+      return await startExperienceActivity({
+        sourceKind: "workout",
+        workoutId,
+        experienceId: "live-workout",
+        ftpAtStart,
+      })
+    },
+    [startExperienceActivity]
+  )
+
   const startRouteActivity = useCallback(
     async ({
       routeId,
     }: {
       routeId: Id<"routes">
     }): Promise<ActivityStartResult> => {
-      try {
-        const activity = await startActivity({
-          activity: {
-            sourceKind: "route",
-            routeId,
-            experienceId: "route",
-          },
-        })
-        setLocalActivity(activity)
-        return { ok: true, activity }
-      } catch (error) {
-        if (isUnresolvedActivityError(error)) {
-          return {
-            ok: false,
-            reason: "unresolvedActivityExists",
-            activity: await resolveBlockedActivity(error),
-          }
-        }
-        throw error
-      }
+      return await startExperienceActivity({
+        sourceKind: "route",
+        routeId,
+        experienceId: "route",
+      })
     },
-    [resolveBlockedActivity, startActivity]
+    [startExperienceActivity]
   )
 
   const startRampTestActivity = useCallback(
@@ -140,29 +114,14 @@ export function useActivitySession({
       builtInId: string
       ftpAtStart: number
     }): Promise<ActivityStartResult> => {
-      try {
-        const activity = await startActivity({
-          activity: {
-            sourceKind: "ramp-test",
-            builtInId,
-            experienceId: "ramp-test",
-            ftpAtStart,
-          },
-        })
-        setLocalActivity(activity)
-        return { ok: true, activity }
-      } catch (error) {
-        if (isUnresolvedActivityError(error)) {
-          return {
-            ok: false,
-            reason: "unresolvedActivityExists",
-            activity: await resolveBlockedActivity(error),
-          }
-        }
-        throw error
-      }
+      return await startExperienceActivity({
+        sourceKind: "ramp-test",
+        builtInId,
+        experienceId: "ramp-test",
+        ftpAtStart,
+      })
     },
-    [resolveBlockedActivity, startActivity]
+    [startExperienceActivity]
   )
 
   const requireActiveActivityId = useCallback(() => {

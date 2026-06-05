@@ -1,31 +1,11 @@
 import type {
-  ActivityClientDoc,
-  ActivityStartResult,
-} from "@/components/activity/types"
+  ActivityStartTransactionResult,
+  StartActivityTransactionArgs,
+} from "@/hooks/activity/types"
 
-export type ActivityStartTransactionResult =
-  | { ok: true; activity: ActivityClientDoc | null }
-  | {
-      ok: false
-      reason: "unresolvedActivityExists"
-      activity: ActivityClientDoc | null
-    }
-  | {
-      ok: false
-      reason: "localStartFailed"
-      activity: null
-      error: unknown
-    }
-
-export async function startActivityTransaction(args: {
-  startActivity: () => Promise<
-    ActivityStartResult | { ok: true; activity: null }
-  >
-  startLocal: (activity: ActivityClientDoc | null) => Promise<void>
-  discardActivity: (activity: ActivityClientDoc) => Promise<void>
-  resetLocal?: () => void | Promise<void>
-  onLocalStartFailed?: (error: unknown) => void
-}): Promise<ActivityStartTransactionResult> {
+export async function startActivityTransaction(
+  args: StartActivityTransactionArgs
+): Promise<ActivityStartTransactionResult> {
   const startResult = await args.startActivity()
   if (!startResult.ok) {
     return startResult
