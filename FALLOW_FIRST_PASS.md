@@ -42,7 +42,7 @@ This was a discovery and triage pass only. No Fallow autofix was applied, `pnpm 
 | --- | --- | --- |
 | `apps/web/src/experiences/live-workout/live-workout-experience-view.tsx` and `apps/web/src/experiences/ramp-test/ramp-test-experience-view.tsx` share 217 lines across 3 clone groups, including a 167-line group | needs product/design judgement | Defer. These are separate experiences; extract only if a shared session orchestration abstraction is clearly tested and does not obscure behavior. |
 | `apps/web/src/experiences/route-simulation/route-simulation-experience-view.tsx` has two large internal groups, 109 lines total | candidate for extraction | Investigate as a route-simulation-specific refactor after reviewing behavior and tests. |
-| `apps/web/src/hooks/activity/use-activity-session.ts` has duplicated branches, 48 lines | extract helper | Higher-value shared app hook duplication. Consider extracting common transaction/session state handling with tests. |
+| `apps/web/src/hooks/activity/use-activity-session.ts` had duplicated start-flow branches, 48 lines | completed | Refactored into a shared activity-start flow. Verified with `pnpm fallow dupes --trace apps/web/src/hooks/activity/use-activity-session.ts:86` and `pnpm fallow:dupes`; the previous clone group is gone. |
 | `LiveWorkoutDashboard.tsx` and `RampTestDashboard.tsx` share 119 lines across 6 clone groups | needs product/design judgement | Defer UI abstraction unless the repeated parts are logic-level dashboard calculations or stable subcomponents. |
 | `plan-actions-menu.tsx` and `workout-actions-menu.tsx` share 67 lines across 3 clone groups | intentional duplication / possible extraction | Low priority. Menus may diverge by product context; consider only a small shared action-menu primitive if churn continues. |
 | Large test clone families in workout editor, live workout, and route simulation tests | test support / keep | Do not prioritize cleanup in first implementation pass. Consider local test helpers only when they clarify setup. |
@@ -73,15 +73,18 @@ This was a discovery and triage pass only. No Fallow autofix was applied, `pnpm 
 | Duplication report is noisy for tests and UI clone groups. | Consider raising duplication thresholds or excluding test-only clone families only if the report becomes too noisy for PR review. Do not change config yet. |
 | Health report includes static coverage gaps and generated UI/library files. | Keep `fallow:health` as report-only. Consider coverage-backed health later using a real coverage artifact. |
 
+## Completed Cleanup
+
+- Removed direct web dependencies `@dnd-kit/utilities` and `web-vitals`; `pnpm fallow:dead-code` now reports no issues.
+- Refactored `apps/web/src/hooks/activity/use-activity-session.ts` start-flow duplication; the previous Fallow clone group is no longer reported.
+
 ## Cleanup Backlog
 
-1. Remove clearly unused web dependencies: `@dnd-kit/utilities` and `web-vitals`; update lockfile and rerun `pnpm typecheck`, `pnpm test`, `pnpm fallow:dead-code`, and `pnpm fallow:audit`.
-2. Keep boundary rules as-is; no boundary violations or config gaps were found.
-3. Add or strengthen tests before refactoring `packages/ride-core/src/controller.ts`, especially session creation, dispatch, and trainer connection behavior.
-4. Split high-value workout execution/editor hotspots: `LiveWorkoutExperienceView`, `createWorkoutEditorStore`, and `IntervalBlock`.
-5. Investigate `use-activity-session.ts` duplicated branches as a small shared hook/helper cleanup candidate.
-6. Treat live workout/ramp test duplication as a product-design decision, not an automatic abstraction.
-7. Consider parser-focused extraction in `apps/web/src/lib/importers/mrc.ts` as a low-risk health improvement.
-8. Review trainer IO FTMS command handling with protocol tests before any refactor.
-9. Review Convex hotspots only with Convex runtime discovery and authorization rules in mind.
-10. Consider adding `pnpm fallow:audit` to CI only after the dependency cleanup lands and the local workflow remains low-noise.
+1. Keep boundary rules as-is; no boundary violations or config gaps were found.
+2. Add or strengthen tests before refactoring `packages/ride-core/src/controller.ts`, especially session creation, dispatch, and trainer connection behavior.
+3. Split high-value workout execution/editor hotspots: `LiveWorkoutExperienceView`, `createWorkoutEditorStore`, and `IntervalBlock`.
+4. Treat live workout/ramp test duplication as a product-design decision, not an automatic abstraction.
+5. Consider parser-focused extraction in `apps/web/src/lib/importers/mrc.ts` as a low-risk health improvement.
+6. Review trainer IO FTMS command handling with protocol tests before any refactor.
+7. Review Convex hotspots only with Convex runtime discovery and authorization rules in mind.
+8. Consider adding `pnpm fallow:audit` to CI only after the local workflow remains low-noise across a few cleanup changes.
