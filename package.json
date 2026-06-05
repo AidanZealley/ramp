@@ -14,13 +14,22 @@
     "test:packages": "pnpm --filter './packages/**' test",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx}\"",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "fallow": "fallow",
+    "fallow:list": "fallow list --plugins && fallow list --boundaries",
+    "fallow:dead-code": "fallow dead-code",
+    "fallow:boundaries": "fallow dead-code --boundary-violations",
+    "fallow:dupes": "fallow dupes",
+    "fallow:health": "fallow health --report-only",
+    "fallow:audit": "fallow audit",
+    "fallow:fix:dry-run": "fallow fix --dry-run"
   },
   "devDependencies": {
     "@tanstack/eslint-config": "^0.4.0",
     "@types/node": "^22.19.15",
     "concurrently": "^9.2.1",
     "eslint": "^9.39.2",
+    "fallow": "2.88.3",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "typescript": "^5.9.3",

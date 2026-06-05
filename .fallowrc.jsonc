@@ -1,0 +1,98 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.vite/**",
+    ".output/**",
+    ".nitro/**",
+    ".tanstack/**",
+    ".vinxi/**",
+    ".wrangler/**",
+    ".fallow/**",
+
+    "apps/web/src/routeTree.gen.ts",
+    "convex/_generated/**",
+    "packages/_template/**"
+  ],
+
+  "rules": {
+    "unused-files": "warn",
+    "unused-exports": "warn",
+    "unused-types": "warn",
+    "unused-dependencies": "warn",
+    "circular-dependencies": "warn",
+    "boundary-violation": "warn"
+  },
+
+  "boundaries": {
+    "zones": [
+      {
+        "name": "web",
+        "patterns": ["apps/web/src/**"]
+      },
+      {
+        "name": "convex",
+        "patterns": ["convex/**"]
+      },
+      {
+        "name": "ride-contracts",
+        "patterns": ["packages/ride-contracts/src/**"]
+      },
+      {
+        "name": "ride-core",
+        "patterns": ["packages/ride-core/src/**"]
+      },
+      {
+        "name": "ride-react",
+        "patterns": ["packages/ride-react/src/**"]
+      },
+      {
+        "name": "ride-workouts",
+        "patterns": ["packages/ride-workouts/src/**"]
+      },
+      {
+        "name": "trainer-io",
+        "patterns": ["packages/trainer-io/src/**"]
+      }
+    ],
+    "rules": [
+      {
+        "from": "web",
+        "allow": [
+          "convex",
+          "ride-contracts",
+          "ride-core",
+          "ride-react",
+          "ride-workouts",
+          "trainer-io"
+        ]
+      },
+      {
+        "from": "convex",
+        "allow": []
+      },
+      {
+        "from": "ride-contracts",
+        "allow": []
+      },
+      {
+        "from": "ride-core",
+        "allow": ["ride-contracts"]
+      },
+      {
+        "from": "ride-react",
+        "allow": ["ride-core", "ride-contracts"]
+      },
+      {
+        "from": "ride-workouts",
+        "allow": ["ride-core", "ride-contracts"]
+      },
+      {
+        "from": "trainer-io",
+        "allow": ["ride-contracts"]
+      }
+    ]
+  }
+}

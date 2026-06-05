@@ -76,6 +76,22 @@ npm run typecheck
 npm run build
 ```
 
+### Codebase Analysis
+
+Ramp uses Fallow for local codebase intelligence: dead-code detection, duplication checks, complexity hotspots, and package boundary checks.
+
+```bash
+pnpm fallow:list
+pnpm fallow:dead-code
+pnpm fallow:boundaries
+pnpm fallow:dupes
+pnpm fallow:health
+pnpm fallow:audit
+pnpm fallow:fix:dry-run
+```
+
+Fallow findings are warnings during initial adoption. Do not run `fallow fix` without `--dry-run` unless the resulting edits are reviewed.
+
 ## Data Model
 
 Convex currently stores:
