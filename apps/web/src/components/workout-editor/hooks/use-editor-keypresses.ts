@@ -65,6 +65,18 @@ export function useEditorKeypresses({
   )
 
   useKeypress(
+    "Enter",
+    useCallback(
+      (event: KeyboardEvent) => {
+        if (!hasSelectedSection) return
+        event.preventDefault()
+        actions.clearSelectedSection()
+      },
+      [actions, hasSelectedSection]
+    )
+  )
+
+  useKeypress(
     " ",
     useCallback(
       (event: KeyboardEvent) => {

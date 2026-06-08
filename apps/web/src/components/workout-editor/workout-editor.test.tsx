@@ -1596,6 +1596,25 @@ describe("WorkoutEditor keyboard shortcuts", () => {
     })
   })
 
+  it("clears subsection selection with Enter while keeping the interval selected", async () => {
+    const { container } = render(<EditorActionHarness />)
+
+    fireEvent.click(getIntervalBody(container, 1)!)
+    fireEvent.click(getSectionTarget(container, 1, "power-start")!)
+
+    await waitFor(() => {
+      expect(readJson("editor-selected-section")).toMatchObject({
+        target: "power-start",
+      })
+    })
+
+    fireEvent.keyDown(document, { key: "Enter" })
+    await waitFor(() => {
+      expect(readJson("editor-selected-section")).toBeNull()
+      expect(readJson("editor-selected")).toHaveLength(1)
+    })
+  })
+
   it("does not restore subsection ui state across undo and redo", async () => {
     const { container } = render(
       <EditorActionHarness
