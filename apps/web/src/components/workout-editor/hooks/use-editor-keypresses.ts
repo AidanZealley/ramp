@@ -13,6 +13,11 @@ interface UseEditorKeypressesProps {
   hasClipboard: boolean
 }
 
+function getKeyboardPowerPercent(key: string) {
+  if (!/^\d$/.test(key)) return null
+  return key === "0" ? 100 : Number(key) * 10
+}
+
 export function useEditorKeypresses({
   actions,
   isDragging,
@@ -137,6 +142,45 @@ export function useEditorKeypresses({
       [actions, hasSelectedSection, isDragging, powerSnap, selectedCount]
     )
   )
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return
+      }
+
+      if (
+        isDragging ||
+        selectedCount === 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.shiftKey
+      ) {
+        return
+      }
+
+      const power = getKeyboardPowerPercent(event.key)
+      if (power === null) return
+
+      event.preventDefault()
+      if (hasSelectedSection) {
+        actions.setSelectedSectionPower(power)
+        return
+      }
+      actions.setSelectedPower(power)
+    }
+
+    document.addEventListener("keydown", handler)
+    return () => document.removeEventListener("keydown", handler)
+  }, [actions, hasSelectedSection, isDragging, selectedCount])
 
   useKeypress(
     "ArrowRight",

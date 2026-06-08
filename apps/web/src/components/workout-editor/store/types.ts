@@ -89,6 +89,8 @@ export interface WorkoutEditorActions {
   moveSelection: (direction: 1 | -1) => void
   nudgeSelectedSectionPower: (delta: number) => void
   nudgeSelectedPower: (delta: number) => void
+  setSelectedSectionPower: (power: number) => void
+  setSelectedPower: (power: number) => void
   nudgeSelectedDuration: (delta: number) => void
   undo: () => void
   redo: () => void

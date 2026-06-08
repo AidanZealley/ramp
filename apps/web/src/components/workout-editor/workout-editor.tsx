@@ -157,6 +157,44 @@ export function WorkoutEditor() {
         }
         actions.nudgeSelectedSectionPower(delta)
       },
+      setSelectedPower: (power: number) => {
+        if (selectedIds.length === 1) {
+          const index = stableIds.indexOf(selectedIds[0])
+          if (index !== -1) {
+            const interval = intervals[index]
+            const currentMaxPower = computeMaxPower(intervals)
+            const nextPower = clamp(power, MIN_POWER, currentMaxPower)
+            showSingleIntervalFeedback({
+              ...interval,
+              startPower: nextPower,
+              endPower: nextPower,
+            })
+          }
+        }
+        actions.setSelectedPower(power)
+      },
+      setSelectedSectionPower: (power: number) => {
+        if (selectedIds.length === 1 && selectedSection) {
+          const index = stableIds.indexOf(selectedSection.intervalId)
+          if (index !== -1) {
+            const interval = intervals[index]
+            const currentMaxPower = computeMaxPower(intervals)
+            const nextPower = clamp(power, MIN_POWER, currentMaxPower)
+            showSingleIntervalFeedback({
+              ...interval,
+              startPower:
+                selectedSection.target === "power-end"
+                  ? interval.startPower
+                  : nextPower,
+              endPower:
+                selectedSection.target === "power-start"
+                  ? interval.endPower
+                  : nextPower,
+            })
+          }
+        }
+        actions.setSelectedSectionPower(power)
+      },
       nudgeSelectedDuration: (delta: number) => {
         if (selectedIds.length === 1) {
           const index = stableIds.indexOf(selectedIds[0])

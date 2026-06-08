@@ -1528,6 +1528,79 @@ describe("WorkoutEditor keyboard shortcuts", () => {
     })
   })
 
+  it("sets whole selected intervals to keyboard percentage targets", async () => {
+    const { container } = render(
+      <EditorActionHarness
+        initialIntervals={[
+          { startPower: 100, endPower: 140, durationSeconds: 60 },
+          { startPower: 120, endPower: 180, durationSeconds: 120 },
+        ]}
+      />
+    )
+
+    fireEvent.click(getIntervalBody(container, 0)!)
+    fireEvent.click(getIntervalBody(container, 1)!, { metaKey: true })
+    fireEvent.keyDown(document, { key: "5" })
+
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("editor-intervals")).toEqual([
+        { startPower: 50, endPower: 50, durationSeconds: 60 },
+        { startPower: 50, endPower: 50, durationSeconds: 120 },
+      ])
+    })
+
+    fireEvent.keyDown(document, { key: "0" })
+
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("editor-intervals")).toEqual([
+        { startPower: 100, endPower: 100, durationSeconds: 60 },
+        { startPower: 100, endPower: 100, durationSeconds: 120 },
+      ])
+    })
+  })
+
+  it("sets subsection targets to keyboard percentage targets", async () => {
+    const { container } = render(
+      <EditorActionHarness
+        initialIntervals={[
+          { startPower: 100, endPower: 150, durationSeconds: 60 },
+          { startPower: 120, endPower: 180, durationSeconds: 120 },
+        ]}
+      />
+    )
+
+    fireEvent.click(getIntervalBody(container, 1)!)
+    fireEvent.click(getSectionTarget(container, 1, "power-start")!)
+    fireEvent.keyDown(document, { key: "7" })
+
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("editor-intervals")[1]).toMatchObject({
+        startPower: 70,
+        endPower: 180,
+      })
+    })
+
+    fireEvent.click(getSectionTarget(container, 1, "power-end")!)
+    fireEvent.keyDown(document, { key: "9" })
+
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("editor-intervals")[1]).toMatchObject({
+        startPower: 70,
+        endPower: 90,
+      })
+    })
+
+    fireEvent.click(getSectionTarget(container, 1, "power-uniform")!)
+    fireEvent.keyDown(document, { key: "0" })
+
+    await waitFor(() => {
+      expect(readJson<Array<Interval>>("editor-intervals")[1]).toMatchObject({
+        startPower: 100,
+        endPower: 100,
+      })
+    })
+  })
+
   it("keeps whole-interval power nudges for multi-select", async () => {
     const { container } = render(
       <EditorActionHarness

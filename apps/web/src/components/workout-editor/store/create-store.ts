@@ -856,6 +856,65 @@ export function createWorkoutEditorStore(props: WorkoutEditorStoreProps) {
             )
           )
         },
+        setSelectedPower: (power) => {
+          const state = get()
+          if (state.selectedIds.length === 0) return
+          const maxPower = computeMaxPower(state.intervals)
+          const nextPower = clamp(power, MIN_POWER, maxPower)
+          const updated = [...state.intervals]
+          for (const id of state.selectedIds) {
+            const index = state.stableIds.indexOf(id)
+            if (index === -1) continue
+            updated[index] = {
+              ...updated[index],
+              startPower: nextPower,
+              endPower: nextPower,
+            }
+          }
+
+          commitHistoryEntry(
+            createHistoryEntry(
+              updated,
+              state.stableIds,
+              state.selectedIds,
+              state.anchorId
+            )
+          )
+        },
+        setSelectedSectionPower: (power) => {
+          const state = get()
+          const selectedSection = resolveSelectedSection(state, state.selectedIds)
+          if (!selectedSection) return
+
+          const index = state.stableIds.indexOf(selectedSection.intervalId)
+          if (index === -1) return
+
+          const maxPower = computeMaxPower(state.intervals)
+          const nextPower = clamp(power, MIN_POWER, maxPower)
+          const updated = [...state.intervals]
+          const interval = updated[index]
+
+          updated[index] = {
+            ...interval,
+            startPower:
+              selectedSection.target === "power-end"
+                ? interval.startPower
+                : nextPower,
+            endPower:
+              selectedSection.target === "power-start"
+                ? interval.endPower
+                : nextPower,
+          }
+
+          commitHistoryEntry(
+            createHistoryEntry(
+              updated,
+              state.stableIds,
+              state.selectedIds,
+              state.anchorId
+            )
+          )
+        },
         nudgeSelectedDuration: (delta) => {
           const state = get()
           if (state.selectedIds.length === 0) return
