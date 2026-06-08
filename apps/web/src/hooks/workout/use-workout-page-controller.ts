@@ -125,7 +125,7 @@ export function useWorkoutPageController(
   }, [refreshedWorkout, workout])
 
   const goBack = useCallback(() => {
-    navigate({ to: "/" })
+    navigate({ to: "/workout" })
   }, [navigate])
 
   const refreshLatestWorkout = useCallback(async () => {
@@ -189,7 +189,7 @@ export function useWorkoutPageController(
       })
     }
     toast.success("Workout deleted")
-    navigate({ to: "/" })
+    navigate({ to: "/workout" })
   }, [navigate, removeWorkout, resolvedWorkout])
 
   const duplicateWorkout = useCallback(async () => {

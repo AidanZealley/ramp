@@ -222,7 +222,7 @@ describe("useWorkoutPageController", () => {
     })
   })
 
-  it("deletes the workout and navigates back to the root route", async () => {
+  it("deletes the workout and navigates back to the workout library", async () => {
     const { result } = renderHook(() => useWorkoutPageController(workoutId))
 
     await act(async () => {
@@ -230,8 +230,18 @@ describe("useWorkoutPageController", () => {
     })
 
     expect(removeWorkoutMock).toHaveBeenCalledWith({ id: workoutId })
-    expect(navigateMock).toHaveBeenCalledWith({ to: "/" })
+    expect(navigateMock).toHaveBeenCalledWith({ to: "/workout" })
     expect(toast.success).toHaveBeenCalledWith("Workout deleted")
+  })
+
+  it("navigates back to the workout library", () => {
+    const { result } = renderHook(() => useWorkoutPageController(workoutId))
+
+    act(() => {
+      getReadyState(result.current).actions.goBack()
+    })
+
+    expect(navigateMock).toHaveBeenCalledWith({ to: "/workout" })
   })
 
   it("duplicates the workout and navigates to the copied workout", async () => {
