@@ -8,6 +8,7 @@ import { HudStat } from "./components/hud-stat"
 import { DraftQualityMeter } from "./components/draft-quality-meter"
 import { MetricPod } from "./components/metric-pod"
 import { PowerGauge } from "./components/power-gauge"
+import { WeaponChargeMeter } from "./components/weapon-charge-meter"
 import { useFreeRideHudData } from "./use-free-ride-hud-data"
 import type { FreeRideHudProps } from "./types"
 
@@ -91,6 +92,20 @@ export const FreeRideHud = ({ session, rideState }: FreeRideHudProps) => {
               percent={data.draftQualityPercent}
               color={data.hudIntensityColor}
               segmentCount={FREE_RIDE_TARGETS.draftQualityHudSegmentCount}
+            />
+          </motion.div>
+          <motion.div
+            className="absolute top-28 left-1/2 -translate-x-1/2 sm:top-32"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+          >
+            <WeaponChargeMeter
+              charge={data.weaponCharge}
+              percent={data.weaponChargePercent}
+              active={data.weaponChargeActive}
+              color={FREE_RIDE_TARGETS.weaponChargeHudColor}
+              segmentCount={FREE_RIDE_TARGETS.weaponChargeHudSegmentCount}
             />
           </motion.div>
         </>

@@ -48,6 +48,8 @@ export function useFreeRideHudData(
   const [gradePercent, setGradePercent] = useState(0)
   const [draftLocked, setDraftLocked] = useState(false)
   const [draftQuality, setDraftQuality] = useState(0)
+  const [weaponCharge, setWeaponCharge] = useState(0)
+  const [weaponChargeActive, setWeaponChargeActive] = useState(false)
   useEffect(() => {
     let raf = 0
     let last = 0
@@ -68,6 +70,16 @@ export function useFreeRideHudData(
           ? prev
           : rideState.targetDroneDraftQuality
       )
+      setWeaponCharge((prev) =>
+        Math.abs(prev - rideState.weaponCharge) < 0.01
+          ? prev
+          : rideState.weaponCharge
+      )
+      setWeaponChargeActive((prev) =>
+        prev === rideState.weaponChargeActive
+          ? prev
+          : rideState.weaponChargeActive
+      )
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
@@ -86,6 +98,9 @@ export function useFreeRideHudData(
     draftLocked,
     draftQuality,
     draftQualityPercent: Math.round(draftQuality * 100),
+    weaponCharge,
+    weaponChargePercent: Math.round(weaponCharge * 100),
+    weaponChargeActive,
     hudIntensityColor: draftLocked
       ? FREE_RIDE_TARGETS.draftHudColor
       : powerColor,

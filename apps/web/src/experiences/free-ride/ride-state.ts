@@ -3,9 +3,10 @@
  *
  * A single plain object is created once (via `useMemo`) in the experience view
  * and passed by prop to the scene. `RideMotion` is the *only* per-frame writer
- * of motion and target-drone state; the camera, ribbon, scenery, HUD and target
- * effects are readers. Centralising this avoids the multi-component telemetry
- * sampling that made the old 3D experience jitter and pop.
+ * of motion, target-drone and weapon-charge state; the camera, ribbon, scenery,
+ * HUD and target effects are readers. Centralising this avoids the
+ * multi-component telemetry sampling that made the old 3D experience jitter and
+ * pop.
  */
 import { createTrackSample } from "./track"
 import { getTargetDroneActor } from "./actors"
@@ -38,6 +39,9 @@ export type RideState = {
   targetDroneDraftLocked: boolean
   targetDroneDraftQuality: number
   targetDrone: FreeRideActor
+  /** Local Free Ride weapon charge, built only by `RideMotion`. */
+  weaponCharge: number
+  weaponChargeActive: boolean
 }
 
 export function createRideState(): RideState {
@@ -58,5 +62,7 @@ export function createRideState(): RideState {
       riderDistanceMeters: 0,
       gapMeters: FREE_RIDE_TARGETS.defaultLeadMeters,
     }),
+    weaponCharge: 0,
+    weaponChargeActive: false,
   }
 }

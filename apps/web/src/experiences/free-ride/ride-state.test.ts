@@ -16,4 +16,12 @@ describe("createRideState", () => {
       FREE_RIDE_TARGETS.defaultLeadMeters
     )
   })
+
+  it("initializes weapon charge to 0", () => {
+    expect(createRideState().weaponCharge).toBe(0)
+  })
+
+  it("initializes weapon charge active as false", () => {
+    expect(createRideState().weaponChargeActive).toBe(false)
+  })
 })

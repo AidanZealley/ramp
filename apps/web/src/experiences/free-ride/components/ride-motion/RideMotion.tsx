@@ -9,6 +9,10 @@ import {
   getTargetDroneDraftQuality,
 } from "../../draft-zone"
 import { clamp, sampleTrackInto } from "../../track"
+import {
+  getNextWeaponCharge,
+  getWeaponChargeActive,
+} from "../../weapon-charge"
 import type { RideState } from "../../ride-state"
 
 type RideMotionProps = {
@@ -57,6 +61,16 @@ export function RideMotion({ rideState }: RideMotionProps) {
     rideState.targetDroneDraftQuality = getTargetDroneDraftQuality({
       draftLocked: rideState.targetDroneDraftLocked,
       gapMeters: rideState.targetDroneGapMeters,
+    })
+    rideState.weaponChargeActive = getWeaponChargeActive({
+      draftLocked: rideState.targetDroneDraftLocked,
+      riderPowerWatts: rideState.telemetryPowerWatts,
+      riderFtpWatts: rideState.riderFtpWatts,
+    })
+    rideState.weaponCharge = getNextWeaponCharge({
+      currentCharge: rideState.weaponCharge,
+      chargeActive: rideState.weaponChargeActive,
+      deltaSeconds: dt,
     })
     rideState.targetDrone = getTargetDroneActor({
       riderDistanceMeters: rideState.distance,

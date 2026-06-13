@@ -24,6 +24,12 @@ export type FreeRideHudViewModel = {
   draftQuality: number
   /** Draft quality as a whole percentage. */
   draftQualityPercent: number
+  /** Local weapon charge as a fraction (0-1), sampled from the motion loop. */
+  weaponCharge: number
+  /** Weapon charge as a whole percentage. */
+  weaponChargePercent: number
+  /** True while draft lock and power threshold conditions are met. */
+  weaponChargeActive: boolean
   /** Current HUD intensity colour, draft colour while locked. */
   hudIntensityColor: string
   /** True when power exceeds the full-scale (arc pinned full + flashing). */
