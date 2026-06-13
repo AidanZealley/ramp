@@ -300,6 +300,7 @@ export function RouteSimulationExperienceView({
           preferences={preferences}
           startDisabledReason={startDisabledReason}
           startError={startError}
+          showConnectionControl={!trainerConnected}
         />
       </>
     )

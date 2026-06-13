@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, Settings } from "lucide-react"
 import { AnimatePresence } from "motion/react"
+import { RideConnectionControl } from "./ride-connection-control"
 import { RideCockpit } from "./ride-cockpit"
 import type { RideRuntimeController } from "@/ride/use-ride-runtime"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ModeToggle } from "@/components/mode-toggle"
 import { useElementSize } from "@/hooks/use-element-size"
@@ -25,7 +25,6 @@ type RideOverlayProps = {
   isCockpitOpen?: boolean
   onCockpitHeightChange?: (height: number) => void
   onCockpitOpenChange?: (open: boolean) => void
-  onDisconnected?: () => void
   onHeaderHeightChange?: (height: number) => void
 }
 
@@ -36,7 +35,6 @@ export function RideOverlay({
   isCockpitOpen: controlledIsCockpitOpen,
   onCockpitHeightChange,
   onCockpitOpenChange,
-  onDisconnected,
   onHeaderHeightChange,
 }: RideOverlayProps) {
   const navigate = useNavigate()
@@ -45,6 +43,7 @@ export function RideOverlay({
   const [uncontrolledIsCockpitOpen, setUncontrolledIsCockpitOpen] =
     useState(false)
   const [isExitDialogOpen, setIsExitDialogOpen] = useState(false)
+  const [isDisconnectDialogOpen, setIsDisconnectDialogOpen] = useState(false)
   const {
     element: headerElement,
     ref: headerRef,
@@ -62,13 +61,8 @@ export function RideOverlay({
     onCockpitOpenChange?.(open)
   }
 
-  const hasOpenSurface = isCockpitOpen || isExitDialogOpen
-  const sourceLabel =
-    trainerController.source === "simulated"
-      ? "Simulator"
-      : trainerController.source === "ble"
-        ? "Bluetooth trainer"
-        : "No trainer"
+  const hasOpenSurface =
+    isCockpitOpen || isExitDialogOpen || isDisconnectDialogOpen
 
   const scheduleHide = () => {
     clearTimeout(timerRef.current)
@@ -153,8 +147,8 @@ export function RideOverlay({
                 <AlertDialogHeader>
                   <AlertDialogTitle>Exit ride?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Your current ride session will end and you&apos;ll return to
-                    the ride picker.
+                    You&apos;ll return to the ride picker. Your trainer
+                    connection will stay active.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -169,59 +163,39 @@ export function RideOverlay({
               </AlertDialogContent>
             </AlertDialog>
 
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={
-                !trainerController.bleAvailable ||
-                trainerController.selectingTrainer ||
-                trainerController.connecting
-              }
-              onClick={() => {
-                void trainerController.connectTrainer()
+            <RideConnectionControl
+              runtime={trainerController}
+              onDisconnect={() => {
+                setIsDisconnectDialogOpen(true)
               }}
+            />
+            <AlertDialog
+              open={isDisconnectDialogOpen}
+              onOpenChange={setIsDisconnectDialogOpen}
             >
-              {trainerController.selectingTrainer
-                ? "Opening Bluetooth"
-                : "Connect trainer"}
-            </Button>
-            {!trainerController.bleAvailable && (
-              <span className="text-xs text-muted-foreground">
-                Web Bluetooth requires a Chromium-class browser.
-              </span>
-            )}
-            {import.meta.env.DEV &&
-              trainerController.source !== "simulated" && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={
-                    trainerController.connecting ||
-                    trainerController.selectingTrainer
-                  }
-                  onClick={() => void trainerController.useSimulatorTrainer()}
-                >
-                  Use simulator
-                </Button>
-              )}
-            {trainerController.source !== "none" && (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  void trainerController.disconnectTrainer().then(() => {
-                    onDisconnected?.()
-                  })
-                }}
-              >
-                Disconnect
-              </Button>
-            )}
-
-            <Badge>{sourceLabel}</Badge>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Disconnect trainer?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This disconnects your trainer and returns to the ride
+                    connection screen.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel type="button">Keep connected</AlertDialogCancel>
+                  <AlertDialogAction
+                    type="button"
+                    onClick={() => {
+                      void trainerController.disconnectTrainer().then(() => {
+                        void navigate({ to: "/ride" })
+                      })
+                    }}
+                  >
+                    Disconnect
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
 
           <div className="flex items-center gap-2">

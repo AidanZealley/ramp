@@ -23,6 +23,7 @@ type RequestDeviceOptions =
 
 interface Bluetooth {
   requestDevice: (options: RequestDeviceOptions) => Promise<BluetoothDevice>
+  getDevices?: () => Promise<Array<BluetoothDevice>>
 }
 
 interface Navigator {
@@ -33,6 +34,7 @@ interface BluetoothDevice extends EventTarget {
   readonly id?: string
   readonly name?: string
   readonly gatt?: BluetoothRemoteGATTServer
+  forget?: () => Promise<void>
 }
 
 interface BluetoothRemoteGATTServer {

@@ -7,6 +7,10 @@ export type BleTrainerRequestOptions = {
   requestTimeoutMs?: number
 }
 
+export type BleTrainerDeviceLookupOptions = {
+  getDevices?: () => Promise<Array<BluetoothDevice>>
+}
+
 export function isWebBluetoothAvailable(): boolean {
   const bluetooth =
     typeof navigator !== "undefined" ? navigator.bluetooth : undefined
@@ -14,6 +18,37 @@ export function isWebBluetoothAvailable(): boolean {
     typeof navigator !== "undefined" &&
     typeof bluetooth?.requestDevice === "function"
   )
+}
+
+export function isGrantedWebBluetoothDeviceLookupAvailable(): boolean {
+  const bluetooth =
+    typeof navigator !== "undefined" ? navigator.bluetooth : undefined
+  return (
+    typeof navigator !== "undefined" &&
+    typeof bluetooth?.getDevices === "function"
+  )
+}
+
+export async function getGrantedBleDevices(
+  options: BleTrainerDeviceLookupOptions = {}
+): Promise<Array<BluetoothDevice>> {
+  const bluetooth =
+    typeof navigator !== "undefined" ? navigator.bluetooth : undefined
+  const getDevices = options.getDevices ?? bluetooth?.getDevices?.bind(bluetooth)
+
+  if (!getDevices) {
+    throw createTrainerError(
+      "unsupported",
+      "Previously granted Bluetooth devices are unavailable in this browser."
+    )
+  }
+
+  try {
+    return await getDevices()
+  } catch (error: unknown) {
+    console.error("[trainer-io][ble] getDevices failed", error)
+    throw mapWebBluetoothError(error, "unsupported")
+  }
 }
 
 export async function requestBleDevice(

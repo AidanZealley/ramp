@@ -6,26 +6,29 @@ import type { ReactNode } from "react"
 import type * as TrainerIo from "@ramp/trainer-io"
 import type { RideRuntimeController } from "./use-ride-runtime"
 
-const { requestBleTrainer } = vi.hoisted(() => ({
-  requestBleTrainer: vi.fn(),
+const { requestBleDevice } = vi.hoisted(() => ({
+  requestBleDevice: vi.fn(),
 }))
 
 vi.mock("@ramp/trainer-io", async () => {
   const actual = await vi.importActual<typeof TrainerIo>("@ramp/trainer-io")
   return {
     ...actual,
-    requestBleTrainer,
+    FtmsBleTrainer: vi.fn(() => new actual.SimulatedTrainer()),
+    requestBleDevice,
   }
 })
 
 describe("useRideRuntime", () => {
   beforeEach(() => {
     vi.resetModules()
-    requestBleTrainer.mockReset()
+    requestBleDevice.mockReset()
+    window.localStorage.clear()
   })
 
   afterEach(() => {
     Reflect.deleteProperty(navigator, "bluetooth")
+    window.localStorage.clear()
   })
 
   it("does not expose simulator instances", async () => {
@@ -66,14 +69,189 @@ describe("useRideRuntime", () => {
     unmount()
   })
 
+  it("initializes auto-connect state", async () => {
+    const { useRideRuntime } = await import("./use-ride-runtime")
+    const { result, unmount } = renderHook(() => useRideRuntime())
+
+    await waitFor(() => {
+      expect(result.current.ready).toBe(true)
+    })
+
+    expect(result.current.autoConnect).toMatchObject({
+      status: "idle",
+      attempted: false,
+      suppressed: false,
+      lastTrainer: null,
+      error: null,
+    })
+
+    unmount()
+  })
+
+  it("auto-connect succeeds with a saved BLE id and granted device", async () => {
+    window.localStorage.setItem(
+      "ramp:lastBleTrainer",
+      JSON.stringify({ id: "trainer-1", name: "Trainer One" })
+    )
+    Object.defineProperty(navigator, "bluetooth", {
+      configurable: true,
+      value: {
+        requestDevice: vi.fn(),
+        getDevices: vi.fn(() =>
+          Promise.resolve([
+            { id: "trainer-1", name: "Trainer One" } as BluetoothDevice,
+          ])
+        ),
+      },
+    })
+
+    const { useRideRuntime } = await import("./use-ride-runtime")
+    const { result, unmount } = renderHook(() => useRideRuntime())
+
+    await waitFor(() => {
+      expect(result.current.autoConnect.status).toBe("succeeded")
+      expect(result.current.source).toBe("ble")
+    })
+
+    unmount()
+  })
+
+  it("auto-connect is unavailable when granted-device lookup is missing", async () => {
+    window.localStorage.setItem(
+      "ramp:lastBleTrainer",
+      JSON.stringify({ id: "trainer-1", name: "Trainer One" })
+    )
+    Object.defineProperty(navigator, "bluetooth", {
+      configurable: true,
+      value: { requestDevice: vi.fn() },
+    })
+
+    const { useRideRuntime } = await import("./use-ride-runtime")
+    const { result, unmount } = renderHook(() => useRideRuntime())
+
+    await waitFor(() => {
+      expect(result.current.autoConnect.status).toBe("unavailable")
+      expect(result.current.autoConnect.attempted).toBe(true)
+    })
+
+    unmount()
+  })
+
+  it("auto-connect fails when the saved device is absent", async () => {
+    window.localStorage.setItem(
+      "ramp:lastBleTrainer",
+      JSON.stringify({ id: "trainer-1", name: "Trainer One" })
+    )
+    Object.defineProperty(navigator, "bluetooth", {
+      configurable: true,
+      value: {
+        requestDevice: vi.fn(),
+        getDevices: vi.fn(() =>
+          Promise.resolve([
+            { id: "trainer-2", name: "Trainer Two" } as BluetoothDevice,
+          ])
+        ),
+      },
+    })
+
+    const { useRideRuntime } = await import("./use-ride-runtime")
+    const { result, unmount } = renderHook(() => useRideRuntime())
+
+    await waitFor(() => {
+      expect(result.current.autoConnect.status).toBe("failed")
+      expect(result.current.source).toBe("none")
+    })
+
+    unmount()
+  })
+
+  it("cancel auto-connect suppresses the branch attempt", async () => {
+    window.localStorage.setItem(
+      "ramp:lastBleTrainer",
+      JSON.stringify({ id: "trainer-1", name: "Trainer One" })
+    )
+    let resolveDevices: (devices: Array<BluetoothDevice>) => void =
+      () => undefined
+    Object.defineProperty(navigator, "bluetooth", {
+      configurable: true,
+      value: {
+        requestDevice: vi.fn(),
+        getDevices: vi.fn(
+          () =>
+            new Promise<Array<BluetoothDevice>>((resolve) => {
+              resolveDevices = resolve
+            })
+        ),
+      },
+    })
+
+    const { useRideRuntime } = await import("./use-ride-runtime")
+    const { result, unmount } = renderHook(() => useRideRuntime())
+
+    await waitFor(() => {
+      expect(result.current.autoConnect.status).toBe("checking")
+    })
+
+    await act(async () => {
+      await result.current.autoConnect.cancel()
+      resolveDevices([
+        { id: "trainer-1", name: "Trainer One" } as BluetoothDevice,
+      ])
+    })
+
+    await waitFor(() => {
+      expect(result.current.autoConnect.status).toBe("cancelled")
+      expect(result.current.autoConnect.suppressed).toBe(true)
+      expect(result.current.source).toBe("none")
+    })
+
+    unmount()
+  })
+
+  it("manual simulator cancels in-flight auto-connect first", async () => {
+    window.localStorage.setItem(
+      "ramp:lastBleTrainer",
+      JSON.stringify({ id: "trainer-1", name: "Trainer One" })
+    )
+    Object.defineProperty(navigator, "bluetooth", {
+      configurable: true,
+      value: {
+        requestDevice: vi.fn(),
+        getDevices: vi.fn(
+          () => new Promise<Array<BluetoothDevice>>(() => undefined)
+        ),
+      },
+    })
+
+    const { useRideRuntime } = await import("./use-ride-runtime")
+    const { result, unmount } = renderHook(() => useRideRuntime())
+
+    await waitFor(() => {
+      expect(result.current.autoConnect.status).toBe("checking")
+    })
+
+    await act(async () => {
+      await result.current.useSimulatorTrainer()
+    })
+
+    await waitFor(() => {
+      expect(result.current.autoConnect.status).toBe("cancelled")
+      expect(result.current.autoConnect.suppressed).toBe(true)
+      expect(result.current.source).toBe("simulated")
+    })
+
+    unmount()
+  })
+
   it("connectTrainer succeeds across StrictMode effect replay when BLE is mocked", async () => {
     Object.defineProperty(navigator, "bluetooth", {
       configurable: true,
       value: { requestDevice: vi.fn() },
     })
-    const { SimulatedTrainer } = await import("@ramp/trainer-io")
-    const trainer = new SimulatedTrainer()
-    requestBleTrainer.mockResolvedValue(trainer)
+    requestBleDevice.mockResolvedValue({
+      id: "trainer-1",
+      name: "Trainer One",
+    })
     const { useRideRuntime } = await import("./use-ride-runtime")
     const wrapper = ({ children }: { children: ReactNode }) => (
       <StrictMode>{children}</StrictMode>
@@ -95,6 +273,9 @@ describe("useRideRuntime", () => {
       expect(result.current.source).toBe("ble")
       expect(result.current.connection.status).toBe("connected")
     })
+    expect(window.localStorage.getItem("ramp:lastBleTrainer")).toBe(
+      JSON.stringify({ id: "trainer-1", name: "Trainer One" })
+    )
 
     unmount()
   })
@@ -128,7 +309,7 @@ describe("useRideRuntime", () => {
       code: "unsupported",
       message: "Web Bluetooth is unsupported on this browser or platform.",
     }
-    requestBleTrainer.mockRejectedValue(error)
+    requestBleDevice.mockRejectedValue(error)
     const { useRideRuntime } = await import("./use-ride-runtime")
     const { result, unmount } = renderHook(() => useRideRuntime())
 
@@ -159,7 +340,7 @@ describe("useRideRuntime", () => {
       code: "transport",
       message: "Trainer communication failed.",
     }
-    requestBleTrainer.mockRejectedValue(error)
+    requestBleDevice.mockRejectedValue(error)
     const { useRideRuntime } = await import("./use-ride-runtime")
     const { result, unmount } = renderHook(() => useRideRuntime())
 

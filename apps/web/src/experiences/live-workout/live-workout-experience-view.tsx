@@ -345,7 +345,7 @@ export function LiveWorkoutExperienceView({
             ftpForWorkout
           )
           if (!result.ok) {
-            throw new Error(result.reason ?? "Unable to start workout.")
+            throw new Error(result.reason)
           }
 
           session.pause()

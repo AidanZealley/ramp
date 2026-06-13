@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { RoutePreviewMap } from "@/components/route/route-preview-map"
 import { RouteMini } from "@/components/route/route-mini"
+import { RideConnectionControl } from "@/components/ride/ride-connection-control"
 import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 
 type RouteSimulationSetupProps = {
@@ -37,6 +38,7 @@ type RouteSimulationSetupProps = {
   >
   startDisabledReason: string | null
   startError?: string | null
+  showConnectionControl?: boolean
 }
 
 export const RouteSimulationSetup = ({
@@ -48,6 +50,7 @@ export const RouteSimulationSetup = ({
   preferences,
   startDisabledReason,
   startError,
+  showConnectionControl = false,
 }: RouteSimulationSetupProps) => {
   const {
     activeRouteTitle,
@@ -166,6 +169,11 @@ export const RouteSimulationSetup = ({
               {startDisabledReason}
             </p>
           )}
+          {showConnectionControl ? (
+            <div className="mt-4 flex justify-center">
+              <RideConnectionControl />
+            </div>
+          ) : null}
           <Button
             className="mt-4 w-full"
             disabled={Boolean(startDisabledReason)}

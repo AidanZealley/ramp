@@ -3,6 +3,7 @@ import { TrainerStatusBadge } from "./components/trainer-status-badge"
 import { WorkoutDetail } from "./components/workout-detail"
 import type { RideTelemetry, TrainerSourceKind } from "@ramp/ride-core"
 import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
+import { RideConnectionControl } from "@/components/ride/ride-connection-control"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -72,6 +73,12 @@ export function WorkoutDetailPanel({
         ) : (
           <WorkoutDetail workout={workout} ftp={ftp} />
         )}
+
+        {!trainerConnected ? (
+          <div className="flex justify-center">
+            <RideConnectionControl />
+          </div>
+        ) : null}
 
         <Button
           type="button"

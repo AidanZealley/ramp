@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
+  getGrantedBleDevices,
   isWebBluetoothAvailable,
   mapWebBluetoothError,
   requestBleDevice,
@@ -56,6 +57,38 @@ describe("Web Bluetooth request helpers", () => {
     })
 
     await expect(requestBleDevice()).rejects.toMatchObject({
+      code: "unsupported",
+    })
+  })
+
+  it("returns granted Bluetooth devices", async () => {
+    const devices = [
+      { id: "trainer-1", name: "Trainer One" },
+      { id: "trainer-2", name: "Trainer Two" },
+    ] as Array<BluetoothDevice>
+    Object.defineProperty(globalThis, "navigator", {
+      configurable: true,
+      value: {
+        bluetooth: {
+          getDevices: vi.fn(() => Promise.resolve(devices)),
+        },
+      },
+    })
+
+    await expect(getGrantedBleDevices()).resolves.toBe(devices)
+  })
+
+  it("maps missing granted-device lookup to unsupported", async () => {
+    Object.defineProperty(globalThis, "navigator", {
+      configurable: true,
+      value: {
+        bluetooth: {
+          requestDevice: vi.fn(),
+        },
+      },
+    })
+
+    await expect(getGrantedBleDevices()).rejects.toMatchObject({
       code: "unsupported",
     })
   })

@@ -1,6 +1,5 @@
-import { Suspense, lazy, useMemo, useState } from "react"
-import { RideSessionContext } from "@ramp/ride-react"
-import { RideConnectionGate } from "./ride-connection-gate"
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react"
+import { RideConnectionDialog } from "./ride-connection-control"
 import { RideOverlay } from "./ride-overlay"
 import type { Id } from "#convex/_generated/dataModel"
 import type { RideExperienceDefinition } from "@/experiences/types"
@@ -8,7 +7,7 @@ import type { RideRuntimeController } from "@/ride/use-ride-runtime"
 import { useActivitySession } from "@/hooks/activity/use-activity-session"
 import { useElementSize } from "@/hooks/use-element-size"
 import { narrowForExperience } from "@/ride/experience-session"
-import { useRideRuntime } from "@/ride/use-ride-runtime"
+import { useRideRuntimeContext } from "@/ride/ride-runtime-context"
 
 type RideExperienceSearchProps = {
   activityId?: Id<"activities">
@@ -29,41 +28,55 @@ export function RideSessionPage({
   experience: RideExperienceDefinition
   search?: RideExperienceSearchProps
 }) {
-  const runtime = useRideRuntime()
+  const runtime = useRideRuntimeContext()
   const activity = useActivitySession({ activityId: search?.activityId })
-  const [connectionConfirmed, setConnectionConfirmed] = useState(false)
+  const [connectionDialogOpen, setConnectionDialogOpen] = useState(false)
+  const connectionDialogOpenedRef = useRef(false)
 
-  if (!connectionConfirmed || !runtime.ready || runtime.session === null) {
+  useEffect(() => {
+    if (
+      runtime.ready &&
+      runtime.session &&
+      runtime.source === "none" &&
+      !connectionDialogOpenedRef.current
+    ) {
+      connectionDialogOpenedRef.current = true
+      setConnectionDialogOpen(true)
+    }
+  }, [runtime.ready, runtime.session, runtime.source])
+
+  if (!runtime.ready || runtime.session === null) {
     return (
-      <RideConnectionGate
-        experience={experience}
-        trainerController={runtime.ready ? runtime : null}
-        onConnected={() => setConnectionConfirmed(true)}
-      />
+      <section className="flex min-h-svh items-center justify-center px-4">
+        <p className="text-sm text-muted-foreground">Preparing ride...</p>
+      </section>
     )
   }
 
   return (
-    <RideSessionExperience
-      experience={experience}
-      activity={activity}
-      onDisconnected={() => setConnectionConfirmed(false)}
-      search={search}
-      trainerController={runtime as ReadyRideRuntimeController}
-    />
+    <>
+      <RideSessionExperience
+        experience={experience}
+        activity={activity}
+        search={search}
+        trainerController={runtime as ReadyRideRuntimeController}
+      />
+      <RideConnectionDialog
+        open={connectionDialogOpen && runtime.source === "none"}
+        onOpenChange={setConnectionDialogOpen}
+      />
+    </>
   )
 }
 
 function RideSessionExperience({
   experience,
   activity,
-  onDisconnected,
   search,
   trainerController,
 }: {
   experience: RideExperienceDefinition
   activity: ReturnType<typeof useActivitySession>
-  onDisconnected: () => void
   search?: RideExperienceSearchProps
   trainerController: ReadyRideRuntimeController
 }) {
@@ -105,53 +118,50 @@ function RideSessionExperience({
       ? `calc(100svh - ${cockpitHeight}px)`
       : "100svh"
   return (
-    <RideSessionContext.Provider value={session}>
-      <section
-        ref={sectionRef}
-        aria-label={`${experience.displayName} ride`}
-        className="relative h-svh min-h-[620px] overflow-hidden"
-        data-cockpit-open={isCockpitOpen}
+    <section
+      ref={sectionRef}
+      aria-label={`${experience.displayName} ride`}
+      className="relative h-svh min-h-[620px] overflow-hidden"
+      data-cockpit-open={isCockpitOpen}
+    >
+      <h1 className="sr-only">{experience.displayName}</h1>
+      <div
+        className="absolute inset-x-0 top-0 flex justify-center overflow-visible transition-[height,padding] duration-300 ease-out"
+        style={{
+          height: experienceHeight,
+          paddingTop: experienceTopInset,
+          paddingRight: experienceInset,
+          paddingBottom: experienceBottomInset,
+          paddingLeft: experienceInset,
+        }}
       >
-        <h1 className="sr-only">{experience.displayName}</h1>
         <div
-          className="absolute inset-x-0 top-0 flex justify-center overflow-visible transition-[height,padding] duration-300 ease-out"
+          className="relative h-svh w-screen shrink-0 overflow-hidden shadow-[0_18px_44px_rgba(0,0,0,0.22)] transition-[border-radius,transform] duration-300 ease-out"
           style={{
-            height: experienceHeight,
-            paddingTop: experienceTopInset,
-            paddingRight: experienceInset,
-            paddingBottom: experienceBottomInset,
-            paddingLeft: experienceInset,
+            borderRadius: isCockpitOpen ? 18 : 0,
+            transform: `scale(${experienceScale})`,
+            transformOrigin: "top center",
           }}
         >
-          <div
-            className="relative h-svh w-screen shrink-0 overflow-hidden shadow-[0_18px_44px_rgba(0,0,0,0.22)] transition-[border-radius,transform] duration-300 ease-out"
-            style={{
-              borderRadius: isCockpitOpen ? 18 : 0,
-              transform: `scale(${experienceScale})`,
-              transformOrigin: "top center",
-            }}
-          >
-            <Suspense fallback={null}>
-              <ExperienceView
-                session={
-                  experience.id === "diagnostics" ? session : experienceSession
-                }
-                connection={connection}
-                activity={activity}
-                search={search}
-              />
-            </Suspense>
-          </div>
+          <Suspense fallback={null}>
+            <ExperienceView
+              session={
+                experience.id === "diagnostics" ? session : experienceSession
+              }
+              connection={connection}
+              activity={activity}
+              search={search}
+            />
+          </Suspense>
         </div>
-        <RideOverlay
-          isCockpitOpen={isCockpitOpen}
-          onCockpitHeightChange={setCockpitHeight}
-          onCockpitOpenChange={setIsCockpitOpen}
-          onDisconnected={onDisconnected}
-          onHeaderHeightChange={setOverlayHeaderHeight}
-          trainerController={trainerController}
-        />
-      </section>
-    </RideSessionContext.Provider>
+      </div>
+      <RideOverlay
+        isCockpitOpen={isCockpitOpen}
+        onCockpitHeightChange={setCockpitHeight}
+        onCockpitOpenChange={setIsCockpitOpen}
+        onHeaderHeightChange={setOverlayHeaderHeight}
+        trainerController={trainerController}
+      />
+    </section>
   )
 }

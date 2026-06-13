@@ -35,6 +35,7 @@ import type { ExperienceSessionAPI } from "@/ride/experience-session"
 import { SaveActivityDialog } from "@/components/activity/save-activity-dialog"
 import { UnresolvedActivityDialog } from "@/components/activity/unresolved-activity-dialog"
 import { formatActivityDuration } from "@/components/activity/format"
+import { RideConnectionControl } from "@/components/ride/ride-connection-control"
 import { useUnitFormatters } from "@/hooks/use-unit-formatters"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -185,7 +186,7 @@ export function RampTestExperienceView({
           )
 
           if (!result.ok) {
-            throw new Error(result.reason ?? "Unable to start ramp test.")
+            throw new Error(result.reason)
           }
 
           session.pause()
@@ -427,6 +428,11 @@ export function RampTestExperienceView({
                   best minute.
                 </p>
               </div>
+              {!trainerConnected ? (
+                <div className="flex justify-center">
+                  <RideConnectionControl />
+                </div>
+              ) : null}
               <Button
                 type="button"
                 size="lg"

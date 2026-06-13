@@ -31,6 +31,24 @@ vi.mock("@/hooks/activity/use-activity-session", () => ({
   }),
 }))
 
+vi.mock("./ride-connection-control", () => ({
+  RideConnectionDialog: ({
+    open,
+    onOpenChange,
+  }: {
+    open: boolean
+    onOpenChange: (open: boolean) => void
+  }) =>
+    open ? (
+      <div role="dialog" aria-label="Connect trainer">
+        <p>Connection dialog</p>
+        <button type="button" onClick={() => onOpenChange(false)}>
+          Close dialog
+        </button>
+      </div>
+    ) : null,
+}))
+
 const { trainer } = vi.hoisted(() => ({
   trainer: {
     kind: "simulated" as const,
@@ -47,10 +65,10 @@ const { trainer } = vi.hoisted(() => ({
 
 const experienceViewProps = vi.hoisted(() => vi.fn())
 
-vi.mock("@/ride/use-ride-runtime", async () => {
+vi.mock("@/ride/ride-runtime-context", async () => {
   const React = await vi.importActual<typeof ReactModule>("react")
   return {
-    useRideRuntime: () => {
+    useRideRuntimeContext: () => {
       const [activeTrainer, setActiveTrainer] = React.useState<
         typeof trainer | null
       >(null)
@@ -83,6 +101,15 @@ vi.mock("@/ride/use-ride-runtime", async () => {
         selectingTrainer: false,
         connecting: false,
         connectionError: null,
+        autoConnect: {
+          status: "idle",
+          attempted: false,
+          suppressed: false,
+          lastTrainer: null,
+          error: null,
+          cancel: vi.fn(() => Promise.resolve()),
+        },
+        suppressAutoConnect: vi.fn(),
         connectTrainer: vi.fn(() => {
           setActiveTrainer(trainer)
           setSource("ble")
@@ -100,23 +127,20 @@ vi.mock("@/ride/use-ride-runtime", async () => {
         }),
       } satisfies RideRuntimeController
     },
+    useOptionalRideRuntimeContext: () => null,
   }
 })
 
 vi.mock("./ride-overlay", () => ({
   RideOverlay: ({
-    onDisconnected,
     trainerController,
   }: {
-    onDisconnected?: () => void
     trainerController: RideRuntimeController
   }) => (
     <button
       type="button"
       onClick={() => {
-        void trainerController.disconnectTrainer().then(() => {
-          onDisconnected?.()
-        })
+        void trainerController.disconnectTrainer()
       }}
     >
       Disconnect test trainer
@@ -155,34 +179,31 @@ describe("RideSessionPage", () => {
     experienceViewProps.mockClear()
   })
 
-  it("does not mount the experience before trainer connection", () => {
+  it("mounts the experience while disconnected and opens the connection dialog", async () => {
     render(<RideSessionPage experience={experience} />)
-
-    expect(screen.getByText("Use simulator")).toBeTruthy()
-    expect(screen.queryByText("Experience mounted")).toBeNull()
-  })
-
-  it("mounts the experience after gate connection succeeds", async () => {
-    render(<RideSessionPage experience={experience} />)
-
-    fireEvent.click(screen.getByText("Use simulator"))
 
     await waitFor(() => {
       expect(screen.getByText("Experience mounted")).toBeTruthy()
     })
+    expect(screen.getByRole("dialog", { name: "Connect trainer" })).toBeTruthy()
   })
 
-  it("returns to the connection gate after overlay disconnect", async () => {
+  it("does not reopen the connection dialog after it is closed", async () => {
     render(<RideSessionPage experience={experience} />)
 
-    fireEvent.click(screen.getByText("Use simulator"))
+    await screen.findByText("Experience mounted")
+    fireEvent.click(screen.getByText("Close dialog"))
+    expect(screen.queryByRole("dialog", { name: "Connect trainer" })).toBeNull()
+  })
+
+  it("keeps the experience mounted after overlay disconnect", async () => {
+    render(<RideSessionPage experience={experience} />)
 
     await screen.findByText("Experience mounted")
     fireEvent.click(screen.getByText("Disconnect test trainer"))
 
     await waitFor(() => {
-      expect(screen.getByText("Use simulator")).toBeTruthy()
-      expect(screen.queryByText("Experience mounted")).toBeNull()
+      expect(screen.getByText("Experience mounted")).toBeTruthy()
     })
   })
 
@@ -193,8 +214,6 @@ describe("RideSessionPage", () => {
         search={{ workoutId: "workout-1" as never }}
       />
     )
-
-    fireEvent.click(screen.getByText("Use simulator"))
 
     await waitFor(() => {
       expect(experienceViewProps).toHaveBeenCalledWith(

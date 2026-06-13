@@ -25,7 +25,7 @@ export const AuthenticatedAppShell = ({
   return (
     <div className="flex min-h-svh flex-col">
       {!rideImmersive && (
-        <header className="sticky top-0 z-40 border-b border-border/50 bg-background/50 px-4 backdrop-blur-lg">
+        <header className="sticky top-0 z-40 border-b border-border/50 bg-background/50 px-4 backdrop-blur">
           <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-6">
             <div className="flex items-center gap-6">
               <Link
