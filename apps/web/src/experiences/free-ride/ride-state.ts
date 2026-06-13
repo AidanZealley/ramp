@@ -39,9 +39,19 @@ export type RideState = {
   targetDroneDraftLocked: boolean
   targetDroneDraftQuality: number
   targetDrone: FreeRideActor
+  targetDroneAlive: boolean
+  targetDroneRespawnSecondsRemaining: number
   /** Local Free Ride weapon charge, built only by `RideMotion`. */
   weaponCharge: number
   weaponChargeActive: boolean
+  weaponFiring: boolean
+  weaponFireSecondsRemaining: number
+  weaponFireSequence: number
+  weaponFireOriginDistance: number
+  weaponFireTargetDistance: number
+  weaponFireTargetLateralOffsetMeters: number
+  weaponKillBoomSecondsRemaining: number
+  weaponKillSequence: number
 }
 
 export function createRideState(): RideState {
@@ -62,7 +72,17 @@ export function createRideState(): RideState {
       riderDistanceMeters: 0,
       gapMeters: FREE_RIDE_TARGETS.defaultLeadMeters,
     }),
+    targetDroneAlive: true,
+    targetDroneRespawnSecondsRemaining: 0,
     weaponCharge: 0,
     weaponChargeActive: false,
+    weaponFiring: false,
+    weaponFireSecondsRemaining: 0,
+    weaponFireSequence: 0,
+    weaponFireOriginDistance: 0,
+    weaponFireTargetDistance: 0,
+    weaponFireTargetLateralOffsetMeters: 0,
+    weaponKillBoomSecondsRemaining: 0,
+    weaponKillSequence: 0,
   }
 }

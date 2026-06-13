@@ -24,4 +24,24 @@ describe("createRideState", () => {
   it("initializes weapon charge active as false", () => {
     expect(createRideState().weaponChargeActive).toBe(false)
   })
+
+  it("initializes target drone lifecycle state", () => {
+    const rideState = createRideState()
+
+    expect(rideState.targetDroneAlive).toBe(true)
+    expect(rideState.targetDroneRespawnSecondsRemaining).toBe(0)
+  })
+
+  it("initializes weapon firing state", () => {
+    const rideState = createRideState()
+
+    expect(rideState.weaponFiring).toBe(false)
+    expect(rideState.weaponFireSecondsRemaining).toBe(0)
+    expect(rideState.weaponFireSequence).toBe(0)
+    expect(rideState.weaponFireOriginDistance).toBe(0)
+    expect(rideState.weaponFireTargetDistance).toBe(0)
+    expect(rideState.weaponFireTargetLateralOffsetMeters).toBe(0)
+    expect(rideState.weaponKillBoomSecondsRemaining).toBe(0)
+    expect(rideState.weaponKillSequence).toBe(0)
+  })
 })

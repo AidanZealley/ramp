@@ -56,7 +56,8 @@ export const TargetDroneWake = ({ rideState }: TargetDroneWakeProps) => {
     if (!mesh) return
 
     const quality = rideState.targetDroneDraftQuality
-    const targetOpacity = rideState.targetDroneDraftLocked
+    const targetOpacity =
+      rideState.targetDroneAlive && rideState.targetDroneDraftLocked
       ? 0.06 + quality * 0.18
       : 0
     material.opacity = MathUtils.damp(

@@ -39,7 +39,8 @@ export const TargetDroneHighlight = ({
     if (!mesh) return
 
     const quality = rideState.targetDroneDraftQuality
-    const targetOpacity = rideState.targetDroneDraftLocked
+    const targetOpacity =
+      rideState.targetDroneAlive && rideState.targetDroneDraftLocked
       ? 0.18 + quality * 0.34
       : 0
     material.opacity = MathUtils.damp(
@@ -49,7 +50,8 @@ export const TargetDroneHighlight = ({
       delta
     )
 
-    const pulseAmount = rideState.targetDroneDraftLocked
+    const pulseAmount =
+      rideState.targetDroneAlive && rideState.targetDroneDraftLocked
       ? 0.015 + quality * 0.035
       : 0
     const pulse = 1 + Math.sin(clock.elapsedTime * 7) * pulseAmount

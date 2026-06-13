@@ -68,6 +68,16 @@ describe("getTargetDroneActor", () => {
     expect(second.kind).toBe("target-drone")
     expect(first.visible).toBe(true)
   })
+
+  it("defaults target drone visibility to true", () => {
+    expect(getTargetDroneActor({ riderDistanceMeters: 0 }).visible).toBe(true)
+  })
+
+  it("supports hidden target drone actors", () => {
+    expect(
+      getTargetDroneActor({ riderDistanceMeters: 0, visible: false }).visible
+    ).toBe(false)
+  })
 })
 
 describe("getDroneCruisePowerWatts", () => {

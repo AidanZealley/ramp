@@ -30,6 +30,9 @@ export type FreeRideHudViewModel = {
   weaponChargePercent: number
   /** True while draft lock and power threshold conditions are met. */
   weaponChargeActive: boolean
+  targetDroneAlive: boolean
+  weaponFiring: boolean
+  weaponKillBoomActive: boolean
   /** Current HUD intensity colour, draft colour while locked. */
   hudIntensityColor: string
   /** True when power exceeds the full-scale (arc pinned full + flashing). */

@@ -1,5 +1,5 @@
 import { useFrame } from "@react-three/fiber"
-import { FREE_RIDE_MOTION } from "../../free-ride-config"
+import { FREE_RIDE_MOTION, FREE_RIDE_TARGETS } from "../../free-ride-config"
 import {
   getNextTargetDroneGapMeters,
   getTargetDroneActor,
@@ -13,6 +13,10 @@ import {
   getNextWeaponCharge,
   getWeaponChargeActive,
 } from "../../weapon-charge"
+import {
+  getNextCountdownSeconds,
+  getWeaponFireTriggered,
+} from "../../weapon-kill"
 import type { RideState } from "../../ride-state"
 
 type RideMotionProps = {
@@ -48,6 +52,68 @@ export function RideMotion({ rideState }: RideMotionProps) {
     const sample = sampleTrackInto(rideState.distance, rideState.trackSample)
     rideState.bank = sample.bank
     rideState.grade = sample.grade
+    rideState.weaponKillBoomSecondsRemaining = getNextCountdownSeconds({
+      currentSeconds: rideState.weaponKillBoomSecondsRemaining,
+      deltaSeconds: dt,
+    })
+
+    if (rideState.weaponFiring) {
+      rideState.weaponFireSecondsRemaining = getNextCountdownSeconds({
+        currentSeconds: rideState.weaponFireSecondsRemaining,
+        deltaSeconds: dt,
+      })
+      rideState.weaponChargeActive = false
+      rideState.targetDrone = getTargetDroneActor({
+        riderDistanceMeters: rideState.distance,
+        gapMeters: rideState.targetDroneGapMeters,
+        visible: true,
+      })
+      rideState.weaponFireTargetDistance = rideState.targetDrone.distance
+      rideState.weaponFireTargetLateralOffsetMeters =
+        rideState.targetDrone.lateralOffsetMeters
+
+      if (rideState.weaponFireSecondsRemaining <= 0) {
+        rideState.weaponFiring = false
+        rideState.targetDroneAlive = false
+        rideState.targetDroneRespawnSecondsRemaining =
+          FREE_RIDE_TARGETS.weaponKillVanishSeconds
+        rideState.weaponKillBoomSecondsRemaining =
+          FREE_RIDE_TARGETS.weaponKillBoomSeconds
+        rideState.weaponKillSequence += 1
+        rideState.targetDroneDraftLocked = false
+        rideState.targetDroneDraftQuality = 0
+        rideState.targetDrone = getTargetDroneActor({
+          riderDistanceMeters: rideState.distance,
+          gapMeters: rideState.targetDroneGapMeters,
+          visible: false,
+        })
+      }
+      return
+    }
+
+    if (!rideState.targetDroneAlive) {
+      rideState.targetDroneRespawnSecondsRemaining = getNextCountdownSeconds({
+        currentSeconds: rideState.targetDroneRespawnSecondsRemaining,
+        deltaSeconds: dt,
+      })
+      rideState.weaponChargeActive = false
+      rideState.weaponCharge = 0
+
+      if (rideState.targetDroneRespawnSecondsRemaining <= 0) {
+        rideState.targetDroneAlive = true
+        rideState.targetDroneGapMeters = FREE_RIDE_TARGETS.defaultLeadMeters
+        rideState.targetDroneDraftLocked = false
+        rideState.targetDroneDraftQuality = 0
+      }
+
+      rideState.targetDrone = getTargetDroneActor({
+        riderDistanceMeters: rideState.distance,
+        gapMeters: rideState.targetDroneGapMeters,
+        visible: rideState.targetDroneAlive,
+      })
+      return
+    }
+
     rideState.targetDroneGapMeters = getNextTargetDroneGapMeters({
       currentGapMeters: rideState.targetDroneGapMeters,
       riderPowerWatts: rideState.telemetryPowerWatts,
@@ -75,7 +141,28 @@ export function RideMotion({ rideState }: RideMotionProps) {
     rideState.targetDrone = getTargetDroneActor({
       riderDistanceMeters: rideState.distance,
       gapMeters: rideState.targetDroneGapMeters,
+      visible: rideState.targetDroneAlive,
     })
+    if (
+      getWeaponFireTriggered({
+        weaponCharge: rideState.weaponCharge,
+        targetDroneAlive: rideState.targetDroneAlive,
+        weaponFiring: rideState.weaponFiring,
+        respawnSecondsRemaining: rideState.targetDroneRespawnSecondsRemaining,
+      })
+    ) {
+      rideState.weaponFiring = true
+      rideState.weaponFireSecondsRemaining = FREE_RIDE_TARGETS.weaponFireSeconds
+      rideState.weaponFireSequence += 1
+      rideState.weaponFireOriginDistance =
+        rideState.distance - FREE_RIDE_TARGETS.weaponShotOriginBehindMeters
+      rideState.weaponFireTargetDistance =
+        rideState.distance + rideState.targetDroneGapMeters
+      rideState.weaponFireTargetLateralOffsetMeters =
+        rideState.targetDrone.lateralOffsetMeters
+      rideState.weaponCharge = 0
+      rideState.weaponChargeActive = false
+    }
   })
 
   return null

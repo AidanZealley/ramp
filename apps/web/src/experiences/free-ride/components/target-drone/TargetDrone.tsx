@@ -82,7 +82,9 @@ export const TargetDrone = ({ rideState }: TargetDroneProps) => {
   useFrame(() => {
     const group = groupRef.current
     const actor = rideState.targetDrone
-    if (!group || !actor.visible) return
+    if (!group) return
+    group.visible = actor.visible
+    if (!actor.visible) return
 
     const sample = sampleTrackInto(actor.distance, scratch.sample)
     scratch.right.set(sample.right[0], sample.right[1], sample.right[2])

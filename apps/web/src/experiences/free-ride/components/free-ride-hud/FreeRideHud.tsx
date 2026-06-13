@@ -45,6 +45,12 @@ const HUD_TRANSFORM = {
  */
 export const FreeRideHud = ({ session, rideState }: FreeRideHudProps) => {
   const data = useFreeRideHudData(session, rideState)
+  const showDraftHud =
+    data.draftLocked &&
+    data.targetDroneAlive &&
+    !data.weaponFiring &&
+    !data.weaponKillBoomActive
+  const showWeaponStatus = data.weaponFiring || data.weaponKillBoomActive
 
   return (
     <motion.div
@@ -53,7 +59,7 @@ export const FreeRideHud = ({ session, rideState }: FreeRideHudProps) => {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
     >
-      {data.draftLocked ? (
+      {showDraftHud ? (
         <>
           <div
             className="absolute inset-0"
@@ -111,6 +117,35 @@ export const FreeRideHud = ({ session, rideState }: FreeRideHudProps) => {
         </>
       ) : null}
 
+      {showWeaponStatus ? (
+        <motion.div
+          aria-live="polite"
+          className="font-heading absolute top-8 left-1/2 w-[min(92vw,32rem)] -translate-x-1/2 text-center text-sm font-semibold tracking-[0.34em] sm:top-10 sm:text-base"
+          style={{
+            color: data.weaponFiring
+              ? FREE_RIDE_TARGETS.weaponShotColor
+              : FREE_RIDE_TARGETS.weaponKillBoomColor,
+            textShadow: data.weaponFiring
+              ? `0 0 18px ${FREE_RIDE_TARGETS.weaponShotColor}`
+              : `0 0 18px ${FREE_RIDE_TARGETS.weaponKillBoomColor}`,
+          }}
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{
+            opacity: [0.74, 1, 0.74],
+            scale: [0.98, 1.04, 0.98],
+          }}
+          transition={{
+            duration: 0.42,
+            ease: "easeInOut",
+            repeat: Infinity,
+          }}
+        >
+          {data.weaponFiring
+            ? "ENERGY DISCHARGE"
+            : FREE_RIDE_TARGETS.weaponKillHudLabel.toUpperCase()}
+        </motion.div>
+      ) : null}
+
       {/* Top-left: elapsed time + distance. */}
       <div className="absolute top-8 left-6 flex flex-col gap-4 sm:top-18 sm:left-9">
         <HudStat label="Time" value={data.timeValue} />
@@ -140,7 +175,7 @@ export const FreeRideHud = ({ session, rideState }: FreeRideHudProps) => {
           style={{
             transformStyle: "preserve-3d",
             transformOrigin: "bottom center",
-            filter: data.draftLocked
+            filter: showDraftHud
               ? `drop-shadow(0 0 20px ${data.hudIntensityColor})`
               : undefined,
           }}
@@ -169,7 +204,7 @@ export const FreeRideHud = ({ session, rideState }: FreeRideHudProps) => {
               powerWatts={data.powerWatts}
               fill={data.powerFill}
               color={data.powerColor}
-              draftLocked={data.draftLocked}
+              draftLocked={showDraftHud}
               intensityColor={data.hudIntensityColor}
               overScale={data.overScale}
               speedValue={data.speedValue}

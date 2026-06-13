@@ -15,6 +15,8 @@ import { SceneryField } from "../scenery-field"
 import { TargetDrone } from "../target-drone"
 import { TrackEdges } from "../track-edges"
 import { TrackRibbon } from "../track-ribbon"
+import { WeaponEnergyShot } from "../weapon-energy-shot"
+import { WeaponKillBoom } from "../weapon-kill-boom"
 import { installFreeRidePerfProbe, recordFreeRideFrame } from "../../perf"
 import type { RideState } from "../../ride-state"
 
@@ -65,6 +67,8 @@ export function FreeRideScene({ rideState }: FreeRideSceneProps) {
       <RideMotion rideState={rideState} />
       <RideCamera rideState={rideState} />
       <TargetDrone rideState={rideState} />
+      <WeaponEnergyShot rideState={rideState} />
+      <WeaponKillBoom rideState={rideState} />
       <TrackRibbon rideState={rideState} />
       <TrackEdges rideState={rideState} />
       <SceneryField rideState={rideState} />

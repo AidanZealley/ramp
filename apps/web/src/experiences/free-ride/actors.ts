@@ -19,6 +19,7 @@ export function getTargetDroneActor(input: {
   riderDistanceMeters: number
   gapMeters?: number
   leadMeters?: number
+  visible?: boolean
 }): FreeRideActor {
   const gapMeters =
     input.gapMeters ?? input.leadMeters ?? FREE_RIDE_TARGETS.defaultLeadMeters
@@ -32,7 +33,7 @@ export function getTargetDroneActor(input: {
     distance,
     gapMeters,
     lateralOffsetMeters: getRacingLineOffset(distance),
-    visible: true,
+    visible: input.visible ?? true,
   }
 }
 

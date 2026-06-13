@@ -50,6 +50,9 @@ export function useFreeRideHudData(
   const [draftQuality, setDraftQuality] = useState(0)
   const [weaponCharge, setWeaponCharge] = useState(0)
   const [weaponChargeActive, setWeaponChargeActive] = useState(false)
+  const [targetDroneAlive, setTargetDroneAlive] = useState(true)
+  const [weaponFiring, setWeaponFiring] = useState(false)
+  const [weaponKillBoomActive, setWeaponKillBoomActive] = useState(false)
   useEffect(() => {
     let raf = 0
     let last = 0
@@ -80,6 +83,17 @@ export function useFreeRideHudData(
           ? prev
           : rideState.weaponChargeActive
       )
+      setTargetDroneAlive((prev) =>
+        prev === rideState.targetDroneAlive ? prev : rideState.targetDroneAlive
+      )
+      setWeaponFiring((prev) =>
+        prev === rideState.weaponFiring ? prev : rideState.weaponFiring
+      )
+      const nextWeaponKillBoomActive =
+        rideState.weaponKillBoomSecondsRemaining > 0
+      setWeaponKillBoomActive((prev) =>
+        prev === nextWeaponKillBoomActive ? prev : nextWeaponKillBoomActive
+      )
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
@@ -101,6 +115,9 @@ export function useFreeRideHudData(
     weaponCharge,
     weaponChargePercent: Math.round(weaponCharge * 100),
     weaponChargeActive,
+    targetDroneAlive,
+    weaponFiring,
+    weaponKillBoomActive,
     hudIntensityColor: draftLocked
       ? FREE_RIDE_TARGETS.draftHudColor
       : powerColor,
