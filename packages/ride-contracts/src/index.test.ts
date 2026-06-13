@@ -66,12 +66,11 @@ describe("ride-contracts", () => {
       { type: "setResistance", level: 20.5 },
       { ok: false, reason: "setResistance.level:must-be-integer" },
     ],
-  ] satisfies Array<[TrainerCommand, ReturnType<typeof validateTrainerCommand>]>)(
-    "validates integer command %s",
-    (command, result) => {
-      expect(validateTrainerCommand(command)).toEqual(result)
-    }
-  )
+  ] satisfies Array<
+    [TrainerCommand, ReturnType<typeof validateTrainerCommand>]
+  >)("validates integer command %s", (command, result) => {
+    expect(validateTrainerCommand(command)).toEqual(result)
+  })
 
   it.each([
     [{ gradePercent: -25 }, { ok: true }],
@@ -103,13 +102,15 @@ describe("ride-contracts", () => {
       { gradePercent: 0, windSpeedMps: Number.NaN },
       { ok: false, reason: "setSimulationGrade.windSpeedMps:must-be-finite" },
     ],
-  ] satisfies Array<[
-    Omit<Extract<TrainerCommand, { type: "setSimulationGrade" }>, "type">,
-    ReturnType<typeof validateTrainerCommand>,
-  ]>)("validates simulation grade %s", (input, result) => {
-    expect(validateTrainerCommand({ type: "setSimulationGrade", ...input })).toEqual(
-      result
-    )
+  ] satisfies Array<
+    [
+      Omit<Extract<TrainerCommand, { type: "setSimulationGrade" }>, "type">,
+      ReturnType<typeof validateTrainerCommand>,
+    ]
+  >)("validates simulation grade %s", (input, result) => {
+    expect(
+      validateTrainerCommand({ type: "setSimulationGrade", ...input })
+    ).toEqual(result)
   })
 
   it("clamps target power to the declared shared range", () => {
@@ -161,6 +162,16 @@ describe("ride-contracts", () => {
     const error: TrainerError = {
       code: "transport",
       message: "Transport failed.",
+    }
+
+    expect(isTrainerError(error)).toBe(true)
+    expect(toTrainerError(error)).toBe(error)
+  })
+
+  it("recognizes cancelled trainer errors", () => {
+    const error: TrainerError = {
+      code: "cancelled",
+      message: "Bluetooth trainer selection was cancelled.",
     }
 
     expect(isTrainerError(error)).toBe(true)

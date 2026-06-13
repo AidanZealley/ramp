@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest"
 import { RideConnectionGate } from "./RideConnectionGate"
 import type { RideExperienceDefinition } from "@/experiences/types"
 import type { RideRuntimeController } from "@/ride/use-ride-runtime"
+import { createRuntimeController } from "@/ride/test-utils/ride-runtime-test-helpers"
 
 const experience: RideExperienceDefinition = {
   id: "test",
@@ -25,28 +26,7 @@ const experience: RideExperienceDefinition = {
 function createController(
   patch: Partial<RideRuntimeController> = {}
 ): RideRuntimeController {
-  return {
-    ready: true,
-    session: {} as RideRuntimeController["session"],
-    connection: {
-      status: "disconnected",
-      reconnect: vi.fn(() => Promise.resolve({ ok: true as const })),
-      disconnect: vi.fn(() => Promise.resolve()),
-      error: null,
-    },
-    trainer: null,
-    trainerDetails: null,
-    source: "none",
-    bleAvailable: true,
-    selectingTrainer: false,
-    connecting: false,
-    connectionError: null,
-    connectTrainer: vi.fn(() => Promise.resolve({ ok: true as const })),
-    useSimulatorTrainer: vi.fn(() => Promise.resolve({ ok: true as const })),
-    disconnectTrainer: vi.fn(() => Promise.resolve()),
-    cancelConnection: vi.fn(() => Promise.resolve()),
-    ...patch,
-  }
+  return createRuntimeController(patch)
 }
 
 describe("RideConnectionGate", () => {

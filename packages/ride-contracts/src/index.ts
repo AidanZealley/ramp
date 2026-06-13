@@ -44,6 +44,7 @@ export type TrainerConnectionState =
   | { kind: "error"; error: TrainerError }
 
 export type TrainerErrorCode =
+  | "cancelled"
   | "permission"
   | "unsupported"
   | "transport"

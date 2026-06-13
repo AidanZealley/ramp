@@ -5,17 +5,21 @@ import type {
   RideRuntimeController,
   RideSimulatorControls,
 } from "@/ride/use-ride-runtime"
+import {
+  createConnectionView,
+  createRuntimeController,
+} from "@/ride/test-utils/ride-runtime-test-helpers"
 import { formatDistanceMeters, formatSpeedMps } from "@/lib/units"
 
 vi.mock("@/hooks/use-unit-formatters", () => ({
   useUnitFormatters: () => ({
     unitSystem: "metric",
     preferencesReady: true,
+    speedMps: (mps: number | null | undefined) => formatSpeedMps(mps, "metric"),
     distance: (
       meters: number,
       options?: { precision?: number; compactUnderKm?: boolean }
     ) => formatDistanceMeters(meters, "metric", options),
-    speedMps: (mps: number | null | undefined) => formatSpeedMps(mps, "metric"),
   }),
 }))
 
@@ -43,28 +47,18 @@ vi.mock("@ramp/ride-react", () => ({
 function createController(
   patch: Partial<RideRuntimeController> = {}
 ): RideRuntimeController {
-  return {
-    ready: true,
-    session: {} as RideRuntimeController["session"],
+  return createRuntimeController({
     connection: {
       status: "connected",
       reconnect: vi.fn(() => Promise.resolve({ ok: true as const })),
       disconnect: vi.fn(() => Promise.resolve()),
       error: null,
     },
-    trainer: null,
-    trainerDetails: null,
-    source: "none",
-    bleAvailable: true,
-    selectingTrainer: false,
-    connecting: false,
-    connectionError: null,
-    connectTrainer: vi.fn(() => Promise.resolve({ ok: true as const })),
-    useSimulatorTrainer: vi.fn(() => Promise.resolve({ ok: true as const })),
-    disconnectTrainer: vi.fn(() => Promise.resolve()),
-    cancelConnection: vi.fn(() => Promise.resolve()),
+    connectionView: createConnectionView({
+      phase: "connected",
+    }),
     ...patch,
-  }
+  })
 }
 
 function createSimulatorControls(

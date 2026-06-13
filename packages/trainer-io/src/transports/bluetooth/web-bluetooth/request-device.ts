@@ -34,7 +34,8 @@ export async function getGrantedBleDevices(
 ): Promise<Array<BluetoothDevice>> {
   const bluetooth =
     typeof navigator !== "undefined" ? navigator.bluetooth : undefined
-  const getDevices = options.getDevices ?? bluetooth?.getDevices?.bind(bluetooth)
+  const getDevices =
+    options.getDevices ?? bluetooth?.getDevices?.bind(bluetooth)
 
   if (!getDevices) {
     throw createTrainerError(
@@ -89,14 +90,18 @@ export function mapWebBluetoothError(
   if (isTrainerError(error)) return error
 
   const name = getErrorName(error)
-  if (
-    name === "NotAllowedError" ||
-    name === "SecurityError" ||
-    name === "NotFoundError"
-  ) {
+  if (name === "NotFoundError") {
+    return createTrainerError(
+      "cancelled",
+      "Bluetooth trainer selection was cancelled.",
+      error
+    )
+  }
+
+  if (name === "NotAllowedError" || name === "SecurityError") {
     return createTrainerError(
       "permission",
-      "Bluetooth permission was denied or the device chooser was cancelled.",
+      "Bluetooth permission was denied.",
       error
     )
   }

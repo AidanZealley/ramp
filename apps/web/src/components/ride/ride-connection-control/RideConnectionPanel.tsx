@@ -17,6 +17,7 @@ export const RideConnectionPanel = ({
 
   const state = getConnectionState(controller)
   const busy = state.status === "selecting" || state.status === "connecting"
+  const connectionView = controller.connectionView
 
   return (
     <div className={cn("grid gap-4", compact && "gap-3")}>
@@ -43,7 +44,9 @@ export const RideConnectionPanel = ({
       <div className="flex flex-wrap justify-center gap-2">
         <Button
           type="button"
-          disabled={!controller.bleAvailable || busy}
+          disabled={
+            !(connectionView?.canConnectBle ?? controller.bleAvailable) || busy
+          }
           onClick={() => void controller.connectTrainer()}
         >
           <Bluetooth data-icon="inline-start" />
@@ -53,7 +56,11 @@ export const RideConnectionPanel = ({
           <Button
             type="button"
             variant="secondary"
-            disabled={busy || controller.source === "simulated"}
+            disabled={
+              busy ||
+              controller.source === "simulated" ||
+              connectionView?.canUseSimulator === false
+            }
             onClick={() => void controller.useSimulatorTrainer()}
           >
             <Circle

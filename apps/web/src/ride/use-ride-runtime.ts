@@ -6,20 +6,34 @@ import {
   useSyncExternalStore,
 } from "react"
 import { createRideSession } from "@ramp/ride-core"
+import { SimulatedTrainer } from "@ramp/trainer-io"
+import { toTrainerError } from "@ramp/ride-contracts"
 import {
-  FtmsBleTrainer,
-  SimulatedTrainer,
+  createBleTrainer,
   getGrantedBleDevices,
   isWebBluetoothAvailable,
   requestBleDevice,
-} from "@ramp/trainer-io"
-import { toTrainerError } from "@ramp/ride-contracts"
+} from "@/ride/trainer-connection/ble-trainer-factory"
+import { createRideConnectionView } from "@/ride/trainer-connection/connection-view"
+import {
+  clearSavedTrainer,
+  createSavedTrainer,
+  findSavedBleDevice,
+  readSavedTrainer,
+  writeSavedTrainer,
+} from "@/ride/trainer-connection/saved-ble-trainer"
 import type {
   RideConnectionResult,
   RideSessionController,
   RideSessionState,
 } from "@ramp/ride-core"
 import type { RideExperienceConnection } from "@/ride/experience-runtime"
+import type {
+  RideConnectionView,
+  RideSavedTrainer,
+  RideTrainerDetails,
+  RideTrainerSource,
+} from "@/ride/trainer-connection/types"
 import type {
   RiderPowerMode,
   SimulatedRiderState,
@@ -29,22 +43,19 @@ import type {
   TrainerSource,
 } from "@ramp/trainer-io"
 
-export type RideTrainerSource = "none" | "simulated" | "ble"
-
-export type RideSavedTrainer = {
-  id: string
-  name: string | null
-}
-
-export type RideTrainerDetails = {
-  name: string
-  source: Exclude<RideTrainerSource, "none">
-}
+export type {
+  RideConnectionPhase,
+  RideConnectionView,
+  RideSavedTrainer,
+  RideTrainerDetails,
+  RideTrainerSource,
+} from "@/ride/trainer-connection/types"
 
 export type RideRuntimeController = {
   ready: boolean
   session: RideSessionController | null
   connection: RideExperienceConnection
+  connectionView: RideConnectionView
   trainer: TrainerSource | null
   trainerDetails: RideTrainerDetails | null
   source: RideTrainerSource
@@ -73,7 +84,7 @@ export type RideSimulatorControls = {
 }
 
 const cancelledSelectionError: TrainerError = {
-  code: "permission",
+  code: "cancelled",
   message: "Bluetooth trainer selection was cancelled.",
 }
 
@@ -107,8 +118,6 @@ const simulatorBySession = new WeakMap<
   RideSessionController,
   SimulatedTrainer
 >()
-
-const lastBleTrainerStorageKey = "ramp:lastBleTrainer"
 
 export function useRideRuntime(): RideRuntimeController {
   const [session, setSession] = useState<RideSessionController | null>(null)
@@ -188,6 +197,14 @@ export function useRideRuntime(): RideRuntimeController {
     }
   }, [session])
 
+  const resetLocalConnectionState = useCallback(() => {
+    setTrainer(null)
+    setTrainerDetails(null)
+    setPendingTrainerDetails(null)
+    setSource("none")
+    setConnectionError(null)
+  }, [])
+
   const connectWithDevice = useCallback(
     async (
       device: BluetoothDevice,
@@ -204,7 +221,7 @@ export function useRideRuntime(): RideRuntimeController {
       setConnectionError(null)
 
       try {
-        const nextTrainer = new FtmsBleTrainer({ device })
+        const nextTrainer = createBleTrainer(device)
         const result = await session.connectTrainer(nextTrainer)
 
         if (connectionRunRef.current !== runId) {
@@ -239,14 +256,29 @@ export function useRideRuntime(): RideRuntimeController {
   )
 
   const connectTrainer =
+    // fallow-ignore-next-line complexity
     useCallback(async (): Promise<RideConnectionResult> => {
       if (!session) return { ok: false, error: initializingConnectionError }
 
       if (selectingTrainerRef.current || connectingRef.current) {
-        return {
-          ok: false,
-          error: { code: "transport", message: "Connection already running." },
+        if (selectingTrainerRef.current) {
+          return {
+            ok: false,
+            error: {
+              code: "transport",
+              message: "Connection already running.",
+            },
+          }
         }
+        connectionRunRef.current += 1
+        connectingRef.current = false
+        setConnecting(false)
+        try {
+          await session.disconnectTrainer({ clearError: true })
+        } catch {
+          // Best effort cleanup of the superseded attempt.
+        }
+        resetLocalConnectionState()
       }
 
       if (!bleAvailable) {
@@ -277,7 +309,9 @@ export function useRideRuntime(): RideRuntimeController {
         return await connectWithDevice(device, runId)
       } catch (error: unknown) {
         const trainerError = toTrainerError(error, cancelledSelectionError)
-        setConnectionError(trainerError)
+        setConnectionError(
+          trainerError.code === "cancelled" ? null : trainerError
+        )
         return { ok: false, error: trainerError }
       } finally {
         if (connectionRunRef.current === runId) {
@@ -374,16 +408,26 @@ export function useRideRuntime(): RideRuntimeController {
         if (connectionRunRef.current !== runId) return
 
         const device = findSavedBleDevice(devices, savedTrainer)
-        if (!device) return
+        if (!device) {
+          clearSavedTrainer()
+          return
+        }
 
-        await connectWithDevice(device, runId)
+        const result = await connectWithDevice(device, runId)
+        if (!result.ok && connectionRunRef.current === runId) {
+          await session.disconnectTrainer({ clearError: true })
+          resetLocalConnectionState()
+          if (shouldClearSavedTrainerAfterAutoFailure(result.error)) {
+            clearSavedTrainer()
+          }
+        }
       } catch {
         // Auto-connect is best effort — silently fail
       }
     }
 
     void attemptAutoConnect()
-  }, [session, connectWithDevice])
+  }, [session, connectWithDevice, resetLocalConnectionState])
 
   const reconnect = useCallback(async (): Promise<RideConnectionResult> => {
     if (!session) return { ok: false, error: initializingConnectionError }
@@ -427,18 +471,34 @@ export function useRideRuntime(): RideRuntimeController {
 
   const status = toRideConnectionStatus(sessionState)
   const visibleError = sessionState.lastTrainerError ?? connectionError
+  const connection: RideExperienceConnection = {
+    status,
+    reconnect,
+    disconnect: disconnectTrainer,
+    error: visibleError,
+  }
+  const displayedTrainerDetails = pendingTrainerDetails ?? trainerDetails
+  const simulatorAvailable = Boolean(session && simulatorBySession.has(session))
+  const connectionView = createRideConnectionView({
+    connection,
+    source,
+    trainerDetails,
+    pendingTrainerDetails,
+    localError: connectionError,
+    bleAvailable,
+    selectingTrainer,
+    connecting,
+    trainer,
+    simulatorAvailable,
+  })
 
   return {
     ready: session !== null,
     session,
-    connection: {
-      status,
-      reconnect,
-      disconnect: disconnectTrainer,
-      error: visibleError,
-    },
+    connection,
+    connectionView,
     trainer,
-    trainerDetails: pendingTrainerDetails ?? trainerDetails,
+    trainerDetails: displayedTrainerDetails,
     bleAvailable,
     source,
     selectingTrainer,
@@ -448,42 +508,6 @@ export function useRideRuntime(): RideRuntimeController {
     useSimulatorTrainer,
     disconnectTrainer,
     cancelConnection,
-  }
-}
-
-function readSavedTrainer(): RideSavedTrainer | null {
-  if (typeof window === "undefined") return null
-  try {
-    const raw = window.localStorage.getItem(lastBleTrainerStorageKey)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as Partial<RideSavedTrainer>
-    if (typeof parsed.id !== "string" || parsed.id.length === 0) return null
-    return {
-      id: parsed.id,
-      name: typeof parsed.name === "string" ? parsed.name : null,
-    }
-  } catch {
-    return null
-  }
-}
-
-function writeSavedTrainer(savedTrainer: RideSavedTrainer): void {
-  if (typeof window === "undefined") return
-  try {
-    window.localStorage.setItem(
-      lastBleTrainerStorageKey,
-      JSON.stringify(savedTrainer)
-    )
-  } catch {
-    // Best effort only
-  }
-}
-
-function createSavedTrainer(device: BluetoothDevice): RideSavedTrainer | null {
-  if (!device.id) return null
-  return {
-    id: device.id,
-    name: device.name ?? null,
   }
 }
 
@@ -500,16 +524,8 @@ function toTrainerDetails(
   }
 }
 
-function findSavedBleDevice(
-  devices: Array<BluetoothDevice>,
-  savedTrainer: RideSavedTrainer
-): BluetoothDevice | undefined {
-  const idMatch = devices.find((candidate) => candidate.id === savedTrainer.id)
-  if (idMatch) return idMatch
-
-  const savedName = savedTrainer.name?.trim()
-  if (!savedName) return undefined
-  return devices.find((candidate) => candidate.name?.trim() === savedName)
+function shouldClearSavedTrainerAfterAutoFailure(error: TrainerError): boolean {
+  return error.code === "transport" || error.code === "timeout"
 }
 
 export function useRideSimulatorControls(

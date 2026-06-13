@@ -11,11 +11,11 @@ vi.mock("@/hooks/use-unit-formatters", () => ({
   useUnitFormatters: () => ({
     unitSystem: "metric",
     preferencesReady: true,
+    speedMps: (mps: number | null | undefined) => formatSpeedMps(mps, "metric"),
     distance: (
       meters: number,
       options?: { precision?: number; compactUnderKm?: boolean }
     ) => formatDistanceMeters(meters, "metric", options),
-    speedMps: (mps: number | null | undefined) => formatSpeedMps(mps, "metric"),
   }),
 }))
 
@@ -86,6 +86,13 @@ vi.mock("@/ride/ride-runtime-context", async () => {
           getCapabilities: vi.fn(() => new Set()),
         },
       } as unknown as RideRuntimeController["session"]
+      const trainerDetails =
+        activeTrainer && source !== "none"
+          ? {
+              source,
+              name: source === "ble" ? "Trainer One" : "Simulated Trainer",
+            }
+          : null
       return {
         ready: true,
         session,
@@ -95,14 +102,18 @@ vi.mock("@/ride/ride-runtime-context", async () => {
           disconnect: vi.fn(() => Promise.resolve()),
           error: null,
         },
+        connectionView: {
+          phase: activeTrainer ? "connected" : "idle",
+          source,
+          trainerName: trainerDetails?.name ?? null,
+          error: null,
+          bleAvailable: true,
+          canConnectBle: true,
+          canUseSimulator: !activeTrainer,
+          canCancel: false,
+        },
         trainer: activeTrainer,
-        trainerDetails:
-          activeTrainer && source !== "none"
-            ? {
-                source,
-                name: source === "ble" ? "Trainer One" : "Simulated Trainer",
-              }
-            : null,
+        trainerDetails,
         source,
         bleAvailable: true,
         selectingTrainer: false,

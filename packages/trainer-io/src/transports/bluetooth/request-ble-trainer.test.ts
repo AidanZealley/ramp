@@ -30,7 +30,7 @@ describe("Web Bluetooth request helpers", () => {
     expect(isWebBluetoothAvailable()).toBe(true)
   })
 
-  it("maps chooser cancellation to permission", async () => {
+  it("maps chooser cancellation to cancelled", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined)
     vi.spyOn(console, "info").mockImplementation(() => undefined)
     Object.defineProperty(globalThis, "navigator", {
@@ -47,7 +47,19 @@ describe("Web Bluetooth request helpers", () => {
         requestDevice: () =>
           Promise.reject(new DOMException("cancelled", "NotFoundError")),
       })
-    ).rejects.toMatchObject({ code: "permission" })
+    ).rejects.toMatchObject({
+      code: "cancelled",
+      message: "Bluetooth trainer selection was cancelled.",
+    })
+  })
+
+  it("maps permission denial to permission", () => {
+    expect(
+      mapWebBluetoothError(new DOMException("denied", "NotAllowedError"))
+    ).toMatchObject({
+      code: "permission",
+      message: "Bluetooth permission was denied.",
+    })
   })
 
   it("maps missing navigator.bluetooth to unsupported", async () => {

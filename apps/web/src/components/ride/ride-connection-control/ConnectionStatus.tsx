@@ -16,6 +16,7 @@ export const ConnectionStatus = ({ runtime }: ConnectionStatusProps) => {
   const connecting = state.status === "connecting"
   const connected = state.status === "connected"
   const failed = state.status === "failed"
+  const canCancel = runtime.connectionView?.canCancel ?? connecting
 
   const message = (() => {
     switch (state.status) {
@@ -41,7 +42,7 @@ export const ConnectionStatus = ({ runtime }: ConnectionStatusProps) => {
       ) : null}
       <div className="grid gap-2">
         <p className={failed ? "text-destructive" : undefined}>{message}</p>
-        {connecting ? (
+        {(selecting || connecting) && canCancel ? (
           <Button
             type="button"
             variant="outline"
