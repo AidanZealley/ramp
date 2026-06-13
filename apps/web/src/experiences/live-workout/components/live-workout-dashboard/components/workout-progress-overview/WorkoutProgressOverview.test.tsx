@@ -153,6 +153,66 @@ describe("WorkoutProgressOverview", () => {
     expect(onSeek).toHaveBeenCalledWith(45)
   })
 
+  it("aligns progress with divider-spaced interval boundaries", () => {
+    render(
+      <WorkoutProgressOverview
+        intervals={intervals}
+        ftp={200}
+        elapsedSeconds={30}
+        totalDurationSeconds={90}
+        activeSegmentIndex={1}
+        completedIntervalCount={1}
+        paused={false}
+        isComplete={false}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onStop={vi.fn()}
+        onSeek={vi.fn()}
+      />
+    )
+
+    expect(screen.getByTestId("workout-progress-line").style.left).toBe(
+      "33.25%"
+    )
+  })
+
+  it("seeks from divider-spaced timeline coordinates", () => {
+    const onSeek = vi.fn()
+    render(
+      <WorkoutProgressOverview
+        intervals={intervals}
+        ftp={200}
+        elapsedSeconds={0}
+        totalDurationSeconds={90}
+        activeSegmentIndex={0}
+        completedIntervalCount={0}
+        paused={false}
+        isComplete={false}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onStop={vi.fn()}
+        onSeek={onSeek}
+      />
+    )
+    const timeline = screen.getByTestId("workout-progress-timeline")
+    vi.spyOn(timeline, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 300,
+      bottom: 100,
+      width: 300,
+      height: 100,
+      toJSON: () => ({}),
+    })
+
+    fireEvent.pointerDown(timeline, { pointerId: 1, clientX: 99.75 })
+    fireEvent.pointerUp(timeline, { pointerId: 1, clientX: 99.75 })
+
+    expect(onSeek).toHaveBeenCalledWith(30)
+  })
+
   it("shows a paused overlay over the remaining workout", () => {
     render(
       <WorkoutProgressOverview

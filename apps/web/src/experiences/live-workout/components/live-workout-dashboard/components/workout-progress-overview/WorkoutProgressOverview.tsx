@@ -3,6 +3,10 @@ import { Check, Pause, Play, SkipBack, SkipForward, Square } from "lucide-react"
 import type { PointerEvent } from "react"
 import type { Interval } from "@/lib/workout-utils"
 import { WorkoutMini } from "@/components/workout-mini"
+import {
+  getElapsedAtTimelineXPercent,
+  getTimelineXPercentAtElapsed,
+} from "@/components/workout-mini/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 
@@ -56,7 +60,10 @@ export const WorkoutProgressOverview = ({
   )
   const progress =
     totalDurationSeconds > 0
-      ? (clampedElapsedSeconds / totalDurationSeconds) * 100
+      ? getTimelineXPercentAtElapsed({
+          intervals,
+          elapsedSeconds: clampedElapsedSeconds,
+        })
       : 0
   const intervalStarts = useMemo(() => {
     const starts: Array<number> = []
@@ -98,7 +105,10 @@ export const WorkoutProgressOverview = ({
     const rect = timelineRef.current?.getBoundingClientRect()
     if (!rect || rect.width <= 0 || totalDurationSeconds <= 0) return 0
     const ratio = clamp((clientX - rect.left) / rect.width, 0, 1)
-    return ratio * totalDurationSeconds
+    return getElapsedAtTimelineXPercent({
+      intervals,
+      xPercent: ratio * 100,
+    })
   }
 
   const commitSeek = (nextElapsedSeconds: number) => {

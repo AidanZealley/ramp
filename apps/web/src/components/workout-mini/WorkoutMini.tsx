@@ -3,6 +3,7 @@ import {
   VIEW_BOX_HEIGHT,
   VIEW_BOX_WIDTH,
   buildSegmentShapes,
+  DEFAULT_DIVIDER_GAP_WIDTH,
   getChartMaxPower,
   getFtpY,
   getPowerScale,
@@ -10,8 +11,6 @@ import {
 } from "./utils"
 import type { WorkoutMiniProps } from "./types"
 import { getZoneGradientStops } from "@/lib/zones"
-
-const DIVIDER_GAP_WIDTH = 0.25
 
 export const WorkoutMini = ({
   intervals,
@@ -47,7 +46,7 @@ export const WorkoutMini = ({
   const ftpY = getFtpY(maxPower)
   const shouldShowFtpLine = showFtpLine && ftpY >= 0 && ftpY <= VIEW_BOX_HEIGHT
   const reducedIndexes = new Set(reducedIntervalIndexes)
-  const gapWidth = showDividers ? DIVIDER_GAP_WIDTH : 0
+  const gapWidth = showDividers ? DEFAULT_DIVIDER_GAP_WIDTH : 0
   const segmentShapes = buildSegmentShapes({
     intervals,
     maxPower,
