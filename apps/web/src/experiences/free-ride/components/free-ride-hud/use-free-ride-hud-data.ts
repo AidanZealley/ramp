@@ -5,6 +5,7 @@ import { clamp01 } from "./utils"
 import type { FreeRideHudViewModel } from "./types"
 import type { ExperienceSessionAPI } from "@/ride/experience-session"
 import type { RideState } from "../../ride-state"
+import { FREE_RIDE_TARGETS } from "../../free-ride-config"
 import { api } from "#convex/_generated/api"
 import { DEFAULT_FTP } from "@/lib/workout-utils"
 import { getZoneColor } from "@/lib/zones"
@@ -45,6 +46,7 @@ export function useFreeRideHudData(
   const units = useUnitFormatters()
 
   const [gradePercent, setGradePercent] = useState(0)
+  const [draftLocked, setDraftLocked] = useState(false)
   useEffect(() => {
     let raf = 0
     let last = 0
@@ -55,6 +57,11 @@ export function useFreeRideHudData(
       last = now
       const next = rideState.grade * 100
       setGradePercent((prev) => (Math.abs(next - prev) < 0.05 ? prev : next))
+      setDraftLocked((prev) =>
+        prev === rideState.targetDroneDraftLocked
+          ? prev
+          : rideState.targetDroneDraftLocked
+      )
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
@@ -64,11 +71,16 @@ export function useFreeRideHudData(
   const fullScaleWatts = ftp * POWER_FTP_MULTIPLE
   const percentOfFtp = power !== null && ftp > 0 ? (power / ftp) * 100 : 0
   const speed = splitValueUnit(units.speedMps(telemetry.speedMps))
+  const powerColor = getZoneColor(percentOfFtp)
 
   return {
     powerWatts: power,
     powerFill: power !== null ? clamp01(power / fullScaleWatts) : 0,
-    powerColor: getZoneColor(percentOfFtp),
+    powerColor,
+    draftLocked,
+    hudIntensityColor: draftLocked
+      ? FREE_RIDE_TARGETS.draftHudColor
+      : powerColor,
     overScale: power !== null && power > fullScaleWatts,
     cadenceRpm: telemetry.cadenceRpm,
     cadenceFill:

@@ -13,6 +13,8 @@ import {
   FREE_RIDE_PALETTE,
   FREE_RIDE_TARGETS,
 } from "../../free-ride-config"
+import { TargetDroneHighlight } from "./components/target-drone-highlight"
+import { TargetDroneWake } from "./components/target-drone-wake"
 import {
   createTrackSample,
   getVisualTrackY,
@@ -110,6 +112,8 @@ export const TargetDrone = ({ rideState }: TargetDroneProps) => {
 
   return (
     <group ref={groupRef} matrixAutoUpdate={false} frustumCulled={false}>
+      <TargetDroneWake rideState={rideState} />
+      <TargetDroneHighlight rideState={rideState} />
       <mesh
         geometry={bodyGeometry}
         material={bodyMaterial}

@@ -1,6 +1,9 @@
 import { motion } from "motion/react"
 import { Gauge, Heart } from "lucide-react"
-import { FREE_RIDE_PALETTE } from "../../free-ride-config"
+import {
+  FREE_RIDE_PALETTE,
+  FREE_RIDE_TARGETS,
+} from "../../free-ride-config"
 import { HudStat } from "./components/hud-stat"
 import { MetricPod } from "./components/metric-pod"
 import { PowerGauge } from "./components/power-gauge"
@@ -48,6 +51,37 @@ export const FreeRideHud = ({ session, rideState }: FreeRideHudProps) => {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
     >
+      {data.draftLocked ? (
+        <>
+          <div
+            className="absolute inset-0"
+            style={{
+              boxShadow: `inset 0 0 70px ${FREE_RIDE_TARGETS.draftHudColor}4d`,
+            }}
+          />
+          <motion.div
+            aria-live="polite"
+            className="font-heading absolute top-8 left-1/2 -translate-x-1/2 text-sm font-semibold tracking-[0.34em] sm:top-10 sm:text-base"
+            style={{
+              color: FREE_RIDE_TARGETS.draftHudColor,
+              textShadow: `0 0 16px ${FREE_RIDE_TARGETS.draftHudColor}`,
+            }}
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{
+              opacity: [0.72, 1, 0.72],
+              scale: [0.98, 1.04, 0.98],
+            }}
+            transition={{
+              duration: 1.1,
+              ease: "easeInOut",
+              repeat: Infinity,
+            }}
+          >
+            DRAFT LOCK
+          </motion.div>
+        </>
+      ) : null}
+
       {/* Top-left: elapsed time + distance. */}
       <div className="absolute top-8 left-6 flex flex-col gap-4 sm:top-18 sm:left-9">
         <HudStat label="Time" value={data.timeValue} />
@@ -77,6 +111,9 @@ export const FreeRideHud = ({ session, rideState }: FreeRideHudProps) => {
           style={{
             transformStyle: "preserve-3d",
             transformOrigin: "bottom center",
+            filter: data.draftLocked
+              ? `drop-shadow(0 0 20px ${data.hudIntensityColor})`
+              : undefined,
           }}
           initial={{
             opacity: 0,
@@ -103,6 +140,8 @@ export const FreeRideHud = ({ session, rideState }: FreeRideHudProps) => {
               powerWatts={data.powerWatts}
               fill={data.powerFill}
               color={data.powerColor}
+              draftLocked={data.draftLocked}
+              intensityColor={data.hudIntensityColor}
               overScale={data.overScale}
               speedValue={data.speedValue}
               speedUnit={data.speedUnit}

@@ -173,12 +173,12 @@ describe("getNextTargetDroneGapMeters", () => {
   it("increases gap when relative speed is negative", () => {
     expect(
       getNextTargetDroneGapMeters({
-        currentGapMeters: 100,
+        currentGapMeters: 90,
         riderPowerWatts: 180,
         riderFtpWatts: 250,
         deltaSeconds: 2,
       })
-    ).toBeCloseTo(104)
+    ).toBeCloseTo(94)
   })
 
   it("clamps at the minimum gap", () => {

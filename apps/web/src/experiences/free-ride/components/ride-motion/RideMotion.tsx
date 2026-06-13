@@ -4,6 +4,7 @@ import {
   getNextTargetDroneGapMeters,
   getTargetDroneActor,
 } from "../../actors"
+import { getNextTargetDroneDraftLocked } from "../../draft-zone"
 import { clamp, sampleTrackInto } from "../../track"
 import type { RideState } from "../../ride-state"
 
@@ -45,6 +46,10 @@ export function RideMotion({ rideState }: RideMotionProps) {
       riderPowerWatts: rideState.telemetryPowerWatts,
       riderFtpWatts: rideState.riderFtpWatts,
       deltaSeconds: dt,
+    })
+    rideState.targetDroneDraftLocked = getNextTargetDroneDraftLocked({
+      currentDraftLocked: rideState.targetDroneDraftLocked,
+      gapMeters: rideState.targetDroneGapMeters,
     })
     rideState.targetDrone = getTargetDroneActor({
       riderDistanceMeters: rideState.distance,

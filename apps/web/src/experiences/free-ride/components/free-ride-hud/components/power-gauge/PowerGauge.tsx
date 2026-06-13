@@ -12,16 +12,20 @@ export const PowerGauge = ({
   powerWatts,
   fill,
   color,
+  draftLocked,
+  intensityColor,
   overScale,
   speedValue,
   speedUnit,
 }: PowerGaugeProps) => {
+  const activeColor = draftLocked ? intensityColor : color
+
   return (
     <div className="relative aspect-square w-[clamp(15rem,26vw,22rem)]">
       <SegmentedArc
         fill={overScale ? 1 : fill}
         segmentCount={SEGMENT_COUNT}
-        activeColor={color}
+        activeColor={activeColor}
         flash={overScale}
       />
 
@@ -30,7 +34,7 @@ export const PowerGauge = ({
         <div className="flex flex-col items-center leading-none">
           <span
             className="font-heading text-[clamp(2.75rem,6vw,4rem)] font-semibold tracking-tight text-white tabular-nums"
-            style={{ textShadow: `0 0 22px ${color}` }}
+            style={{ textShadow: `0 0 22px ${activeColor}` }}
           >
             {powerWatts !== null ? Math.round(powerWatts) : "--"}
           </span>
@@ -42,7 +46,7 @@ export const PowerGauge = ({
         <div
           className="my-2 h-px w-2/5"
           style={{
-            background: `linear-gradient(to right, transparent, ${color}, transparent)`,
+            background: `linear-gradient(to right, transparent, ${activeColor}, transparent)`,
           }}
         />
 

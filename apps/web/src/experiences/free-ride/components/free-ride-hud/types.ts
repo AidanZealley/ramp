@@ -18,6 +18,10 @@ export type FreeRideHudViewModel = {
   powerFill: number
   /** Zone colour for the current power (oklch string from ZONE_MAP). */
   powerColor: string
+  /** True while the target drone is inside the local draft lock hysteresis. */
+  draftLocked: boolean
+  /** Current HUD intensity colour, draft colour while locked. */
+  hudIntensityColor: string
   /** True when power exceeds the full-scale (arc pinned full + flashing). */
   overScale: boolean
   cadenceRpm: number | null

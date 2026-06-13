@@ -35,6 +35,7 @@ export type RideState = {
   trainerConnected: boolean
   /** Motion-derived target drone state for local Free Ride gameplay. */
   targetDroneGapMeters: number
+  targetDroneDraftLocked: boolean
   targetDrone: FreeRideActor
 }
 
@@ -50,6 +51,7 @@ export function createRideState(): RideState {
     trackSample: createTrackSample(),
     trainerConnected: false,
     targetDroneGapMeters: FREE_RIDE_TARGETS.defaultLeadMeters,
+    targetDroneDraftLocked: false,
     targetDrone: getTargetDroneActor({
       riderDistanceMeters: 0,
       gapMeters: FREE_RIDE_TARGETS.defaultLeadMeters,
