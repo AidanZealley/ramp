@@ -16,7 +16,7 @@ export const ConnectionStatus = ({ runtime }: ConnectionStatusProps) => {
   const connecting = state.status === "connecting"
   const connected = state.status === "connected"
   const failed = state.status === "failed"
-  const canCancel = runtime.connectionView?.canCancel ?? connecting
+  const canCancel = runtime.connectionView.canCancel
 
   const message = (() => {
     switch (state.status) {

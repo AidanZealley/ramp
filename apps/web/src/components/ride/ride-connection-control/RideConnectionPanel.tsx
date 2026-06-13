@@ -45,7 +45,7 @@ export const RideConnectionPanel = ({
         <Button
           type="button"
           disabled={
-            !(connectionView?.canConnectBle ?? controller.bleAvailable) || busy
+            !connectionView.canConnectBle || busy
           }
           onClick={() => void controller.connectTrainer()}
         >
@@ -59,7 +59,7 @@ export const RideConnectionPanel = ({
             disabled={
               busy ||
               controller.source === "simulated" ||
-              connectionView?.canUseSimulator === false
+              !connectionView.canUseSimulator
             }
             onClick={() => void controller.useSimulatorTrainer()}
           >
