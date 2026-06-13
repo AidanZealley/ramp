@@ -1,6 +1,9 @@
 import { useFrame } from "@react-three/fiber"
 import { FREE_RIDE_MOTION } from "../../free-ride-config"
-import { getTargetDroneActor } from "../../actors"
+import {
+  getNextTargetDroneGapMeters,
+  getTargetDroneActor,
+} from "../../actors"
 import { clamp, sampleTrackInto } from "../../track"
 import type { RideState } from "../../ride-state"
 
@@ -37,8 +40,15 @@ export function RideMotion({ rideState }: RideMotionProps) {
     const sample = sampleTrackInto(rideState.distance, rideState.trackSample)
     rideState.bank = sample.bank
     rideState.grade = sample.grade
+    rideState.targetDroneGapMeters = getNextTargetDroneGapMeters({
+      currentGapMeters: rideState.targetDroneGapMeters,
+      riderPowerWatts: rideState.telemetryPowerWatts,
+      riderFtpWatts: rideState.riderFtpWatts,
+      deltaSeconds: dt,
+    })
     rideState.targetDrone = getTargetDroneActor({
       riderDistanceMeters: rideState.distance,
+      gapMeters: rideState.targetDroneGapMeters,
     })
   })
 

@@ -9,8 +9,10 @@
  */
 import { createTrackSample } from "./track"
 import { getTargetDroneActor } from "./actors"
+import { FREE_RIDE_TARGETS } from "./free-ride-config"
 import type { FreeRideActor } from "./actors"
 import type { MutableTrackSample } from "./track"
+import { DEFAULT_FTP } from "@/lib/workout-utils"
 
 export type RideState = {
   /** Authoritative travelled distance along the track (metres). */
@@ -19,6 +21,10 @@ export type RideState = {
   speed: number
   /** Latest trainer speed in m/s, or null when no trainer telemetry. */
   telemetrySpeedMps: number | null
+  /** Latest rider power in watts, or null when no trainer telemetry. */
+  telemetryPowerWatts: number | null
+  /** Rider FTP used by local target-drone gameplay tuning. */
+  riderFtpWatts: number
   /** Track bank (radians) at the current distance. */
   bank: number
   /** Track grade (slope) at the current distance. */
@@ -28,6 +34,7 @@ export type RideState = {
   /** Whether a trainer is currently connected (drives speed source). */
   trainerConnected: boolean
   /** Motion-derived target drone state for local Free Ride gameplay. */
+  targetDroneGapMeters: number
   targetDrone: FreeRideActor
 }
 
@@ -36,10 +43,16 @@ export function createRideState(): RideState {
     distance: 0,
     speed: 0,
     telemetrySpeedMps: null,
+    telemetryPowerWatts: null,
+    riderFtpWatts: DEFAULT_FTP,
     bank: 0,
     grade: 0,
     trackSample: createTrackSample(),
     trainerConnected: false,
-    targetDrone: getTargetDroneActor({ riderDistanceMeters: 0 }),
+    targetDroneGapMeters: FREE_RIDE_TARGETS.defaultLeadMeters,
+    targetDrone: getTargetDroneActor({
+      riderDistanceMeters: 0,
+      gapMeters: FREE_RIDE_TARGETS.defaultLeadMeters,
+    }),
   }
 }

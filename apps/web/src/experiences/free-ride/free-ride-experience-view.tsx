@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from "react"
+import { useQuery } from "convex/react"
 import { useRideFrame } from "@ramp/ride-react"
 import { FreeRideScene } from "./components/free-ride-scene"
 import { FreeRideHud } from "./components/free-ride-hud"
@@ -6,6 +7,8 @@ import { FREE_RIDE_ELEVATION } from "./free-ride-config"
 import { createRideState } from "./ride-state"
 import { clamp } from "./track"
 import type { ExperienceSessionAPI } from "@/ride/experience-session"
+import { api } from "#convex/_generated/api"
+import { DEFAULT_FTP } from "@/lib/workout-utils"
 
 const GRADE_DISPATCH_INTERVAL_MS = 250
 const GRADE_DEADBAND_PERCENT = 0.5
@@ -22,6 +25,8 @@ export function FreeRideExperienceView({
   session: ExperienceSessionAPI
 }) {
   const rideState = useMemo(() => createRideState(), [])
+  const preferences = useQuery(api.preferences.get)
+  const ftp = preferences?.ftp ?? DEFAULT_FTP
   const lastGradePercent = useRef<number | null>(null)
   const lastDispatchMs = useRef(0)
 
@@ -31,6 +36,8 @@ export function FreeRideExperienceView({
     useCallback(
       (frame) => {
         rideState.telemetrySpeedMps = frame.telemetry?.speedMps ?? null
+        rideState.telemetryPowerWatts = frame.telemetry?.powerWatts ?? null
+        rideState.riderFtpWatts = ftp
 
         const now = Date.now()
         if (now - lastDispatchMs.current < GRADE_DISPATCH_INTERVAL_MS) return
@@ -54,7 +61,7 @@ export function FreeRideExperienceView({
           )
         }
       },
-      [session, rideState]
+      [session, rideState, ftp]
     )
   )
 

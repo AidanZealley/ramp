@@ -79,7 +79,13 @@ export const FREE_RIDE_CAMERA = {
 } as const
 
 export const FREE_RIDE_TARGETS = {
-  defaultLeadMeters: 10,
+  defaultLeadMeters: 100,
+  minGapMeters: 5,
+  maxGapMeters: 100,
+  droneCruiseFtpRatio: 0.88,
+  relativeSpeedMpsAtFtpDelta: 12.5,
+  maxClosingSpeedMps: 8,
+  maxOpeningSpeedMps: 5,
   hoverHeightMeters: 1.25,
   visualScale: 1.35,
   bodyLengthMeters: 3.2,
