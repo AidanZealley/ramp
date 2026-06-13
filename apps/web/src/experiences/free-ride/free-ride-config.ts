@@ -78,6 +78,16 @@ export const FREE_RIDE_CAMERA = {
   maxBankRad: 0.6,
 } as const
 
+export const FREE_RIDE_TARGETS = {
+  defaultLeadMeters: 10,
+  hoverHeightMeters: 1.25,
+  visualScale: 1.35,
+  bodyLengthMeters: 3.2,
+  bodyWidthMeters: 0.9,
+  bodyHeightMeters: 0.35,
+  glowIntensity: 1.8,
+} as const
+
 export const FREE_RIDE_TRACK = {
   halfWidthMeters: 5.2,
   /** Streaming ribbon: number of cross-sections and spacing between them. */

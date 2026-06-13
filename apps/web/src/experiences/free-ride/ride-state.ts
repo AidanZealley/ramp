@@ -8,6 +8,8 @@
  * sampling that made the old 3D experience jitter and pop.
  */
 import { createTrackSample } from "./track"
+import { getTargetDroneActor } from "./actors"
+import type { FreeRideActor } from "./actors"
 import type { MutableTrackSample } from "./track"
 
 export type RideState = {
@@ -25,6 +27,8 @@ export type RideState = {
   trackSample: MutableTrackSample
   /** Whether a trainer is currently connected (drives speed source). */
   trainerConnected: boolean
+  /** Motion-derived target drone state for local Free Ride gameplay. */
+  targetDrone: FreeRideActor
 }
 
 export function createRideState(): RideState {
@@ -36,5 +40,6 @@ export function createRideState(): RideState {
     grade: 0,
     trackSample: createTrackSample(),
     trainerConnected: false,
+    targetDrone: getTargetDroneActor({ riderDistanceMeters: 0 }),
   }
 }
