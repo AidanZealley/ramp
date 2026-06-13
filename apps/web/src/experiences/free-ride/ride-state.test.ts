@@ -7,6 +7,10 @@ describe("createRideState", () => {
     expect(createRideState().targetDroneDraftLocked).toBe(false)
   })
 
+  it("initializes target drone draft quality to 0", () => {
+    expect(createRideState().targetDroneDraftQuality).toBe(0)
+  })
+
   it("initializes target drone gap to the default lead", () => {
     expect(createRideState().targetDroneGapMeters).toBe(
       FREE_RIDE_TARGETS.defaultLeadMeters

@@ -55,7 +55,10 @@ export const TargetDroneWake = ({ rideState }: TargetDroneWakeProps) => {
     const mesh = meshRef.current
     if (!mesh) return
 
-    const targetOpacity = rideState.targetDroneDraftLocked ? 0.2 : 0
+    const quality = rideState.targetDroneDraftQuality
+    const targetOpacity = rideState.targetDroneDraftLocked
+      ? 0.06 + quality * 0.18
+      : 0
     material.opacity = MathUtils.damp(
       material.opacity,
       targetOpacity,
@@ -69,7 +72,8 @@ export const TargetDroneWake = ({ rideState }: TargetDroneWakeProps) => {
 
     const time = clock.elapsedTime
     const length = FREE_RIDE_TARGETS.draftWakeLengthMeters
-    const width = FREE_RIDE_TARGETS.draftWakeWidthMeters
+    const width =
+      FREE_RIDE_TARGETS.draftWakeWidthMeters * (1 + (1 - quality) * 0.35)
 
     scratch.seeds.forEach((seed, index) => {
       const travel = (seed.phase + time * seed.speed) % 1

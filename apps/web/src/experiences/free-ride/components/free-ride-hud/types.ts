@@ -20,6 +20,10 @@ export type FreeRideHudViewModel = {
   powerColor: string
   /** True while the target drone is inside the local draft lock hysteresis. */
   draftLocked: boolean
+  /** Draft quality as a fraction (0-1), sampled from the motion loop. */
+  draftQuality: number
+  /** Draft quality as a whole percentage. */
+  draftQualityPercent: number
   /** Current HUD intensity colour, draft colour while locked. */
   hudIntensityColor: string
   /** True when power exceeds the full-scale (arc pinned full + flashing). */

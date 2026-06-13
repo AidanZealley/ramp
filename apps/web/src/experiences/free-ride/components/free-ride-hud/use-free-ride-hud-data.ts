@@ -47,6 +47,7 @@ export function useFreeRideHudData(
 
   const [gradePercent, setGradePercent] = useState(0)
   const [draftLocked, setDraftLocked] = useState(false)
+  const [draftQuality, setDraftQuality] = useState(0)
   useEffect(() => {
     let raf = 0
     let last = 0
@@ -61,6 +62,11 @@ export function useFreeRideHudData(
         prev === rideState.targetDroneDraftLocked
           ? prev
           : rideState.targetDroneDraftLocked
+      )
+      setDraftQuality((prev) =>
+        Math.abs(prev - rideState.targetDroneDraftQuality) < 0.025
+          ? prev
+          : rideState.targetDroneDraftQuality
       )
     }
     raf = requestAnimationFrame(tick)
@@ -78,6 +84,8 @@ export function useFreeRideHudData(
     powerFill: power !== null ? clamp01(power / fullScaleWatts) : 0,
     powerColor,
     draftLocked,
+    draftQuality,
+    draftQualityPercent: Math.round(draftQuality * 100),
     hudIntensityColor: draftLocked
       ? FREE_RIDE_TARGETS.draftHudColor
       : powerColor,

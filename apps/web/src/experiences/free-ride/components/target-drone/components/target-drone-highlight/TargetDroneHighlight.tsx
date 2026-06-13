@@ -38,7 +38,10 @@ export const TargetDroneHighlight = ({
     const mesh = meshRef.current
     if (!mesh) return
 
-    const targetOpacity = rideState.targetDroneDraftLocked ? 0.46 : 0
+    const quality = rideState.targetDroneDraftQuality
+    const targetOpacity = rideState.targetDroneDraftLocked
+      ? 0.18 + quality * 0.34
+      : 0
     material.opacity = MathUtils.damp(
       material.opacity,
       targetOpacity,
@@ -46,9 +49,10 @@ export const TargetDroneHighlight = ({
       delta
     )
 
-    const pulse = rideState.targetDroneDraftLocked
-      ? 1 + Math.sin(clock.elapsedTime * 7) * 0.035
-      : 1
+    const pulseAmount = rideState.targetDroneDraftLocked
+      ? 0.015 + quality * 0.035
+      : 0
+    const pulse = 1 + Math.sin(clock.elapsedTime * 7) * pulseAmount
     mesh.scale.setScalar(pulse)
     mesh.visible = material.opacity > 0.01
   })

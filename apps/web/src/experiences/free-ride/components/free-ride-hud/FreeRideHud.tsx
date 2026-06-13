@@ -5,6 +5,7 @@ import {
   FREE_RIDE_TARGETS,
 } from "../../free-ride-config"
 import { HudStat } from "./components/hud-stat"
+import { DraftQualityMeter } from "./components/draft-quality-meter"
 import { MetricPod } from "./components/metric-pod"
 import { PowerGauge } from "./components/power-gauge"
 import { useFreeRideHudData } from "./use-free-ride-hud-data"
@@ -78,6 +79,19 @@ export const FreeRideHud = ({ session, rideState }: FreeRideHudProps) => {
             }}
           >
             DRAFT LOCK
+          </motion.div>
+          <motion.div
+            className="absolute top-16 left-1/2 -translate-x-1/2 sm:top-20"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+          >
+            <DraftQualityMeter
+              quality={data.draftQuality}
+              percent={data.draftQualityPercent}
+              color={data.hudIntensityColor}
+              segmentCount={FREE_RIDE_TARGETS.draftQualityHudSegmentCount}
+            />
           </motion.div>
         </>
       ) : null}
