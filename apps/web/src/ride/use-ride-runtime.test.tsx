@@ -69,26 +69,7 @@ describe("useRideRuntime", () => {
     unmount()
   })
 
-  it("initializes auto-connect state", async () => {
-    const { useRideRuntime } = await import("./use-ride-runtime")
-    const { result, unmount } = renderHook(() => useRideRuntime())
-
-    await waitFor(() => {
-      expect(result.current.ready).toBe(true)
-    })
-
-    expect(result.current.autoConnect).toMatchObject({
-      status: "idle",
-      attempted: false,
-      suppressed: false,
-      lastTrainer: null,
-      error: null,
-    })
-
-    unmount()
-  })
-
-  it("auto-connect succeeds with a saved BLE id and granted device", async () => {
+  it("auto-connects with a saved BLE device on mount", async () => {
     window.localStorage.setItem(
       "ramp:lastBleTrainer",
       JSON.stringify({ id: "trainer-1", name: "Trainer One" })
@@ -109,14 +90,51 @@ describe("useRideRuntime", () => {
     const { result, unmount } = renderHook(() => useRideRuntime())
 
     await waitFor(() => {
-      expect(result.current.autoConnect.status).toBe("succeeded")
       expect(result.current.source).toBe("ble")
+      expect(result.current.trainerDetails).toEqual({
+        source: "ble",
+        name: "Trainer One",
+      })
     })
 
     unmount()
   })
 
-  it("auto-connect is unavailable when granted-device lookup is missing", async () => {
+  it("auto-connect falls back to name matching when device id changes", async () => {
+    window.localStorage.setItem(
+      "ramp:lastBleTrainer",
+      JSON.stringify({ id: "old-trainer-id", name: "KICKR CORE" })
+    )
+    Object.defineProperty(navigator, "bluetooth", {
+      configurable: true,
+      value: {
+        requestDevice: vi.fn(),
+        getDevices: vi.fn(() =>
+          Promise.resolve([
+            { id: "new-trainer-id", name: "KICKR CORE" } as BluetoothDevice,
+          ])
+        ),
+      },
+    })
+
+    const { useRideRuntime } = await import("./use-ride-runtime")
+    const { result, unmount } = renderHook(() => useRideRuntime())
+
+    await waitFor(() => {
+      expect(result.current.source).toBe("ble")
+      expect(result.current.trainerDetails).toEqual({
+        source: "ble",
+        name: "KICKR CORE",
+      })
+    })
+    expect(window.localStorage.getItem("ramp:lastBleTrainer")).toBe(
+      JSON.stringify({ id: "new-trainer-id", name: "KICKR CORE" })
+    )
+
+    unmount()
+  })
+
+  it("does not auto-connect when getDevices is unavailable", async () => {
     window.localStorage.setItem(
       "ramp:lastBleTrainer",
       JSON.stringify({ id: "trainer-1", name: "Trainer One" })
@@ -130,14 +148,17 @@ describe("useRideRuntime", () => {
     const { result, unmount } = renderHook(() => useRideRuntime())
 
     await waitFor(() => {
-      expect(result.current.autoConnect.status).toBe("unavailable")
-      expect(result.current.autoConnect.attempted).toBe(true)
+      expect(result.current.ready).toBe(true)
     })
+
+    // Wait a tick to ensure auto-connect has had a chance to run
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(result.current.source).toBe("none")
 
     unmount()
   })
 
-  it("auto-connect fails when the saved device is absent", async () => {
+  it("does not auto-connect when saved device is not in granted list", async () => {
     window.localStorage.setItem(
       "ramp:lastBleTrainer",
       JSON.stringify({ id: "trainer-1", name: "Trainer One" })
@@ -158,87 +179,12 @@ describe("useRideRuntime", () => {
     const { result, unmount } = renderHook(() => useRideRuntime())
 
     await waitFor(() => {
-      expect(result.current.autoConnect.status).toBe("failed")
-      expect(result.current.source).toBe("none")
+      expect(result.current.ready).toBe(true)
     })
 
-    unmount()
-  })
-
-  it("cancel auto-connect suppresses the branch attempt", async () => {
-    window.localStorage.setItem(
-      "ramp:lastBleTrainer",
-      JSON.stringify({ id: "trainer-1", name: "Trainer One" })
-    )
-    let resolveDevices: (devices: Array<BluetoothDevice>) => void =
-      () => undefined
-    Object.defineProperty(navigator, "bluetooth", {
-      configurable: true,
-      value: {
-        requestDevice: vi.fn(),
-        getDevices: vi.fn(
-          () =>
-            new Promise<Array<BluetoothDevice>>((resolve) => {
-              resolveDevices = resolve
-            })
-        ),
-      },
-    })
-
-    const { useRideRuntime } = await import("./use-ride-runtime")
-    const { result, unmount } = renderHook(() => useRideRuntime())
-
-    await waitFor(() => {
-      expect(result.current.autoConnect.status).toBe("checking")
-    })
-
-    await act(async () => {
-      await result.current.autoConnect.cancel()
-      resolveDevices([
-        { id: "trainer-1", name: "Trainer One" } as BluetoothDevice,
-      ])
-    })
-
-    await waitFor(() => {
-      expect(result.current.autoConnect.status).toBe("cancelled")
-      expect(result.current.autoConnect.suppressed).toBe(true)
-      expect(result.current.source).toBe("none")
-    })
-
-    unmount()
-  })
-
-  it("manual simulator cancels in-flight auto-connect first", async () => {
-    window.localStorage.setItem(
-      "ramp:lastBleTrainer",
-      JSON.stringify({ id: "trainer-1", name: "Trainer One" })
-    )
-    Object.defineProperty(navigator, "bluetooth", {
-      configurable: true,
-      value: {
-        requestDevice: vi.fn(),
-        getDevices: vi.fn(
-          () => new Promise<Array<BluetoothDevice>>(() => undefined)
-        ),
-      },
-    })
-
-    const { useRideRuntime } = await import("./use-ride-runtime")
-    const { result, unmount } = renderHook(() => useRideRuntime())
-
-    await waitFor(() => {
-      expect(result.current.autoConnect.status).toBe("checking")
-    })
-
-    await act(async () => {
-      await result.current.useSimulatorTrainer()
-    })
-
-    await waitFor(() => {
-      expect(result.current.autoConnect.status).toBe("cancelled")
-      expect(result.current.autoConnect.suppressed).toBe(true)
-      expect(result.current.source).toBe("simulated")
-    })
+    // Wait a tick to ensure auto-connect has had a chance to run
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(result.current.source).toBe("none")
 
     unmount()
   })
@@ -272,6 +218,10 @@ describe("useRideRuntime", () => {
     await waitFor(() => {
       expect(result.current.source).toBe("ble")
       expect(result.current.connection.status).toBe("connected")
+      expect(result.current.trainerDetails).toEqual({
+        source: "ble",
+        name: "Trainer One",
+      })
     })
     expect(window.localStorage.getItem("ramp:lastBleTrainer")).toBe(
       JSON.stringify({ id: "trainer-1", name: "Trainer One" })
@@ -437,6 +387,76 @@ describe("useRideRuntime", () => {
       expect(result.current.ready).toBe(true)
       expect(result.current.bleAvailable).toBe(true)
     })
+
+    unmount()
+  })
+
+  it("disconnectTrainer clears connection state", async () => {
+    const { useRideRuntime } = await import("./use-ride-runtime")
+    const { result, unmount } = renderHook(() => useRideRuntime())
+
+    await waitFor(() => {
+      expect(result.current.ready).toBe(true)
+    })
+
+    await act(async () => {
+      await result.current.useSimulatorTrainer()
+    })
+
+    expect(result.current.source).toBe("simulated")
+
+    await act(async () => {
+      await result.current.disconnectTrainer()
+    })
+
+    expect(result.current.source).toBe("none")
+    expect(result.current.trainerDetails).toBeNull()
+    expect(result.current.connectionError).toBeNull()
+
+    unmount()
+  })
+
+  it("cancelConnection stops an in-progress connection", async () => {
+    Object.defineProperty(navigator, "bluetooth", {
+      configurable: true,
+      value: { requestDevice: vi.fn() },
+    })
+
+    let resolveDevice: (device: BluetoothDevice) => void = () => undefined
+    requestBleDevice.mockImplementation(
+      () =>
+        new Promise<BluetoothDevice>((resolve) => {
+          resolveDevice = resolve
+        })
+    )
+
+    const { useRideRuntime } = await import("./use-ride-runtime")
+    const { result, unmount } = renderHook(() => useRideRuntime())
+
+    await waitFor(() => {
+      expect(result.current.ready).toBe(true)
+    })
+
+    // Start connecting (but don't await)
+    const connectPromise = act(async () => {
+      return result.current.connectTrainer()
+    })
+
+    await waitFor(() => {
+      expect(result.current.selectingTrainer).toBe(true)
+    })
+
+    // Cancel
+    await act(async () => {
+      await result.current.cancelConnection()
+    })
+
+    expect(result.current.selectingTrainer).toBe(false)
+    expect(result.current.source).toBe("none")
+
+    // Resolve the pending request to clean up
+    resolveDevice({ id: "trainer-1", name: "Trainer One" } as BluetoothDevice)
+    await connectPromise
 
     unmount()
   })

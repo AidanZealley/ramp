@@ -1,3 +1,4 @@
+export * from "./ConnectionStatus"
 export * from "./RideConnectionControl"
 export * from "./RideConnectionDialog"
 export * from "./RideConnectionPanel"

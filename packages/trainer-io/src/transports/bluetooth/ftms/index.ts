@@ -332,7 +332,14 @@ async function createFtmsConnectionFromDevice(
   device.addEventListener("gattserverdisconnected", disconnectedListener)
 
   try {
-    const server = gatt.connected ? gatt : await gatt.connect()
+    // gatt.connected can be true here even though this instance has no
+    // connection of its own — e.g. a prior instance for the same device
+    // (HMR, StrictMode remount) hasn't finished tearing down yet. Force a
+    // fresh GATT session so this connection isn't racing that teardown.
+    if (gatt.connected) {
+      gatt.disconnect()
+    }
+    const server = await gatt.connect()
     console.info("[trainer-io][ftms] gatt connected")
     const service = new GattService(
       await server.getPrimaryService(FITNESS_MACHINE_SERVICE_UUID)

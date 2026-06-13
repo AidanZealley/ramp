@@ -1,5 +1,5 @@
 import { RideConnectionPanel } from "./RideConnectionPanel"
-import { isAutoConnectActive } from "./utils"
+import { getConnectionState } from "./utils"
 import type { RideConnectionDialogProps } from "./types"
 import {
   Dialog,
@@ -17,8 +17,12 @@ export const RideConnectionDialog = ({
   const runtime = useRideRuntimeContext()
 
   const handleOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen && isAutoConnectActive(runtime)) {
-      void runtime.autoConnect.cancel()
+    const state = getConnectionState(runtime)
+    if (
+      !nextOpen &&
+      (state.status === "selecting" || state.status === "connecting")
+    ) {
+      void runtime.cancelConnection()
     }
     onOpenChange(nextOpen)
   }

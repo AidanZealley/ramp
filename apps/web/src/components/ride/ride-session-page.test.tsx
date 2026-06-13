@@ -96,20 +96,18 @@ vi.mock("@/ride/ride-runtime-context", async () => {
           error: null,
         },
         trainer: activeTrainer,
+        trainerDetails:
+          activeTrainer && source !== "none"
+            ? {
+                source,
+                name: source === "ble" ? "Trainer One" : "Simulated Trainer",
+              }
+            : null,
         source,
         bleAvailable: true,
         selectingTrainer: false,
         connecting: false,
         connectionError: null,
-        autoConnect: {
-          status: "idle",
-          attempted: false,
-          suppressed: false,
-          lastTrainer: null,
-          error: null,
-          cancel: vi.fn(() => Promise.resolve()),
-        },
-        suppressAutoConnect: vi.fn(),
         connectTrainer: vi.fn(() => {
           setActiveTrainer(trainer)
           setSource("ble")
@@ -125,6 +123,7 @@ vi.mock("@/ride/ride-runtime-context", async () => {
           setActiveTrainer(null)
           setSource("none")
         }),
+        cancelConnection: vi.fn(() => Promise.resolve()),
       } satisfies RideRuntimeController
     },
     useOptionalRideRuntimeContext: () => null,

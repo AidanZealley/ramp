@@ -39,7 +39,7 @@ export function WorkoutPageHeader({
         />
         <div className="flex items-center gap-2">
           <Link
-            className={cn(buttonVariants({ variant: "secondary" }))}
+            className={cn(buttonVariants({ variant: "default" }))}
             to="/ride/$experienceId"
             params={{ experienceId: "live-workout" }}
             search={{ workoutId }}
