@@ -2,7 +2,7 @@ import { useFrame } from "@react-three/fiber"
 import { useMemo, useRef } from "react"
 import {
   Color,
-  InstancedMesh,
+  CylinderGeometry,
   Matrix4,
   MeshBasicMaterial,
   Quaternion,
@@ -16,27 +16,39 @@ import {
   getVisualTrackY,
   sampleTrackInto,
 } from "../../track"
-import type { Group, Mesh } from "three"
+import type { Group, InstancedMesh, Mesh } from "three"
 import type { WeaponKillBoomProps } from "./types"
 
 const PARTICLE_COUNT = FREE_RIDE_TARGETS.weaponKillBoomParticleCount
+const SHARD_COUNT = FREE_RIDE_TARGETS.weaponKillBoomShardCount
+const Y_AXIS = new Vector3(0, 1, 0)
 const Z_AXIS = new Vector3(0, 0, 1)
 
 export const WeaponKillBoom = ({ rideState }: WeaponKillBoomProps) => {
   const groupRef = useRef<Group>(null)
   const ringRef = useRef<Mesh>(null)
+  const innerRingRef = useRef<Mesh>(null)
   const flashRef = useRef<Mesh>(null)
   const particlesRef = useRef<InstancedMesh>(null)
+  const shardsRef = useRef<InstancedMesh>(null)
 
   const ringGeometry = useMemo(() => new TorusGeometry(1, 0.035, 8, 64), [])
+  const innerRingGeometry = useMemo(
+    () => new TorusGeometry(1, 0.022, 6, 48),
+    []
+  )
   const flashGeometry = useMemo(() => new SphereGeometry(1, 18, 10), [])
   const particleGeometry = useMemo(() => new SphereGeometry(0.055, 6, 4), [])
+  const shardGeometry = useMemo(
+    () => new CylinderGeometry(0.018, 0.035, 1, 5),
+    []
+  )
   const ringMaterial = useMemo(
     () =>
       new MeshBasicMaterial({
-        color: new Color(FREE_RIDE_TARGETS.weaponKillShockwaveColor).multiplyScalar(
-          2.4
-        ),
+        color: new Color(
+          FREE_RIDE_TARGETS.weaponKillShockwaveColor
+        ).multiplyScalar(2.4),
         transparent: true,
         opacity: 0,
         depthWrite: false,
@@ -57,12 +69,36 @@ export const WeaponKillBoom = ({ rideState }: WeaponKillBoomProps) => {
       }),
     []
   )
+  const innerRingMaterial = useMemo(
+    () =>
+      new MeshBasicMaterial({
+        color: new Color("#ffffff").multiplyScalar(2.9),
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        toneMapped: false,
+      }),
+    []
+  )
   const particleMaterial = useMemo(
     () =>
       new MeshBasicMaterial({
         color: new Color(FREE_RIDE_TARGETS.weaponKillBoomColor).multiplyScalar(
           2.1
         ),
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        toneMapped: false,
+      }),
+    []
+  )
+  const shardMaterial = useMemo(
+    () =>
+      new MeshBasicMaterial({
+        color: new Color(
+          FREE_RIDE_TARGETS.weaponKillShockwaveColor
+        ).multiplyScalar(2.5),
         transparent: true,
         opacity: 0,
         depthWrite: false,
@@ -94,6 +130,18 @@ export const WeaponKillBoom = ({ rideState }: WeaponKillBoomProps) => {
           size: 0.45 + ((index * 37) % 100) / 180,
         }
       }),
+      shardSeeds: Array.from({ length: SHARD_COUNT }, (_, index) => {
+        const a = index * 2.399963229728653
+        const lift = Math.sin(index * 19.191) * 0.55
+        const radius = 0.72 + ((index * 29) % 100) / 180
+        return {
+          x: Math.cos(a) * radius,
+          y: lift,
+          z: Math.sin(a) * radius,
+          speed: 3.6 + (index % 13) * 0.22,
+          length: 0.55 + (index % 6) * 0.13,
+        }
+      }),
     }),
     []
   )
@@ -101,9 +149,11 @@ export const WeaponKillBoom = ({ rideState }: WeaponKillBoomProps) => {
   useFrame(() => {
     const group = groupRef.current
     const ring = ringRef.current
+    const innerRing = innerRingRef.current
     const flash = flashRef.current
     const particles = particlesRef.current
-    if (!group || !ring || !flash || !particles) return
+    const shards = shardsRef.current
+    if (!group || !ring || !innerRing || !flash || !particles || !shards) return
 
     const active = rideState.weaponKillBoomSecondsRemaining > 0
     group.visible = active
@@ -138,17 +188,23 @@ export const WeaponKillBoom = ({ rideState }: WeaponKillBoomProps) => {
     const clamped = Math.max(0, Math.min(1, progress))
     const fade = 1 - clamped
 
-    ring.scale.setScalar(0.35 + clamped * 5.6)
-    ringMaterial.opacity = fade * 0.62
+    ring.scale.setScalar(0.35 + clamped * 7.2)
+    ringMaterial.opacity = fade * 0.78
 
-    flash.scale.setScalar(1.4 + clamped * 1.9)
-    flashMaterial.opacity = Math.max(0, fade * 0.78 - clamped * 0.12)
+    innerRing.scale.setScalar(0.18 + clamped * 3.9)
+    innerRing.rotation.z = clamped * Math.PI * 0.35
+    innerRingMaterial.opacity = Math.max(0, 0.9 - clamped * 1.25)
 
-    particleMaterial.opacity = fade * 0.82
+    flash.scale.setScalar(1.8 + clamped * 2.8)
+    flashMaterial.opacity = Math.max(0, fade * 0.95 - clamped * 0.08)
+
+    particleMaterial.opacity = fade * 0.94
     scratch.seeds.forEach((seed, index) => {
       scratch.direction.set(seed.x, seed.y, seed.z).normalize()
-      scratch.position.copy(scratch.direction).multiplyScalar(seed.speed * clamped)
-      scratch.scale.setScalar(seed.size * (1 - clamped * 0.35))
+      scratch.position
+        .copy(scratch.direction)
+        .multiplyScalar(seed.speed * clamped * (1 + clamped * 0.55))
+      scratch.scale.setScalar(seed.size * (1.1 - clamped * 0.38))
       scratch.matrix.compose(
         scratch.position,
         scratch.particleQuaternion,
@@ -157,6 +213,23 @@ export const WeaponKillBoom = ({ rideState }: WeaponKillBoomProps) => {
       particles.setMatrixAt(index, scratch.matrix)
     })
     particles.instanceMatrix.needsUpdate = true
+
+    shardMaterial.opacity = Math.max(0, fade * 0.9 - clamped * 0.08)
+    scratch.shardSeeds.forEach((seed, index) => {
+      scratch.direction.set(seed.x, seed.y, seed.z).normalize()
+      scratch.position
+        .copy(scratch.direction)
+        .multiplyScalar(seed.speed * clamped * (0.35 + clamped))
+      scratch.quaternion.setFromUnitVectors(Y_AXIS, scratch.direction)
+      scratch.scale.set(1, seed.length * (1 - clamped * 0.28), 1)
+      scratch.matrix.compose(
+        scratch.position,
+        scratch.quaternion,
+        scratch.scale
+      )
+      shards.setMatrixAt(index, scratch.matrix)
+    })
+    shards.instanceMatrix.needsUpdate = true
   })
 
   return (
@@ -168,6 +241,12 @@ export const WeaponKillBoom = ({ rideState }: WeaponKillBoomProps) => {
         frustumCulled={false}
       />
       <mesh
+        ref={innerRingRef}
+        geometry={innerRingGeometry}
+        material={innerRingMaterial}
+        frustumCulled={false}
+      />
+      <mesh
         ref={flashRef}
         geometry={flashGeometry}
         material={flashMaterial}
@@ -176,6 +255,11 @@ export const WeaponKillBoom = ({ rideState }: WeaponKillBoomProps) => {
       <instancedMesh
         ref={particlesRef}
         args={[particleGeometry, particleMaterial, PARTICLE_COUNT]}
+        frustumCulled={false}
+      />
+      <instancedMesh
+        ref={shardsRef}
+        args={[shardGeometry, shardMaterial, SHARD_COUNT]}
         frustumCulled={false}
       />
     </group>

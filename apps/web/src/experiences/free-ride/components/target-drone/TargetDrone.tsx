@@ -4,15 +4,14 @@ import {
   BoxGeometry,
   Color,
   ConeGeometry,
+  CylinderGeometry,
   Matrix4,
   MeshBasicMaterial,
   MeshStandardMaterial,
+  TorusGeometry,
   Vector3,
 } from "three"
-import {
-  FREE_RIDE_PALETTE,
-  FREE_RIDE_TARGETS,
-} from "../../free-ride-config"
+import { FREE_RIDE_PALETTE, FREE_RIDE_TARGETS } from "../../free-ride-config"
 import { TargetDroneHighlight } from "./components/target-drone-highlight"
 import { TargetDroneWake } from "./components/target-drone-wake"
 import {
@@ -31,6 +30,15 @@ export const TargetDrone = ({ rideState }: TargetDroneProps) => {
   const groupRef = useRef<Group>(null)
   const bodyGeometry = useMemo(() => new BoxGeometry(1, 1, 1), [])
   const noseGeometry = useMemo(() => new ConeGeometry(0.42, 0.9, 4), [])
+  const rotorRingGeometry = useMemo(
+    () => new TorusGeometry(0.28, 0.025, 8, 28),
+    []
+  )
+  const rotorCoreGeometry = useMemo(
+    () => new CylinderGeometry(0.08, 0.1, 0.08, 12),
+    []
+  )
+  const rotorBladeGeometry = useMemo(() => new BoxGeometry(1, 1, 1), [])
   const bodyMaterial = useMemo(
     () =>
       new MeshStandardMaterial({
@@ -58,6 +66,18 @@ export const TargetDrone = ({ rideState }: TargetDroneProps) => {
         color: new Color(FREE_RIDE_PALETTE.neonMagenta).multiplyScalar(
           FREE_RIDE_TARGETS.glowIntensity
         ),
+        toneMapped: false,
+      }),
+    []
+  )
+  const hotCoreMaterial = useMemo(
+    () =>
+      new MeshBasicMaterial({
+        color: new Color(FREE_RIDE_TARGETS.weaponShotCoreColor).multiplyScalar(
+          1.8
+        ),
+        transparent: true,
+        opacity: 0.92,
         toneMapped: false,
       }),
     []
@@ -106,11 +126,8 @@ export const TargetDrone = ({ rideState }: TargetDroneProps) => {
     group.matrix.copy(scratch.matrix)
   })
 
-  const {
-    bodyLengthMeters,
-    bodyWidthMeters,
-    bodyHeightMeters,
-  } = FREE_RIDE_TARGETS
+  const { bodyLengthMeters, bodyWidthMeters, bodyHeightMeters } =
+    FREE_RIDE_TARGETS
 
   return (
     <group ref={groupRef} matrixAutoUpdate={false} frustumCulled={false}>
@@ -161,6 +178,51 @@ export const TargetDrone = ({ rideState }: TargetDroneProps) => {
           />
         </group>
       ))}
+      {([-1, 1] as const).flatMap((side) =>
+        ([-1, 1] as const).map((end) => (
+          <group
+            key={`${side}-${end}`}
+            position={[
+              side * bodyWidthMeters * 1.05,
+              -0.03,
+              end * bodyLengthMeters * 0.34,
+            ]}
+          >
+            <mesh
+              geometry={bodyGeometry}
+              material={bodyMaterial}
+              position={[-side * bodyWidthMeters * 0.28, 0, 0]}
+              scale={[bodyWidthMeters * 0.56, 0.08, 0.08]}
+              frustumCulled={false}
+            />
+            <mesh
+              geometry={rotorRingGeometry}
+              material={cyanGlowMaterial}
+              rotation={[Math.PI / 2, 0, 0]}
+              frustumCulled={false}
+            />
+            <mesh
+              geometry={rotorCoreGeometry}
+              material={bodyMaterial}
+              frustumCulled={false}
+            />
+            <mesh
+              geometry={rotorBladeGeometry}
+              material={hotCoreMaterial}
+              rotation={[0, end * Math.PI * 0.18, 0]}
+              scale={[0.46, 0.018, 0.055]}
+              frustumCulled={false}
+            />
+            <mesh
+              geometry={rotorBladeGeometry}
+              material={hotCoreMaterial}
+              rotation={[0, Math.PI / 2 + end * Math.PI * 0.18, 0]}
+              scale={[0.46, 0.018, 0.055]}
+              frustumCulled={false}
+            />
+          </group>
+        ))
+      )}
     </group>
   )
 }
