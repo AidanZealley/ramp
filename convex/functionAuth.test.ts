@@ -312,9 +312,10 @@ describe("public Convex function authorization", () => {
       handler(plans.removeWeek)(ctx, { weekId: week1Id })
     ).rejects.toThrow("Unauthorized")
     await expect(
-      handler(plans.updateWeekSchedule)(ctx, {
+      handler(plans.assignDayWorkout)(ctx, {
         weekId: week1Id,
-        workoutIdsByDay: [workout1Id, null, null, null, null, null, null],
+        dayIndex: 0,
+        workoutId: workout1Id,
       })
     ).rejects.toThrow("Unauthorized")
   })
@@ -327,9 +328,10 @@ describe("public Convex function authorization", () => {
     ])
 
     await expect(
-      handler(plans.updateWeekSchedule)(ctx, {
+      handler(plans.assignDayWorkout)(ctx, {
         weekId: week1Id,
-        workoutIdsByDay: [workout2Id, null, null, null, null, null, null],
+        dayIndex: 0,
+        workoutId: workout2Id,
       })
     ).rejects.toThrow("Unauthorized")
   })

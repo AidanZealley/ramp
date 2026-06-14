@@ -419,43 +419,41 @@ export const removeWeek = mutation({
   },
 })
 
-export const updateWeekSchedule = mutation({
+export const assignDayWorkout = mutation({
   args: {
     weekId: v.id("planWeeks"),
-    workoutIdsByDay: v.array(v.union(v.id("workouts"), v.null())),
+    dayIndex: v.number(),
+    workoutId: v.union(v.id("workouts"), v.null()),
   },
   handler: async (ctx, args) => {
     const ownerId = await requireAuthUserId(ctx)
     await requireOwnedWeek(ctx, args.weekId, ownerId)
-    if (args.workoutIdsByDay.length !== DAYS_PER_WEEK) {
-      throw new Error("Week schedule must contain exactly 7 days")
+    if (args.dayIndex < 0 || args.dayIndex >= DAYS_PER_WEEK) {
+      throw new Error("Day index must be between 0 and 6")
     }
-    await Promise.all(
-      args.workoutIdsByDay.map((workoutId) =>
-        workoutId ? requireOwnedWorkout(ctx, workoutId, ownerId) : null
-      )
-    )
+    if (args.workoutId) {
+      await requireOwnedWorkout(ctx, args.workoutId, ownerId)
+    }
 
+    // Guarantees exactly 7 real day rows so we can patch a single slot.
     await normalizeWeekSlots(ctx, args.weekId)
     const slots = await getWeekSlots(ctx, args.weekId)
-
-    for (let dayIndex = 0; dayIndex < DAYS_PER_WEEK; dayIndex += 1) {
-      const slot = slots.find(
-        (currentSlot) => slotDayIndex(currentSlot) === dayIndex
-      )
-      if (!slot) {
-        await ctx.db.insert("planWeekWorkouts", {
-          weekId: args.weekId,
-          dayIndex,
-          workoutId: args.workoutIdsByDay[dayIndex],
-        })
-        continue
-      }
-
-      await ctx.db.patch(slot._id, {
-        dayIndex,
-        workoutId: args.workoutIdsByDay[dayIndex],
+    const slot = slots.find(
+      (currentSlot) => slotDayIndex(currentSlot) === args.dayIndex
+    )
+    if (!slot) {
+      // Should not happen after normalize, but stay defensive.
+      await ctx.db.insert("planWeekWorkouts", {
+        weekId: args.weekId,
+        dayIndex: args.dayIndex,
+        workoutId: args.workoutId,
       })
+      return
     }
+
+    await ctx.db.patch(slot._id, {
+      dayIndex: args.dayIndex,
+      workoutId: args.workoutId,
+    })
   },
 })

@@ -2,16 +2,17 @@ import { useMemo, useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import { useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
-import { ArrowLeft, Plus } from "lucide-react"
-import { PlanScheduleGrid } from "./components/plan-schedule-grid"
+import { ArrowLeft } from "lucide-react"
 import { PlanActionsMenu } from "./components/plan-actions-menu"
-import { SelectWorkoutsDialog } from "./components/select-workouts-dialog"
+import { WeekView, findNextEmptyDay } from "./components/week-view"
+import { WorkoutDrawer } from "./components/workout-drawer"
 import type { Id } from "#convex/_generated/dataModel"
 import type { PlanEditorWeek } from "./types"
 import { api } from "#convex/_generated/api"
 import { EditableTitle } from "@/components/editable-title"
 import { Button } from "@/components/ui/button"
 import { PlanEditorSkeleton } from "@/components/plan-editor-skeleton"
+import { useMediaQuery } from "@/hooks/use-media-query"
 
 interface PlanEditorProps {
   planId: Id<"plans">
@@ -19,16 +20,47 @@ interface PlanEditorProps {
 
 export function PlanEditor({ planId }: PlanEditorProps) {
   const navigate = useNavigate()
+  const isDesktop = useMediaQuery("(min-width: 768px)")
   const plan = useQuery(api.plans.get, { planId })
   const updateTitle = useMutation(api.plans.updateTitle)
   const addWeek = useMutation(api.plans.addWeek)
   const removeWeek = useMutation(api.plans.removeWeek)
   const duplicatePlan = useMutation(api.plans.duplicatePlan)
   const removePlan = useMutation(api.plans.remove)
+  const assignDayWorkout = useMutation(
+    api.plans.assignDayWorkout
+  ).withOptimisticUpdate((localStore, args) => {
+    const current = localStore.getQuery(api.plans.get, { planId })
+    if (!current) return
+    const workoutList = localStore.getQuery(api.workouts.list) ?? []
+    const workout = args.workoutId
+      ? (workoutList.find((item) => item._id === args.workoutId) ?? null)
+      : null
 
-  const [selectionState, setSelectionState] = useState<{
-    weekId: Id<"planWeeks">
-    dayIndex: number
+    localStore.setQuery(
+      api.plans.get,
+      { planId },
+      {
+        ...current,
+        weeks: current.weeks.map((week) =>
+          week._id === args.weekId
+            ? {
+                ...week,
+                slots: week.slots.map((slot) =>
+                  slot.dayIndex === args.dayIndex
+                    ? { ...slot, workoutId: args.workoutId, workout }
+                    : slot
+                ),
+              }
+            : week
+        ),
+      }
+    )
+  })
+
+  const [weekIndex, setWeekIndex] = useState(0)
+  const [drawerState, setDrawerState] = useState<{
+    activeDayIndex: number
   } | null>(null)
 
   const displayWeeks = useMemo<Array<PlanEditorWeek>>(() => {
@@ -42,17 +74,9 @@ export function PlanEditor({ planId }: PlanEditorProps) {
     }))
   }, [plan])
 
-  const selectedWeek = useMemo(() => {
-    if (!selectionState) return null
-    return (
-      displayWeeks.find((week) => week._id === selectionState.weekId) ?? null
-    )
-  }, [displayWeeks, selectionState])
-
-  const selectedWeekNumber = useMemo(() => {
-    if (!selectedWeek) return 1
-    return displayWeeks.findIndex((week) => week._id === selectedWeek._id) + 1
-  }, [displayWeeks, selectedWeek])
+  const safeWeekIndex = Math.min(weekIndex, Math.max(0, displayWeeks.length - 1))
+  const currentWeek: PlanEditorWeek | null =
+    displayWeeks.length > 0 ? displayWeeks[safeWeekIndex] : null
 
   const handleTitleChange = async (title: string) => {
     await updateTitle({ planId, title })
@@ -71,17 +95,37 @@ export function PlanEditor({ planId }: PlanEditorProps) {
   }
 
   const handleAddWeek = async () => {
+    setDrawerState(null)
     await addWeek({ planId })
+    setWeekIndex(displayWeeks.length)
     toast.success("Week added")
   }
 
-  const handleDeleteWeek = async (weekId: Id<"planWeeks">) => {
-    await removeWeek({ weekId })
+  const handleDeleteWeek = async () => {
+    if (!currentWeek) return
+    setDrawerState(null)
+    await removeWeek({ weekId: currentWeek._id })
+    setWeekIndex(Math.max(0, Math.min(safeWeekIndex, displayWeeks.length - 2)))
     toast.success("Week deleted")
   }
 
-  const openWeekDialog = (week: PlanEditorWeek, dayIndex = 0) => {
-    setSelectionState({ weekId: week._id, dayIndex })
+  const handleAssign = (workoutId: Id<"workouts">) => {
+    if (!currentWeek || !drawerState) return
+    const { activeDayIndex } = drawerState
+    void assignDayWorkout({
+      weekId: currentWeek._id,
+      dayIndex: activeDayIndex,
+      workoutId,
+    })
+
+    if (isDesktop) {
+      const nextEmptyDay = findNextEmptyDay(currentWeek.slots, activeDayIndex)
+      if (nextEmptyDay !== null) {
+        setDrawerState({ activeDayIndex: nextEmptyDay })
+      }
+    } else {
+      setDrawerState(null)
+    }
   }
 
   if (plan === undefined) {
@@ -125,30 +169,35 @@ export function PlanEditor({ planId }: PlanEditorProps) {
         </div>
       </div>
 
-      <PlanScheduleGrid
-        weeks={displayWeeks}
-        onSelectWeek={(week) => openWeekDialog(week)}
-        onSelectDay={(week, dayIndex) => openWeekDialog(week, dayIndex)}
-        onDeleteWeek={(weekId) => void handleDeleteWeek(weekId)}
-      />
+      {currentWeek && (
+        <WeekView
+          week={currentWeek}
+          weekNumber={safeWeekIndex + 1}
+          totalWeeks={displayWeeks.length}
+          activeDayIndex={drawerState?.activeDayIndex ?? null}
+          onSelectDay={(dayIndex) => setDrawerState({ activeDayIndex: dayIndex })}
+          onPrevWeek={() => {
+            setDrawerState(null)
+            setWeekIndex((index) => Math.max(0, index - 1))
+          }}
+          onNextWeek={() => {
+            setDrawerState(null)
+            setWeekIndex((index) =>
+              Math.min(displayWeeks.length - 1, index + 1)
+            )
+          }}
+          onAddWeek={() => void handleAddWeek()}
+          onDeleteWeek={() => void handleDeleteWeek()}
+        />
+      )}
 
-      <Button
-        variant="outline"
-        className="w-full"
-        onClick={() => void handleAddWeek()}
-      >
-        <Plus className="size-4" />
-        Add Week
-      </Button>
-
-      <SelectWorkoutsDialog
-        open={selectionState !== null}
+      <WorkoutDrawer
+        open={drawerState !== null}
+        activeDayIndex={drawerState?.activeDayIndex ?? 0}
         onOpenChange={(open) => {
-          if (!open) setSelectionState(null)
+          if (!open) setDrawerState(null)
         }}
-        week={selectedWeek}
-        weekNumber={selectedWeekNumber}
-        initialDayIndex={selectionState?.dayIndex ?? 0}
+        onAssign={handleAssign}
       />
     </div>
   )
