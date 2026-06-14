@@ -6,13 +6,13 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { DayCard, DayCardDragOverlay } from "./day-card"
 import { WeekNav } from "./week-nav"
 import { WeekTotalsFooter } from "./week-totals-footer"
 import { getDaySlots } from "./utils"
 import type { PlanEditorWeek } from "../../types"
-import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core"
+import type { DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core"
 import type { ReactNode } from "react"
 
 interface WeekViewProps {
@@ -46,6 +46,9 @@ export function WeekView({
   const [activeDragDayIndex, setActiveDragDayIndex] = useState<number | null>(
     null
   )
+  const [activeOverDayIndex, setActiveOverDayIndex] = useState<number | null>(
+    null
+  )
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -57,14 +60,34 @@ export function WeekView({
     activeDragDayIndex === null
       ? null
       : (daySlots.find((slot) => slot.dayIndex === activeDragDayIndex) ?? null)
+  const activeOverSlot =
+    activeOverDayIndex === null
+      ? null
+      : (daySlots.find((slot) => slot.dayIndex === activeOverDayIndex) ?? null)
+
+  useEffect(() => {
+    if (activeDragDayIndex === null) return
+    const previousCursor = document.body.style.cursor
+    document.body.style.cursor = "grabbing"
+    return () => {
+      document.body.style.cursor = previousCursor
+    }
+  }, [activeDragDayIndex])
 
   const handleDragStart = (event: DragStartEvent) => {
     const dayIndex = event.active.data.current?.dayIndex
     setActiveDragDayIndex(typeof dayIndex === "number" ? dayIndex : null)
+    setActiveOverDayIndex(null)
+  }
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const dayIndex = event.over?.data.current?.dayIndex
+    setActiveOverDayIndex(typeof dayIndex === "number" ? dayIndex : null)
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveDragDayIndex(null)
+    setActiveOverDayIndex(null)
     const fromDayIndex = event.active.data.current?.dayIndex
     const toDayIndex = event.over?.data.current?.dayIndex
     if (
@@ -95,7 +118,11 @@ export function WeekView({
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
-        onDragCancel={() => setActiveDragDayIndex(null)}
+        onDragOver={handleDragOver}
+        onDragCancel={() => {
+          setActiveDragDayIndex(null)
+          setActiveOverDayIndex(null)
+        }}
         onDragEnd={handleDragEnd}
       >
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-7">
@@ -103,6 +130,13 @@ export function WeekView({
             <DayCard
               key={slot.dayIndex}
               slot={slot}
+              previewSlot={
+                activeDragDayIndex === slot.dayIndex &&
+                activeOverSlot?.workout &&
+                activeOverSlot.dayIndex !== slot.dayIndex
+                  ? activeOverSlot
+                  : null
+              }
               active={activeDayIndex === slot.dayIndex}
               onClick={() => onSelectDay(slot.dayIndex)}
             />
