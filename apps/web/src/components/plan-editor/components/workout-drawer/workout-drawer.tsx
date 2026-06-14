@@ -25,6 +25,7 @@ import { useMediaQuery } from "@/hooks/use-media-query"
 interface WorkoutDrawerProps {
   open: boolean
   activeDayIndex: number
+  mode?: "add" | "swap"
   onOpenChange: (open: boolean) => void
   onAssign: (workoutId: Id<"workouts">) => void
 }
@@ -34,6 +35,7 @@ const RECENT_LIMIT = 3
 export function WorkoutDrawer({
   open,
   activeDayIndex,
+  mode = "add",
   onOpenChange,
   onAssign,
 }: WorkoutDrawerProps) {
@@ -84,11 +86,13 @@ export function WorkoutDrawer({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side={isDesktop ? "right" : "bottom"}
-        showOverlay={!isDesktop}
         className="gap-0"
       >
         <SheetHeader className="px-5 pt-5 pr-12 pb-4">
-          <SheetTitle>Add workout to {getDayFullLabel(activeDayIndex)}</SheetTitle>
+          <SheetTitle>
+            {mode === "swap" ? "Swap workout for" : "Add workout to"}{" "}
+            {getDayFullLabel(activeDayIndex)}
+          </SheetTitle>
           <SheetDescription>
             Select a workout to assign it instantly.
           </SheetDescription>

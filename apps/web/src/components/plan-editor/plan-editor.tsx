@@ -1,10 +1,15 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import { useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 import { ArrowLeft } from "lucide-react"
 import { PlanActionsMenu } from "./components/plan-actions-menu"
-import { WeekView, findNextEmptyDay } from "./components/week-view"
+import {
+  WeekView,
+  getDaySlots,
+  getDefaultSelectedDayIndex,
+} from "./components/week-view"
+import { SelectedWorkoutPanel } from "./components/selected-workout-panel"
 import { WorkoutDrawer } from "./components/workout-drawer"
 import type { Id } from "#convex/_generated/dataModel"
 import type { PlanEditorWeek } from "./types"
@@ -12,7 +17,6 @@ import { api } from "#convex/_generated/api"
 import { EditableTitle } from "@/components/editable-title"
 import { Button } from "@/components/ui/button"
 import { PlanEditorSkeleton } from "@/components/plan-editor-skeleton"
-import { useMediaQuery } from "@/hooks/use-media-query"
 
 interface PlanEditorProps {
   planId: Id<"plans">
@@ -20,7 +24,6 @@ interface PlanEditorProps {
 
 export function PlanEditor({ planId }: PlanEditorProps) {
   const navigate = useNavigate()
-  const isDesktop = useMediaQuery("(min-width: 768px)")
   const plan = useQuery(api.plans.get, { planId })
   const updateTitle = useMutation(api.plans.updateTitle)
   const addWeek = useMutation(api.plans.addWeek)
@@ -59,9 +62,8 @@ export function PlanEditor({ planId }: PlanEditorProps) {
   })
 
   const [weekIndex, setWeekIndex] = useState(0)
-  const [drawerState, setDrawerState] = useState<{
-    activeDayIndex: number
-  } | null>(null)
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   const displayWeeks = useMemo<Array<PlanEditorWeek>>(() => {
     if (!plan) return []
@@ -77,6 +79,32 @@ export function PlanEditor({ planId }: PlanEditorProps) {
   const safeWeekIndex = Math.min(weekIndex, Math.max(0, displayWeeks.length - 1))
   const currentWeek: PlanEditorWeek | null =
     displayWeeks.length > 0 ? displayWeeks[safeWeekIndex] : null
+  const selectedSlot = currentWeek
+    ? getDaySlots(currentWeek).find((slot) => slot.dayIndex === selectedDayIndex) ??
+      null
+    : null
+  const pickerMode = selectedSlot?.workout ? "swap" : "add"
+
+  useEffect(() => {
+    if (!currentWeek) {
+      setSelectedDayIndex(null)
+      return
+    }
+
+    setSelectedDayIndex(getDefaultSelectedDayIndex(currentWeek))
+  }, [currentWeek?._id])
+
+  useEffect(() => {
+    if (!currentWeek) return
+    const daySlots = getDaySlots(currentWeek)
+    const selectedIsValid =
+      selectedDayIndex !== null &&
+      daySlots.some((slot) => slot.dayIndex === selectedDayIndex)
+
+    if (!selectedIsValid) {
+      setSelectedDayIndex(getDefaultSelectedDayIndex(currentWeek))
+    }
+  }, [currentWeek, selectedDayIndex])
 
   const handleTitleChange = async (title: string) => {
     await updateTitle({ planId, title })
@@ -95,7 +123,7 @@ export function PlanEditor({ planId }: PlanEditorProps) {
   }
 
   const handleAddWeek = async () => {
-    setDrawerState(null)
+    setPickerOpen(false)
     await addWeek({ planId })
     setWeekIndex(displayWeeks.length)
     toast.success("Week added")
@@ -103,29 +131,31 @@ export function PlanEditor({ planId }: PlanEditorProps) {
 
   const handleDeleteWeek = async () => {
     if (!currentWeek) return
-    setDrawerState(null)
+    setPickerOpen(false)
     await removeWeek({ weekId: currentWeek._id })
     setWeekIndex(Math.max(0, Math.min(safeWeekIndex, displayWeeks.length - 2)))
     toast.success("Week deleted")
   }
 
   const handleAssign = (workoutId: Id<"workouts">) => {
-    if (!currentWeek || !drawerState) return
-    const { activeDayIndex } = drawerState
+    if (!currentWeek || selectedDayIndex === null) return
     void assignDayWorkout({
       weekId: currentWeek._id,
-      dayIndex: activeDayIndex,
+      dayIndex: selectedDayIndex,
       workoutId,
     })
+    setPickerOpen(false)
+  }
 
-    if (isDesktop) {
-      const nextEmptyDay = findNextEmptyDay(currentWeek.slots, activeDayIndex)
-      if (nextEmptyDay !== null) {
-        setDrawerState({ activeDayIndex: nextEmptyDay })
-      }
-    } else {
-      setDrawerState(null)
-    }
+  const handleRemoveSelectedWorkout = () => {
+    if (!currentWeek || selectedDayIndex === null) return
+    void assignDayWorkout({
+      weekId: currentWeek._id,
+      dayIndex: selectedDayIndex,
+      workoutId: null,
+    })
+    setPickerOpen(false)
+    toast.success("Workout removed")
   }
 
   if (plan === undefined) {
@@ -169,34 +199,44 @@ export function PlanEditor({ planId }: PlanEditorProps) {
         </div>
       </div>
 
-      {currentWeek && (
+      {currentWeek && selectedSlot && (
         <WeekView
           week={currentWeek}
           weekNumber={safeWeekIndex + 1}
           totalWeeks={displayWeeks.length}
-          activeDayIndex={drawerState?.activeDayIndex ?? null}
-          onSelectDay={(dayIndex) => setDrawerState({ activeDayIndex: dayIndex })}
+          activeDayIndex={selectedDayIndex}
+          onSelectDay={(dayIndex) => setSelectedDayIndex(dayIndex)}
           onPrevWeek={() => {
-            setDrawerState(null)
+            setPickerOpen(false)
             setWeekIndex((index) => Math.max(0, index - 1))
           }}
           onNextWeek={() => {
-            setDrawerState(null)
-            setWeekIndex((index) =>
-              Math.min(displayWeeks.length - 1, index + 1)
-            )
+            setPickerOpen(false)
+            setWeekIndex((index) => Math.min(displayWeeks.length - 1, index + 1))
           }}
           onAddWeek={() => void handleAddWeek()}
           onDeleteWeek={() => void handleDeleteWeek()}
-        />
+        >
+          <SelectedWorkoutPanel
+            slot={selectedSlot}
+            onOpenPicker={() => setPickerOpen(true)}
+            onRemoveWorkout={handleRemoveSelectedWorkout}
+            onViewWorkoutDetails={() => {
+              if (!selectedSlot.workout) return
+              navigate({
+                to: "/workout/$id",
+                params: { id: selectedSlot.workout._id },
+              })
+            }}
+          />
+        </WeekView>
       )}
 
       <WorkoutDrawer
-        open={drawerState !== null}
-        activeDayIndex={drawerState?.activeDayIndex ?? 0}
-        onOpenChange={(open) => {
-          if (!open) setDrawerState(null)
-        }}
+        open={pickerOpen}
+        activeDayIndex={selectedDayIndex ?? 0}
+        mode={pickerMode}
+        onOpenChange={setPickerOpen}
         onAssign={handleAssign}
       />
     </div>

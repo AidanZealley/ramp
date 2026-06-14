@@ -1,2 +1,2 @@
 export { WeekView } from "./week-view"
-export { findNextEmptyDay, getDayFullLabel } from "./utils"
+export { getDayFullLabel, getDaySlots, getDefaultSelectedDayIndex } from "./utils"

@@ -3,12 +3,14 @@ import { WeekNav } from "./week-nav"
 import { WeekTotalsFooter } from "./week-totals-footer"
 import { getDaySlots } from "./utils"
 import type { PlanEditorWeek } from "../../types"
+import type { ReactNode } from "react"
 
 interface WeekViewProps {
   week: PlanEditorWeek
   weekNumber: number
   totalWeeks: number
   activeDayIndex: number | null
+  children?: ReactNode
   onSelectDay: (dayIndex: number) => void
   onPrevWeek: () => void
   onNextWeek: () => void
@@ -21,6 +23,7 @@ export function WeekView({
   weekNumber,
   totalWeeks,
   activeDayIndex,
+  children,
   onSelectDay,
   onPrevWeek,
   onNextWeek,
@@ -39,6 +42,8 @@ export function WeekView({
         onAddWeek={onAddWeek}
         onDeleteWeek={onDeleteWeek}
       />
+
+      {children}
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-7">
         {daySlots.map((slot) => (

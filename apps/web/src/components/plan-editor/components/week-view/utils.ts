@@ -33,21 +33,9 @@ export function getDaySlots(week: PlanEditorWeek): Array<PlanEditorSlot> {
   })
 }
 
-/**
- * Find the next empty day after `fromDayIndex`, wrapping around. Returns null
- * when every other day already has a workout.
- */
-export function findNextEmptyDay(
-  slots: Array<PlanEditorSlot>,
-  fromDayIndex: number
-): number | null {
-  const byDay = new Map(slots.map((slot) => [slot.dayIndex, slot]))
-  for (let offset = 1; offset < DAYS_PER_WEEK; offset += 1) {
-    const dayIndex = (fromDayIndex + offset) % DAYS_PER_WEEK
-    const slot = byDay.get(dayIndex)
-    if (!slot || !slot.workout) return dayIndex
-  }
-  return null
+export function getDefaultSelectedDayIndex(week: PlanEditorWeek): number {
+  const firstWorkoutSlot = getDaySlots(week).find((slot) => slot.workout !== null)
+  return firstWorkoutSlot?.dayIndex ?? 0
 }
 
 export function computeWeekTotals(week: PlanEditorWeek): WeekTotals {

@@ -1,6 +1,6 @@
 import { useMemo } from "react"
 import { Plus } from "lucide-react"
-import { getDayShortLabel } from "./utils"
+import { getDayFullLabel, getDayShortLabel } from "./utils"
 import type { PlanEditorSlot } from "../../types"
 import { WorkoutMini } from "@/components/workout-mini"
 import { Badge } from "@/components/ui/badge"
@@ -25,6 +25,11 @@ export function DayCard({ slot, active, onClick }: DayCardProps) {
       type="button"
       onClick={onClick}
       aria-pressed={active}
+      aria-label={
+        workout
+          ? `Select ${getDayFullLabel(slot.dayIndex)}, ${workout.title} assigned`
+          : `Select ${getDayFullLabel(slot.dayIndex)}, no workout assigned`
+      }
       className={cn(
         "flex min-h-44 w-full flex-col rounded-xl border border-border/60 bg-card p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/30",
         !workout && "border-dashed bg-muted/15",
