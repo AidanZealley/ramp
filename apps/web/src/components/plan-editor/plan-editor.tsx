@@ -22,6 +22,44 @@ interface PlanEditorProps {
   planId: Id<"plans">
 }
 
+function applyDayWorkoutMove(
+  weeks: Array<PlanEditorWeek>,
+  weekId: Id<"planWeeks">,
+  fromDayIndex: number,
+  toDayIndex: number
+): Array<PlanEditorWeek> {
+  return weeks.map((week) => {
+    if (week._id !== weekId) return week
+
+    const sourceSlot = week.slots.find(
+      (slot) => slot.dayIndex === fromDayIndex
+    )
+    const targetSlot = week.slots.find((slot) => slot.dayIndex === toDayIndex)
+    if (!sourceSlot?.workout || !targetSlot) return week
+
+    return {
+      ...week,
+      slots: week.slots.map((slot) => {
+        if (slot.dayIndex === fromDayIndex) {
+          return {
+            ...slot,
+            workoutId: targetSlot.workoutId,
+            workout: targetSlot.workout,
+          }
+        }
+        if (slot.dayIndex === toDayIndex) {
+          return {
+            ...slot,
+            workoutId: sourceSlot.workoutId,
+            workout: sourceSlot.workout,
+          }
+        }
+        return slot
+      }),
+    }
+  })
+}
+
 export function PlanEditor({ planId }: PlanEditorProps) {
   const navigate = useNavigate()
   const plan = useQuery(api.plans.get, { planId })
@@ -56,6 +94,33 @@ export function PlanEditor({ planId }: PlanEditorProps) {
                 ),
               }
             : week
+        ),
+      }
+    )
+  })
+  const moveDayWorkout = useMutation(
+    api.plans.moveDayWorkout
+  ).withOptimisticUpdate((localStore, args) => {
+    const current = localStore.getQuery(api.plans.get, { planId })
+    if (!current) return
+    const normalizedWeeks: Array<PlanEditorWeek> = current.weeks.map((week) => ({
+      ...week,
+      slots: week.slots.map((slot, index) => ({
+        ...slot,
+        dayIndex: slot.dayIndex ?? index,
+      })),
+    }))
+
+    localStore.setQuery(
+      api.plans.get,
+      { planId },
+      {
+        ...current,
+        weeks: applyDayWorkoutMove(
+          normalizedWeeks,
+          args.weekId,
+          args.fromDayIndex,
+          args.toDayIndex
         ),
       }
     )
@@ -158,6 +223,21 @@ export function PlanEditor({ planId }: PlanEditorProps) {
     toast.success("Workout removed")
   }
 
+  const handleMoveWorkout = (fromDayIndex: number, toDayIndex: number) => {
+    if (!currentWeek || fromDayIndex === toDayIndex) return
+    const sourceSlot = getDaySlots(currentWeek).find(
+      (slot) => slot.dayIndex === fromDayIndex
+    )
+    if (!sourceSlot?.workout) return
+
+    void moveDayWorkout({
+      weekId: currentWeek._id,
+      fromDayIndex,
+      toDayIndex,
+    })
+    setSelectedDayIndex(toDayIndex)
+  }
+
   if (plan === undefined) {
     return <PlanEditorSkeleton />
   }
@@ -216,6 +296,7 @@ export function PlanEditor({ planId }: PlanEditorProps) {
           }}
           onAddWeek={() => void handleAddWeek()}
           onDeleteWeek={() => void handleDeleteWeek()}
+          onMoveWorkout={handleMoveWorkout}
         >
           <SelectedWorkoutPanel
             slot={selectedSlot}

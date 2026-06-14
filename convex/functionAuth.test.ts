@@ -62,9 +62,10 @@ function week(
 function slot(
   id: Id<"planWeekWorkouts">,
   weekId: Id<"planWeeks">,
-  workoutId: Id<"workouts"> | null
+  workoutId: Id<"workouts"> | null,
+  dayIndex = 0
 ): Doc<"planWeekWorkouts"> {
-  return { _id: id, _creationTime: 1, weekId, workoutId, dayIndex: 0 }
+  return { _id: id, _creationTime: 1, weekId, workoutId, dayIndex }
 }
 
 function route(id: Id<"routes">, ownerId: Id<"users">): Doc<"routes"> {
@@ -318,6 +319,13 @@ describe("public Convex function authorization", () => {
         workoutId: workout1Id,
       })
     ).rejects.toThrow("Unauthorized")
+    await expect(
+      handler(plans.moveDayWorkout)(ctx, {
+        weekId: week1Id,
+        fromDayIndex: 0,
+        toDayIndex: 1,
+      })
+    ).rejects.toThrow("Unauthorized")
   })
 
   it("rejects scheduling another user's workout into an owned plan week", async () => {
@@ -334,6 +342,54 @@ describe("public Convex function authorization", () => {
         workoutId: workout2Id,
       })
     ).rejects.toThrow("Unauthorized")
+  })
+
+  it("moves a workout between days in one plan week", async () => {
+    const { ctx, patches } = createCtx([
+      plan(plan1Id, user1),
+      week(week1Id, plan1Id),
+      workout(workout1Id, user1),
+      slot(slot1Id, week1Id, workout1Id, 1),
+      slot(slot2Id, week1Id, null, 2),
+    ])
+
+    await handler(plans.moveDayWorkout)(ctx, {
+      weekId: week1Id,
+      fromDayIndex: 1,
+      toDayIndex: 2,
+    })
+
+    expect(patches.get(slot1Id)).toEqual({ dayIndex: 1, workoutId: null })
+    expect(patches.get(slot2Id)).toEqual({
+      dayIndex: 2,
+      workoutId: workout1Id,
+    })
+  })
+
+  it("swaps workouts between assigned days in one plan week", async () => {
+    const { ctx, patches } = createCtx([
+      plan(plan1Id, user1),
+      week(week1Id, plan1Id),
+      workout(workout1Id, user1),
+      workout(workout2Id, user1),
+      slot(slot1Id, week1Id, workout1Id, 1),
+      slot(slot2Id, week1Id, workout2Id, 2),
+    ])
+
+    await handler(plans.moveDayWorkout)(ctx, {
+      weekId: week1Id,
+      fromDayIndex: 1,
+      toDayIndex: 2,
+    })
+
+    expect(patches.get(slot1Id)).toEqual({
+      dayIndex: 1,
+      workoutId: workout2Id,
+    })
+    expect(patches.get(slot2Id)).toEqual({
+      dayIndex: 2,
+      workoutId: workout1Id,
+    })
   })
 
   it("skips cross-owner workout references during deletion cleanup", async () => {

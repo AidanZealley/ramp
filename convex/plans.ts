@@ -457,3 +457,55 @@ export const assignDayWorkout = mutation({
     })
   },
 })
+
+export const moveDayWorkout = mutation({
+  args: {
+    weekId: v.id("planWeeks"),
+    fromDayIndex: v.number(),
+    toDayIndex: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const ownerId = await requireAuthUserId(ctx)
+    await requireOwnedWeek(ctx, args.weekId, ownerId)
+    if (
+      args.fromDayIndex < 0 ||
+      args.fromDayIndex >= DAYS_PER_WEEK ||
+      args.toDayIndex < 0 ||
+      args.toDayIndex >= DAYS_PER_WEEK
+    ) {
+      throw new Error("Day index must be between 0 and 6")
+    }
+    if (args.fromDayIndex === args.toDayIndex) {
+      return
+    }
+
+    // Guarantees exactly 7 real day rows so the move/swap is a two-row patch.
+    await normalizeWeekSlots(ctx, args.weekId)
+    const slots = await getWeekSlots(ctx, args.weekId)
+    const sourceSlot = slots.find(
+      (currentSlot) => slotDayIndex(currentSlot) === args.fromDayIndex
+    )
+    const targetSlot = slots.find(
+      (currentSlot) => slotDayIndex(currentSlot) === args.toDayIndex
+    )
+    if (!sourceSlot || !targetSlot || !sourceSlot.workoutId) {
+      return
+    }
+
+    await requireOwnedWorkout(ctx, sourceSlot.workoutId, ownerId)
+    if (targetSlot.workoutId) {
+      await requireOwnedWorkout(ctx, targetSlot.workoutId, ownerId)
+    }
+
+    await Promise.all([
+      ctx.db.patch(sourceSlot._id, {
+        dayIndex: args.fromDayIndex,
+        workoutId: targetSlot.workoutId,
+      }),
+      ctx.db.patch(targetSlot._id, {
+        dayIndex: args.toDayIndex,
+        workoutId: sourceSlot.workoutId,
+      }),
+    ])
+  },
+})
