@@ -4,7 +4,7 @@ import { Capability } from "@ramp/ride-core"
 import { useRouteSimulationRide } from "./use-route-simulation-ride"
 import type { RideFrameData, RideSessionState } from "@ramp/ride-core"
 import type { ParsedRouteGpx } from "@/lib/routes/types"
-import type { ExperienceSessionAPI } from "@/ride/experience-session"
+import type { RideSessionController } from "@ramp/ride-core"
 
 const route: ParsedRouteGpx = {
   title: "Test route",
@@ -81,8 +81,9 @@ function createSession() {
     trainerConnected: true,
   }
 
-  const session: ExperienceSessionAPI = {
+  const session: RideSessionController = {
     getState: () => state,
+    getLatestTelemetry: () => null,
     subscribe: (listener) => {
       storeListeners.add(listener)
       return () => storeListeners.delete(listener)
@@ -93,6 +94,9 @@ function createSession() {
     },
     pause,
     resume,
+    connectTrainer: () => Promise.resolve({ ok: true }),
+    disconnectTrainer: () => Promise.resolve(),
+    dispose: () => Promise.resolve(),
     controls: {
       dispatch,
       getCapabilities: () => new Set([Capability.SimulationGrade]),

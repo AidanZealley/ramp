@@ -19,7 +19,7 @@ export type ArbitrationPolicy = {
 }
 
 export const defaultPolicy: ArbitrationPolicy = {
-  precedence: { system: 100, user: 75, workout: 50, experience: 25 },
+  precedence: { system: 100, user: 75, experience: 50 },
   coalesceMs: {
     [Capability.SimulationGrade]: 200,
     [Capability.TargetPower]: 50,

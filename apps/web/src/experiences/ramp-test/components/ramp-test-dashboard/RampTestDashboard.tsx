@@ -9,7 +9,7 @@ import type {
   ActivityResumeStateInput,
   ActivitySummaryInput,
 } from "@/components/activity/types"
-import type { ExperienceSessionAPI } from "@/ride/experience-session"
+import type { RideSessionController } from "@ramp/ride-core"
 import {
   getCompletedIntervalCount,
   getIntervalBounds,
@@ -43,7 +43,7 @@ type RampTestDashboardProps = {
   title: string
   intervals: Array<Interval>
   ftp: number
-  session: ExperienceSessionAPI
+  session: RideSessionController
   workoutState: WorkoutSessionState
   phase: RampPhase
   calculatedFtp: number | null

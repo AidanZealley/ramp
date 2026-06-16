@@ -29,7 +29,7 @@ import type {
   ActivitySummaryInput,
 } from "@/components/activity/types"
 import type { ClientWorkoutDoc } from "@/ride/convex-workout-mapper"
-import type { ExperienceSessionAPI } from "@/ride/experience-session"
+import type { RideSessionController } from "@ramp/ride-core"
 import { EndActivityDialog } from "@/components/activity/end-activity-dialog"
 import { SaveActivityDialog } from "@/components/activity/save-activity-dialog"
 import {
@@ -52,7 +52,7 @@ type LiveWorkoutDashboardProps = {
   onDifficultyChange: (difficultyPercent: number) => void | Promise<void>
   onDifficultyReset: () => void | Promise<void>
   ftp: number
-  session: ExperienceSessionAPI
+  session: RideSessionController
   workout: ClientWorkoutDoc
   workoutState: WorkoutSessionState
   activity?: ActivityExperienceAPI

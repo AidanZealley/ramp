@@ -5,13 +5,13 @@ import {
   getRampStartSeconds,
 } from "../ramp-protocol"
 import { useRampTestMonitor } from "./use-ramp-test-monitor"
-import type { ExperienceSessionAPI } from "@/ride/experience-session"
+import type { RideSessionController } from "@ramp/ride-core"
 import type {
   WorkoutSessionController,
   WorkoutSessionState,
 } from "@ramp/ride-workouts"
 
-type FakeSession = ExperienceSessionAPI & {
+type FakeSession = RideSessionController & {
   notify: () => void
   setTelemetry: (patch: {
     powerWatts?: number | null
@@ -47,13 +47,17 @@ function createFakeSession(options: {
 
   return {
     getState: () => state,
+    getLatestTelemetry: () => null,
     subscribe: (listener: () => void) => {
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
     subscribeFrame: () => () => undefined,
+    connectTrainer: () => Promise.resolve({ ok: true as const }),
+    disconnectTrainer: () => Promise.resolve(),
     pause: vi.fn(),
     resume: vi.fn(),
+    dispose: () => Promise.resolve(),
     controls: {
       dispatch: vi.fn(() => Promise.resolve({ ok: true as const })),
       getCapabilities: () => new Set(),

@@ -15,7 +15,7 @@ function RideLauncherRoute() {
 
   return (
     <RideExperiencePickerPage
-      headerAction={<RideConnectionControl runtime={runtime} />}
+      headerAction={<RideConnectionControl />}
     >
       {runtime.source === "none" ? <RideConnectionScreen /> : null}
     </RideExperiencePickerPage>

@@ -46,7 +46,7 @@ type SessionOptions = {
     telemetryAgeMs: number | null
     telemetrySource: "simulated" | "ftms-ble" | "wahoo-kickr-ble" | "ant" | null
   }>
-  activeControlMode?: "manual" | "workout" | "experience"
+  activeControlMode?: "manual" | "experience"
   paused?: boolean
   lastError?: string | null
 }

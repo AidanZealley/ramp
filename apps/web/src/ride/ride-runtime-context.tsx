@@ -23,8 +23,3 @@ export const useRideRuntimeContext = (): RideRuntimeController => {
   if (!runtime) throw new Error("RideRuntimeContext is missing")
   return runtime
 }
-
-export const useOptionalRideRuntimeContext =
-  (): RideRuntimeController | null => {
-    return useContext(RideRuntimeContext)
-  }

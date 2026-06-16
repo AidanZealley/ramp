@@ -13,7 +13,7 @@ import {
 import type { RampPhase } from "../ramp-protocol"
 import type { PowerSample } from "../utils"
 import type { WorkoutSessionController } from "@ramp/ride-workouts"
-import type { ExperienceSessionAPI } from "@/ride/experience-session"
+import type { RideSessionController } from "@ramp/ride-core"
 
 const POWER_WINDOW_MS = 60_000
 const LOW_CADENCE_RPM = 50
@@ -47,7 +47,7 @@ export function useRampTestMonitor({
   workoutController,
   active,
 }: {
-  session: ExperienceSessionAPI
+  session: RideSessionController
   workoutController: WorkoutSessionController | null
   active: boolean
 }): RampTestMonitorResult {

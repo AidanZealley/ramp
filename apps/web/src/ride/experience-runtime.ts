@@ -4,7 +4,6 @@ import type {
 } from "@ramp/ride-core"
 import type { TrainerError } from "@ramp/trainer-io"
 import type { ActivityExperienceAPI } from "@/components/activity/types"
-import type { ExperienceSessionAPI } from "@/ride/experience-session"
 import type React from "react"
 
 export type RideExperienceConnection = {
@@ -15,18 +14,6 @@ export type RideExperienceConnection = {
 }
 
 type RideExperienceViewProps = {
-  session: ExperienceSessionAPI
-  connection?: RideExperienceConnection
-  search?: {
-    activityId?: string
-    workoutId?: string
-    routeId?: string
-    routeSegmentId?: string
-  }
-  activity?: ActivityExperienceAPI
-}
-
-type PrivilegedRideExperienceViewProps = {
   session: RideSessionController
   connection?: RideExperienceConnection
   search?: {
@@ -38,16 +25,8 @@ type PrivilegedRideExperienceViewProps = {
   activity?: ActivityExperienceAPI
 }
 
-export type RideExperiencePlugin =
-  | {
-      id: string
-      displayName: string
-      privileged?: false
-      ExperienceView: React.ComponentType<RideExperienceViewProps>
-    }
-  | {
-      id: string
-      displayName: string
-      privileged: true
-      ExperienceView: React.ComponentType<PrivilegedRideExperienceViewProps>
-    }
+export type RideExperiencePlugin = {
+  id: string
+  displayName: string
+  ExperienceView: React.ComponentType<RideExperienceViewProps>
+}

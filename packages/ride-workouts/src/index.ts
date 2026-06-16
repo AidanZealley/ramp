@@ -6,7 +6,6 @@ export {
 } from "./controller"
 export type {
   CreateWorkoutControllerOptions,
-  WorkoutRideSession,
   WorkoutSessionController,
   WorkoutSessionState,
 } from "./controller"

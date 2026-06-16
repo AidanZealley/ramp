@@ -2,15 +2,20 @@ import { Capability } from "@ramp/ride-core"
 import type {
   DispatchOptions,
   DispatchResult,
+  RideFrameData,
+  RideSessionController,
   RideSessionState,
+  RideTrainerAdapter,
+  RideConnectionResult,
+  RideDisconnectOptions,
   TrainerCapabilitiesView,
   TrainerCommand,
+  TrainerCommandSource,
 } from "@ramp/ride-core"
-import type { WorkoutRideSession } from "../controller"
 
 export type WorkoutDispatchEntry = {
   command: TrainerCommand
-  source: "workout"
+  source: TrainerCommandSource
   options?: DispatchOptions
 }
 
@@ -55,13 +60,32 @@ export function createWorkoutSessionHarness(options?: {
     lastTrainerError: null,
   })
 
-  const session: WorkoutRideSession = {
+  const session: RideSessionController = {
     getState: state,
+    getLatestTelemetry: () => null,
     subscribe(listener) {
       listeners.add(listener)
       return () => {
         listeners.delete(listener)
       }
+    },
+    subscribeFrame(_listener: (frame: RideFrameData) => void) {
+      return () => undefined
+    },
+    connectTrainer(_trainer: RideTrainerAdapter): Promise<RideConnectionResult> {
+      return Promise.resolve({ ok: true })
+    },
+    disconnectTrainer(_options?: RideDisconnectOptions): Promise<void> {
+      return Promise.resolve()
+    },
+    pause() {
+      return undefined
+    },
+    resume() {
+      return undefined
+    },
+    dispose() {
+      return Promise.resolve()
     },
     controls: {
       dispatch(command, source, dispatchOptions) {

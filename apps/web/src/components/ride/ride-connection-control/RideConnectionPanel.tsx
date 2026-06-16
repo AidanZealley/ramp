@@ -3,17 +3,14 @@ import { ConnectionStatus } from "./ConnectionStatus"
 import { getConnectionState } from "./utils"
 import type { RideConnectionPanelProps } from "./types"
 import { Button } from "@/components/ui/button"
-import { useOptionalRideRuntimeContext } from "@/ride/ride-runtime-context"
 import { cn } from "@/lib/utils"
+import { useRideRuntimeContext } from "@/ride/ride-runtime-context"
 
 export const RideConnectionPanel = ({
-  runtime,
   compact = false,
   hideIntro = false,
 }: RideConnectionPanelProps) => {
-  const contextRuntime = useOptionalRideRuntimeContext()
-  const controller = runtime ?? contextRuntime
-  if (!controller) return null
+  const controller = useRideRuntimeContext()
 
   const state = getConnectionState(controller)
   const busy = state.status === "selecting" || state.status === "connecting"

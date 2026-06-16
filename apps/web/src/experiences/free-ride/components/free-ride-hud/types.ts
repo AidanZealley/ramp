@@ -1,8 +1,8 @@
-import type { ExperienceSessionAPI } from "@/ride/experience-session"
+import type { RideSessionController } from "@ramp/ride-core"
 import type { RideState } from "../../ride-state"
 
 export type FreeRideHudProps = {
-  session: ExperienceSessionAPI
+  session: RideSessionController
   rideState: RideState
 }
 

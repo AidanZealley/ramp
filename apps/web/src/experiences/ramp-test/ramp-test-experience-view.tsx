@@ -1,7 +1,6 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -22,7 +21,6 @@ import {
 } from "./ramp-protocol"
 import type { RideExperienceConnection } from "@/ride/experience-runtime"
 import type {
-  WorkoutRideSession,
   WorkoutSessionController,
   WorkoutSessionState,
 } from "@ramp/ride-workouts"
@@ -31,7 +29,7 @@ import type {
   ActivityClientDoc,
   ActivityExperienceAPI,
 } from "@/components/activity/types"
-import type { ExperienceSessionAPI } from "@/ride/experience-session"
+import type { RideSessionController } from "@ramp/ride-core"
 import { SaveActivityDialog } from "@/components/activity/save-activity-dialog"
 import { UnresolvedActivityDialog } from "@/components/activity/unresolved-activity-dialog"
 import { formatActivityDuration } from "@/components/activity/format"
@@ -72,7 +70,7 @@ export function RampTestExperienceView({
   search?: {
     activityId?: string
   }
-  session: ExperienceSessionAPI
+  session: RideSessionController
   activity?: ActivityExperienceAPI
 }) {
   const navigate = useNavigate({ from: "/ride/$experienceId" })
@@ -83,27 +81,15 @@ export function RampTestExperienceView({
   )
   const [workoutController, setWorkoutController] =
     useState<WorkoutSessionController | null>(null)
-  const workoutSession = useMemo<WorkoutRideSession>(
-    () => ({
-      getState: session.getState,
-      subscribe: session.subscribe,
-      controls: {
-        dispatch: (command, _source, options) =>
-          session.controls.dispatch(command, "experience", options),
-        getCapabilities: session.controls.getCapabilities,
-      },
-    }),
-    [session]
-  )
 
   useEffect(() => {
-    const nextController = createWorkoutController({ session: workoutSession })
+    const nextController = createWorkoutController({ session })
     setWorkoutController(nextController)
     return () => {
       nextController.dispose()
       setWorkoutController(null)
     }
-  }, [workoutSession])
+  }, [session])
 
   const workoutState = useSyncExternalStore(
     workoutController?.subscribe ?? subscribeToPendingWorkout,

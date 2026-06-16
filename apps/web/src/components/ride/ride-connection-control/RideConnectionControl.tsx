@@ -4,17 +4,14 @@ import { getConnectionState, getConnectionTriggerLabel } from "./utils"
 import type { RideConnectionControlProps } from "./types"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { useOptionalRideRuntimeContext } from "@/ride/ride-runtime-context"
 import { cn } from "@/lib/utils"
+import { useRideRuntimeContext } from "@/ride/ride-runtime-context"
 
 export const RideConnectionControl = ({
-  runtime,
   onDisconnect,
   className,
 }: RideConnectionControlProps) => {
-  const contextRuntime = useOptionalRideRuntimeContext()
-  const controller = runtime ?? contextRuntime
-  if (!controller) return null
+  const controller = useRideRuntimeContext()
 
   const state = getConnectionState(controller)
   const busy = state.status === "selecting" || state.status === "connecting"

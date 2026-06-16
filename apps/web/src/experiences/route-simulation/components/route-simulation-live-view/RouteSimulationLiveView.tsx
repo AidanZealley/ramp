@@ -15,7 +15,7 @@ import type {
   ActivitySummaryInput,
 } from "@/components/activity/types"
 import type { RideExperienceConnection } from "@/ride/experience-runtime"
-import type { ExperienceSessionAPI } from "@/ride/experience-session"
+import type { RideSessionController } from "@ramp/ride-core"
 import type {
   RouteProgressMode,
   RouteSimulationRideController,
@@ -34,7 +34,7 @@ type RouteSimulationLiveViewProps = {
   ride: RouteSimulationRideController
   route: ParsedRouteGpx
   progressMode: RouteProgressMode
-  session: ExperienceSessionAPI
+  session: RideSessionController
 }
 
 export const RouteSimulationLiveView = ({

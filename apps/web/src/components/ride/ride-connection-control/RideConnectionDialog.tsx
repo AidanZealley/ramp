@@ -37,7 +37,7 @@ export const RideConnectionDialog = ({
             start.
           </DialogDescription>
         </DialogHeader>
-        <RideConnectionPanel runtime={runtime} compact />
+        <RideConnectionPanel compact />
       </DialogContent>
     </Dialog>
   )

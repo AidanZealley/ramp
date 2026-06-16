@@ -15,7 +15,7 @@ import type {
   ActivityExperienceAPI,
 } from "@/components/activity/types"
 import type { RideExperienceConnection } from "@/ride/experience-runtime"
-import type { ExperienceSessionAPI } from "@/ride/experience-session"
+import type { RideSessionController } from "@ramp/ride-core"
 import { api } from "#convex/_generated/api"
 import { formatActivityDuration } from "@/components/activity/format"
 import { SaveActivityDialog } from "@/components/activity/save-activity-dialog"
@@ -31,7 +31,7 @@ type RouteSimulationExperienceViewProps = {
     routeId?: string
     routeSegmentId?: string
   }
-  session: ExperienceSessionAPI
+  session: RideSessionController
 }
 
 export function RouteSimulationExperienceView({

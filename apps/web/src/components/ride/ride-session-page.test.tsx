@@ -137,7 +137,6 @@ vi.mock("@/ride/ride-runtime-context", async () => {
         cancelConnection: vi.fn(() => Promise.resolve()),
       } satisfies RideRuntimeController
     },
-    useOptionalRideRuntimeContext: () => null,
   }
 })
 

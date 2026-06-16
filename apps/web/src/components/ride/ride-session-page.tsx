@@ -6,7 +6,6 @@ import type { RideExperienceDefinition } from "@/experiences/types"
 import type { RideRuntimeController } from "@/ride/use-ride-runtime"
 import { useActivitySession } from "@/hooks/activity/use-activity-session"
 import { useElementSize } from "@/hooks/use-element-size"
-import { narrowForExperience } from "@/ride/experience-session"
 import { useRideRuntimeContext } from "@/ride/ride-runtime-context"
 
 type RideExperienceSearchProps = {
@@ -81,10 +80,6 @@ function RideSessionExperience({
   trainerController: ReadyRideRuntimeController
 }) {
   const { connection, session } = trainerController
-  const experienceSession = useMemo(
-    () => narrowForExperience(session),
-    [session]
-  )
   const [isCockpitOpen, setIsCockpitOpen] = useState(false)
   const [cockpitHeight, setCockpitHeight] = useState(0)
   const [overlayHeaderHeight, setOverlayHeaderHeight] = useState(0)
@@ -145,9 +140,7 @@ function RideSessionExperience({
         >
           <Suspense fallback={null}>
             <ExperienceView
-              session={
-                experience.id === "diagnostics" ? session : experienceSession
-              }
+              session={session}
               connection={connection}
               activity={activity}
               search={search}

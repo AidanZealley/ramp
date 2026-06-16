@@ -164,7 +164,6 @@ export function RideOverlay({
             </AlertDialog>
 
             <RideConnectionControl
-              runtime={trainerController}
               onDisconnect={() => {
                 setIsDisconnectDialogOpen(true)
               }}

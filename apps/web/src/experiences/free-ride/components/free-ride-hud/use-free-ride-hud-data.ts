@@ -3,7 +3,7 @@ import { useQuery } from "convex/react"
 import { useRideThrottledSelector } from "@ramp/ride-react"
 import { clamp01 } from "./utils"
 import type { FreeRideHudViewModel } from "./types"
-import type { ExperienceSessionAPI } from "@/ride/experience-session"
+import type { RideSessionController } from "@ramp/ride-core"
 import type { RideState } from "../../ride-state"
 import { FREE_RIDE_TARGETS } from "../../free-ride-config"
 import { api } from "#convex/_generated/api"
@@ -35,7 +35,7 @@ function splitValueUnit(formatted: string): { value: string; unit: string } {
  * it is sampled via a throttled rAF loop rather than a subscription.
  */
 export function useFreeRideHudData(
-  session: ExperienceSessionAPI,
+  session: RideSessionController,
   rideState: RideState
 ): FreeRideHudViewModel {
   const telemetry = useRideThrottledSelector(session, (s) => s.telemetry, {

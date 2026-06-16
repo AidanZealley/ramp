@@ -6,7 +6,7 @@ import { FreeRideHud } from "./components/free-ride-hud"
 import { FREE_RIDE_ELEVATION } from "./free-ride-config"
 import { createRideState } from "./ride-state"
 import { clamp } from "./track"
-import type { ExperienceSessionAPI } from "@/ride/experience-session"
+import type { RideSessionController } from "@ramp/ride-core"
 import { api } from "#convex/_generated/api"
 import { DEFAULT_FTP } from "@/lib/workout-utils"
 
@@ -22,7 +22,7 @@ const GRADE_DEADBAND_PERCENT = 0.5
 export function FreeRideExperienceView({
   session,
 }: {
-  session: ExperienceSessionAPI
+  session: RideSessionController
 }) {
   const rideState = useMemo(() => createRideState(), [])
   const preferences = useQuery(api.preferences.get)

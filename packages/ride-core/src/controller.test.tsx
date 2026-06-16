@@ -361,7 +361,7 @@ describe("ride-core", () => {
 
     const dispatch = session.controls.dispatch(
       { type: "setMode", mode: "erg" },
-      "workout",
+      "experience",
       { priority: "immediate", delivery: "acknowledged" }
     )
 
@@ -371,7 +371,7 @@ describe("ride-core", () => {
 
     releaseCommand()
     await expect(dispatch).resolves.toEqual({ ok: true })
-    expect(session.getState().activeControlMode).toBe("workout")
+    expect(session.getState().activeControlMode).toBe("experience")
   })
 
   it("acknowledged dispatch rejects after max retry", async () => {

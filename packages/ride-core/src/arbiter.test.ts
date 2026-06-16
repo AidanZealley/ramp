@@ -42,10 +42,10 @@ describe("CommandArbiter", () => {
     const arbiter = createArbiter()
     const { adapter, commands } = createTrainerAdapterHarness()
 
-    arbiter.enqueue({ type: "setTargetPower", watts: 200 }, "workout", {
+    arbiter.enqueue({ type: "setTargetPower", watts: 200 }, "experience", {
       priority: "immediate",
     })
-    arbiter.enqueue({ type: "setTargetPower", watts: 215 }, "workout", {
+    arbiter.enqueue({ type: "setTargetPower", watts: 215 }, "experience", {
       priority: "immediate",
     })
 
@@ -124,7 +124,7 @@ describe("CommandArbiter", () => {
     const arbiter = createArbiter()
     const superseded = arbiter.enqueue(
       { type: "setTargetPower", watts: 200 },
-      "workout",
+      "experience",
       { delivery: "acknowledged" }
     )
     arbiter.enqueue({ type: "setTargetPower", watts: 205 }, "user")

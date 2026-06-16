@@ -1,26 +1,10 @@
 import { Capability } from "@ramp/ride-core"
 import { getWorkoutSegmentAtElapsed } from "./segments"
 import type {
-  DispatchOptions,
   DispatchResult,
-  RideSessionState,
-  TrainerCapabilitiesView,
-  TrainerCommand,
+  RideSessionController,
 } from "@ramp/ride-core"
 import type { WorkoutDefinition } from "./types"
-
-export type WorkoutRideSession = {
-  getState: () => RideSessionState
-  subscribe: (listener: () => void) => () => void
-  controls: {
-    dispatch: (
-      command: TrainerCommand,
-      source: "workout",
-      options?: DispatchOptions
-    ) => Promise<DispatchResult>
-    getCapabilities: () => TrainerCapabilitiesView
-  }
-}
 
 export type WorkoutSessionState = {
   activeWorkoutId: string | null
@@ -51,7 +35,7 @@ export interface WorkoutSessionController {
 }
 
 export type CreateWorkoutControllerOptions = {
-  session: WorkoutRideSession
+  session: RideSessionController
   dispatchIntervalSeconds?: number
 }
 
@@ -172,7 +156,7 @@ export function createWorkoutController({
     try {
       const result = await session.controls.dispatch(
         { type: "setMode", mode: "free" },
-        "workout"
+        "experience"
       )
       if (generation !== asyncStateGeneration || disposed) return
       if (!result.ok) {
@@ -255,7 +239,7 @@ export function createWorkoutController({
       void session.controls
         .dispatch(
           { type: "setTargetPower", watts: scaledTargetWatts },
-          "workout",
+          "experience",
           {
             priority:
               isFirstDispatch || segmentChanged ? "immediate" : "normal",
@@ -300,7 +284,7 @@ export function createWorkoutController({
     try {
       const result = await session.controls.dispatch(
         { type: "setTargetPower", watts: targetWatts },
-        "workout",
+        "experience",
         { priority: "immediate", delivery: "acknowledged" }
       )
       if (generation !== asyncStateGeneration || disposed) return result
@@ -424,7 +408,7 @@ export function createWorkoutController({
 
       const modeResult = await session.controls.dispatch(
         { type: "setMode", mode: "erg" },
-        "workout",
+        "experience",
         { priority: "immediate", delivery: "acknowledged" }
       )
       if (!modeResult.ok) {
@@ -439,7 +423,7 @@ export function createWorkoutController({
       )
       const targetResult = await session.controls.dispatch(
         { type: "setTargetPower", watts: firstTargetWatts },
-        "workout",
+        "experience",
         { priority: "immediate", delivery: "acknowledged" }
       )
       if (!targetResult.ok) {

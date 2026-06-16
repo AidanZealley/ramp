@@ -12,7 +12,7 @@ import {
   smoothingLevelToMeters,
 } from "../utils"
 import type { ParsedRouteGpx, RoutePosition } from "@/lib/routes/types"
-import type { ExperienceSessionAPI } from "@/ride/experience-session"
+import type { RideSessionController } from "@ramp/ride-core"
 import type { PhysicsConfig, PhysicsState } from "@/experiences/physics"
 import type {
   LastGradeDispatch,
@@ -34,7 +34,7 @@ type UseRouteSimulationRideInput = {
   parsedRoute: ParsedRouteGpx | null
   physicsConfig: PhysicsConfig | null
   progressMode: RouteProgressMode
-  session: ExperienceSessionAPI
+  session: RideSessionController
   supportsSimulation: boolean
   trainerConnected: boolean
 }

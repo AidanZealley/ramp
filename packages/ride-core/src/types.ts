@@ -30,12 +30,12 @@ export type RideSessionState = {
   telemetry: RideTelemetry
   trainerConnected: boolean
   paused: boolean
-  activeControlMode: "manual" | "workout" | "experience"
+  activeControlMode: "manual" | "experience"
   lastError: string | null
   lastTrainerError: TrainerError | null
 }
 
-export type TrainerCommandSource = "user" | "workout" | "experience" | "system"
+export type TrainerCommandSource = "user" | "experience" | "system"
 
 export type DispatchResult = { ok: true } | { ok: false; reason: string }
 

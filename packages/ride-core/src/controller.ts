@@ -293,12 +293,7 @@ export function createRideSession(
           const mode = result.command.mode
           setState((previous) => ({
             ...previous,
-            activeControlMode:
-              mode === "erg"
-                ? "workout"
-                : mode === "free"
-                  ? "manual"
-                  : "experience",
+            activeControlMode: mode === "free" ? "manual" : "experience",
           }))
         }
         if (result.sent && state.lastError !== null) {
@@ -356,12 +351,7 @@ export function createRideSession(
             const mode = command.mode
             setState((previous) => ({
               ...previous,
-              activeControlMode:
-                mode === "erg"
-                  ? "workout"
-                  : mode === "free"
-                    ? "manual"
-                    : "experience",
+              activeControlMode: mode === "free" ? "manual" : "experience",
             }))
           }
         } catch (error: unknown) {
