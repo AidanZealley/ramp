@@ -12,13 +12,13 @@ import {
   Vector3,
 } from "three"
 import { FREE_RIDE_PALETTE, FREE_RIDE_TARGETS } from "../../free-ride-config"
-import { TargetDroneHighlight } from "./components/target-drone-highlight"
-import { TargetDroneWake } from "./components/target-drone-wake"
 import {
   createTrackSample,
   getVisualTrackY,
   sampleTrackInto,
 } from "../../track"
+import { TargetDroneHighlight } from "./components/target-drone-highlight"
+import { TargetDroneWake } from "./components/target-drone-wake"
 import type { Group } from "three"
 import type { RideState } from "../../ride-state"
 

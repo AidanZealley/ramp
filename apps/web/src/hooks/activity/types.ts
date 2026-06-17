@@ -4,7 +4,7 @@ import type {
   ActivityStartResult,
 } from "@/components/activity/types"
 import type { Id } from "#convex/_generated/dataModel"
-import { api } from "#convex/_generated/api"
+import type { api } from "#convex/_generated/api"
 
 export type UseActivitySessionArgs = {
   activityId?: Id<"activities">

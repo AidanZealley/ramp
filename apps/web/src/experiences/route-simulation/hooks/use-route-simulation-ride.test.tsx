@@ -2,9 +2,8 @@ import { act, renderHook, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import { Capability } from "@ramp/ride-core"
 import { useRouteSimulationRide } from "./use-route-simulation-ride"
-import type { RideFrameData, RideSessionState } from "@ramp/ride-core"
+import type { RideFrameData, RideSessionController, RideSessionState  } from "@ramp/ride-core"
 import type { ParsedRouteGpx } from "@/lib/routes/types"
-import type { RideSessionController } from "@ramp/ride-core"
 
 const route: ParsedRouteGpx = {
   title: "Test route",

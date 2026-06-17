@@ -2,9 +2,6 @@ import { act, renderHook, waitFor } from "@testing-library/react"
 import { StrictMode } from "react"
 import { renderToString } from "react-dom/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import type { ReactNode } from "react"
-import type * as TrainerIo from "@ramp/trainer-io"
-import type { RideRuntimeController } from "./use-ride-runtime"
 import {
   createMockTrainer,
   mockBluetooth,
@@ -15,6 +12,9 @@ import {
   waitForBleConnection,
   waitForIdleConnection,
 } from "./test-utils/ride-runtime-test-helpers"
+import type { ReactNode } from "react"
+import type * as TrainerIo from "@ramp/trainer-io"
+import type { RideRuntimeController } from "./use-ride-runtime"
 import type { TrainerError } from "@ramp/trainer-io"
 
 const { requestBleDevice } = vi.hoisted(() => ({
@@ -334,7 +334,7 @@ describe("useRideRuntime", () => {
     await waitForBleConnection(result, "Manual Trainer")
     expect(result.current.connectionView.phase).toBe("connected")
 
-    await act(async () => {
+    await act(() => {
       resolveAutoConnect()
     })
     await waitFor(() => {
@@ -456,7 +456,7 @@ describe("useRideRuntime", () => {
     let connectPromise!: Promise<
       Awaited<ReturnType<typeof result.current.connectTrainer>>
     >
-    await act(async () => {
+    await act(() => {
       connectPromise = result.current.connectTrainer()
     })
 

@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react"
-import { expect } from "vitest"
+import { expect,  vi  } from "vitest"
+import type {Mock} from "vitest";
 import type { RenderHookResult } from "@testing-library/react"
-import { vi, type Mock } from "vitest"
 import type { RideRuntimeController } from "../use-ride-runtime"
 import type { RideConnectionView } from "../trainer-connection/types"
 import type { TrainerSource } from "@ramp/trainer-io"

@@ -1,9 +1,9 @@
 import { useId } from "react"
 import {
+  DEFAULT_DIVIDER_GAP_WIDTH,
   VIEW_BOX_HEIGHT,
   VIEW_BOX_WIDTH,
   buildSegmentShapes,
-  DEFAULT_DIVIDER_GAP_WIDTH,
   getChartMaxPower,
   getFtpY,
   getPowerScale,

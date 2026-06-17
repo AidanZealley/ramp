@@ -8,20 +8,6 @@ import {
 import { createRideSession } from "@ramp/ride-core"
 import { SimulatedTrainer } from "@ramp/trainer-io"
 import { toTrainerError } from "@ramp/ride-contracts"
-import {
-  createBleTrainer,
-  getGrantedBleDevices,
-  isWebBluetoothAvailable,
-  requestBleDevice,
-} from "@/ride/trainer-connection/ble-trainer-factory"
-import { createRideConnectionView } from "@/ride/trainer-connection/connection-view"
-import {
-  clearSavedTrainer,
-  createSavedTrainer,
-  findSavedBleDevice,
-  readSavedTrainer,
-  writeSavedTrainer,
-} from "@/ride/trainer-connection/saved-ble-trainer"
 import type {
   RideConnectionResult,
   RideSessionController,
@@ -42,6 +28,20 @@ import type {
   TrainerError,
   TrainerSource,
 } from "@ramp/trainer-io"
+import {
+  clearSavedTrainer,
+  createSavedTrainer,
+  findSavedBleDevice,
+  readSavedTrainer,
+  writeSavedTrainer,
+} from "@/ride/trainer-connection/saved-ble-trainer"
+import { createRideConnectionView } from "@/ride/trainer-connection/connection-view"
+import {
+  createBleTrainer,
+  getGrantedBleDevices,
+  isWebBluetoothAvailable,
+  requestBleDevice,
+} from "@/ride/trainer-connection/ble-trainer-factory"
 
 export type {
   RideConnectionPhase,

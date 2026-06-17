@@ -8,13 +8,13 @@ import type {
   ActivitySummaryInput,
 } from "@/components/activity/types"
 import type { Id } from "#convex/_generated/dataModel"
-import { api } from "#convex/_generated/api"
-import { getActivityResumeUrl } from "@/components/activity/routing"
 import type {
   StartActivityInput,
   UnresolvedActivityError,
   UseActivitySessionArgs,
 } from "@/hooks/activity/types"
+import { api } from "#convex/_generated/api"
+import { getActivityResumeUrl } from "@/components/activity/routing"
 import { isUnresolvedActivityError } from "@/hooks/activity/utils"
 
 export function useActivitySession({
@@ -203,10 +203,10 @@ export function useActivitySession({
   )
 
   const discardById = useCallback(
-    async (activityId: Id<"activities">) => {
-      await discardMutation({ activityId })
+    async (targetActivityId: Id<"activities">) => {
+      await discardMutation({ activityId: targetActivityId })
       setLocalActivity((current) =>
-        current?._id === activityId ? null : current
+        current?._id === targetActivityId ? null : current
       )
     },
     [discardMutation]

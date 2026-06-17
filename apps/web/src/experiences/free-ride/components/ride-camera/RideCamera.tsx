@@ -10,9 +10,9 @@ import {
   sampleTrackInto,
 } from "../../track"
 import { measureFreeRideSection } from "../../perf"
+import { getGradeCameraBiasTarget, getYawDriftTarget } from "./utils"
 import type { RideState } from "../../ride-state"
 import type { PerspectiveCamera } from "three"
-import { getGradeCameraBiasTarget, getYawDriftTarget } from "./utils"
 
 type RideCameraProps = {
   rideState: RideState

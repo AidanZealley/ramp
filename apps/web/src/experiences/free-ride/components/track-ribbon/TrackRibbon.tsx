@@ -281,9 +281,9 @@ export const TrackRibbon = ({ rideState }: TrackRibbonProps) => {
       geometry.attributes.position.needsUpdate = true
       geometry.attributes.normal.needsUpdate = true
       const uniforms = materialRef.current.uniforms
-      if (uniforms.time) uniforms.time.value = state.clock.elapsedTime
-      if (uniforms.speed) uniforms.speed.value = rideState.speed
-      if (uniforms.roadOffset) uniforms.roadOffset.value = start
+      uniforms.time.value = state.clock.elapsedTime
+      uniforms.speed.value = rideState.speed
+      uniforms.roadOffset.value = start
     })
   })
 

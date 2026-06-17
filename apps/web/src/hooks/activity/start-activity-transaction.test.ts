@@ -11,7 +11,7 @@ describe("startActivityTransaction", () => {
     const startLocal = vi.fn(() => Promise.resolve())
 
     const result = await startActivityTransaction({
-      startActivity: async () => ({ ok: true, activity }),
+      startActivity: () => Promise.resolve({ ok: true, activity }),
       startLocal,
       discardActivity: vi.fn(),
     })
@@ -25,11 +25,12 @@ describe("startActivityTransaction", () => {
     const blockedActivity = { _id: "blocked-activity" } as ActivityClientDoc
 
     const result = await startActivityTransaction({
-      startActivity: async () => ({
-        ok: false,
-        reason: "unresolvedActivityExists",
-        activity: blockedActivity,
-      }),
+      startActivity: () =>
+        Promise.resolve({
+          ok: false,
+          reason: "unresolvedActivityExists",
+          activity: blockedActivity,
+        }),
       startLocal,
       discardActivity: vi.fn(),
     })
@@ -47,10 +48,8 @@ describe("startActivityTransaction", () => {
     const discardActivity = vi.fn(() => Promise.resolve())
 
     const result = await startActivityTransaction({
-      startActivity: async () => ({ ok: true, activity }),
-      startLocal: async () => {
-        throw error
-      },
+      startActivity: () => Promise.resolve({ ok: true, activity }),
+      startLocal: () => Promise.reject(error),
       discardActivity,
     })
 
@@ -67,10 +66,8 @@ describe("startActivityTransaction", () => {
     const resetLocal = vi.fn()
 
     await startActivityTransaction({
-      startActivity: async () => ({ ok: true, activity }),
-      startLocal: async () => {
-        throw new Error("dispatch failed")
-      },
+      startActivity: () => Promise.resolve({ ok: true, activity }),
+      startLocal: () => Promise.reject(new Error("dispatch failed")),
       discardActivity: vi.fn(() => Promise.resolve()),
       resetLocal,
     })
@@ -85,13 +82,9 @@ describe("startActivityTransaction", () => {
       .mockImplementation(() => undefined)
 
     const result = await startActivityTransaction({
-      startActivity: async () => ({ ok: true, activity }),
-      startLocal: async () => {
-        throw error
-      },
-      discardActivity: async () => {
-        throw new Error("cleanup failed")
-      },
+      startActivity: () => Promise.resolve({ ok: true, activity }),
+      startLocal: () => Promise.reject(error),
+      discardActivity: () => Promise.reject(new Error("cleanup failed")),
     })
 
     expect(result).toEqual({
@@ -112,7 +105,7 @@ describe("startActivityTransaction", () => {
     const discardActivity = vi.fn()
 
     const result = await startActivityTransaction({
-      startActivity: async () => ({ ok: true, activity: null }),
+      startActivity: () => Promise.resolve({ ok: true, activity: null }),
       startLocal,
       discardActivity,
     })
